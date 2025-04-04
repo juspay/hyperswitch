@@ -14,7 +14,7 @@ use crate::{
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers, services,
-    services::{request, ConnectorIntegration, ConnectorValidation},
+    services::{request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -123,6 +123,8 @@ impl ConnectorCommon for Gpayments {
             reason: response.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -613,3 +615,5 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+impl ConnectorSpecifications for Gpayments {}

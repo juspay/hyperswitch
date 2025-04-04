@@ -41,6 +41,7 @@ pub struct GatewayStatusMap {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
+    pub clear_pan_possible: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -58,6 +59,7 @@ pub struct GatewayStatusMappingNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
+    pub clear_pan_possible: bool,
 }
 
 #[derive(
@@ -78,6 +80,7 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
     pub last_modified: PrimitiveDateTime,
+    pub clear_pan_possible: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -89,6 +92,7 @@ pub struct GatewayStatusMappingUpdate {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
+    pub clear_pan_possible: Option<bool>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
@@ -101,6 +105,7 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             unified_code,
             unified_message,
             error_category,
+            clear_pan_possible,
         } = value;
         Self {
             status,
@@ -116,6 +121,7 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             sub_flow: None,
             code: None,
             message: None,
+            clear_pan_possible,
         }
     }
 }

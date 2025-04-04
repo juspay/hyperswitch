@@ -25,7 +25,10 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -139,18 +142,21 @@ impl ConnectorCommon for Cashtocode {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error.to_string(),
-            message: response.error_description,
-            reason: None,
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
 
 impl ConnectorValidation for Cashtocode {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -452,3 +458,5 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cashtoc
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cashtocode {
     // default implementation of build_request method will be executed
 }
+
+impl ConnectorSpecifications for Cashtocode {}

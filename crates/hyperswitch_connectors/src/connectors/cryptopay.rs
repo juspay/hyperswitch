@@ -27,7 +27,10 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -190,6 +193,8 @@ impl ConnectorCommon for Cryptopay {
             reason: response.error.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -496,3 +501,5 @@ impl webhooks::IncomingWebhook for Cryptopay {
         Ok(Box::new(notif))
     }
 }
+
+impl ConnectorSpecifications for Cryptopay {}

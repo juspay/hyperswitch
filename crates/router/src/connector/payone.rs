@@ -30,7 +30,7 @@ use crate::{
     headers,
     services::{
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -210,6 +210,8 @@ impl ConnectorCommon for Payone {
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
             None => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -218,6 +220,8 @@ impl ConnectorCommon for Payone {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             }),
         }
     }
@@ -429,3 +433,5 @@ impl ConnectorErrorTypeMapping for Payone {
         }
     }
 }
+
+impl ConnectorSpecifications for Payone {}

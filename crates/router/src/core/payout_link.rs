@@ -17,10 +17,7 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
-    core::{
-        payments::helpers as payment_helpers,
-        payouts::{helpers as payout_helpers, validator},
-    },
+    core::payouts::{helpers as payout_helpers, validator},
     errors,
     routes::{app::StorageInterface, SessionState},
     services,
@@ -46,7 +43,6 @@ pub async fn initiate_payout_link(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
-    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -128,7 +124,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::ExpiredLink(expired_link_data),
-                    locale,
+                    locale: state.locale,
                 },
             )))
         }
@@ -245,7 +241,7 @@ pub async fn initiate_payout_link(
                 enabled_payment_methods_with_required_fields,
                 amount,
                 currency: payout.destination_currency,
-                locale: locale.clone(),
+                locale: state.locale.clone(),
                 form_layout: link_data.form_layout,
                 test_mode: link_data.test_mode.unwrap_or(false),
             };
@@ -270,7 +266,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::PayoutLink(generic_form_data),
-                    locale,
+                    locale: state.locale.clone(),
                 },
             )))
         }
@@ -282,7 +278,7 @@ pub async fn initiate_payout_link(
                     &state,
                     payout_attempt.unified_code.as_ref(),
                     payout_attempt.unified_message.as_ref(),
-                    &locale,
+                    &state.locale.clone(),
                 )
                 .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
@@ -322,14 +318,14 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains,
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
-                    locale,
+                    locale: state.locale.clone(),
                 },
             )))
         }
     }
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn filter_payout_methods(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -352,8 +348,7 @@ pub async fn filter_payout_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // Filter MCAs based on profile_id and connector_type
-    let filtered_mcas = payment_helpers::filter_mca_based_on_profile_and_connector_type(
-        all_mcas,
+    let filtered_mcas = all_mcas.filter_based_on_profile_and_connector_type(
         &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );

@@ -180,6 +180,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
         | WalletData::ApplePay(_)
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
@@ -316,7 +317,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BokuResponse, T, PaymentsResponseData>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -499,7 +500,8 @@ pub struct BokuErrorResponse {
 }
 
 fn get_hosted_data(item: &types::PaymentsAuthorizeRouterData) -> Option<BokuHostedData> {
-    item.return_url
+    item.request
+        .router_return_url
         .clone()
         .map(|url| BokuHostedData { forward_url: url })
 }

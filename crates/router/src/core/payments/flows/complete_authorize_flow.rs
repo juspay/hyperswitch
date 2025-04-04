@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use masking::ExposeInterface;
-use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -182,6 +181,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             Ok(types::PaymentMethodTokenResult {
                 payment_method_token_result: Ok(None),
                 is_payment_method_tokenization_performed: false,
+                connector_response: None,
             })
         }
     }
@@ -256,12 +256,11 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 ("connector", connector.connector_name.to_string()),
                 ("payment_method", router_data.payment_method.to_string()),
-            ]),
+            ),
         );
 
         let mut router_data_request = router_data.request.to_owned();
@@ -320,6 +319,8 @@ impl<F>
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
             integrity_object: None,
+            split_payments: None,
+            webhook_url: None,
         })
     }
 }

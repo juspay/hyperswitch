@@ -346,6 +346,7 @@ impl
             | BankTransferData::CimbVaBankTransfer { .. }
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -487,6 +488,7 @@ impl
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -523,7 +525,7 @@ impl
             amount,
             terminal_uuid: Secret::new(terminal_uuid),
             signature: None,
-            url_redirect: item.router_data.request.get_return_url()?,
+            url_redirect: item.router_data.request.get_router_return_url()?,
         };
         checkout_request.signature =
             Some(get_checkout_signature(&checkout_request, &session_data)?);
@@ -723,6 +725,7 @@ impl TryFrom<&BankRedirectData> for ZenPaymentsRequest {
             | BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Trustly { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Eps { .. }
             | BankRedirectData::Giropay { .. }
             | BankRedirectData::Przelewy24 { .. }
@@ -937,6 +940,8 @@ fn get_zen_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(response.id.clone()),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None
@@ -949,7 +954,7 @@ fn get_zen_response(
         network_txn_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
-        charge_id: None,
+        charges: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -993,7 +998,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..value.data
         })
@@ -1083,6 +1088,8 @@ fn get_zen_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.id.clone()),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     } else {
         None

@@ -115,7 +115,7 @@ pub async fn refunds_update() {}
 
 /// Refunds - List
 ///
-/// Lists all the refunds associated with the merchant or a payment_id if payment_id is not provided
+/// Lists all the refunds associated with the merchant, or for a specific payment if payment_id is provided
 #[utoipa::path(
     post,
     path = "/refunds/list",

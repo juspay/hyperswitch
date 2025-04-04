@@ -152,7 +152,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.data.id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             |context| {
                 Ok(PaymentsResponseData::TransactionUnresolvedResponse{
@@ -278,8 +278,8 @@ fn get_crypto_specific_payment_data(
         })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
-    let redirect_url = item.request.get_return_url()?;
-    let cancel_url = item.request.get_return_url()?;
+    let redirect_url = item.request.get_router_return_url()?;
+    let cancel_url = item.request.get_router_return_url()?;
 
     Ok(CoinbasePaymentsRequest {
         name,

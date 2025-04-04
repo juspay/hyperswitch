@@ -36,7 +36,8 @@ type PaymentSessionUpdateOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -49,6 +50,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -76,6 +78,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
@@ -178,6 +182,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             poll_config: None,
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -192,7 +200,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -332,6 +340,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -364,7 +373,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -442,7 +451,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]

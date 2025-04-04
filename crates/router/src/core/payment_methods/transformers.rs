@@ -1,9 +1,4 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
-
 use api_models::{enums as api_enums, payment_methods::Card};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -11,12 +6,14 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::types::payment_methods as pm_types;
+use crate::types::{payment_methods as pm_types, transformers};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -144,8 +141,8 @@ pub struct AddCardResponse {
     pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
-    pub name_on_card: Option<Secret<String>>,
-    pub nickname: Option<String>,
+    pub name_on_card: Option<common_utils::types::NameType>,
+    pub nickname: Option<common_utils::types::NameType>,
     pub customer_id: Option<id_type::CustomerId>,
     pub duplicate: Option<bool>,
 }
@@ -527,14 +524,14 @@ pub fn mk_add_card_response_hs(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_pm_vaulting_req_from_update_request(
-    pm_create: pm_types::PaymentMethodVaultingData,
+    pm_create: domain::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
-) -> pm_types::PaymentMethodVaultingData {
+) -> domain::PaymentMethodVaultingData {
     match (pm_create, pm_update) {
         (
-            pm_types::PaymentMethodVaultingData::Card(card_create),
+            domain::PaymentMethodVaultingData::Card(card_create),
             api::PaymentMethodUpdateData::Card(update_card),
-        ) => pm_types::PaymentMethodVaultingData::Card(api::CardDetail {
+        ) => domain::PaymentMethodVaultingData::Card(api::CardDetail {
             card_number: card_create.card_number,
             card_exp_month: card_create.card_exp_month,
             card_exp_year: card_create.card_exp_year,
@@ -544,36 +541,77 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_type: card_create.card_type,
             card_holder_name: update_card.card_holder_name,
             nick_name: update_card.nick_name,
+            card_cvc: None,
         }),
+        _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.
     }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
-    pm: &domain::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
+    single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
-    let pmd = pm
+    let pmd = payment_method
         .payment_method_data
         .clone()
-        .map(|data| data.into_inner().expose().into_inner())
+        .map(|data| data.into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
             }
             _ => None,
         });
+    let mut connector_tokens = payment_method
+        .connector_mandate_details
+        .as_ref()
+        .and_then(|connector_token_details| connector_token_details.payments.clone())
+        .map(|payment_token_details| payment_token_details.0)
+        .map(|payment_token_details| {
+            payment_token_details
+                .into_iter()
+                .map(transformers::ForeignFrom::foreign_from)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if let Some(token) = single_use_token {
+        let connector_token_single_use = transformers::ForeignFrom::foreign_from(token);
+        connector_tokens.push(connector_token_single_use);
+    }
+    let connector_tokens = if connector_tokens.is_empty() {
+        None
+    } else {
+        Some(connector_tokens)
+    };
+
+    let network_token_pmd = payment_method
+        .network_token_payment_method_data
+        .clone()
+        .map(|data| data.into_inner())
+        .and_then(|data| match data {
+            domain::PaymentMethodsData::NetworkToken(token) => {
+                Some(api::NetworkTokenDetailsPaymentMethod::from(token))
+            }
+            _ => None,
+        });
+
+    let network_token = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
+        payment_method_data: pmd,
+    });
 
     let resp = api::PaymentMethodResponse {
-        merchant_id: pm.merchant_id.to_owned(),
-        customer_id: pm.customer_id.to_owned(),
-        payment_method_id: pm.id.get_string_repr().to_owned(),
-        payment_method_type: pm.get_payment_method_type(),
-        payment_method_subtype: pm.get_payment_method_subtype(),
-        created: Some(pm.created_at),
+        merchant_id: payment_method.merchant_id.to_owned(),
+        customer_id: payment_method.customer_id.to_owned(),
+        id: payment_method.id.to_owned(),
+        payment_method_type: payment_method.get_payment_method_type(),
+        payment_method_subtype: payment_method.get_payment_method_subtype(),
+        created: Some(payment_method.created_at),
         recurring_enabled: false,
-        last_used_at: Some(pm.last_used_at),
-        client_secret: pm.client_secret.clone(),
+        last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
+        connector_tokens,
+        network_token,
     };
 
     Ok(resp)
@@ -793,7 +831,7 @@ pub fn get_card_detail(
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(Secret::new),
+        nick_name: response.nick_name,
         card_isin: None,
         card_issuer: None,
         card_network: None,
@@ -820,7 +858,7 @@ pub fn get_card_detail(
         expiry_year: Some(response.card_exp_year),
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
-        nick_name: response.nick_name.map(Secret::new),
+        nick_name: response.nick_name,
         card_isin: None,
         card_issuer: None,
         card_network: None,
@@ -828,15 +866,6 @@ pub fn get_card_detail(
         saved_to_locker: true,
     };
     Ok(card_detail)
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<api::PaymentMethodCreateData> for pm_types::PaymentMethodVaultingData {
-    fn from(item: api::PaymentMethodCreateData) -> Self {
-        match item {
-            api::PaymentMethodCreateData::Card(card) => Self::Card(card),
-        }
-    }
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
@@ -871,8 +900,8 @@ pub fn mk_card_value1(
     card_number: cards::CardNumber,
     exp_year: String,
     exp_month: String,
-    name_on_card: Option<String>,
-    nickname: Option<String>,
+    name_on_card: Option<common_utils::types::NameType>,
+    nickname: Option<common_utils::types::NameType>,
     card_last_four: Option<String>,
     card_token: Option<String>,
 ) -> CustomResult<String, errors::VaultError> {
@@ -909,4 +938,210 @@ pub fn mk_card_value2(
         .encode_to_string_of_json()
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value2_req)
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymentMethod {
+    type Error = error_stack::Report<errors::ValidationError>;
+
+    fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
+        // For payment methods that are active we should always have the payment method subtype
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_subtype".to_string(),
+                })?;
+
+        // For payment methods that are active we should always have the payment method type
+        let payment_method_type =
+            item.payment_method_type
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_type".to_string(),
+                })?;
+
+        let payment_method_data = item
+            .payment_method_data
+            .map(|payment_method_data| payment_method_data.into_inner())
+            .map(|payment_method_data| match payment_method_data {
+                api_models::payment_methods::PaymentMethodsData::Card(
+                    card_details_payment_method,
+                ) => {
+                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                    api_models::payment_methods::PaymentMethodListData::Card(card_details)
+                }
+                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                    todo!()
+                }
+            });
+
+        let payment_method_billing = item
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from);
+
+        let network_token_pmd = item
+            .network_token_payment_method_data
+            .clone()
+            .map(|data| data.into_inner())
+            .and_then(|data| match data {
+                domain::PaymentMethodsData::NetworkToken(token) => {
+                    Some(api::NetworkTokenDetailsPaymentMethod::from(token))
+                }
+                _ => None,
+            });
+
+        let network_token_resp = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
+            payment_method_data: pmd,
+        });
+
+        // TODO: check how we can get this field
+        let recurring_enabled = true;
+
+        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
+            details.payments.map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
+                })
+            })
+        });
+
+        Ok(Self {
+            id: item.id,
+            customer_id: item.customer_id,
+            payment_method_type,
+            payment_method_subtype,
+            created: item.created_at,
+            last_used_at: item.last_used_at,
+            recurring_enabled,
+            payment_method_data,
+            bank: None,
+            requires_cvv: true,
+            is_default: false,
+            billing: payment_method_billing,
+            network_tokenization: network_token_resp,
+            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn generate_payment_method_session_response(
+    payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    client_secret: Secret<String>,
+    associated_payment: Option<api_models::payments::PaymentsResponse>,
+) -> api_models::payment_methods::PaymentMethodSessionResponse {
+    let next_action = associated_payment
+        .as_ref()
+        .and_then(|payment| payment.next_action.clone());
+
+    let authentication_details =
+        associated_payment.map(
+            |payment| api_models::payment_methods::AuthenticationDetails {
+                status: payment.status,
+                error: payment.error,
+            },
+        );
+
+    api_models::payment_methods::PaymentMethodSessionResponse {
+        id: payment_method_session.id,
+        customer_id: payment_method_session.customer_id,
+        billing: payment_method_session
+            .billing
+            .map(|address| address.into_inner())
+            .map(From::from),
+        psp_tokenization: payment_method_session.psp_tokenization,
+        network_tokenization: payment_method_session.network_tokenization,
+        expires_at: payment_method_session.expires_at,
+        client_secret,
+        next_action,
+        return_url: payment_method_session.return_url,
+        associated_payment_methods: payment_method_session.associated_payment_methods,
+        authentication_details,
+    }
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetails>
+    for hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord
+{
+    fn foreign_from(item: api_models::payment_methods::ConnectorTokenDetails) -> Self {
+        let api_models::payment_methods::ConnectorTokenDetails {
+            status,
+            connector_token_request_reference_id,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            token,
+            ..
+        } = item;
+
+        Self {
+            connector_token: token.expose().clone(),
+            // TODO: check why do we need this field
+            payment_method_subtype: None,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token_status: status,
+            connector_token_request_reference_id,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    transformers::ForeignFrom<(
+        id_type::MerchantConnectorAccountId,
+        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
+    )> for api_models::payment_methods::ConnectorTokenDetails
+{
+    fn foreign_from(
+        (connector_id, mandate_reference_record): (
+            id_type::MerchantConnectorAccountId,
+            hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
+        ),
+    ) -> Self {
+        let hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord {
+            connector_token_request_reference_id,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            connector_token,
+            connector_token_status,
+            ..
+        } = mandate_reference_record;
+
+        Self {
+            connector_id,
+            status: connector_token_status,
+            connector_token_request_reference_id,
+            original_payment_authorized_amount,
+            original_payment_authorized_currency,
+            metadata,
+            token: Secret::new(connector_token),
+            // Token that is derived from payments mandate reference will always be multi use token
+            token_type: common_enums::TokenizationType::MultiUse,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken>
+    for api_models::payment_methods::ConnectorTokenDetails
+{
+    fn foreign_from(token: &payment_method_data::SingleUsePaymentMethodToken) -> Self {
+        Self {
+            connector_id: token.clone().merchant_connector_id,
+            token_type: common_enums::TokenizationType::SingleUse,
+            status: api_enums::ConnectorTokenStatus::Active,
+            connector_token_request_reference_id: None,
+            original_payment_authorized_amount: None,
+            original_payment_authorized_currency: None,
+            metadata: None,
+            token: token.clone().token,
+        }
+    }
 }

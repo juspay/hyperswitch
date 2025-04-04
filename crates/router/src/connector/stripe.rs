@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 use common_utils::{
     request::RequestContent,
@@ -8,6 +8,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_request_types::SplitRefundsRequest;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
@@ -18,7 +19,6 @@ use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsReques
 use super::utils::{PayoutsData, RouterData};
 use crate::{
     configs::settings,
-    connector::utils::PaymentsPreProcessingData,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -29,7 +29,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -128,14 +128,17 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
 
 impl ConnectorValidation for Stripe {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -197,140 +200,6 @@ impl
     > for Stripe
 {
     // Not Implemented (R)
-}
-
-impl api::PaymentsPreProcessing for Stripe {}
-
-impl
-    services::ConnectorIntegration<
-        api::PreProcessing,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-    > for Stripe
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsPreProcessingType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_currency = req.request.get_currency()?;
-        let req_amount = req.request.get_minor_amount()?;
-        let amount =
-            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
-        let connector_req =
-            stripe::StripeCreditTransferSourceRequest::try_from((req, amount, req_currency))?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsPreProcessingType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsPreProcessingRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: stripe::StripeSourceResponse = res
-            .response
-            .parse_struct("StripeSourceResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-        })
-    }
 }
 
 impl api::ConnectorCustomer for Stripe {}
@@ -461,6 +330,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -589,6 +460,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -742,6 +615,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -763,13 +638,17 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        req.request.charges.as_ref().map(|charges| {
+
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
             transformers::transform_headers_for_connect_platform(
-                charges.charge_type.clone(),
-                charges.transfer_account_id.clone(),
+                stripe_split_payment.charge_type.clone(),
+                stripe_split_payment.transfer_account_id.clone(),
                 &mut header,
-            )
-        });
+            );
+        }
         Ok(header)
     }
 
@@ -908,6 +787,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -934,20 +815,23 @@ impl
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        req.request
-            .charges
-            .as_ref()
-            .map(|charge| match &charge.charge_type {
-                api::enums::PaymentChargeType::Stripe(stripe_charge) => {
-                    if stripe_charge == &api::enums::StripeChargeType::Direct {
-                        let mut customer_account_header = vec![(
-                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                            charge.transfer_account_id.clone().into_masked(),
-                        )];
-                        header.append(&mut customer_account_header);
-                    }
-                }
-            });
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            if stripe_split_payment.charge_type
+                == api::enums::PaymentChargeType::Stripe(api::enums::StripeChargeType::Direct)
+            {
+                let mut customer_account_header = vec![(
+                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    stripe_split_payment
+                        .transfer_account_id
+                        .clone()
+                        .into_masked(),
+                )];
+                header.append(&mut customer_account_header);
+            }
+        }
         Ok(header)
     }
 
@@ -957,29 +841,14 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match &req.request.payment_method_data {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data.deref() {
-                    domain::BankTransferData::AchBankTransfer { .. }
-                    | domain::BankTransferData::MultibancoBankTransfer { .. } => {
-                        Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
-                    }
-                    _ => Ok(format!(
-                        "{}{}",
-                        self.base_url(connectors),
-                        "v1/payment_intents"
-                    )),
-                }
-            }
-            _ => Ok(format!(
-                "{}{}",
-                self.base_url(connectors),
-                "v1/payment_intents"
-            )),
-        }
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "v1/payment_intents"
+        ))
     }
 
     fn get_request_body(
@@ -992,16 +861,9 @@ impl
             req.request.minor_amount,
             req.request.currency,
         )?;
-        match &req.request.payment_method_data {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref(), amount)
-            }
-            _ => {
-                let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
+        let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
 
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-            }
-        }
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1032,94 +894,31 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match &data.request.payment_method_data {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
-                .deref()
-            {
-                domain::BankTransferData::AchBankTransfer { .. }
-                | domain::BankTransferData::MultibancoBankTransfer { .. } => {
-                    let response: stripe::ChargesResponse = res
-                        .response
-                        .parse_struct("ChargesResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: stripe::PaymentIntentResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                    let response_integrity_object =
-                        connector_utils::get_authorise_integrity_object(
-                            self.amount_converter,
-                            response.amount,
-                            response.currency.clone(),
-                        )?;
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
 
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
-                    let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    });
+        let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
-                    new_router_data.map(|mut router_data| {
-                        router_data.request.integrity_object = Some(response_integrity_object);
-                        router_data
-                    })
-                }
-                _ => {
-                    let response: stripe::PaymentIntentResponse = res
-                        .response
-                        .parse_struct("PaymentIntentResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                    let response_integrity_object =
-                        connector_utils::get_authorise_integrity_object(
-                            self.amount_converter,
-                            response.amount,
-                            response.currency.clone(),
-                        )?;
-
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-
-                    let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    });
-
-                    new_router_data.map(|mut router_data| {
-                        router_data.request.integrity_object = Some(response_integrity_object);
-                        router_data
-                    })
-                }
-            },
-            _ => {
-                let response: stripe::PaymentIntentResponse = res
-                    .response
-                    .parse_struct("PaymentIntentResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                let response_integrity_object = connector_utils::get_authorise_integrity_object(
-                    self.amount_converter,
-                    response.amount,
-                    response.currency.clone(),
-                )?;
-
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-
-                let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed);
-
-                new_router_data.map(|mut router_data| {
-                    router_data.request.integrity_object = Some(response_integrity_object);
-                    router_data
-                })
-            }
-        }
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -1155,6 +954,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1282,6 +1083,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1442,6 +1245,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1467,20 +1272,24 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        req.request
-            .charges
-            .as_ref()
-            .map(|charge| match &charge.charge_type {
+        if let Some(SplitRefundsRequest::StripeSplitRefund(ref stripe_split_refund)) =
+            req.request.split_refunds.as_ref()
+        {
+            match &stripe_split_refund.charge_type {
                 api::enums::PaymentChargeType::Stripe(stripe_charge) => {
                     if stripe_charge == &api::enums::StripeChargeType::Direct {
                         let mut customer_account_header = vec![(
                             headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                            charge.transfer_account_id.clone().into_masked(),
+                            stripe_split_refund
+                                .transfer_account_id
+                                .clone()
+                                .into_masked(),
                         )];
                         header.append(&mut customer_account_header);
                     }
                 }
-            });
+            }
+        }
         Ok(header)
     }
 
@@ -1506,14 +1315,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let request_body = match req.request.charges.as_ref() {
-            None => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
+        let request_body = match req.request.split_refunds.as_ref() {
+            Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
+                Box::new(stripe::ChargeRefundRequest::try_from(req)?),
+            ),
+            _ => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
                 req,
                 refund_amount,
             ))?)),
-            Some(_) => RequestContent::FormUrlEncoded(Box::new(
-                stripe::ChargeRefundRequest::try_from(req)?,
-            )),
         };
         Ok(request_body)
     }
@@ -1607,6 +1416,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1627,13 +1438,16 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        req.request.charges.as_ref().map(|charges| {
+
+        if let Some(SplitRefundsRequest::StripeSplitRefund(ref stripe_refund)) =
+            req.request.split_refunds.as_ref()
+        {
             transformers::transform_headers_for_connect_platform(
-                charges.charge_type.clone(),
-                charges.transfer_account_id.clone(),
+                stripe_refund.charge_type.clone(),
+                stripe_refund.transfer_account_id.clone(),
                 &mut header,
-            )
-        });
+            );
+        }
         Ok(header)
     }
 
@@ -1738,6 +1552,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -1892,6 +1708,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2005,6 +1823,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2136,6 +1956,8 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -2903,3 +2725,5 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+impl ConnectorSpecifications for Stripe {}

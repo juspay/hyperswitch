@@ -20,7 +20,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -108,6 +108,8 @@ impl ConnectorCommon for Signifyd {
             reason: Some(response.errors.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -754,3 +756,5 @@ impl api::IncomingWebhook for Signifyd {
         Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Signifyd {}

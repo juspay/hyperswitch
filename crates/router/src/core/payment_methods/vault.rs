@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]
@@ -63,9 +63,10 @@ impl Vaultable for domain::Card {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
+            nickname: self.nick_name.clone(),
             card_last_four: None,
             card_token: None,
+            card_holder_name: self.card_holder_name.clone(),
         };
 
         value1
@@ -118,7 +119,8 @@ impl Vaultable for domain::Card {
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: value1.nickname.map(masking::Secret::new),
+            nick_name: value1.nickname,
+            card_holder_name: value1.card_holder_name,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -461,7 +463,7 @@ impl Vaultable for api::CardPayout {
             card_number: self.card_number.peek().clone(),
             exp_year: self.expiry_year.peek().clone(),
             exp_month: self.expiry_month.peek().clone(),
-            name_on_card: self.card_holder_name.clone().map(|n| n.peek().to_string()),
+            name_on_card: self.card_holder_name.clone(),
             nickname: None,
             card_last_four: None,
             card_token: None,
@@ -512,7 +514,7 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.map(masking::Secret::new),
+            card_holder_name: value1.name_on_card,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -927,7 +929,7 @@ impl Vault {
         )
         .await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
 
@@ -979,7 +981,7 @@ impl Vault {
         )
         .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        // scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        // scheduler_metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
 
@@ -1015,7 +1017,7 @@ pub async fn create_tokenize(
 ) -> RouterResult<String> {
     let redis_key = get_redis_locker_key(lookup_key.as_str());
     let func = || async {
-        metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+        metrics::CREATED_TOKENIZED_CARD.add(1, &[]);
 
         let payload_to_be_encrypted = api::TokenizePayloadRequest {
             value1: value1.clone(),
@@ -1041,14 +1043,14 @@ pub async fn create_tokenize(
 
         redis_conn
             .set_key_if_not_exists_with_expiry(
-                redis_key.as_str(),
+                &redis_key.as_str().into(),
                 bytes::Bytes::from(encrypted_payload),
                 Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
             )
             .await
             .map(|_| lookup_key.clone())
             .inspect_err(|error| {
-                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::TEMP_LOCKER_FAILURES.add(1, &[]);
                 logger::error!(?error, "Failed to store tokenized data in Redis");
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1079,7 +1081,7 @@ pub async fn get_tokenized_data(
 ) -> RouterResult<api::TokenizePayloadRequest> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
-        metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+        metrics::GET_TOKENIZED_CARD.add(1, &[]);
 
         let redis_conn = state
             .store
@@ -1087,7 +1089,9 @@ pub async fn get_tokenized_data(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        let response = redis_conn.get_key::<bytes::Bytes>(redis_key.as_str()).await;
+        let response = redis_conn
+            .get_key::<bytes::Bytes>(&redis_key.as_str().into())
+            .await;
 
         match response {
             Ok(resp) => {
@@ -1110,7 +1114,7 @@ pub async fn get_tokenized_data(
                 Ok(get_response)
             }
             Err(err) => {
-                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::TEMP_LOCKER_FAILURES.add(1, &[]);
                 Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Token is invalid or expired".into(),
                 })
@@ -1140,7 +1144,7 @@ pub async fn delete_tokenized_data(
 ) -> RouterResult<()> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
-        metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
+        metrics::DELETED_TOKENIZED_CARD.add(1, &[]);
 
         let redis_conn = state
             .store
@@ -1148,7 +1152,7 @@ pub async fn delete_tokenized_data(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        let response = redis_conn.delete_key(redis_key.as_str()).await;
+        let response = redis_conn.delete_key(&redis_key.as_str().into()).await;
 
         match response {
             Ok(redis_interface::DelReply::KeyDeleted) => Ok(()),
@@ -1157,7 +1161,7 @@ pub async fn delete_tokenized_data(
                     .attach_printable("Token invalid or expired")
             }
             Err(err) => {
-                metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::TEMP_LOCKER_FAILURES.add(1, &[]);
                 Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| {
                     format!("Failed to delete from redis locker: {err:?}")
                 })
@@ -1184,6 +1188,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: Vec<u8>,
+    tenant_id: id_type::TenantId,
 ) -> CustomResult<request::Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
@@ -1204,6 +1209,10 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
         headers::CONTENT_TYPE,
         consts::VAULT_HEADER_CONTENT_TYPE.into(),
     );
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -1217,7 +1226,9 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
-    let request = create_vault_request::<V>(jwekey, locker, payload).await?;
+    let request =
+        create_vault_request::<V>(jwekey, locker, payload, state.tenant.tenant_id.to_owned())
+            .await?;
     let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
         .await
         .change_context(errors::VaultError::VaultAPIError);
@@ -1241,13 +1252,11 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_vault<
-    D: pm_types::VaultingDataInterface + serde::Serialize,
->(
+pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
+    key: String,
 ) -> CustomResult<String, errors::VaultError> {
-    let key = data.get_vaulting_data_key();
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
@@ -1275,7 +1284,7 @@ pub async fn get_fingerprint_id_from_vault<
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    pmd: &pm_types::PaymentMethodVaultingData,
+    pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
@@ -1390,7 +1399,9 @@ pub async fn add_delete_tokenized_data_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
@@ -1435,7 +1446,7 @@ pub async fn start_tokenize_data_workflow(
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {:?}", err);
             retry_delete_tokenize(db, delete_tokenize_data.pm, tokenize_tracker.to_owned()).await?;
-            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::RETRIED_DELETE_DATA_COUNT.add(1, &[]);
         }
     }
     Ok(())
@@ -1479,9 +1490,8 @@ pub async fn retry_delete_tokenize(
                 .await
                 .map_err(Into::into);
             metrics::TASKS_RESET_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([("flow", "DeleteTokenizeData")]),
+                router_env::metric_attributes!(("flow", "DeleteTokenizeData")),
             );
             retry_schedule
         }

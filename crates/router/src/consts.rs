@@ -6,7 +6,12 @@ pub mod user_role;
 use std::collections::HashSet;
 
 use common_utils::consts;
+pub use hyperswitch_domain_models::consts::{
+    CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
+    ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
+};
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
 pub(crate) const MAX_ID_LENGTH: usize = 64;
@@ -39,24 +44,12 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
-pub(crate) const REFUND_VOIDED: &str = "Refund request has been voided.";
-
-pub(crate) const CANNOT_CONTINUE_AUTH: &str =
-    "Cannot continue with Authorization due to failed Liability Shift.";
-#[cfg(feature = "payouts")]
-pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
 
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_ENGINE;
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
-
-// Apple Pay validation url
-pub(crate) const APPLEPAY_VALIDATION_URL: &str =
-    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
@@ -92,6 +85,12 @@ pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
     "Approval of Recon Request - Access Granted to Recon Dashboard";
 
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
+
+pub const CARD_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "CARD_IP_BLOCKING";
+
+pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLOCKING";
+
+pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -141,9 +140,6 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 
-// Length of the unique reference ID generated for connector mandate requests
-pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
-
 /// Default allowed domains for payment links
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
@@ -158,6 +154,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// [PaymentLink] Default bool for enabling button only when form is ready
+pub const DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY: bool = false;
 
 /// Default Merchant Logo Link
 pub const DEFAULT_MERCHANT_LOGO: &str =
@@ -175,19 +174,19 @@ pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/vault/retrieve";
+pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/vault/delete";
+pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -211,3 +210,37 @@ pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
+
+/// Click To Pay
+pub const CLICK_TO_PAY: &str = "click_to_pay";
+
+/// Merchant eligible for authentication service config
+pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
+    "merchants_eligible_for_authentication_service";
+
+/// Refund flow identifier used for performing GSM operations
+pub const REFUND_FLOW_STR: &str = "refund_flow";
+
+/// Default payment method session expiry
+pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
+
+/// Authorize flow identifier used for performing GSM operations
+pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";
+
+/// Default value for the number of attempts to retry fetching forex rates
+pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
+
+/// Default payment intent id
+pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
+
+/// Default payment attempt id
+pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
+
+// Default payment method storing TTL in redis in seconds
+pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day

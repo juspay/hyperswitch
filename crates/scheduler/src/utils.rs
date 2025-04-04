@@ -5,7 +5,7 @@ use diesel_models::enums::{self, ProcessTrackerStatus};
 pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionPool, RedisEntryId};
-use router_env::{instrument, opentelemetry, tracing};
+use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use super::{
@@ -29,7 +29,7 @@ where
     let batches = divide(tasks, settings);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
     #[allow(clippy::as_conversions)]
-    metrics::BATCHES_CREATED.add(&metrics::CONTEXT, batches.len() as u64, &[]); // Metrics
+    metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;
         match result {
@@ -209,7 +209,7 @@ pub async fn get_batches(
         }
     };
 
-    metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::BATCHES_CONSUMED.add(1, &[]);
 
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_values().map(|entries| {
         entries.into_iter().try_fold(
@@ -231,13 +231,13 @@ pub async fn get_batches(
     let batches = batches.into_iter().flatten().collect::<Vec<_>>();
     let entry_ids = entry_ids.into_iter().flatten().collect::<Vec<_>>();
 
-    conn.stream_acknowledge_entries(stream_name, group_name, entry_ids.clone())
+    conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
         .await
         .map_err(|error| {
             logger::error!(?error, "Error acknowledging batch in stream");
             error.change_context(errors::ProcessTrackerError::BatchUpdateFailed)
         })?;
-    conn.stream_delete_entries(stream_name, entry_ids.clone())
+    conn.stream_delete_entries(&stream_name.into(), entry_ids.clone())
         .await
         .map_err(|error| {
             logger::error!(?error, "Error deleting batch from stream");
@@ -288,15 +288,11 @@ pub fn add_histogram_metrics(
     #[warn(clippy::option_map_unit_fn)]
     if let Some((schedule_time, runner)) = task.schedule_time.as_ref().zip(task.runner.as_ref()) {
         let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
-        logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
+        logger::info!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
-        metrics::CONSUMER_STATS.record(
-            &metrics::CONTEXT,
+        metrics::CONSUMER_OPS.record(
             pickup_schedule_delta,
-            &[opentelemetry::KeyValue::new(
-                stream_name.to_owned(),
-                runner_name,
-            )],
+            router_env::metric_attributes!((stream_name.to_owned(), runner_name)),
         );
     };
 }
@@ -351,6 +347,25 @@ pub fn get_outgoing_webhook_retry_schedule_time(
         Some(retry_mapping.start_after)
     } else {
         get_delay(retry_count, &retry_mapping.frequencies)
+    }
+}
+
+pub fn get_pcr_payments_retry_schedule_time(
+    mapping: process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    merchant_id: &common_utils::id_type::MerchantId,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+    // TODO: check if the current scheduled time is not more than the configured timerange
+
+    // For first try, get the `start_after` time
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(retry_count, &mapping.frequencies)
     }
 }
 

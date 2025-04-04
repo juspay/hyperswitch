@@ -13,7 +13,7 @@ use crate::{
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -111,6 +111,8 @@ impl ConnectorCommon for Netcetera {
             reason: response.error_details.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -462,3 +464,5 @@ impl
     > for Netcetera
 {
 }
+
+impl ConnectorSpecifications for Netcetera {}

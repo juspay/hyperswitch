@@ -16,6 +16,8 @@ pub mod ephemeral_key;
 #[cfg(feature = "errors")]
 pub mod errors;
 pub mod events;
+pub mod external_service_auth;
+pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
@@ -28,9 +30,11 @@ pub mod payments;
 pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
+pub mod process_tracker;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
+pub mod relay;
 pub mod routing;
 pub mod surcharge_decision_configs;
 pub mod user;
@@ -39,3 +43,12 @@ pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
+
+pub trait ValidateFieldAndGet<Request> {
+    fn validate_field_and_get(
+        &self,
+        request: &Request,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ValidationError>
+    where
+        Self: Sized;
+}

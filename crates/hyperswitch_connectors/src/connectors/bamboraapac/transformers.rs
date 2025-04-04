@@ -313,7 +313,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -346,6 +346,8 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             })
@@ -485,7 +487,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -501,6 +503,8 @@ impl<F>
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             })
@@ -631,7 +635,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -663,6 +667,8 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             })
@@ -910,7 +916,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -944,6 +950,8 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }),
                 ..item.data
             })

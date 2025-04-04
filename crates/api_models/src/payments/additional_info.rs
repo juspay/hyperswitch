@@ -27,11 +27,11 @@ pub struct AchBankDebitAdditionalData {
 
     /// Card holder's name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<Secret<String>>,
+    pub bank_account_holder_name: Option<common_utils::types::NameType>,
 
     /// Name of the bank
     #[schema(value_type = Option<BankNames>, example = "ach")]
@@ -58,7 +58,7 @@ pub struct BacsBankDebitAdditionalData {
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<Secret<String>>,
+    pub bank_account_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -73,7 +73,7 @@ pub struct BecsBankDebitAdditionalData {
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<Secret<String>>,
+    pub bank_account_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -84,7 +84,7 @@ pub struct SepaBankDebitAdditionalData {
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<Secret<String>>,
+    pub bank_account_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -110,7 +110,7 @@ pub struct BancontactBankRedirectAdditionalData {
 
     /// The card holder's name
     #[schema(value_type = Option<String>, example = "John Test")]
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -151,6 +151,7 @@ pub enum BankTransferAdditionalData {
     Pix(Box<PixBankTransferAdditionalData>),
     Pse {},
     LocalBankTransfer(Box<LocalBankTransferAdditionalData>),
+    InstantBankTransfer {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -193,7 +194,7 @@ pub struct GivexGiftCardAdditionalData {
 pub struct CardTokenAdditionalData {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<Secret<String>>,
+    pub card_holder_name: Option<common_utils::types::NameType>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -219,5 +220,5 @@ pub struct WalletAdditionalDataForCard {
     pub card_network: String,
     /// The type of payment method
     #[serde(rename = "type")]
-    pub card_type: String,
+    pub card_type: Option<String>,
 }

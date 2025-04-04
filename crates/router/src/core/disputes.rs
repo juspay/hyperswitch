@@ -79,6 +79,7 @@ pub async fn accept_dispute(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_filters_for_disputes(
     state: SessionState,
@@ -155,7 +156,7 @@ pub async fn accept_dispute(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
             && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
         || {
-            metrics::ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            metrics::ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
             reason: format!(
                 "This dispute cannot be accepted because the dispute is in {} stage and has {} status",
@@ -274,11 +275,7 @@ pub async fn submit_evidence(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
             && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
         || {
-            metrics::EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(
-                &metrics::CONTEXT,
-                1,
-                &[],
-            );
+            metrics::EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
                 reason: format!(
                 "Evidence cannot be submitted because the dispute is in {} stage and has {} status",
@@ -446,11 +443,7 @@ pub async fn attach_evidence(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
             && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
         || {
-            metrics::ATTACH_EVIDENCE_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(
-                &metrics::CONTEXT,
-                1,
-                &[],
-            );
+            metrics::ATTACH_EVIDENCE_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
                 reason: format!(
                 "Evidence cannot be attached because the dispute is in {} stage and has {} status",

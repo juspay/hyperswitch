@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
@@ -21,20 +22,27 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsAuthorizeType, RefreshTokenType, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as volt;
 
@@ -163,6 +171,8 @@ impl ConnectorCommon for Volt {
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -267,6 +277,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -725,5 +737,49 @@ impl webhooks::IncomingWebhook for Volt {
             .parse_struct("VoltWebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(details))
+    }
+}
+
+lazy_static! {
+    static ref VOLT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut volt_supported_payment_methods = SupportedPaymentMethods::new();
+        volt_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::OpenBankingUk,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        volt_supported_payment_methods
+    };
+
+    static ref VOLT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "VOLT",
+        description:
+            "Volt is a payment gateway operating in China, specializing in facilitating local bank transfers",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref VOLT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Volt {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*VOLT_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*VOLT_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*VOLT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

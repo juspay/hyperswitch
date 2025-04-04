@@ -62,8 +62,12 @@ impl AdyenTest {
                         line1: Some(Secret::new("1467".to_string())),
                         line2: Some(Secret::new("Harrison Street".to_string())),
                         line3: None,
-                        first_name: Some(Secret::new("John".to_string())),
-                        last_name: Some(Secret::new("Dough".to_string())),
+                        first_name: Some(common_utils::types::NameType::get_unchecked(
+                            "John".to_string(),
+                        )),
+                        last_name: Some(common_utils::types::NameType::get_unchecked(
+                            "Dough".to_string(),
+                        )),
                     }),
                     phone: Some(PhoneDetails {
                         number: Some(Secret::new("9123456789".to_string())),
@@ -108,7 +112,9 @@ impl AdyenTest {
                         card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                         expiry_month: Secret::new("3".to_string()),
                         expiry_year: Secret::new("2030".to_string()),
-                        card_holder_name: Some(Secret::new("John Doe".to_string())),
+                        card_holder_name: Some(common_utils::types::NameType::get_unchecked(
+                            "John Doe".to_string(),
+                        )),
                     },
                 )),
                 enums::PayoutType::Bank => Some(types::api::PayoutMethodData::Bank(
@@ -152,7 +158,12 @@ impl AdyenTest {
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(Secret::new("nick_name".into())),
+                nick_name: Some(common_utils::types::NameType::get_unchecked(
+                    "nick_name".to_string(),
+                )),
+                card_holder_name: Some(common_utils::types::NameType::get_unchecked(
+                    "card holder name".to_string(),
+                )),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

@@ -6,6 +6,8 @@ mod incoming_v2;
 mod outgoing;
 #[cfg(feature = "v2")]
 mod outgoing_v2;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+mod recovery_incoming;
 pub mod types;
 pub mod utils;
 #[cfg(feature = "olap")]

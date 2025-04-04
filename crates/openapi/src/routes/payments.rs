@@ -457,6 +457,7 @@ pub fn payments_cancel() {}
 /// Payments - List
 ///
 /// To list the *payments*
+#[cfg(feature = "v1")]
 #[utoipa::path(
     get,
     path = "/payments/list",
@@ -659,7 +660,7 @@ pub fn payments_get_intent() {}
       (
         "X-Profile-Id" = String, Header,
         description = "Profile ID associated to the payment intent",
-        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+        example = "pro_abcdefghijklmnop"
       ),
     ),
   request_body(
@@ -691,6 +692,18 @@ pub fn payments_update_intent() {}
 #[utoipa::path(
   post,
   path = "/v2/payments/{id}/confirm-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = "pro_abcdefghijklmnop"
+      ),
+      (
+        "X-Client-Secret" = String, Header,
+        description = "Client Secret Associated with the payment intent",
+        example = json!({"X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"})
+      ),
+    ),
   request_body(
       content = PaymentsConfirmIntentRequest,
       examples(
@@ -698,6 +711,7 @@ pub fn payments_update_intent() {}
               "Confirm the payment intent with card details" = (
                   value = json!({
                     "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
                     "payment_method_data": {
                       "card": {
                         "card_number": "4242424242424242",
@@ -713,12 +727,12 @@ pub fn payments_update_intent() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsConfirmIntentResponse),
+      (status = 200, description = "Payment created", body = PaymentsResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
-  security(("publisable_key" = [])),
+  security(("publishable_key" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
@@ -734,7 +748,7 @@ pub fn payments_confirm_intent() {}
         ("force_sync" = ForceSync, Query, description = "A boolean to indicate whether to force sync the payment status. Value can be true or false")
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsRetrieveResponse),
+        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found with the given id")
     ),
     tag = "Payments",
@@ -744,6 +758,57 @@ pub fn payments_confirm_intent() {}
 #[cfg(feature = "v2")]
 pub fn payment_status() {}
 
+/// Payments - Create and Confirm Intent
+///
+/// **Creates and confirms a payment intent object when the amount and payment method information are passed.**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
+#[utoipa::path(
+  post,
+  path = "/v2/payments",
+  params (
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = "pro_abcdefghijklmnop"
+      )
+    ),
+  request_body(
+      content = PaymentsRequest,
+      examples(
+          (
+              "Create and confirm the payment intent with amount and card details" = (
+                  value = json!({
+                    "amount_details": {
+                      "order_amount": 6540,
+                      "currency": "USD"
+                    },
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment created", body = PaymentsResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Create and Confirm Payment Intent",
+  security(("api_key" = [])),
+)]
+pub fn payments_create_and_confirm_intent() {}
+
 #[derive(utoipa::ToSchema)]
 #[schema(rename_all = "lowercase")]
 pub(crate) enum ForceSync {
@@ -752,3 +817,51 @@ pub(crate) enum ForceSync {
     /// Do not force sync with the connector / processor. Get the status which is available in the database
     False,
 }
+
+/// Payments - Payment Methods List
+///
+/// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}/payment-methods",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = "pro_abcdefghijklmnop"
+        ),
+        (
+          "X-Client-Secret" = String, Header,
+          description = "Client Secret Associated with the payment intent",
+          example = json!({"X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"})
+        ),
+    ),
+    responses(
+        (status = 200, description = "Get the payment methods", body = PaymentMethodListResponseForPayments),
+        (status = 404, description = "No payment found with the given id")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve Payment methods for a Payment",
+    security(("publishable_key" = []))
+)]
+pub fn list_payment_methods() {}
+
+/// Payments - List
+///
+/// To list the *payments*
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/list",
+    params(api_models::payments::PaymentListConstraints),
+    responses(
+        (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
+        (status = 404, description = "No payments found")
+    ),
+    tag = "Payments",
+    operation_id = "List all Payments",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub fn payments_list() {}

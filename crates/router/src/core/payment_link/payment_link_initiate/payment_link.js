@@ -139,8 +139,8 @@ function invertToBW(color, bw, asArr) {
       ? hexToRgbArray(options.black)
       : options.black
     : asArr
-    ? hexToRgbArray(options.white)
-    : options.white;
+      ? hexToRgbArray(options.white)
+      : options.white;
 }
 function invert(color, bw) {
   if (bw === void 0) {
@@ -181,6 +181,30 @@ var hyper = null;
 
 const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 
+var isFramed = false;
+try {
+  isFramed = window.parent.location !== window.location;
+
+  // If parent's window object is restricted, DOMException is
+  // thrown which concludes that the webpage is iframed
+} catch (err) {
+  isFramed = true;
+}
+
+/**
+ * Trigger - on boot
+ * Use - emit latest payment status to parent window
+ */
+function emitPaymentStatus(paymentDetails) {
+  var message = {
+    payment: {
+      status: paymentDetails.status,
+    }
+  };
+
+  window.parent.postMessage(message, "*");
+}
+
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -190,12 +214,15 @@ const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
-
-
 function boot() {
 
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
+
+  // Emit latest payment status
+  if (isFramed) {
+    emitPaymentStatus(paymentDetails);
+  }
 
   if (paymentDetails.display_sdk_only) {
     hide(".checkout-page")
@@ -204,7 +231,7 @@ function boot() {
   }
   else {
     var orderDetails = paymentDetails.order_details;
-    if (orderDetails!==null) {
+    if (orderDetails !== null) {
       var charges = 0;
 
       for (var i = 0; i < orderDetails.length; i++) {
@@ -213,8 +240,8 @@ function boot() {
       orderDetails.push({
         "amount": (paymentDetails.amount - charges).toFixed(2),
         "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
-        "product_name": translations.miscellaneousCharges+"\n" +
-                        translations.miscellaneousChargesDetail,
+        "product_name": translations.miscellaneousCharges + "\n" +
+          translations.miscellaneousChargesDetail,
         "quantity": null
       });
     }
@@ -231,18 +258,21 @@ function boot() {
     link.type = "image/x-icon";
     document.head.appendChild(link);
   }
-  // Render UI
 
-  if (paymentDetails.display_sdk_only){
+  // Render UI
+  if (paymentDetails.display_sdk_only) {
     renderSDKHeader(paymentDetails);
+    renderBranding(paymentDetails);
   }
-  else{
+  else {
+    renderBackgroundImage(paymentDetails);
     renderPaymentDetails(paymentDetails);
     renderDynamicMerchantDetails(paymentDetails);
     renderCart(paymentDetails);
+    renderDescription(paymentDetails);
+    renderBranding(paymentDetails);
     renderSDKHeader(paymentDetails);
   }
-
 
   // Deal w loaders
   show("#sdk-spinner");
@@ -251,6 +281,12 @@ function boot() {
 
   // Add event listeners
   initializeEventListeners(paymentDetails);
+
+  // Update payment link styles
+  var paymentLinkUiRules = paymentDetails.payment_link_ui_rules;
+  if (isObject(paymentLinkUiRules)) {
+    updatePaymentLinkUi(paymentLinkUiRules);
+  }
 
   // Initialize SDK
   // @ts-ignore
@@ -270,7 +306,18 @@ function boot() {
 boot();
 
 /**
- * Use - add event listeners for changing UI on screen resize
+ * Use - checks if a given value is an object
+ * @param {any} val 
+ * @returns {boolean}
+ */
+function isObject(val) {
+  return val !== null && typeof val === "object" && Object.getPrototypeOf(val) === Object.prototype
+}
+
+/**
+ * Use - add event listeners for changing UI on
+ *        - Screen resize
+ *        - Form inputs
  * @param {PaymentDetails} paymentDetails
  */
 function initializeEventListeners(paymentDetails) {
@@ -295,15 +342,17 @@ function initializeEventListeners(paymentDetails) {
     submitButtonLoaderNode.style.borderBottomColor = contrastingTone;
   }
 
-   // Get locale for pay now
-   var payNowButtonText = document.createElement("div");
-   var payNowButtonText = document.getElementById('submit-button-text');
-   if (payNowButtonText) {
-     payNowButtonText.textContent = translations.payNow;
-   }
+  // Get locale for pay now
+  var payNowButtonText = document.createElement("div");
+  var payNowButtonText = document.getElementById('submit-button-text');
+  if (payNowButtonText) {
+    payNowButtonText.textContent = paymentDetails.payment_button_text || translations.payNow;
+  }
 
   if (submitButtonNode instanceof HTMLButtonElement) {
-    submitButtonNode.style.color = contrastBWColor;
+    var chosenColor = paymentDetails.payment_button_colour || primaryColor;
+    submitButtonNode.style.color = paymentDetails.payment_button_text_colour || invert(chosenColor, true);
+    submitButtonNode.style.backgroundColor = chosenColor;
   }
 
   if (hyperCheckoutCartImageNode instanceof HTMLDivElement) {
@@ -373,17 +422,58 @@ function initializeEventListeners(paymentDetails) {
     // @ts-ignore
     window.state.isMobileView = currentWidth <= 1199;
   });
+
+  var paymentForm = document.getElementById("payment-form");
+  if (paymentForm instanceof HTMLFormElement) {
+    paymentForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      handleSubmit(event);
+    })
+  }
+
+  if (paymentDetails.enable_button_only_on_form_ready) {
+    handleFormReadyForSubmission();
+  }
+}
+
+function handleFormReadyForSubmission() {
+  window.addEventListener("message", function (event) {
+    // Event listener for updating the button rules
+    if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
+      let isFormReadyForSubmission = event.data["isFormReadyForSubmission"];
+      var submitButtonNode = document.getElementById("submit");
+      if (submitButtonNode instanceof HTMLButtonElement) {
+        if (isFormReadyForSubmission === false) {
+          submitButtonNode.disabled = true;
+          addClass("#submit", "not-ready");
+          addClass("#submit", "disabled");
+        } else if (isFormReadyForSubmission === true) {
+          submitButtonNode.disabled = false;
+          removeClass("#submit", "not-ready");
+          removeClass("#submit", "disabled");
+        }
+      }
+    }
+  });
 }
 
 /**
  * Trigger - post mounting SDK
  * Use - set relevant classes to elements in the doc for showing SDK
  **/
-function showSDK(display_sdk_only) {
+function showSDK(display_sdk_only, enable_button_only_on_form_ready) {
   if (!display_sdk_only) {
     show("#hyper-checkout-details");
   }
   show("#hyper-checkout-sdk");
+  if (enable_button_only_on_form_ready) {
+    addClass("#submit", "not-ready");
+    addClass("#submit", "disabled");
+    var submitButtonNode = document.getElementById("submit");
+    if (submitButtonNode instanceof HTMLButtonElement) {
+      submitButtonNode.disabled = true;
+    }
+  }
   show("#submit");
   show("#unified-checkout");
   hide("#sdk-spinner");
@@ -415,10 +505,11 @@ function handleSubmit(e) {
   // Update button loader
   hide("#submit-button-text");
   show("#submit-spinner");
+  addClass("#submit", "processing");
+  addClass("#submit", "disabled");
   var submitButtonNode = document.getElementById("submit");
   if (submitButtonNode instanceof HTMLButtonElement) {
     submitButtonNode.disabled = true;
-    submitButtonNode.classList.add("disabled");
   }
 
   hyper
@@ -437,6 +528,22 @@ function handleSubmit(e) {
         } else {
           showMessage(translations.unexpectedError);
         }
+      } else if (paymentDetails.skip_status_screen) {
+        // Form query params
+        var queryParams = {
+          payment_id: paymentDetails.payment_id,
+          status: result.status
+        };
+        var url = new URL(paymentDetails.return_url);
+        var params = new URLSearchParams(url.search);
+        // Attach query params to return_url
+        for (var key in queryParams) {
+          if (queryParams.hasOwnProperty(key)) {
+            params.set(key, queryParams[key]);
+          }
+        }
+        url.search = params.toString();
+        window.top.location.href = url.toString();
       } else {
         redirectToStatus();
       }
@@ -445,11 +552,12 @@ function handleSubmit(e) {
       console.error("Error confirming payment_intent", error);
     })
     .finally(() => {
+      removeClass("#submit", "processing");
       hide("#submit-spinner");
       show("#submit-button-text");
+      removeClass("#submit", "disabled");
       if (submitButtonNode instanceof HTMLButtonElement) {
         submitButtonNode.disabled = false;
-        submitButtonNode.classList.remove("disabled");
       }
     });
 }
@@ -473,12 +581,16 @@ function addText(id, msg) {
 
 function addClass(id, className) {
   var element = document.querySelector(id);
-  element.classList.add(className);
+  if (element instanceof HTMLElement) {
+    element.classList.add(className);
+  }
 }
 
 function removeClass(id, className) {
   var element = document.querySelector(id);
-  element.classList.remove(className);
+  if (element instanceof HTMLElement) {
+    element.classList.remove(className);
+  }
 }
 
 /**
@@ -570,7 +682,6 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.src = paymentDetails.merchant_logo;
-  merchantLogoNode.setAttribute("width", "48"); // Set width to 100 pixels
   merchantLogoNode.setAttribute("height", "48");
 
   // Create expiry node
@@ -686,6 +797,113 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
 }
 
 /**
+ * Uses
+ *    - Creates and appends description below the cart section (LAYOUT 1 / DEFAULT LAYOUT specification)
+ * @param {String} merchantDescription 
+ */
+function renderDefaultLayout(merchantDescription) {
+  var cartItemNode = document.getElementById("hyper-checkout-cart");
+  if (cartItemNode instanceof HTMLDivElement) {
+    var merchantDescriptionNode = document.createElement("div");
+    merchantDescriptionNode.id = "hyper-checkout-merchant-description";
+    merchantDescriptionNode.innerText = merchantDescription;
+    cartItemNode.appendChild(merchantDescriptionNode);
+    show("#hyper-checkout-merchant-description");
+  }
+}
+
+/**
+ * Uses
+ *    - Renders description in the appropriate section based on the specified layout
+ * @param {PaymentDetails} paymentDetails 
+ */
+function renderDescription(paymentDetails) {
+  var detailsLayout = paymentDetails.details_layout;
+  if (typeof paymentDetails.merchant_description === "string" && paymentDetails.merchant_description.length > 0) {
+    switch (detailsLayout) {
+      case "layout1": {
+        renderDefaultLayout(paymentDetails.merchant_description);
+        break;
+      }
+      case "layout2": {
+        var paymentContextNode = document.getElementById("hyper-checkout-payment-context");
+        if (paymentContextNode instanceof HTMLDivElement) {
+          var merchantDescriptionNode = document.createElement("div");
+          merchantDescriptionNode.id = "hyper-checkout-merchant-description";
+          merchantDescriptionNode.innerText = paymentDetails.merchant_description;
+          var merchantDetailsNode = document.getElementById("hyper-checkout-payment-merchant-details");
+          if (merchantDetailsNode instanceof HTMLDivElement) {
+            paymentContextNode.insertBefore(merchantDescriptionNode, merchantDetailsNode);
+            show("#hyper-checkout-merchant-description");
+          }
+        }
+        break;
+      }
+      default: {
+        renderDefaultLayout(paymentDetails.merchant_description);
+      }
+    }
+  }
+}
+
+/**
+ * Uses
+ *    - Creates and returns a div element with the HyperSwitch branding SVG
+ * @param {String} wrapperId 
+ * @returns {HTMLDivElement} brandingWrapperNode
+ */
+function createHyperSwitchBrandingSVGElement(wrapperId) {
+  var brandingWrapperNode = document.createElement("div");
+  brandingWrapperNode.id = wrapperId;
+  brandingWrapperNode.innerHTML = '<svg class="fill-current" height="18" width="130"><use xlink:href="#hyperswitch-brand" x="0" y="0" height="18" width="130"></use></svg>';
+  return brandingWrapperNode;
+}
+
+/**
+ * Uses
+ *    - Creates and appends HyperSwitch branding in appropriate sections based on the viewport dimensions (web vs mobile views)
+ * @param {PaymentDetails} paymentDetails
+ */
+function renderBranding(paymentDetails) {
+  if (paymentDetails.branding_visibility !== false) {
+    // Append below cart section for web views
+    var cartItemNode = document.getElementById("hyper-checkout-cart");
+    if (cartItemNode instanceof HTMLDivElement) {
+      var brandingWrapper = createHyperSwitchBrandingSVGElement("powered-by-hyper");
+      cartItemNode.appendChild(brandingWrapper);
+    }
+
+    // Append in document's body for mobile views
+    var mobileBrandingWrapper = createHyperSwitchBrandingSVGElement("hyper-footer");
+    document.body.appendChild(mobileBrandingWrapper);
+    if (!window.state.isMobileView) {
+      hide("#hyper-footer");
+    }
+  }
+}
+
+/**
+ * Uses
+ *    - Renders background image in the payment details section
+ * @param {PaymentDetails} paymentDetails 
+ */
+function renderBackgroundImage(paymentDetails) {
+  var backgroundImage = paymentDetails.background_image;
+  if (typeof backgroundImage === "object" && backgroundImage !== null) {
+    var paymentDetailsNode = document.getElementById("hyper-checkout-details");
+    if (paymentDetailsNode instanceof HTMLDivElement) {
+      paymentDetailsNode.style.backgroundImage = "url(" + backgroundImage.url + ")";
+      if (typeof backgroundImage.size === "string") {
+        paymentDetailsNode.style.backgroundSize = backgroundImage.size;
+      }
+      if (typeof backgroundImage.position === "string") {
+        paymentDetailsNode.style.backgroundPosition = backgroundImage.position;
+      }
+    }
+  }
+}
+
+/**
  * Trigger - on boot
  * Uses
  *    - Render cart wrapper and items
@@ -737,7 +955,7 @@ function renderCart(paymentDetails) {
       buttonTextNode.id = "hyper-checkout-cart-button-text";
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-      buttonTextNode.innerText = translations.showMore+" (" + hiddenItemsCount + ")";
+      buttonTextNode.innerText = translations.showMore + " (" + hiddenItemsCount + ")";
       expandButtonNode.append(buttonTextNode, buttonImageNode);
       if (cartNode instanceof HTMLDivElement) {
         cartNode.insertBefore(expandButtonNode, cartNode.lastElementChild);
@@ -747,18 +965,6 @@ function renderCart(paymentDetails) {
     hide("#hyper-checkout-cart-header");
     hide("#hyper-checkout-cart-items");
     hide("#hyper-checkout-cart-image");
-    if (
-      typeof paymentDetails.merchant_description === "string" &&
-      paymentDetails.merchant_description.length > 0
-    ) {
-      var merchantDescriptionNode = document.getElementById(
-        "hyper-checkout-merchant-description"
-      );
-      if (merchantDescriptionNode instanceof HTMLDivElement) {
-        merchantDescriptionNode.innerText = paymentDetails.merchant_description;
-      }
-      show("#hyper-checkout-merchant-description");
-    }
   }
 }
 
@@ -801,8 +1007,8 @@ function renderCartItem(
   if (item.quantity !== null) {
     var quantityNode = document.createElement("div");
     quantityNode.className = "hyper-checkout-card-item-quantity";
-    quantityNode.innerText = translations.quantity+": " + item.quantity;
-  }  
+    quantityNode.innerText = translations.quantity + ": " + item.quantity;
+  }
   // Product price
   var priceNode = document.createElement("div");
   priceNode.className = "hyper-checkout-card-item-price";
@@ -869,9 +1075,9 @@ function handleCartView(paymentDetails) {
         );
       });
     }
-    if (cartItemsNode instanceof HTMLDivElement){
+    if (cartItemsNode instanceof HTMLDivElement) {
       cartItemsNode.style.maxHeight = cartItemsNode.scrollHeight + "px";
-      
+
       cartItemsNode.style.height = cartItemsNode.scrollHeight + "px";
     }
 
@@ -914,7 +1120,7 @@ function handleCartView(paymentDetails) {
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
       if (cartButtonTextNode instanceof HTMLSpanElement) {
-        cartButtonTextNode.innerText = translations.showMore+" (" + hiddenItemsCount + ")";
+        cartButtonTextNode.innerText = translations.showMore + " (" + hiddenItemsCount + ")";
       }
       var arrowDownImage = document.getElementById("arrow-down");
       if (
@@ -983,4 +1189,25 @@ function renderSDKHeader(paymentDetails) {
     // sdkHeaderNode.append(sdkHeaderLogoNode);
     sdkHeaderNode.append(sdkHeaderItemNode);
   }
+}
+
+/**
+ * Trigger - post UI render
+ * Use - add CSS rules for the payment link
+ * @param {Object} paymentLinkUiRules
+ */
+function updatePaymentLinkUi(paymentLinkUiRules) {
+  Object.keys(paymentLinkUiRules).forEach(function (selector) {
+    try {
+      var node = document.querySelector(selector);
+      if (node instanceof HTMLElement) {
+        var styles = paymentLinkUiRules[selector];
+        Object.keys(styles).forEach(function (property) {
+          node.style[property] = styles[property];
+        });
+      }
+    } catch (error) {
+      console.error("Failed to apply styles to selector", selector, error);
+    }
+  })
 }

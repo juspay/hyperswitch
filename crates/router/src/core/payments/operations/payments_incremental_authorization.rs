@@ -15,6 +15,7 @@ use crate::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
             PaymentAddress,
         },
+        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -34,7 +35,7 @@ type PaymentIncrementalAuthorizationOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
@@ -48,6 +49,7 @@ impl<F: Send + Clone>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -75,6 +77,9 @@ impl<F: Send + Clone>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        payment_intent
+            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
@@ -171,6 +176,10 @@ impl<F: Send + Clone>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -186,7 +195,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Sync>
+    UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -278,7 +288,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
@@ -304,7 +314,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
+impl<F: Clone + Send + Sync>
+    Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -339,6 +350,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payment
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'a, F>,
         Option<domain::PaymentMethodData>,

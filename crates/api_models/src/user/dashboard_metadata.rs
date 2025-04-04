@@ -27,6 +27,7 @@ pub enum SetMetaDataRequest {
     #[serde(skip)]
     IsChangePasswordRequired,
     OnboardingSurvey(OnboardingSurvey),
+    ReconStatus(ReconStatus),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -94,7 +95,7 @@ pub struct ProdIntent {
     pub business_label: Option<String>,
     pub business_location: Option<CountryAlpha2>,
     pub display_name: Option<String>,
-    pub poc_email: Option<String>,
+    pub poc_email: Option<Secret<String>>,
     pub business_type: Option<String>,
     pub business_identifier: Option<String>,
     pub business_website: Option<String>,
@@ -102,6 +103,12 @@ pub struct ProdIntent {
     pub poc_contact: Option<String>,
     pub comments: Option<String>,
     pub is_completed: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ReconStatus {
+    pub is_order_data_set: bool,
+    pub is_processor_data_set: bool,
 }
 
 #[derive(Debug, serde::Deserialize, EnumString, serde::Serialize)]
@@ -129,6 +136,7 @@ pub enum GetMetaDataRequest {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
     OnboardingSurvey,
+    ReconStatus,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -167,4 +175,5 @@ pub enum GetMetaDataResponse {
     IsMultipleConfiguration(bool),
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
+    ReconStatus(Option<ReconStatus>),
 }

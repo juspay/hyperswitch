@@ -12,15 +12,20 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
+#[cfg(feature = "revenue_recovery")]
+use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
-        payments::{self, transformers::ToResponse},
+        payments::{
+            self,
+            transformers::{GenerateResponse, ToResponse},
+        },
         webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
@@ -53,6 +58,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
+    is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -65,6 +71,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_id,
             body.clone(),
+            is_relay_webhook,
         ))
         .await?;
 
@@ -91,6 +98,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .attach_printable("Could not convert webhook effect to string")?;
 
     let api_event = ApiEvent::new(
+        state.tenant.tenant_id.clone(),
         Some(merchant_account.get_id().clone()),
         flow,
         &request_id,
@@ -120,18 +128,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
+    _is_relay_webhook: bool,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
     serde_json::Value,
 )> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_account.get_id().get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
     );
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
@@ -183,12 +188,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &[
-                    metrics::KeyValue::new(MERCHANT_ID, merchant_account.get_id().clone()),
-                    metrics::KeyValue::new("connector", connector_name.to_string()),
-                ],
+                router_env::metric_attributes!(
+                    (MERCHANT_ID, merchant_account.get_id().clone()),
+                    ("connector", connector_name)
+                ),
             );
 
             let response = connector
@@ -288,12 +292,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &[metrics::KeyValue::new(
-                    MERCHANT_ID,
-                    merchant_account.get_id().clone(),
-                )],
+                router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
             );
         }
 
@@ -351,17 +351,32 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     api::WebhookFlow::Payout => todo!(),
 
                     api::WebhookFlow::Subscription => todo!(),
+                    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+                    api::WebhookFlow::Recovery => {
+                        Box::pin(recovery_incoming::recovery_incoming_webhook_flow(
+                            state.clone(),
+                            merchant_account,
+                            profile,
+                            key_store,
+                            webhook_details,
+                            source_verified,
+                            &connector,
+                            &request_details,
+                            event_type,
+                            req_state,
+                            merchant_connector_account,
+                        ))
+                        .await
+                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        .attach_printable("Failed to process recovery incoming webhook")?
+                    }
                 }
             }
         }
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &[metrics::KeyValue::new(
-                MERCHANT_ID,
-                merchant_account.get_id().get_string_repr().to_owned(),
-            )],
+            router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
         );
         WebhookResponseTracker::NoEffect
     };
@@ -433,10 +448,11 @@ async fn payments_incoming_webhook_flow(
                     req_state,
                     merchant_account.clone(),
                     key_store.clone(),
-                    profile.clone(),
+                    &profile,
                     payments::operations::PaymentGet,
                     api::PaymentsRetrieveRequest {
                         force_sync: true,
+                        expand_attempts: false,
                         param: None,
                     },
                     get_trackers_response,
@@ -445,16 +461,13 @@ async fn payments_incoming_webhook_flow(
                 ))
                 .await?;
 
-            let response = api_models::payments::PaymentsRetrieveResponse::generate_response(
-                payment_data,
-                customer,
-                &state.base_url,
-                payments::operations::PaymentGet,
-                &state.conf.connector_request_reference_id_config,
+            let response = payment_data.generate_response(
+                &state,
                 connector_http_status_code,
                 external_latency,
                 None,
                 &merchant_account,
+                &profile,
             );
 
             lock_action
@@ -476,9 +489,11 @@ async fn payments_incoming_webhook_flow(
                         .unwrap_or(true) =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([("merchant_id", merchant_account.get_id().clone())]),
+                        router_env::metric_attributes!((
+                            "merchant_id",
+                            merchant_account.get_id().clone()
+                        )),
                     );
                     return Ok(WebhookResponseTracker::NoEffect);
                 }
@@ -637,6 +652,7 @@ where
             flow: PhantomData,
             payment_intent,
             payment_attempt: Some(payment_attempt),
+            attempts: None,
             should_sync_with_connector: true,
             payment_address,
         },
@@ -675,6 +691,7 @@ async fn verify_webhook_source_verification_call(
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
     let router_data = construct_webhook_router_data(
+        state,
         connector_name,
         merchant_connector_account,
         merchant_account,
@@ -765,8 +782,11 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
 
-    let (connector, connector_name) =
-        get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?;
+    let (connector, connector_name) = get_connector_by_connector_name(
+        state,
+        &mca.connector_name.to_string(),
+        Some(mca.get_id()),
+    )?;
 
     Ok((mca, connector, connector_name))
 }

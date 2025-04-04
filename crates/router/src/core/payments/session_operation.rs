@@ -42,6 +42,7 @@ pub async fn payments_session_core<F, Res, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -71,6 +72,7 @@ where
             payment_id,
             call_connector_action,
             header_payload.clone(),
+            platform_merchant_account,
         )
         .await?;
 
@@ -91,7 +93,7 @@ where
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
-    _req_state: ReqState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile: domain::Profile,
@@ -100,6 +102,7 @@ pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -132,6 +135,7 @@ where
             &profile,
             &key_store,
             &header_payload,
+            platform_merchant_account.as_ref(),
         )
         .await?;
 
@@ -165,6 +169,20 @@ where
         api::ConnectorCallType::Retryable(_connectors) => todo!(),
         api::ConnectorCallType::Skip => todo!(),
         api::ConnectorCallType::SessionMultiple(connectors) => {
+            operation
+                .to_update_tracker()?
+                .update_trackers(
+                    state,
+                    req_state,
+                    payment_data.clone(),
+                    customer.clone(),
+                    merchant_account.storage_scheme,
+                    None,
+                    &key_store,
+                    None,
+                    header_payload.clone(),
+                )
+                .await?;
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,

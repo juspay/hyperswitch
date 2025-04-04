@@ -29,7 +29,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentIntentCreate;
 
-impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentIntentCreate {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsCreateIntentRequest> for &PaymentIntentCreate {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -55,7 +55,7 @@ impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentInte
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for PaymentIntentCreate {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsCreateIntentRequest> for PaymentIntentCreate {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -85,7 +85,8 @@ type PaymentsCreateIntentOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
@@ -98,6 +99,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -136,6 +138,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
                 profile,
                 request.clone(),
                 encrypted_data,
+                platform_merchant_account,
             )
             .await?;
 
@@ -168,7 +171,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
+impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
@@ -213,7 +216,7 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
@@ -236,7 +239,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIn
                 .store
                 .find_customer_by_global_id(
                     &state.into(),
-                    id.get_string_repr(),
+                    &id,
                     &payment_data.payment_intent.merchant_id,
                     merchant_key_store,
                     storage_scheme,
@@ -255,6 +258,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIn
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentsCreateIntentOperation<'a, F>,
         Option<domain::PaymentMethodData>,

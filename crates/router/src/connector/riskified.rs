@@ -22,7 +22,7 @@ use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    services::{self, ConnectorIntegration, ConnectorValidation},
+    services::{self, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -147,6 +147,8 @@ impl ConnectorCommon for Riskified {
             message: response.error.message.clone(),
             reason: None,
             connector_transaction_id: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         })
     }
 }
@@ -677,3 +679,5 @@ impl api::IncomingWebhook for Riskified {
         Ok(Box::new(resource))
     }
 }
+
+impl ConnectorSpecifications for Riskified {}

@@ -28,6 +28,7 @@ pub struct Organization {
     id: Option<id_type::OrganizationId>,
     #[allow(dead_code)]
     organization_name: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(feature = "v2")]
@@ -44,6 +45,7 @@ pub struct Organization {
     pub modified_at: time::PrimitiveDateTime,
     id: id_type::OrganizationId,
     organization_name: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(feature = "v1")]
@@ -58,6 +60,7 @@ impl Organization {
             modified_at,
             id: _,
             organization_name: _,
+            version,
         } = org_new;
         Self {
             id: Some(org_id.clone()),
@@ -68,6 +71,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            version,
         }
     }
 }
@@ -82,6 +86,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            version,
         } = org_new;
         Self {
             id,
@@ -90,6 +95,7 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            version,
         }
     }
 }
@@ -100,12 +106,13 @@ impl Organization {
 pub struct OrganizationNew {
     org_id: id_type::OrganizationId,
     org_name: Option<String>,
-    id: Option<id_type::OrganizationId>,
+    id: id_type::OrganizationId,
     organization_name: Option<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(feature = "v2")]
@@ -118,6 +125,7 @@ pub struct OrganizationNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(feature = "v1")]
@@ -126,12 +134,13 @@ impl OrganizationNew {
         Self {
             org_id: id.clone(),
             org_name: organization_name.clone(),
-            id: Some(id),
+            id,
             organization_name,
             organization_details: None,
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            version: common_types::consts::API_VERSION,
         }
     }
 }
@@ -146,6 +155,7 @@ impl OrganizationNew {
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            version: common_types::consts::API_VERSION,
         }
     }
 }

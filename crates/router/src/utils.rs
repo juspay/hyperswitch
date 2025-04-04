@@ -38,7 +38,6 @@ use hyperswitch_domain_models::payments::PaymentIntent;
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
-use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
@@ -56,9 +55,10 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
+    headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
-    services,
+    services::{self, authentication::get_header_value_by_key},
     types::{
         self, domain,
         transformers::{ForeignFrom, ForeignInto},
@@ -678,11 +678,8 @@ pub fn handle_json_response_deserialization_failure(
     res: types::Response,
     connector: &'static str,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", connector)]),
-    );
+    metrics::RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", connector)));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -702,6 +699,8 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             })
         }
     }
@@ -726,21 +725,11 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     if let Some(status_code) = option_status_code {
         let status_code_type = get_http_status_code_type(status_code).ok();
         match status_code_type.as_deref() {
-            Some("1xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("2xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("3xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("4xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
-            Some("5xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[])
-            }
+            Some("1xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(1, &[]),
+            Some("2xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(1, &[]),
+            Some("3xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(1, &[]),
+            Some("4xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(1, &[]),
+            Some("5xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(1, &[]),
             _ => logger::info!("Skip metrics as invalid http status code received from connector"),
         };
     } else {
@@ -791,8 +780,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone(),
-                    last_name: address_details.last_name.clone(),
+                    first_name: address_details.first_name.clone().map(From::from),
+                    last_name: address_details.last_name.clone().map(From::from),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -853,8 +842,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone(),
-                    last_name: address_details.last_name.clone(),
+                    first_name: address_details.first_name.clone().map(From::from),
+                    last_name: address_details.last_name.clone().map(From::from),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -927,8 +916,8 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone(),
-                    last_name: address_details.last_name.clone(),
+                    first_name: address_details.first_name.clone().map(From::from),
+                    last_name: address_details.last_name.clone().map(From::from),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -988,8 +977,8 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
                     line2: address_details.line2.clone(),
                     line3: address_details.line3.clone(),
                     state: address_details.state.clone(),
-                    first_name: address_details.first_name.clone(),
-                    last_name: address_details.last_name.clone(),
+                    first_name: address_details.first_name.clone().map(From::from),
+                    last_name: address_details.last_name.clone().map(From::from),
                     zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
                     email: self
@@ -1049,26 +1038,24 @@ pub fn add_apple_pay_flow_metrics(
     if let Some(flow) = apple_pay_flow {
         match flow {
             domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                ]),
+                    ("merchant_id", merchant_id.clone()),
+                ),
             ),
             domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                ]),
+                    ("merchant_id", merchant_id.clone()),
+                ),
             ),
         }
     }
@@ -1085,28 +1072,26 @@ pub fn add_apple_pay_payment_status_metrics(
             match flow {
                 domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     ),
             }
         }
@@ -1115,27 +1100,25 @@ pub fn add_apple_pay_payment_status_metrics(
             match flow {
                 domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
-                        &metrics::CONTEXT,
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
-                    &metrics::CONTEXT,
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         (
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                    ]),
+                        ("merchant_id", merchant_id.clone()),
+                    ),
                 ),
             }
         }
@@ -1343,4 +1326,12 @@ pub async fn trigger_refund_outgoing_webhook(
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     todo!()
+}
+
+pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {
+    get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
+        .ok()
+        .flatten()
+        .map(|val| val.to_string())
+        .unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string())
 }

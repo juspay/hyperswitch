@@ -379,7 +379,7 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
+pub async fn make_frm_data_and_fraud_check_operation<F, D>(
     _db: &dyn StorageInterface,
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -402,7 +402,7 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
+pub async fn make_frm_data_and_fraud_check_operation<F, D>(
     _db: &dyn StorageInterface,
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -486,7 +486,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn pre_payment_frm_core<'a, F, Req, D>(
+pub async fn pre_payment_frm_core<F, Req, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut D,
@@ -578,7 +578,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn post_payment_frm_core<'a, F, D>(
+pub async fn post_payment_frm_core<F, D>(
     state: &SessionState,
     req_state: ReqState,
     merchant_account: &domain::MerchantAccount,
@@ -588,6 +588,7 @@ pub async fn post_payment_frm_core<'a, F, D>(
     customer: &Option<domain::Customer>,
     key_store: domain::MerchantKeyStore,
     should_continue_capture: &mut bool,
+    platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
@@ -647,6 +648,7 @@ where
                         payment_data,
                         customer,
                         should_continue_capture,
+                        platform_merchant_account,
                     )
                     .await?;
                 logger::debug!("frm_post_tasks_data: {:?}", frm_data);
@@ -672,7 +674,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn call_frm_before_connector_call<'a, F, Req, D>(
+pub async fn call_frm_before_connector_call<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut D,

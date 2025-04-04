@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use api_models::webhooks::{self, IncomingWebhookEvent};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
@@ -20,14 +21,20 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_CODE,
     errors,
@@ -35,6 +42,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use router_env::logger;
 use transformers as razorpay;
@@ -152,6 +160,8 @@ impl ConnectorCommon for Razorpay {
                             ),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     }
                     razorpay::ErrorResponse::RazorpayStringError(error_string) => {
@@ -162,6 +172,8 @@ impl ConnectorCommon for Razorpay {
                             reason: Some(error_string.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         })
                     }
                 }
@@ -671,4 +683,48 @@ fn get_webhook_object_from_body(
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
     Ok(details.payload)
+}
+
+lazy_static! {
+    static ref RAZORPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut razorpay_supported_payment_methods = SupportedPaymentMethods::new();
+        razorpay_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiCollect,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        razorpay_supported_payment_methods
+    };
+
+    static ref RAZORPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "RAZORPAY",
+        description:
+            "Razorpay helps you accept online payments from customers across Desktop, Mobile web, Android & iOS. Additionally by using Razorpay Payment Links, you can collect payments across multiple channels like SMS, Email, Whatsapp, Chatbots & Messenger.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
+
+}
+
+impl ConnectorSpecifications for Razorpay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*RAZORPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*RAZORPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*RAZORPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
 }

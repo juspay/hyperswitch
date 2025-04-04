@@ -1,6 +1,9 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
@@ -8,6 +11,7 @@ use common_utils::{
 };
 use common_utils::{
     errors::{CustomResult, ValidationError},
+    ext_traits::OptionExt,
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
@@ -18,6 +22,11 @@ use diesel_models::{
     ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
     PaymentAttemptNew as DieselPaymentAttemptNew,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+};
+#[cfg(feature = "v2")]
+use diesel_models::{
+    PaymentAttemptFeatureMetadata as DieselPaymentAttemptFeatureMetadata,
+    PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -33,9 +42,13 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
-use crate::type_encryption::{crypto_operation, CryptoOperation};
-#[cfg(feature = "v2")]
-use crate::{address::Address, merchant_key_store::MerchantKeyStore, router_response_types};
+use crate::{
+    address::Address,
+    consts,
+    merchant_key_store::MerchantKeyStore,
+    router_response_types,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
@@ -44,12 +57,13 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
+    type Error;
     #[cfg(feature = "v1")]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
@@ -58,7 +72,7 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &MerchantKeyStore,
         payment_attempt: PaymentAttempt,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn update_payment_attempt_with_attempt_id(
@@ -66,7 +80,7 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
@@ -76,7 +90,7 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -85,7 +99,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
@@ -93,7 +107,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
@@ -101,7 +115,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -109,7 +123,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
@@ -119,7 +133,7 @@ pub trait PaymentAttemptInterface {
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+    ) -> CustomResult<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -128,7 +142,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
@@ -136,7 +150,7 @@ pub trait PaymentAttemptInterface {
         attempt_id: &str,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
@@ -145,7 +159,16 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempts_by_payment_intent_id(
+        &self,
+        state: &KeyManagerState,
+        payment_id: &id_type::GlobalPaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
@@ -153,7 +176,7 @@ pub trait PaymentAttemptInterface {
         preprocessing_id: &str,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_attempts_by_merchant_id_payment_id(
@@ -161,7 +184,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filters_for_payments(
@@ -169,7 +192,7 @@ pub trait PaymentAttemptInterface {
         pi: &[PaymentIntent],
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
+    ) -> error_stack::Result<PaymentListFilters, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[allow(clippy::too_many_arguments)]
@@ -183,12 +206,49 @@ pub trait PaymentAttemptInterface {
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<storage_enums::CardNetwork>>,
+        card_discovery: Option<Vec<storage_enums::CardDiscovery>>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<i64, errors::StorageError>;
+    ) -> error_stack::Result<i64, Self::Error>;
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<api_models::enums::Connector>,
+        payment_method_type: Option<storage_enums::PaymentMethod>,
+        payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+        authentication_type: Option<storage_enums::AuthenticationType>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        card_network: Option<storage_enums::CardNetwork>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<i64, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct AttemptAmountDetails {
+    /// The total amount for this payment attempt. This includes all the surcharge and tax amounts.
+    net_amount: MinorUnit,
+    /// The amount that has to be captured,
+    amount_to_capture: Option<MinorUnit>,
+    /// Surcharge amount for the payment attempt.
+    /// This is either derived by surcharge rules, or sent by the merchant
+    surcharge_amount: Option<MinorUnit>,
+    /// Tax amount for the payment attempt
+    /// This is either derived by surcharge rules, or sent by the merchant
+    tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount that can be captured for this payment attempt.
+    amount_capturable: MinorUnit,
+    /// Shipping cost for the payment attempt.
+    shipping_cost: Option<MinorUnit>,
+    /// Tax amount for the order.
+    /// This is either derived by calling an external tax processor, or sent by the merchant
+    order_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct AttemptAmountDetailsSetter {
     /// The total amount for this payment attempt. This includes all the surcharge and tax amounts.
     pub net_amount: MinorUnit,
     /// The amount that has to be captured,
@@ -206,6 +266,67 @@ pub struct AttemptAmountDetails {
     /// Tax amount for the order.
     /// This is either derived by calling an external tax processor, or sent by the merchant
     pub order_tax_amount: Option<MinorUnit>,
+}
+
+/// Set the fields of amount details, since the fields are not public
+impl From<AttemptAmountDetailsSetter> for AttemptAmountDetails {
+    fn from(setter: AttemptAmountDetailsSetter) -> Self {
+        Self {
+            net_amount: setter.net_amount,
+            amount_to_capture: setter.amount_to_capture,
+            surcharge_amount: setter.surcharge_amount,
+            tax_on_surcharge: setter.tax_on_surcharge,
+            amount_capturable: setter.amount_capturable,
+            shipping_cost: setter.shipping_cost,
+            order_tax_amount: setter.order_tax_amount,
+        }
+    }
+}
+
+impl AttemptAmountDetails {
+    pub fn get_net_amount(&self) -> MinorUnit {
+        self.net_amount
+    }
+
+    pub fn get_amount_to_capture(&self) -> Option<MinorUnit> {
+        self.amount_to_capture
+    }
+
+    pub fn get_surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+    }
+
+    pub fn get_tax_on_surcharge(&self) -> Option<MinorUnit> {
+        self.tax_on_surcharge
+    }
+
+    pub fn get_amount_capturable(&self) -> MinorUnit {
+        self.amount_capturable
+    }
+
+    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+        self.shipping_cost
+    }
+
+    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+
+    pub fn set_amount_to_capture(&mut self, amount_to_capture: MinorUnit) {
+        self.amount_to_capture = Some(amount_to_capture);
+    }
+
+    /// Validate the amount to capture that is sent in the request
+    pub fn validate_amount_to_capture(
+        &self,
+        request_amount_to_capture: MinorUnit,
+    ) -> Result<(), ValidationError> {
+        common_utils::fp_utils::when(request_amount_to_capture > self.get_net_amount(), || {
+            Err(ValidationError::IncorrectValueProvided {
+                field_name: "amount_to_capture",
+            })
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -292,7 +413,6 @@ pub struct PaymentAttempt {
     /// The foreign key reference to the authentication details
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     // TODO: use a type here instead of value
@@ -308,7 +428,7 @@ pub struct PaymentAttempt {
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -318,8 +438,14 @@ pub struct PaymentAttempt {
     pub payment_method_billing_address: Option<Encryptable<Address>>,
     /// The global identifier for the payment attempt
     pub id: id_type::GlobalAttemptId,
-    /// The connector mandate details which are stored temporarily
-    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    /// Connector token information that can be used to make payments directly by the merchant.
+    pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
+    /// Indicates the method by which a card is discovered during a payment
+    pub card_discovery: Option<common_enums::CardDiscovery>,
+    /// Split payment data
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    /// Additional data that might be required by hyperswitch, to enable some specific features.
+    pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
 
 impl PaymentAttempt {
@@ -342,7 +468,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
         // TODO: check if we can fix this
-        Some(self.payment_method_subtype)
+        self.payment_method_subtype
     }
 
     #[cfg(feature = "v1")]
@@ -392,6 +518,15 @@ impl PaymentAttempt {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to decode billing address")?;
 
+        let connector_token = Some(diesel_models::ConnectorTokenDetails {
+            connector_mandate_id: None,
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+            )),
+        });
+
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
+
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -400,7 +535,7 @@ impl PaymentAttempt {
             // This will be decided by the routing algorithm and updated in update trackers
             // right before calling the connector
             connector: None,
-            authentication_type: payment_intent.authentication_type,
+            authentication_type,
             created_at: now,
             modified_at: now,
             last_synced: None,
@@ -422,7 +557,186 @@ impl PaymentAttempt {
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
-            charge_id: None,
+            charges: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: request.payment_method_type,
+            payment_method_id: request.payment_method_id.clone(),
+            connector_payment_id: None,
+            payment_method_subtype: request.payment_method_subtype,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address,
+            error: None,
+            connector_token_details: connector_token,
+            id,
+            card_discovery: None,
+            feature_metadata: None,
+        })
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn proxy_create_domain_model(
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        request: &api_models::payments::ProxyPaymentsRequest,
+        encrypted_data: DecryptedPaymentAttempt,
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+        let intent_amount_details = payment_intent.amount_details.clone();
+
+        let attempt_amount_details =
+            intent_amount_details.proxy_create_attempt_amount_details(request);
+
+        let now = common_utils::date_time::now();
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+        let connector_token = Some(diesel_models::ConnectorTokenDetails {
+            connector_mandate_id: None,
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+            )),
+        });
+        let payment_method_type_data = payment_intent.get_payment_method_type();
+
+        let payment_method_subtype_data = payment_intent.get_payment_method_sub_type();
+
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
+        Ok(Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details: attempt_amount_details,
+            status: common_enums::AttemptStatus::Started,
+            connector: Some(request.connector.clone()),
+            authentication_type,
+            created_at: now,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: request.browser_info.clone(),
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: Some(request.merchant_connector_id.clone()),
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            charges: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: payment_method_type_data
+                .unwrap_or(common_enums::PaymentMethod::Card),
+            payment_method_id: None,
+            connector_payment_id: None,
+            payment_method_subtype: payment_method_subtype_data,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address,
+            error: None,
+            connector_token_details: connector_token,
+            feature_metadata: None,
+            id,
+            card_discovery: None,
+        })
+    }
+
+    /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
+    #[cfg(feature = "v2")]
+    pub async fn create_domain_model_using_record_request(
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        request: &api_models::payments::PaymentsAttemptRecordRequest,
+        encrypted_data: DecryptedPaymentAttempt,
+    ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+
+        let amount_details = AttemptAmountDetailsSetter::from(&request.amount_details);
+
+        let now = common_utils::date_time::now();
+        // we consume transaction_created_at from webhook request, if it is not present we take store current time as transaction_created_at.
+        let transaction_created_at = request
+            .transaction_created_at
+            .unwrap_or(common_utils::date_time::now());
+
+        // This function is called in the record attempt flow, which tells us that this is a payment attempt created by an external system.
+        let feature_metadata = PaymentAttemptFeatureMetadata {
+            revenue_recovery: Some({
+                PaymentAttemptRevenueRecoveryData {
+                    attempt_triggered_by: common_enums::TriggeredBy::External,
+                }
+            }),
+        };
+
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+        let error = request.error.as_ref().map(ErrorDetails::from);
+        let connector_payment_id = request
+            .connector_transaction_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_id().clone());
+        let connector = request.connector.map(|connector| connector.to_string());
+
+        Ok(Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            amount_details: AttemptAmountDetails::from(amount_details),
+            status: request.status,
+            connector,
+            authentication_type: storage_enums::AuthenticationType::NoThreeDs,
+            created_at: transaction_created_at,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: None,
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: request.payment_merchant_connector_id.clone(),
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
             client_source: None,
             client_version: None,
             customer_acceptance: None,
@@ -430,15 +744,36 @@ impl PaymentAttempt {
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
             payment_method_id: None,
-            connector_payment_id: None,
+            connector_payment_id,
             payment_method_subtype: request.payment_method_subtype,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
-            error: None,
-            connector_mandate_detail: None,
+            error,
+            feature_metadata: Some(feature_metadata),
             id,
+            connector_token_details: Some(diesel_models::ConnectorTokenDetails {
+                connector_mandate_id: Some(request.processor_payment_method_token.clone()),
+                connector_token_request_reference_id: None,
+            }),
+            card_discovery: None,
+            charges: None,
         })
+    }
+
+    pub fn get_attempt_merchant_connector_account_id(
+        &self,
+    ) -> CustomResult<
+        id_type::MerchantConnectorAccountId,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let merchant_connector_id = self
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant connector id is None")?;
+        Ok(merchant_connector_id)
     }
 }
 
@@ -508,6 +843,13 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -657,6 +999,7 @@ impl NetAmount {
 
 #[cfg(feature = "v2")]
 impl PaymentAttempt {
+    #[track_caller]
     pub fn get_total_amount(&self) -> MinorUnit {
         todo!();
     }
@@ -746,13 +1089,16 @@ pub struct PaymentAttemptNew {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 #[cfg(feature = "v1")]
@@ -819,6 +1165,7 @@ pub enum PaymentAttemptUpdate {
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        card_discovery: Option<common_enums::CardDiscovery>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -864,9 +1211,11 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        capture_before: Option<PrimitiveDateTime>,
+        extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<serde_json::Value>,
-        charge_id: Option<String>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -896,6 +1245,8 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        issuer_error_code: Option<String>,
+        issuer_error_message: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -921,7 +1272,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
-        charge_id: Option<String>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
         updated_by: String,
     },
     IncrementalAuthorizationAmountUpdate {
@@ -1071,6 +1422,7 @@ impl PaymentAttemptUpdate {
                 client_version,
                 customer_acceptance,
                 connector_mandate_detail,
+                card_discovery,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1105,6 +1457,7 @@ impl PaymentAttemptUpdate {
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
+                card_discovery,
             },
             Self::VoidUpdate {
                 status,
@@ -1134,9 +1487,11 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
-                charge_id,
                 connector_mandate_detail,
+                charges,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1156,9 +1511,11 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
-                charge_id,
                 connector_mandate_detail,
+                charges,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1197,6 +1554,8 @@ impl PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                issuer_error_code,
+                issuer_error_message,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1210,6 +1569,8 @@ impl PaymentAttemptUpdate {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                issuer_error_code,
+                issuer_error_message,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -1262,14 +1623,14 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 connector_transaction_id,
                 connector,
-                charge_id,
+                charges,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
+                charges,
                 connector,
-                charge_id,
                 updated_by,
             },
             Self::IncrementalAuthorizationAmountUpdate {
@@ -1324,6 +1685,18 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
+pub struct ConfirmIntentResponseUpdate {
+    pub status: storage_enums::AttemptStatus,
+    pub connector_payment_id: Option<String>,
+    pub updated_by: String,
+    pub redirection_data: Option<router_response_types::RedirectForm>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub amount_capturable: Option<MinorUnit>,
+    pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentAttemptUpdate {
     /// Update the payment attempt on confirming the intent, before calling the connector
     ConfirmIntent {
@@ -1331,23 +1704,30 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        authentication_type: storage_enums::AuthenticationType,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
-    ConfirmIntentResponse {
-        status: storage_enums::AttemptStatus,
-        connector_payment_id: Option<String>,
-        updated_by: String,
-        redirection_data: Option<router_response_types::RedirectForm>,
-        connector_metadata: Option<pii::SecretSerdeValue>,
-    },
+    ConfirmIntentResponse(Box<ConfirmIntentResponseUpdate>),
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {
         status: storage_enums::AttemptStatus,
+        amount_capturable: Option<MinorUnit>,
+        updated_by: String,
+    },
+    PreCaptureUpdate {
+        amount_to_capture: Option<MinorUnit>,
+        updated_by: String,
+    },
+    /// Update the payment after attempting capture with the connector
+    CaptureUpdate {
+        status: storage_enums::AttemptStatus,
+        amount_capturable: Option<MinorUnit>,
         updated_by: String,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on error response
     ErrorUpdate {
         status: storage_enums::AttemptStatus,
+        amount_capturable: Option<MinorUnit>,
         error: ErrorDetails,
         updated_by: String,
         connector_payment_id: Option<String>,
@@ -1384,7 +1764,7 @@ impl behaviour::Conversion for PaymentAttempt {
             .and_then(|card| card.get("card_network"))
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
-        let (connector_transaction_id, connector_transaction_data) = self
+        let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
@@ -1451,10 +1831,19 @@ impl behaviour::Conversion for PaymentAttempt {
             profile_id: self.profile_id,
             organization_id: self.organization_id,
             card_network,
-            connector_transaction_data,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            request_extended_authorization: self.request_extended_authorization,
+            extended_authorization_applied: self.extended_authorization_applied,
+            capture_before: self.capture_before,
+            processor_transaction_data,
+            card_discovery: self.card_discovery,
+            charges: self.charges,
+            issuer_error_code: self.issuer_error_code,
+            issuer_error_message: self.issuer_error_message,
+            // Below fields are deprecated. Please add any new fields above this line.
+            connector_transaction_data: None,
         })
     }
 
@@ -1536,6 +1925,13 @@ impl behaviour::Conversion for PaymentAttempt {
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                request_extended_authorization: storage_model.request_extended_authorization,
+                extended_authorization_applied: storage_model.extended_authorization_applied,
+                capture_before: storage_model.capture_before,
+                card_discovery: storage_model.card_discovery,
+                charges: storage_model.charges,
+                issuer_error_code: storage_model.issuer_error_code,
+                issuer_error_message: storage_model.issuer_error_message,
             })
         }
         .await
@@ -1608,7 +2004,6 @@ impl behaviour::Conversion for PaymentAttempt {
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
-            charge_id: self.charge_id,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -1618,6 +2013,10 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            request_extended_authorization: self.request_extended_authorization,
+            extended_authorization_applied: self.extended_authorization_applied,
+            capture_before: self.capture_before,
+            card_discovery: self.card_discovery,
         })
     }
 }
@@ -1669,7 +2068,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1684,7 +2082,10 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_id,
             payment_method_billing_address,
             connector,
-            connector_mandate_detail,
+            connector_token_details,
+            card_discovery,
+            charges,
+            feature_metadata,
         } = self;
 
         let AttemptAmountDetails {
@@ -1701,6 +2102,7 @@ impl behaviour::Conversion for PaymentAttempt {
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
+        let feature_metadata = feature_metadata.as_ref().map(From::from);
 
         Ok(DieselPaymentAttempt {
             payment_id,
@@ -1744,7 +2146,6 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_connector,
             authentication_id,
             fingerprint_id,
-            charge_id,
             client_source,
             client_version,
             customer_acceptance,
@@ -1761,7 +2162,13 @@ impl behaviour::Conversion for PaymentAttempt {
             tax_on_surcharge,
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
-            connector_mandate_detail,
+            connector_token_details,
+            card_discovery,
+            request_extended_authorization: None,
+            extended_authorization_applied: None,
+            capture_before: None,
+            charges,
+            feature_metadata,
         })
     }
 
@@ -1861,7 +2268,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_connector: storage_model.authentication_connector,
                 authentication_id: storage_model.authentication_id,
                 fingerprint_id: storage_model.fingerprint_id,
-                charge_id: storage_model.charge_id,
+                charges: storage_model.charges,
                 client_source: storage_model.client_source,
                 client_version: storage_model.client_version,
                 customer_acceptance: storage_model.customer_acceptance,
@@ -1872,7 +2279,9 @@ impl behaviour::Conversion for PaymentAttempt {
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
                 payment_method_billing_address,
-                connector_mandate_detail: storage_model.connector_mandate_detail,
+                connector_token_details: storage_model.connector_token_details,
+                card_discovery: storage_model.card_discovery,
+                feature_metadata: storage_model.feature_metadata.map(From::from),
             })
         }
         .await
@@ -1883,9 +2292,55 @@ impl behaviour::Conversion for PaymentAttempt {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         use common_utils::encryption::Encryption;
+        let Self {
+            payment_id,
+            merchant_id,
+            status,
+            error,
+            amount_details,
+            authentication_type,
+            created_at,
+            modified_at,
+            last_synced,
+            cancellation_reason,
+            browser_info,
+            payment_token,
+            connector_metadata,
+            payment_experience,
+            payment_method_data,
+            routing_result,
+            preprocessing_step_id,
+            multiple_capture_count,
+            connector_response_reference_id,
+            updated_by,
+            redirection_data,
+            encoded_data,
+            merchant_connector_id,
+            external_three_ds_authentication_attempted,
+            authentication_connector,
+            authentication_id,
+            fingerprint_id,
+            client_source,
+            client_version,
+            customer_acceptance,
+            profile_id,
+            organization_id,
+            payment_method_type,
+            connector_payment_id,
+            payment_method_subtype,
+            authentication_applied,
+            external_reference_id,
+            id,
+            payment_method_id,
+            payment_method_billing_address,
+            connector,
+            connector_token_details,
+            card_discovery,
+            charges,
+            feature_metadata,
+        } = self;
 
-        let card_network = self
-            .payment_method_data
+        let card_network = payment_method_data
             .as_ref()
             .and_then(|data| data.peek().as_object())
             .and_then(|card| card.get("card"))
@@ -1894,69 +2349,75 @@ impl behaviour::Conversion for PaymentAttempt {
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
 
-        let error_details = self.error;
+        let error_details = error;
 
         Ok(DieselPaymentAttemptNew {
-            payment_id: self.payment_id,
-            merchant_id: self.merchant_id,
-            status: self.status,
+            payment_id,
+            merchant_id,
+            status,
             error_message: error_details
                 .as_ref()
                 .map(|details| details.message.clone()),
-            surcharge_amount: self.amount_details.surcharge_amount,
-            tax_on_surcharge: self.amount_details.tax_on_surcharge,
-            payment_method_id: self.payment_method_id,
-            authentication_type: self.authentication_type,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
-            last_synced: self.last_synced,
-            cancellation_reason: self.cancellation_reason,
-            browser_info: self.browser_info,
-            payment_token: self.payment_token,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
+            payment_method_id,
+            authentication_type,
+            created_at,
+            modified_at,
+            last_synced,
+            cancellation_reason,
+            browser_info,
+            payment_token,
             error_code: error_details.as_ref().map(|details| details.code.clone()),
-            connector_metadata: self.connector_metadata,
-            payment_experience: self.payment_experience,
-            payment_method_data: self.payment_method_data,
-            preprocessing_step_id: self.preprocessing_step_id,
+            connector_metadata,
+            payment_experience,
+            payment_method_data,
+            preprocessing_step_id,
             error_reason: error_details
                 .as_ref()
                 .and_then(|details| details.reason.clone()),
-            connector_response_reference_id: self.connector_response_reference_id,
-            multiple_capture_count: self.multiple_capture_count,
-            amount_capturable: self.amount_details.amount_capturable,
-            updated_by: self.updated_by,
-            merchant_connector_id: self.merchant_connector_id,
-            redirection_data: self.redirection_data.map(From::from),
-            encoded_data: self.encoded_data,
+            connector_response_reference_id,
+            multiple_capture_count,
+            amount_capturable: amount_details.amount_capturable,
+            updated_by,
+            merchant_connector_id,
+            redirection_data: redirection_data.map(From::from),
+            encoded_data,
             unified_code: error_details
                 .as_ref()
                 .and_then(|details| details.unified_code.clone()),
             unified_message: error_details
                 .as_ref()
                 .and_then(|details| details.unified_message.clone()),
-            net_amount: self.amount_details.net_amount,
-            external_three_ds_authentication_attempted: self
-                .external_three_ds_authentication_attempted,
-            authentication_connector: self.authentication_connector,
-            authentication_id: self.authentication_id,
-            fingerprint_id: self.fingerprint_id,
-            charge_id: self.charge_id,
-            client_source: self.client_source,
-            client_version: self.client_version,
-            customer_acceptance: self.customer_acceptance,
-            profile_id: self.profile_id,
-            organization_id: self.organization_id,
+            net_amount: amount_details.net_amount,
+            external_three_ds_authentication_attempted,
+            authentication_connector,
+            authentication_id,
+            fingerprint_id,
+            client_source,
+            client_version,
+            customer_acceptance,
+            profile_id,
+            organization_id,
             card_network,
-            order_tax_amount: self.amount_details.order_tax_amount,
-            shipping_cost: self.amount_details.shipping_cost,
-            amount_to_capture: self.amount_details.amount_to_capture,
-            payment_method_billing_address: self
-                .payment_method_billing_address
-                .map(Encryption::from),
-            payment_method_subtype: self.payment_method_subtype,
-            payment_method_type_v2: self.payment_method_type,
-            id: self.id,
-            connector_mandate_detail: self.connector_mandate_detail,
+            order_tax_amount: amount_details.order_tax_amount,
+            shipping_cost: amount_details.shipping_cost,
+            amount_to_capture: amount_details.amount_to_capture,
+            payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
+            payment_method_subtype,
+            connector_payment_id: connector_payment_id
+                .as_ref()
+                .map(|txn_id| ConnectorTransactionId::TxnId(txn_id.clone())),
+            payment_method_type_v2: payment_method_type,
+            id,
+            charges,
+            connector_token_details,
+            card_discovery,
+            extended_authorization_applied: None,
+            request_extended_authorization: None,
+            capture_before: None,
+            feature_metadata: feature_metadata.as_ref().map(From::from),
+            connector,
         })
     }
 }
@@ -1970,6 +2431,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
                 connector,
                 merchant_connector_id,
+                authentication_type,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -1985,11 +2447,17 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: Some(connector),
                 redirection_data: None,
                 connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: Some(authentication_type),
+                feature_metadata: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
                 error,
                 connector_payment_id,
+                amount_capturable,
                 updated_by,
             } => Self {
                 status: Some(status),
@@ -2006,32 +2474,52 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                amount_capturable,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: None,
+                feature_metadata: None,
             },
-            PaymentAttemptUpdate::ConfirmIntentResponse {
+            PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
+                let ConfirmIntentResponseUpdate {
+                    status,
+                    connector_payment_id,
+                    updated_by,
+                    redirection_data,
+                    connector_metadata,
+                    amount_capturable,
+                    connector_token_details,
+                } = *confirm_intent_response_update;
+                Self {
+                    status: Some(status),
+                    amount_capturable,
+                    error_message: None,
+                    error_code: None,
+                    modified_at: common_utils::date_time::now(),
+                    browser_info: None,
+                    error_reason: None,
+                    updated_by,
+                    merchant_connector_id: None,
+                    unified_code: None,
+                    unified_message: None,
+                    connector_payment_id,
+                    connector: None,
+                    redirection_data: redirection_data
+                        .map(diesel_models::payment_attempt::RedirectForm::from),
+                    connector_metadata,
+                    amount_to_capture: None,
+                    connector_token_details,
+                    authentication_type: None,
+                    feature_metadata: None,
+                }
+            }
+            PaymentAttemptUpdate::SyncUpdate {
                 status,
-                connector_payment_id,
+                amount_capturable,
                 updated_by,
-                redirection_data,
-                connector_metadata,
             } => Self {
                 status: Some(status),
-                error_message: None,
-                error_code: None,
-                modified_at: common_utils::date_time::now(),
-                browser_info: None,
-                error_reason: None,
-                updated_by,
-                merchant_connector_id: None,
-                unified_code: None,
-                unified_message: None,
-                connector_payment_id,
-                connector: None,
-                redirection_data: redirection_data
-                    .map(diesel_models::payment_attempt::RedirectForm::from),
-                connector_metadata,
-            },
-            PaymentAttemptUpdate::SyncUpdate { status, updated_by } => Self {
-                status: Some(status),
+                amount_capturable,
                 error_message: None,
                 error_code: None,
                 modified_at: common_utils::date_time::now(),
@@ -2045,7 +2533,96 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: None,
+                feature_metadata: None,
+            },
+            PaymentAttemptUpdate::CaptureUpdate {
+                status,
+                amount_capturable,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                amount_capturable,
+                amount_to_capture: None,
+                error_message: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
+                connector_metadata: None,
+                connector_token_details: None,
+                authentication_type: None,
+                feature_metadata: None,
+            },
+            PaymentAttemptUpdate::PreCaptureUpdate {
+                amount_to_capture,
+                updated_by,
+            } => Self {
+                amount_to_capture,
+                error_message: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
+                status: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                connector_token_details: None,
+                authentication_type: None,
+                feature_metadata: None,
             },
         }
+    }
+}
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+pub struct PaymentAttemptFeatureMetadata {
+    pub revenue_recovery: Option<PaymentAttemptRevenueRecoveryData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+pub struct PaymentAttemptRevenueRecoveryData {
+    pub attempt_triggered_by: common_enums::TriggeredBy,
+}
+
+#[cfg(feature = "v2")]
+impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadata {
+    fn from(item: &PaymentAttemptFeatureMetadata) -> Self {
+        let revenue_recovery =
+            item.revenue_recovery
+                .as_ref()
+                .map(|recovery_data| DieselPassiveChurnRecoveryData {
+                    attempt_triggered_by: recovery_data.attempt_triggered_by,
+                });
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata {
+    fn from(item: DieselPaymentAttemptFeatureMetadata) -> Self {
+        let revenue_recovery =
+            item.revenue_recovery
+                .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
+                    attempt_triggered_by: recovery_data.attempt_triggered_by,
+                });
+        Self { revenue_recovery }
     }
 }

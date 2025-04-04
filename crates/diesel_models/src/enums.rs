@@ -4,8 +4,8 @@ pub mod diesel_exports {
         DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
         DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
         DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
-        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbCardDiscovery as CardDiscovery, DbConnectorStatus as ConnectorStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDashboardMetadata as DashboardMetadata, DbDeleteStatus as DeleteStatus,
         DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
         DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
@@ -17,7 +17,8 @@ pub mod diesel_exports {
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
-        DbRefundStatus as RefundStatus, DbRefundType as RefundType,
+        DbRefundStatus as RefundStatus, DbRefundType as RefundType, DbRelayStatus as RelayStatus,
+        DbRelayType as RelayType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbScaExemptionType as ScaExemptionType,
@@ -75,33 +76,6 @@ pub enum EventObjectType {
     DisputeDetails,
     MandateDetails,
     PayoutDetails,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ProcessTrackerStatus {
-    // Picked by the producer
-    Processing,
-    // State when the task is added
-    New,
-    // Send to retry
-    Pending,
-    // Picked by consumer
-    ProcessStarted,
-    // Finished by consumer
-    Finish,
 }
 
 // Refund
@@ -281,6 +255,7 @@ pub enum DashboardMetadata {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
     OnboardingSurvey,
+    ReconStatus,
 }
 
 #[derive(

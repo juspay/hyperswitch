@@ -290,14 +290,37 @@ api_secret = "Client Key"
 [thunes]
 api_key="API Key"
 
+[getnet]
+api_key="API Key"
+
 [inespay]
 api_key="API Key"
 
 [jpmorgan]
-api_key="API Key"
+api_key="Client ID"
+key1 ="Client Secret"
 
 [elavon]
 api_key="API Key"
 
 [nomupay]
+api_key="kid"
+key1="eid"
+
+[unified_authentication_service]
 api_key="API Key"
+
+[chargebee]
+api_key= "API Key"
+
+[moneris]
+api_key= "API Key"
+
+[stripebilling]
+api_key= "API Key"
+
+[paystack]
+api_key = "API Key"
+
+[recurly]
+api_key= "API Key"

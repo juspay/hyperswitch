@@ -4,6 +4,7 @@ use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
+    role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
 use error_stack::{report, Report, ResultExt};
@@ -48,6 +49,9 @@ pub async fn validate_role_name(
     role_name: &domain::RoleName,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
+    profile_id: &id_type::ProfileId,
+    entity_type: &EntityType,
 ) -> UserResult<()> {
     let role_name_str = role_name.clone().get_role_name();
 
@@ -55,68 +59,85 @@ pub async fn validate_role_name(
         .iter()
         .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
 
-    // TODO: Create and use find_by_role_name to make this efficient
-    let is_present_in_custom_roles = state
-        .store
-        .list_all_roles(merchant_id, org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .iter()
-        .any(|role| role.role_name == role_name_str);
+    let entity_type_for_role = match entity_type {
+        EntityType::Tenant | EntityType::Organization => ListRolesByEntityPayload::Organization,
+        EntityType::Merchant => ListRolesByEntityPayload::Merchant(merchant_id.to_owned()),
+        EntityType::Profile => {
+            ListRolesByEntityPayload::Profile(merchant_id.to_owned(), profile_id.to_owned())
+        }
+    };
 
-    if is_present_in_predefined_roles || is_present_in_custom_roles {
+    let is_present_in_custom_role = match state
+        .global_store
+        .generic_list_roles_by_entity_type(
+            entity_type_for_role,
+            false,
+            tenant_id.to_owned(),
+            org_id.to_owned(),
+        )
+        .await
+    {
+        Ok(roles_list) => roles_list
+            .iter()
+            .any(|role| role.role_name == role_name_str),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                false
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if is_present_in_predefined_roles || is_present_in_custom_role {
         return Err(UserErrors::RoleNameAlreadyExists.into());
     }
 
     Ok(())
 }
 
-pub async fn set_role_permissions_in_cache_by_user_role(
+pub async fn set_role_info_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
-    let Some(ref merchant_id) = user_role.merchant_id else {
-        return false;
-    };
-
     let Some(ref org_id) = user_role.org_id else {
         return false;
     };
-    set_role_permissions_in_cache_if_required(
+    set_role_info_in_cache_if_required(
         state,
         user_role.role_id.as_str(),
-        merchant_id,
         org_id,
+        &user_role.tenant_id,
     )
     .await
     .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
     .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+pub async fn set_role_info_in_cache_by_role_id_org_id(
     state: &SessionState,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> bool {
-    set_role_permissions_in_cache_if_required(state, role_id, merchant_id, org_id)
+    set_role_info_in_cache_if_required(state, role_id, org_id, tenant_id)
         .await
         .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
         .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache_if_required(
+pub async fn set_role_info_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());
     }
 
     let role_info =
-        roles::RoleInfo::from_role_id_in_merchant_scope(state, role_id, merchant_id, org_id)
+        roles::RoleInfo::from_role_id_org_id_tenant_id(state, role_id, org_id, tenant_id)
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error getting role_info from role_id")?;

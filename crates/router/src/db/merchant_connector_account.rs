@@ -59,7 +59,7 @@ impl ConnectorAccessToken for Store {
         let maybe_token = self
             .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .get_key::<Option<Vec<u8>>>(&key)
+            .get_key::<Option<Vec<u8>>>(&key.into())
             .await
             .change_context(errors::StorageError::KVError)
             .attach_printable("DB error when getting access token")?;
@@ -88,7 +88,7 @@ impl ConnectorAccessToken for Store {
             .change_context(errors::StorageError::SerializationFailed)?;
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
+            .set_key_with_expiry(&key.into(), serialized_access_token, access_token.expires)
             .await
             .change_context(errors::StorageError::KVError)
     }
@@ -179,7 +179,7 @@ where
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError>;
 
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
@@ -187,6 +187,15 @@ where
         state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
+
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
     async fn update_merchant_connector_account(
@@ -493,6 +502,41 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        storage::MerchantConnectorAccount::list_enabled_by_profile_id(
+            &conn,
+            profile_id,
+            connector_type,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+        .async_and_then(|items| async {
+            let mut output = Vec::with_capacity(items.len());
+            for item in items.into_iter() {
+                output.push(
+                    item.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?,
+                )
+            }
+            Ok(output)
+        })
+        .await
+    }
+
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
@@ -500,9 +544,14 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
+        let merchant_connector_account_vec =
+            storage::MerchantConnectorAccount::find_by_merchant_id(
+                &conn,
+                merchant_id,
+                get_disabled,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|items| async {
@@ -520,7 +569,10 @@ impl MerchantConnectorAccountInterface for Store {
                 }
                 Ok(output)
             })
-            .await
+            .await?;
+        Ok(domain::MerchantConnectorAccounts::new(
+            merchant_connector_account_vec,
+        ))
     }
 
     #[instrument(skip_all)]
@@ -583,7 +635,12 @@ impl MerchantConnectorAccountInterface for Store {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
+                #[cfg(feature = "v1")]
                 let _connector_name = merchant_connector_account.connector_name.clone();
+
+                #[cfg(feature = "v2")]
+                let _connector_name = merchant_connector_account.connector_name.to_string();
+
                 let _profile_id = merchant_connector_account.profile_id.clone();
 
                 let _merchant_id = merchant_connector_account.merchant_id.clone();
@@ -747,7 +804,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let _connector_name = this.connector_name.clone();
+        let _connector_name = this.connector_name;
         let _profile_id = this.profile_id.clone();
 
         let _merchant_id = this.merchant_id.clone();
@@ -1010,6 +1067,17 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &common_utils::id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        todo!()
+    }
+
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
@@ -1233,6 +1301,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
+            feature_metadata: t.feature_metadata.map(From::from),
         };
         accounts.push(account.clone());
         account
@@ -1253,7 +1322,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantConnectorAccounts, errors::StorageError> {
         let accounts = self
             .merchant_connector_accounts
             .lock()
@@ -1282,7 +1351,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .change_context(errors::StorageError::DecryptionError)?,
             )
         }
-        Ok(output)
+        Ok(domain::MerchantConnectorAccounts::new(output))
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
@@ -1506,6 +1575,7 @@ mod merchant_connector_account_cache_tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -1610,7 +1680,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)
@@ -1691,6 +1761,7 @@ mod merchant_connector_account_cache_tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -1750,7 +1821,7 @@ mod merchant_connector_account_cache_tests {
         let mca = domain::MerchantConnectorAccount {
             id: id.clone(),
             merchant_id: merchant_id.clone(),
-            connector_name: "stripe".to_string(),
+            connector_name: common_enums::connector_enums::Connector::Stripe,
             connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::MerchantConnectorAccount),
@@ -1787,7 +1858,8 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
+            feature_metadata: None,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)

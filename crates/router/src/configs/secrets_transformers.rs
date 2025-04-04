@@ -506,12 +506,14 @@ pub(crate) async fn fetch_raw_secrets(
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
+        // additional_revenue_recovery_details_call: conf.additional_revenue_recovery_details_call,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]
         payouts: conf.payouts,
         applepay_decrypt_keys,
         paze_decrypt_keys,
+        google_pay_decrypt_keys: conf.google_pay_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
@@ -545,6 +547,7 @@ pub(crate) async fn fetch_raw_secrets(
             .network_tokenization_supported_card_networks,
         network_tokenization_service,
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
-        theme_storage: conf.theme_storage,
+        theme: conf.theme,
+        platform: conf.platform,
     }
 }
