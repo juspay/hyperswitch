@@ -5,6 +5,7 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt, ValueExt},
+    pii::Email,
     request::Method,
 };
 use error_stack::ResultExt;
@@ -207,6 +208,7 @@ struct PaymentProfileDetails {
 #[serde(rename_all = "camelCase")]
 pub struct CustomerDetails {
     id: String,
+    email: Option<Email>,
 }
 
 #[derive(Debug, Serialize)]
@@ -230,6 +232,7 @@ pub struct BillTo {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
+    invoice_number: String,
     description: String,
 }
 
@@ -726,9 +729,21 @@ impl
             }),
             profile: None,
             order: Order {
+                invoice_number: if item.router_data.connector_request_reference_id.len() <= 20 {
+                    item.router_data.connector_request_reference_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: None,
+            customer: Some(CustomerDetails {
+                id: if item.router_data.payment_id.len() <= 20 {
+                    item.router_data.payment_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
+                email: Some(item.router_data.request.get_email()?),
+            }),
             bill_to: item
                 .router_data
                 .get_optional_billing()
@@ -797,9 +812,21 @@ impl
                     })
                 }),
             order: Order {
+                invoice_number: if item.router_data.connector_request_reference_id.len() <= 20 {
+                    item.router_data.connector_request_reference_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: None,
+            customer: Some(CustomerDetails {
+                id: if item.router_data.payment_id.len() <= 20 {
+                    item.router_data.payment_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
+                email: Some(item.router_data.request.get_email()?),
+            }),
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
@@ -834,24 +861,21 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if item.router_data.request.is_mandate_payment() {
-            (
-                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                    create_profile: true,
-                })),
-                Some(CustomerDetails {
-                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                    id: if item.router_data.payment_id.len() <= 20 {
-                        item.router_data.payment_id.clone()
-                    } else {
-                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
-                    },
-                }),
-            )
-        } else {
-            (None, None)
-        };
+        let (profile, customer) = (
+            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                create_profile: true,
+            })),
+            Some(CustomerDetails {
+                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                id: if item.router_data.payment_id.len() <= 20 {
+                    item.router_data.payment_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
+                email: Some(item.router_data.request.get_email()?),
+            }),
+        );
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -863,6 +887,11 @@ impl
             })),
             profile,
             order: Order {
+                invoice_number: if item.router_data.connector_request_reference_id.len() <= 20 {
+                    item.router_data.connector_request_reference_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -910,23 +939,19 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if item.router_data.request.is_mandate_payment() {
-            (
-                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                    create_profile: true,
-                })),
-                Some(CustomerDetails {
-                    id: if item.router_data.payment_id.len() <= 20 {
-                        item.router_data.payment_id.clone()
-                    } else {
-                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
-                    },
-                }),
-            )
-        } else {
-            (None, None)
-        };
-
+        let (profile, customer) = (
+            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                create_profile: true,
+            })),
+            Some(CustomerDetails {
+                id: if item.router_data.payment_id.len() <= 20 {
+                    item.router_data.payment_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
+                email: Some(item.router_data.request.get_email()?),
+            }),
+        );
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -937,6 +962,11 @@ impl
             )?),
             profile,
             order: Order {
+                invoice_number: if item.router_data.connector_request_reference_id.len() <= 20 {
+                    item.router_data.connector_request_reference_id.clone()
+                } else {
+                    Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
+                },
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
