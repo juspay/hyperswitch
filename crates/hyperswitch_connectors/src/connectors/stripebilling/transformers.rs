@@ -297,6 +297,37 @@ pub struct StripebillingWebhookObject {
     #[serde(rename = "amount_remaining")]
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
+    pub customer_address: Option<StripebillingInvoiceBillingAddress>,
+    pub attempt_count: u8,
+    pub lines: StripebillingWebhookLinesObject,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesObject {
+    pub data: Vec<StripebillingWebhookLinesData>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesData {
+    pub period: StripebillingWebhookLineDataPeriod,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLineDataPeriod {
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub end: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub start: PrimitiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingInvoiceBillingAddress {
+    pub country: Option<enums::CountryAlpha2>,
+    pub city: Option<String>,
+    pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub zip_code: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
