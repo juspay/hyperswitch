@@ -1436,8 +1436,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             connector_transaction_id: err.connector_transaction_id,
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,
-                            issuer_error_code: err.issuer_error_code,
-                            issuer_error_message: err.issuer_error_message,
+                            issuer_error_code: err.network_decline_code,
+                            issuer_error_message: err.network_error_message,
                         }),
                     )
                 }
