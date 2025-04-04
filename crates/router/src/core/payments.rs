@@ -618,8 +618,8 @@ where
                     let mut connectors = connectors.clone().into_iter();
 
                         let connector_data = if business_profile.is_debit_routing_enabled && is_debit_routing_performed {
-                            if let Some((connector_data, local_network)) = find_connector_with_networks(&mut connectors) {
-                                payment_data.set_local_network(local_network);
+                            if let Some((connector_data, network)) = find_connector_with_networks(&mut connectors) {
+                                payment_data.set_network(network);
                                 connector_data
                             } else {
                                 get_connector_data(&mut connectors)?.connector_data
@@ -8308,7 +8308,7 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     );
-    fn set_local_network(&mut self, local_network: enums::CardNetwork);
+    fn set_network(&mut self, network: enums::CardNetwork);
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     fn set_frm_message(&mut self, frm_message: FraudCheck);
@@ -8533,9 +8533,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_attempt.merchant_connector_id = merchant_connector_id;
     }
 
-    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+    fn set_network(&mut self, network: enums::CardNetwork) {
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
-                card.card_network = Some(local_network);
+                card.card_network = Some(network);
         };
     }
 
