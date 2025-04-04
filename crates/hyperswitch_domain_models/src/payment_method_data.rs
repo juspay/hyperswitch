@@ -15,7 +15,7 @@ use common_utils::{
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::Date;
+use time::{Date, PrimitiveDateTime};
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -612,9 +612,12 @@ pub enum BankTransferData {
         /// CNPJ is a Brazilian company tax identification number
         cnpj: Option<Secret<String>>,
         /// Source bank account UUID
-        from_bank_account_id: Option<Secret<String>>,
+        source_bank_account_id: Option<Secret<String>>,
         /// Destination bank account UUID.
-        to_bank_account_id: Option<Secret<String>>,
+        destination_bank_account_id: Option<Secret<String>>,
+        /// Pix QR code expiry date
+        #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+        pix_qr_expiry: Option<PrimitiveDateTime>,
     },
     Pse {},
     LocalBankTransfer {
@@ -1423,14 +1426,16 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 pix_key,
                 cpf,
                 cnpj,
-                from_bank_account_id,
-                to_bank_account_id,
+                source_bank_account_id,
+                destination_bank_account_id,
+                pix_qr_expiry,
             } => Self::Pix {
                 pix_key,
                 cpf,
                 cnpj,
-                from_bank_account_id,
-                to_bank_account_id,
+                source_bank_account_id,
+                destination_bank_account_id,
+                pix_qr_expiry,
             },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
@@ -1461,15 +1466,18 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 pix_key,
                 cpf,
                 cnpj,
-                from_bank_account_id,
-                to_bank_account_id,
+                source_bank_account_id,
+                destination_bank_account_id,
+                pix_qr_expiry,
             } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
-                    from_bank_account_id: from_bank_account_id.map(MaskedBankAccount::from),
-                    to_bank_account_id: to_bank_account_id.map(MaskedBankAccount::from),
+                    source_bank_account_id: source_bank_account_id.map(MaskedBankAccount::from),
+                    destination_bank_account_id: destination_bank_account_id
+                        .map(MaskedBankAccount::from),
+                    pix_qr_expiry,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},

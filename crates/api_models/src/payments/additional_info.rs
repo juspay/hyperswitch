@@ -2,6 +2,7 @@ use common_utils::new_type::{
     MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
 };
 use masking::Secret;
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::enums as api_enums;
@@ -170,11 +171,16 @@ pub struct PixBankTransferAdditionalData {
 
     /// Partially masked source bank account number
     #[schema(value_type = Option<String>, example = "********-****-4073-****-9fa964d08bc5")]
-    pub from_bank_account_id: Option<MaskedBankAccount>,
+    pub source_bank_account_id: Option<MaskedBankAccount>,
 
     /// Partially masked destination bank account number
     #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b")]
-    pub to_bank_account_id: Option<MaskedBankAccount>,
+    pub destination_bank_account_id: Option<MaskedBankAccount>,
+
+    /// Expiry date of the pix QR code
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2025-04-03T13:35:30.655Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub pix_qr_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
