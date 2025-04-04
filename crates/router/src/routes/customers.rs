@@ -152,7 +152,7 @@ pub async fn customers_list(
     let flow = Flow::CustomersList;
     let payload = query.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -174,7 +174,7 @@ pub async fn customers_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
