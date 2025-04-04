@@ -1,6 +1,9 @@
 pub mod transformers;
-use base64::{engine::general_purpose::STANDARD, Engine};
+
+
+use base64::Engine;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -57,7 +60,7 @@ const STATUS_SUCCESSFUL_ENDPOINT: &str = "mark_successful";
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 const STATUS_FAILED_ENDPOINT: &str = "mark_failed";
 
-const RECURY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
+const RECURLY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
 
 #[derive(Clone)]
 pub struct Recurly {
@@ -160,11 +163,11 @@ impl ConnectorCommon for Recurly {
         Ok(vec![
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Basic {}", STANDARD.encode(auth.api_key.peek())).into_masked(),
+                format!("Basic {}", consts::BASE64_ENGINE.encode(auth.api_key.peek())).into_masked(),
             ),
             (
                 headers::ACCEPT.to_string(),
-                RECURY_API_VERSION.to_string().into_masked(),
+                RECURLY_API_VERSION.to_string().into_masked(),
             ),
         ])
     }
