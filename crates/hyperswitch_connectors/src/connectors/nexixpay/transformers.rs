@@ -317,8 +317,9 @@ pub fn get_error_response(
         reason: Some(operation_result.to_string()),
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
