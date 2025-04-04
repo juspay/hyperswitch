@@ -530,8 +530,8 @@ fn build_bill_to(
                 });
 
                 BillTo {
-                    first_name: addr.first_name.clone().map(From::from),
-                    last_name: addr.last_name.clone().map(From::from),
+                    first_name: addr.first_name.clone(),
+                    last_name: addr.last_name.clone(),
                     address1: addr.line1.clone(),
                     locality: addr.city.clone(),
                     administrative_area,

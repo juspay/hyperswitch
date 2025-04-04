@@ -315,7 +315,7 @@ pub struct PazeDynamicData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
-    pub name: Option<common_utils::types::NameType>,
+    pub name: Option<Secret<String>>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,

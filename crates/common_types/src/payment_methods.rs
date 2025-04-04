@@ -1,15 +1,24 @@
 //! Common types to be used in payment methods
 
 use diesel::{
-    backend::Backend, deserialize, deserialize::FromSql, sql_types::Jsonb, AsExpression, Queryable,
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    sql_types::{Json, Jsonb},
+    AsExpression, Queryable,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// Details of all the payment methods enabled for the connector for the given merchant account
+
+// sql_type for this can be json instead of jsonb. This is because validation at database is not required since it will always be written by the application.
+// This is a performance optimization to avoid json validation at database level.
+// jsonb enables faster querying on json columns, but it doesn't justify here since we are not querying on this column.
+// https://docs.rs/diesel/latest/diesel/sql_types/struct.Jsonb.html
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
 #[serde(deny_unknown_fields)]
-#[diesel(sql_type = Jsonb)]
+#[diesel(sql_type = Json)]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
