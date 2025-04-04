@@ -21,7 +21,6 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     types::{
-        api,
         storage::{self, passive_churn_recovery as pcr},
         transformers::ForeignInto,
     },
@@ -189,7 +188,7 @@ pub async fn perform_payments_sync(
     tracking_data: &pcr::PcrWorkflowTrackingData,
     pcr_data: &pcr::PcrPaymentData,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let psync_data = call_psync_api(state, &tracking_data.global_payment_id, pcr_data).await?;
+    let psync_data = api::call_psync_api(state, &tracking_data.global_payment_id, pcr_data).await?;
     // If there is an active_attempt id then there will be a payment attempt
     let payment_attempt = psync_data
         .payment_attempt

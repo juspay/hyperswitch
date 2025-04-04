@@ -182,7 +182,7 @@ impl Decision {
                 enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
                 Some(_),
             ) => {
-                let psync_data = core_pcr::call_psync_api(state, payment_id, pcr_data)
+                let psync_data = core_pcr::api::call_psync_api(state, payment_id, pcr_data)
                     .await
                     .change_context(errors::RecoveryError::PaymentCallFailed)
                     .attach_printable("Error while executing the Psync call")?;
@@ -227,8 +227,13 @@ impl Action {
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
-        let response =
-            call_proxy_api(state, payment_intent, pcr_data, revenue_recovery_metadata).await;
+        let response = core_pcr::api::call_proxy_api(
+            state,
+            payment_intent,
+            pcr_data,
+            revenue_recovery_metadata,
+        )
+        .await;
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -311,7 +316,7 @@ impl Action {
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
                 );
-                update_payment_intent_api(
+                core_pcr::api::update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
                     pcr_data,
@@ -387,7 +392,7 @@ impl Action {
         process: &storage::ProcessTracker,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
-        let response = core_pcr::call_psync_api(state, global_payment_id, pcr_data).await;
+        let response = core_pcr::api::call_psync_api(state, global_payment_id, pcr_data).await;
         let db = &*state.store;
         let active_attempt_id = payment_attempt.get_id().clone();
         match response {
