@@ -1760,7 +1760,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -1805,7 +1805,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       }
@@ -1859,7 +1859,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -1940,7 +1940,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3122,7 +3122,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3211,7 +3211,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3276,7 +3276,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       },
@@ -3324,7 +3324,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "admin_api_key": []
           }
         ]
       }
@@ -5385,6 +5385,16 @@
             "required": false,
             "schema": {
               "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "is_delivered",
+            "in": "query",
+            "description": "Only include Events which are ultimately delivered to the merchant.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
               "nullable": true
             }
           }
@@ -9883,6 +9893,7 @@
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "taxjar",
           "threedsecureio",
           "trustpay",
@@ -9946,14 +9957,17 @@
         ],
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the connector"
           },
           "display_name": {
             "type": "string",
+            "description": "The display name of the connector",
             "nullable": true
           },
           "description": {
             "type": "string",
+            "description": "The description of the connector",
             "nullable": true
           },
           "category": {
@@ -9968,13 +9982,15 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
-            }
+            },
+            "description": "The list of payment methods supported by the connector"
           },
           "supported_webhook_flows": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EventClass"
             },
+            "description": "The list of webhook flows supported by the connector",
             "nullable": true
           }
         }
@@ -10441,6 +10457,260 @@
           "US"
         ]
       },
+      "CountryAlpha3": {
+        "type": "string",
+        "enum": [
+          "AFG",
+          "ALA",
+          "ALB",
+          "DZA",
+          "ASM",
+          "AND",
+          "AGO",
+          "AIA",
+          "ATA",
+          "ATG",
+          "ARG",
+          "ARM",
+          "ABW",
+          "AUS",
+          "AUT",
+          "AZE",
+          "BHS",
+          "BHR",
+          "BGD",
+          "BRB",
+          "BLR",
+          "BEL",
+          "BLZ",
+          "BEN",
+          "BMU",
+          "BTN",
+          "BOL",
+          "BES",
+          "BIH",
+          "BWA",
+          "BVT",
+          "BRA",
+          "IOT",
+          "BRN",
+          "BGR",
+          "BFA",
+          "BDI",
+          "CPV",
+          "KHM",
+          "CMR",
+          "CAN",
+          "CYM",
+          "CAF",
+          "TCD",
+          "CHL",
+          "CHN",
+          "CXR",
+          "CCK",
+          "COL",
+          "COM",
+          "COG",
+          "COD",
+          "COK",
+          "CRI",
+          "CIV",
+          "HRV",
+          "CUB",
+          "CUW",
+          "CYP",
+          "CZE",
+          "DNK",
+          "DJI",
+          "DMA",
+          "DOM",
+          "ECU",
+          "EGY",
+          "SLV",
+          "GNQ",
+          "ERI",
+          "EST",
+          "ETH",
+          "FLK",
+          "FRO",
+          "FJI",
+          "FIN",
+          "FRA",
+          "GUF",
+          "PYF",
+          "ATF",
+          "GAB",
+          "GMB",
+          "GEO",
+          "DEU",
+          "GHA",
+          "GIB",
+          "GRC",
+          "GRL",
+          "GRD",
+          "GLP",
+          "GUM",
+          "GTM",
+          "GGY",
+          "GIN",
+          "GNB",
+          "GUY",
+          "HTI",
+          "HMD",
+          "VAT",
+          "HND",
+          "HKG",
+          "HUN",
+          "ISL",
+          "IND",
+          "IDN",
+          "IRN",
+          "IRQ",
+          "IRL",
+          "IMN",
+          "ISR",
+          "ITA",
+          "JAM",
+          "JPN",
+          "JEY",
+          "JOR",
+          "KAZ",
+          "KEN",
+          "KIR",
+          "PRK",
+          "KOR",
+          "KWT",
+          "KGZ",
+          "LAO",
+          "LVA",
+          "LBN",
+          "LSO",
+          "LBR",
+          "LBY",
+          "LIE",
+          "LTU",
+          "LUX",
+          "MAC",
+          "MKD",
+          "MDG",
+          "MWI",
+          "MYS",
+          "MDV",
+          "MLI",
+          "MLT",
+          "MHL",
+          "MTQ",
+          "MRT",
+          "MUS",
+          "MYT",
+          "MEX",
+          "FSM",
+          "MDA",
+          "MCO",
+          "MNG",
+          "MNE",
+          "MSR",
+          "MAR",
+          "MOZ",
+          "MMR",
+          "NAM",
+          "NRU",
+          "NPL",
+          "NLD",
+          "NCL",
+          "NZL",
+          "NIC",
+          "NER",
+          "NGA",
+          "NIU",
+          "NFK",
+          "MNP",
+          "NOR",
+          "OMN",
+          "PAK",
+          "PLW",
+          "PSE",
+          "PAN",
+          "PNG",
+          "PRY",
+          "PER",
+          "PHL",
+          "PCN",
+          "POL",
+          "PRT",
+          "PRI",
+          "QAT",
+          "REU",
+          "ROU",
+          "RUS",
+          "RWA",
+          "BLM",
+          "SHN",
+          "KNA",
+          "LCA",
+          "MAF",
+          "SPM",
+          "VCT",
+          "WSM",
+          "SMR",
+          "STP",
+          "SAU",
+          "SEN",
+          "SRB",
+          "SYC",
+          "SLE",
+          "SGP",
+          "SXM",
+          "SVK",
+          "SVN",
+          "SLB",
+          "SOM",
+          "ZAF",
+          "SGS",
+          "SSD",
+          "ESP",
+          "LKA",
+          "SDN",
+          "SUR",
+          "SJM",
+          "SWZ",
+          "SWE",
+          "CHE",
+          "SYR",
+          "TWN",
+          "TJK",
+          "TZA",
+          "THA",
+          "TLS",
+          "TGO",
+          "TKL",
+          "TON",
+          "TTO",
+          "TUN",
+          "TUR",
+          "TKM",
+          "TCA",
+          "TUV",
+          "UGA",
+          "UKR",
+          "ARE",
+          "GBR",
+          "USA",
+          "UMI",
+          "URY",
+          "UZB",
+          "VUT",
+          "VEN",
+          "VNM",
+          "VGB",
+          "VIR",
+          "WLF",
+          "ESH",
+          "YEM",
+          "ZMB",
+          "ZWE"
+        ]
+      },
       "CreateApiKeyRequest": {
         "type": "object",
         "description": "The request body for creating an API Key.",
@@ -10551,9 +10821,6 @@
       },
       "CtpServiceDetails": {
         "type": "object",
-        "required": [
-          "provider"
-        ],
         "properties": {
           "merchant_transaction_id": {
             "type": "string",
@@ -10571,7 +10838,12 @@
             "nullable": true
           },
           "provider": {
-            "$ref": "#/components/schemas/CtpServiceProvider"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
           },
           "encypted_payload": {
             "type": "string",
@@ -11751,7 +12023,6 @@
           "object_id",
           "event_type",
           "event_class",
-          "is_delivery_successful",
           "initial_attempt_id",
           "created"
         ],
@@ -11788,7 +12059,8 @@
           },
           "is_delivery_successful": {
             "type": "boolean",
-            "description": "Indicates whether the webhook delivery attempt was successful."
+            "description": "Indicates whether the webhook was ultimately delivered or not.",
+            "nullable": true
           },
           "initial_attempt_id": {
             "type": "string",
@@ -25190,6 +25462,7 @@
           "square",
           "stax",
           "stripe",
+          "stripebilling",
           "trustpay",
           "tsys",
           "volt",
@@ -26480,6 +26753,7 @@
             "required": [
               "payment_method",
               "payment_method_type",
+              "payment_method_type_display_name",
               "mandates",
               "refunds",
               "supported_capture_methods"
@@ -26491,6 +26765,10 @@
               "payment_method_type": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
+              "payment_method_type_display_name": {
+                "type": "string",
+                "description": "The display name of the payment method type"
+              },
               "mandates": {
                 "$ref": "#/components/schemas/FeatureStatus"
               },
@@ -26501,13 +26779,15 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/CaptureMethod"
-                }
+                },
+                "description": "List of supported capture methods supported by the payment method type"
               },
               "supported_countries": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/CountryAlpha2"
+                  "$ref": "#/components/schemas/CountryAlpha3"
                 },
+                "description": "List of countries supported by the payment method type via the connector",
                 "uniqueItems": true,
                 "nullable": true
               },
@@ -26516,6 +26796,7 @@
                 "items": {
                   "$ref": "#/components/schemas/Currency"
                 },
+                "description": "List of currencies supported by the payment method type via the connector",
                 "uniqueItems": true,
                 "nullable": true
               }
