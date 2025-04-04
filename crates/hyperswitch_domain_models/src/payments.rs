@@ -288,7 +288,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,

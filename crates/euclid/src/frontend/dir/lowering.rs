@@ -16,6 +16,8 @@ impl From<enums::CardType> for global_enums::PaymentMethodType {
         match value {
             enums::CardType::Credit => Self::Credit,
             enums::CardType::Debit => Self::Debit,
+            #[cfg(feature = "v2")]
+            enums::CardType::Card => Self::Card,
         }
     }
 }

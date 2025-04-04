@@ -27,6 +27,8 @@ pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
 pub enum CardType {
     Credit,
     Debit,
+    #[cfg(feature = "v2")]
+    Card,
 }
 
 #[derive(

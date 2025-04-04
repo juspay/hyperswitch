@@ -401,7 +401,7 @@ impl Action {
                 merchant_reference_id,
                 amount: payment_attempt.get_total_amount(),
                 currency: payment_intent.amount_details.currency,
-                payment_method_type: payment_attempt.payment_method_subtype,
+                payment_method_type: Some(payment_attempt.payment_method_subtype),
                 attempt_status: payment_attempt.status,
                 connector_transaction_id: payment_attempt
                     .connector_payment_id
