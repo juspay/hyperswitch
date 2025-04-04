@@ -959,7 +959,7 @@ static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Xendit {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
