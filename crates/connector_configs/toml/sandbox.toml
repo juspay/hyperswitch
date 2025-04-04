@@ -1510,13 +1510,13 @@ name="currency_id"
 label="ID of the currency in which the refund will be issued"
 placeholder="Enter ID of the currency in which the refund will be issued"
 required=true
-type="Text"
+type="Number"
 [coingate.metadata.platform_id]
 name="platform_id"
 label="Platform ID of the currency in which the refund will be issued"
 placeholder="Enter Platform ID of the currency in which the refund will be issued"
 required=true
-type="Text"
+type="Number"
 [coingate.metadata.ledger_account_id]
 name="ledger_account_id"
 label="ID of the trader balance associated with the currency in which the refund will be issued"
