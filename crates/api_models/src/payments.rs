@@ -1602,7 +1602,7 @@ pub struct PaymentAttemptRecordResponse {
     /// The global identifier for the payment attempt
     #[schema(value_type = String)]
     pub id: id_type::GlobalAttemptId,
-    /// /// The status of the attempt
+    /// The status of the attempt
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
