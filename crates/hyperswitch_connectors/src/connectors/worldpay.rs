@@ -1334,9 +1334,7 @@ static WORLDPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [
-    enums::EventClass::Payments,
-];
+static WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Worldpay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

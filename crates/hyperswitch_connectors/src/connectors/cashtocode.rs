@@ -489,10 +489,8 @@ static CASHTOCODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
             "CashToCode is a payment solution that enables users to convert cash into digital vouchers for online transactions",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
-    
-static CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [
-    enums::EventClass::Payments,
-];
+
+static CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Cashtocode {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
