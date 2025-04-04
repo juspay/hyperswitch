@@ -4183,7 +4183,6 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Placetopay,
     connectors::Rapyd,
     connectors::Razorpay,
-    connectors::Recurly,
     connectors::Redsys,
     connectors::Shift4,
     connectors::Stax,
