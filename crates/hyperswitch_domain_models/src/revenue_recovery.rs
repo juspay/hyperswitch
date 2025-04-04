@@ -34,6 +34,14 @@ pub struct RevenueRecoveryAttemptData {
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
     pub payment_method_sub_type: Option<common_enums::PaymentMethodType>,
+    /// This field can be returned for both approved and refused Mastercard payments.
+    /// This code provides additional information about the type of transaction or the reason why the payment failed.
+    /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    pub network_advice_code: Option<String>,
+    /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    pub network_decline_code: Option<String>,
+    /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    pub network_error_message: Option<String>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -219,6 +227,9 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
             status: data.status,
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: Some(data.payment_method_sub_type),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -245,6 +256,9 @@ impl From<&RevenueRecoveryAttemptData> for Option<api_payments::RecordAttemptErr
             .map(|(code, message)| api_payments::RecordAttemptErrorDetails {
                 code: code.to_string(),
                 message: message.to_string(),
+                network_advice_code: data.network_advice_code.clone(),
+                network_decline_code: data.network_decline_code.clone(),
+                network_error_message: data.network_error_message.clone(),
             })
     }
 }

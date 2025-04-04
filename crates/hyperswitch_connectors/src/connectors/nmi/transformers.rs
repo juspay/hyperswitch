@@ -239,8 +239,9 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transactionid),
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 AttemptStatus::Failure,
             ),
@@ -410,8 +411,9 @@ fn foreign_from_nmi_response(response: NmiCompleteResponse, http_code: u16) -> E
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response.transactionid),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
@@ -872,8 +874,9 @@ fn foreign_from_standard_response(response: StandardResponse, http_code: u16) ->
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response.transactionid),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
