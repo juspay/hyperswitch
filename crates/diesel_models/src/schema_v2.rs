@@ -891,6 +891,11 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         feature_metadata -> Nullable<Jsonb>,
+        #[max_length = 32]
+        network_advice_code -> Nullable<Varchar>,
+        #[max_length = 32]
+        network_decline_code -> Nullable<Varchar>,
+        network_error_message -> Nullable<Text>,
     }
 }
 
