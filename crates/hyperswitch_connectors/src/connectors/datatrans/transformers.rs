@@ -560,8 +560,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -631,8 +632,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -708,8 +710,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, DatatransRefundsResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -739,8 +742,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, DatatransSyncResponse>>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             DatatransSyncResponse::Response(response) => Ok(RefundsResponseData {
                 connector_refund_id: response.transaction_id.to_string(),
@@ -770,8 +774,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -795,8 +800,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     let mandate_reference = sync_response
