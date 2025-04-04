@@ -561,3 +561,6 @@ connector_list = "cybersource"
 
 [platform]
 enabled = true
+
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling"
