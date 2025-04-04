@@ -5,6 +5,8 @@ use router::{
 
 use crate::utils::{self, ConnectorActions};
 use test_utils::connector_auth;
+use hyperswitch_domain_models::payment_method_data::cards;
+use std::str::FromStr;
 
 #[derive(Clone, Copy)]
 struct {{project-name | downcase | pascal_case}}Test;
@@ -36,11 +38,25 @@ impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
 static CONNECTOR: {{project-name | downcase | pascal_case}}Test = {{project-name | downcase | pascal_case}}Test {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
+    Some(utils::PaymentInfo {
+        payment_method: enums::PaymentMethod::Card,
+        currency: enums::Currency::USD,
+        amount: 100,
+        ..Default::default()
+    })
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: api::PaymentMethodData::Card(api::Card {
+            card_number: cards::CardNumber::from_str("4242424242424242").unwrap(),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2025".to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            ..Default::default()
+        }),
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
