@@ -824,8 +824,9 @@ fn handle_cards_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.instance_id.clone()),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -896,8 +897,9 @@ fn handle_bank_redirects_error_response(
         status_code,
         attempt_status: Some(status),
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     });
     let payment_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -950,8 +952,9 @@ fn handle_bank_redirects_sync_response(
                     .payment_request_id
                     .clone(),
             ),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1006,8 +1009,9 @@ pub fn handle_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: payment_information.references.payment_request_id.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1117,8 +1121,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1590,8 +1595,9 @@ fn handle_cards_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1625,8 +1631,9 @@ fn handle_webhooks_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.references.payment_request_id.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1655,8 +1662,9 @@ fn handle_bank_redirects_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1693,8 +1701,9 @@ fn handle_bank_redirects_refund_sync_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1718,8 +1727,9 @@ fn handle_bank_redirects_refund_sync_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = RefundsResponseData {

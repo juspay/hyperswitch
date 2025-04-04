@@ -9766,6 +9766,18 @@
           "phone_country_code": {
             "type": "string",
             "nullable": true
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "dpa_client_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

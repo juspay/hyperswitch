@@ -686,6 +686,7 @@ pub struct ClickToPayMetaData {
     pub acquirer_merchant_id: String,
     pub merchant_category_code: String,
     pub merchant_country_code: String,
+    pub dpa_client_id: Option<String>,
 }
 
 // TODO: uncomment fields as necessary
