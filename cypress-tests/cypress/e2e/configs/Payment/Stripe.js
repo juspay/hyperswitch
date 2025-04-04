@@ -1,23 +1,16 @@
 import {
-  customerAcceptance,
   cardRequiredField,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
-
-const successfulNo3DSCardDetails = {
-  card_number: "378282246310005",
-  card_exp_month: "10",
-  card_exp_year: "50",
-  card_holder_name: "morino",
-  card_cvc: "737",
-};
 
 const successfulThreeDSTestCardDetails = {
   card_number: "4000002500003155",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "morino",
+  nick_name: "Bank",
   card_cvc: "737",
 };
 
@@ -26,7 +19,21 @@ const failedNo3DSCardDetails = {
   card_exp_month: "01",
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
+  nick_name: "Bank",
   card_cvc: "123",
+};
+
+const cardDetailsWithoutNickName = {
+  card_number: "378282246310005",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank",
 };
 
 const singleUseMandateData = {
@@ -728,6 +735,23 @@ export const connectorDetails = {
       Request: {
         setup_future_usage: "off_session",
         billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardWithoutCardNickName: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
