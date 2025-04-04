@@ -3841,6 +3841,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3913,6 +3915,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3983,6 +3987,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
