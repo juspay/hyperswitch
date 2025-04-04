@@ -20,11 +20,11 @@ pub async fn list_initial_webhook_delivery_attempts(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::MerchantId>,
-    query: web::Query<EventListConstraints>,
+    json_payload: web::Json<EventListConstraints>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
     let merchant_id = path.into_inner();
-    let constraints = query.into_inner();
+    let constraints = json_payload.into_inner();
 
     let request_internal = EventListRequestInternal {
         merchant_id: merchant_id.clone(),
@@ -60,10 +60,10 @@ pub async fn list_initial_webhook_delivery_attempts(
 pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<EventListConstraints>,
+    json_payload: web::Json<EventListConstraints>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
-    let constraints = query.into_inner();
+    let constraints = json_payload.into_inner();
 
     let request_internal = EventListRequestInternal {
         merchant_id: common_utils::id_type::MerchantId::default(),
