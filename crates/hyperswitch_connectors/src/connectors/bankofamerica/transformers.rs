@@ -1570,8 +1570,9 @@ fn map_error_response<F, T>(
         status_code: item.http_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     });
 
     match transaction_status {
@@ -1751,6 +1752,8 @@ fn convert_to_additional_payment_method_connector_response(
     AdditionalPaymentMethodConnectorResponse::Card {
         authentication_data,
         payment_checks,
+        card_network: None,
+        domestic_network: None,
     }
 }
 
@@ -2374,8 +2377,9 @@ fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
@@ -2655,8 +2659,9 @@ fn convert_to_error_response_from_error_info(
         status_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 

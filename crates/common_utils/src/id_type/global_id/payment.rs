@@ -1,3 +1,4 @@
+use common_enums::enums;
 use error_stack::ResultExt;
 
 use crate::{errors, generate_id_with_default_len, generate_time_ordered_id_without_prefix, types};
@@ -25,6 +26,15 @@ impl GlobalPaymentId {
     pub fn generate(cell_id: &crate::id_type::CellId) -> Self {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
         Self(global_id)
+    }
+
+    /// Generate the id for revenue recovery Execute PT workflow
+    pub fn get_execute_revenue_recovery_id(
+        &self,
+        task: &str,
+        runner: enums::ProcessTrackerRunner,
+    ) -> String {
+        format!("{task}_{runner}_{}", self.get_string_repr())
     }
 }
 
@@ -61,6 +71,15 @@ impl GlobalAttemptId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+
+    /// Generate the id for Revenue Recovery Psync PT workflow
+    pub fn get_psync_revenue_recovery_id(
+        &self,
+        task: &str,
+        runner: enums::ProcessTrackerRunner,
+    ) -> String {
+        format!("{runner}_{task}_{}", self.get_string_repr())
     }
 }
 

@@ -80,6 +80,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -128,7 +129,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
-    //Stripebilling,
+    Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -216,6 +217,7 @@ pub enum Connector {
     Coingate,
     Cryptopay,
     CtpMastercard,
+    CtpVisa,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -223,6 +225,7 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -272,7 +275,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
-    // Stripebilling,
+    Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -377,13 +380,14 @@ impl Connector {
             | Self::Cashtocode
             | Self::Chargebee
             | Self::Coinbase
-            |Self::Coingate
+            | Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Elavon
+            // | Self::Facilitapay
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -426,7 +430,7 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
-            // | Self::Stripebilling
+            | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -448,6 +452,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
             | Self::Datatrans => false,
@@ -532,6 +537,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dlocal => Self::Dlocal,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
+            // RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -576,7 +582,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
-            // RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
@@ -640,6 +646,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Dlocal => Ok(Self::Dlocal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
+            // Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
@@ -681,6 +688,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
@@ -702,7 +710,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
-            | Connector::Threedsecureio => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Threedsecureio
+            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }

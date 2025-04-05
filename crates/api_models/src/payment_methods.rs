@@ -455,6 +455,15 @@ impl PaymentMethodCreate {
             _ => false,
         }
     }
+    pub fn get_tokenize_connector_id(
+        &self,
+    ) -> Result<id_type::MerchantConnectorAccountId, error_stack::Report<errors::ValidationError>>
+    {
+        self.psp_tokenization
+            .clone()
+            .get_required_value("psp_tokenization")
+            .map(|psp| psp.connector_id)
+    }
 }
 
 #[cfg(all(
@@ -2783,6 +2792,14 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
     /// The payment method type
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -2858,6 +2875,6 @@ pub struct AuthenticationDetails {
     pub status: common_enums::IntentStatus,
 
     /// Error details of the authentication
-    #[schema(value_type = ErrorDetails)]
+    #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }

@@ -161,7 +161,14 @@ pub trait GlobalStorageInterface:
 
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
-    Send + Sync + dyn_clone::DynClone + OrganizationInterface + 'static
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface
+    + business_profile::ProfileInterface
+    + merchant_connector_account::MerchantConnectorAccountInterface
+    + 'static
 {
 }
 
