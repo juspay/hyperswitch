@@ -1,6 +1,7 @@
 use serde;
 use utoipa::ToSchema;
 #[derive(
+    Copy,
     Default,
     Clone,
     Debug,
