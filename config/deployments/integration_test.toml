@@ -322,6 +322,9 @@ paypal.currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,N
 credit.currency = "USD"
 debit.currency = "USD"
 
+[pm_filters.facilitapay]
+pix = { country = "BR", currency = "BRL" }
+
 [pm_filters.helcim]
 credit = { country = "US, CA", currency = "USD, CAD" }
 debit = { country = "US, CA", currency = "USD, CAD" }
