@@ -23,6 +23,24 @@ const customerAcceptance = {
   },
 };
 
+const payment_method_data_response = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "50",
+    card_holder_name: "joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -83,6 +101,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_response,
         },
       },
     },
@@ -99,6 +118,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_response,
         },
       },
     },
@@ -115,6 +135,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_response,
         },
       },
     },
@@ -131,6 +152,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: payment_method_data_response,
         },
       },
     },
