@@ -25,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -42,6 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use requests::{
     FacilitapayAuthRequest, FacilitapayCustomerRequest, FacilitapayPaymentsRequest,
@@ -167,7 +171,7 @@ impl ConnectorCommon for Facilitapay {
                             error_message.clone(),
                             Some(
                                 serde_json::to_string(&field_errors.errors)
-                                    .unwrap_or_else(|_| error_message),
+                                    .unwrap_or(error_message),
                             ),
                         )
                     }
@@ -176,7 +180,7 @@ impl ConnectorCommon for Facilitapay {
                         (
                             consts::NO_ERROR_CODE.to_string(),
                             error_message.clone(),
-                            Some(serde_json::to_string(&obj.0).unwrap_or_else(|_| error_message)),
+                            Some(serde_json::to_string(&obj.0).unwrap_or(error_message)),
                         )
                     }
                     FacilitapayErrorResponse::PlainText(text) => (
@@ -359,24 +363,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
     }
 }
 
-impl ConnectorValidation for Facilitapay {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Facilitapay {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Facilitapay {
     //TODO: implement sessions flow
@@ -896,4 +883,48 @@ impl webhooks::IncomingWebhook for Facilitapay {
     }
 }
 
-impl ConnectorSpecifications for Facilitapay {}
+lazy_static! {
+    static ref FACILITAPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name:
+            "Facilitapay",
+        description:
+            "FacilitaPay, the best and most reliable payment provider for your international business.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+    static ref FACILITAPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut facilitapay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        facilitapay_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::Pix,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        facilitapay_supported_payment_methods
+    };
+    static ref FACILITAPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
+
+impl ConnectorSpecifications for Facilitapay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*FACILITAPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*FACILITAPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*FACILITAPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
