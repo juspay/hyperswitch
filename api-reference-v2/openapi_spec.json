@@ -6230,6 +6230,29 @@
                     "description": "CNPJ is a Brazilian company tax identification number",
                     "example": "74469027417312",
                     "nullable": true
+                  },
+                  "source_bank_account_id": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/Secret"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "destination_bank_account_id": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/Secret"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "pix_qr_expiry": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Expiry date for the pix qr code",
+                    "example": "2025-04-03T13:35:30.655Z",
+                    "nullable": true
                   }
                 }
               }
@@ -7776,6 +7799,7 @@
           "dlocal",
           "ebanx",
           "elavon",
+          "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -10446,6 +10470,18 @@
           {
             "type": "string",
             "enum": [
+              "user_source_bank_account_id"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_destination_bank_account_id"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "text"
             ]
           },
@@ -10521,6 +10557,12 @@
             "type": "string",
             "enum": [
               "user_cnpj"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_qr_expiry"
             ]
           },
           {
@@ -19335,6 +19377,25 @@
             "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
             "example": "**** 417312",
             "nullable": true
+          },
+          "source_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked source bank account number",
+            "example": "********-****-4073-****-9fa964d08bc5",
+            "nullable": true
+          },
+          "destination_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked destination bank account number",
+            "example": "********-****-460b-****-f23b4e71c97b",
+            "nullable": true
+          },
+          "pix_qr_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Expiry date of the pix QR code",
+            "example": "2025-04-03T13:35:30.655Z",
+            "nullable": true
           }
         }
       },
@@ -21058,6 +21119,7 @@
           "dlocal",
           "ebanx",
           "elavon",
+          "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",
