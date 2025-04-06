@@ -13205,6 +13205,44 @@ impl Default for settings::RequiredFields {
                                             common: HashMap::new(),
                                         }
                                     ),
+                                    (
+                                        enums::Connector::Facilitapay,
+                                        RequiredFieldFinal {
+                                            mandate: HashMap::new(),
+                                            non_mandate: HashMap::new(),
+                                            common: HashMap::from(
+                                                [
+                                                    (
+                                                        "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
+                                                            display_name: "source_bank_account_id".to_string(),
+                                                            field_type: enums::FieldType::UserSourceBankAccountId,
+                                                            value: None,
+                                                        }
+                                                    ),
+                                                    (
+                                                        "payment_method_data.bank_transfer.pix.destination_bank_account_id".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.bank_transfer.pix.destination_bank_account_id".to_string(),
+                                                            display_name: "destination_bank_account_id".to_string(),
+                                                            field_type: enums::FieldType::UserDestinationBankAccountId,
+                                                            value: None,
+                                                        }
+                                                    ),
+                                                    (
+                                                        "payment_method_data.bank_transfer.pix.pix_qr_expiry".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.bank_transfer.pix.pix_qr_expiry".to_string(),
+                                                            display_name: "pix_qr_expiry".to_string(),
+                                                            field_type: enums::FieldType::UserPixQrExpiry,
+                                                            value: None,
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                        }
+                                    ),
                                 ])}),
                                 (
                                     enums::PaymentMethodType::PermataBankTransfer,
