@@ -1094,6 +1094,8 @@ impl Default for CustomerType {
             phone: None,
             name: None,
             preprocessing_id: None,
+            document_number: None,
+            document_type: None,
         };
         Self(data)
     }
