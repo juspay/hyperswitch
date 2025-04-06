@@ -2715,6 +2715,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,

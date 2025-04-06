@@ -722,7 +722,6 @@ default_imp_for_create_customer!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
-    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
