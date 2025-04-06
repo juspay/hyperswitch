@@ -77,7 +77,7 @@ pub struct FacilitapayRefundRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FacilitapaySubjectPeopleRequest {
+pub struct FacilitapayCustomerRequest {
     pub person: FacilitapayPerson,
 }
 

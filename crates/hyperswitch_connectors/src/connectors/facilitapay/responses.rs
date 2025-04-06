@@ -18,8 +18,10 @@ pub struct FacilitapayAuthResponse {
 pub enum SubjectKycStatus {
     // Customer is able to send/receive money through the platform. No action is needed on your side.
     Approved,
+
     // Customer is required to upload documents or uploaded documents have been rejected by KYC.
     Reproved,
+
     // Customer has uploaded KYC documents but awaiting analysis from the backoffice. No action is needed on your side.
     WaitingApproval,
 }
@@ -35,7 +37,7 @@ pub struct FacilitapaySubject {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
     pub status: SubjectKycStatus,
-    pub id: String, // Subject ID
+    pub id: Secret<String>, // Subject ID
     pub birth_date: Option<time::Date>,
     pub email: Option<pii::Email>,
     pub phone_country_code: Option<Secret<String>>,
@@ -58,7 +60,7 @@ pub struct FacilitapaySubject {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub struct FacilitapaySubjectPeopleResponse {
+pub struct FacilitapayCustomerResponse {
     pub data: FacilitapaySubject,
 }
 
@@ -93,7 +95,7 @@ pub enum FacilitapayPaymentStatus {
     Exchanged,
     Wired,
     Canceled,
-    #[serde(rename = "other")]
+    #[serde(other)]
     Unknown,
 }
 
@@ -206,9 +208,32 @@ pub struct FacilitapayRefundResponse {
     pub data: RefundData,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct FacilitapayErrorResponse {
-    pub code: String,
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SimpleError {
     pub error: String,
-    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct FieldErrors {
+    pub errors: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(transparent)]
+pub struct GenericFieldErrors(pub serde_json::Value);
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(untagged)] // Try to deserialize into variants in order
+pub enum FacilitapayErrorResponse {
+    /// Matches structures like `{"errors": {"field": ["message"]}}`
+    Structured(FieldErrors),
+
+    /// Matches structures like `{"error": "invalid_token"}`
+    Simple(SimpleError),
+
+    /// Matches structures like `{"field_name": "error_message"}` or `{"field_name": ["message"]}` or any other JSON object
+    GenericObject(GenericFieldErrors),
+
+    /// Matches plain text errors like `"Internal Server Error"`
+    PlainText(String),
 }

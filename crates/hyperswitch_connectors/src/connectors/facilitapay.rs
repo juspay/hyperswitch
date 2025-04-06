@@ -14,18 +14,21 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, Session,
+            SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -41,15 +44,14 @@ use hyperswitch_interfaces::{
 };
 use masking::{Mask, PeekInterface};
 use requests::{
-    FacilitapayAuthRequest, FacilitapayPaymentsRequest, FacilitapayRefundRequest,
-    FacilitapayRouterData,
+    FacilitapayAuthRequest, FacilitapayCustomerRequest, FacilitapayPaymentsRequest,
+    FacilitapayRefundRequest, FacilitapayRouterData,
 };
 use responses::{
-    FacilitapayAuthResponse, FacilitapayErrorResponse, FacilitapayPaymentsResponse,
-    FacilitapayRefundResponse,
+    FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayErrorResponse,
+    FacilitapayPaymentsResponse, FacilitapayRefundResponse,
 };
 
-// use transformers as facilitapay;
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
@@ -69,6 +71,7 @@ impl Facilitapay {
     }
 }
 
+impl api::ConnectorCustomer for Facilitapay {}
 impl api::Payment for Facilitapay {}
 impl api::PaymentSession for Facilitapay {}
 impl api::ConnectorAccessToken for Facilitapay {}
@@ -139,30 +142,220 @@ impl ConnectorCommon for Facilitapay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: FacilitapayErrorResponse = res
+        let status_code = res.status_code;
+        // Keep the raw bytes in case the first parse fails
+        let response_body_bytes = res.response.clone();
+
+        // First attempt to parse as FacilitapayErrorResponse (tries multiple formats)
+        match response_body_bytes
+            .parse_struct::<FacilitapayErrorResponse>("FacilitapayErrorResponse")
+        {
+            Ok(error_response) => {
+                event_builder.map(|i| i.set_response_body(&error_response));
+                router_env::info!(connector_response = ?error_response);
+
+                let (code, message, reason) = match &error_response {
+                    FacilitapayErrorResponse::Simple(simple) => (
+                        consts::NO_ERROR_CODE.to_string(),
+                        simple.error.clone(),
+                        Some(simple.error.clone()),
+                    ),
+                    FacilitapayErrorResponse::Structured(field_errors) => {
+                        let error_message = extract_error_message(&field_errors.errors);
+                        (
+                            consts::NO_ERROR_CODE.to_string(),
+                            error_message.clone(),
+                            Some(
+                                serde_json::to_string(&field_errors.errors)
+                                    .unwrap_or_else(|_| error_message),
+                            ),
+                        )
+                    }
+                    FacilitapayErrorResponse::GenericObject(obj) => {
+                        let error_message = extract_error_message(&obj.0);
+                        (
+                            consts::NO_ERROR_CODE.to_string(),
+                            error_message.clone(),
+                            Some(serde_json::to_string(&obj.0).unwrap_or_else(|_| error_message)),
+                        )
+                    }
+                    FacilitapayErrorResponse::PlainText(text) => (
+                        consts::NO_ERROR_CODE.to_string(),
+                        text.clone(),
+                        Some(text.clone()),
+                    ),
+                };
+
+                Ok(ErrorResponse {
+                    status_code,
+                    code,
+                    message,
+                    reason,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                })
+            }
+            // If structured parsing fails, try as a plain string
+            Err(json_error) => {
+                router_env::warn!(
+                    initial_parse_error = ?json_error,
+                    "Failed to parse Facilitapay error as JSON object, attempting to parse as String"
+                );
+
+                match response_body_bytes.parse_struct::<String>("PlainTextError") {
+                    Ok(error_string) => {
+                        event_builder.map(|i| i.set_response_body(&error_string));
+                        router_env::info!(connector_response = ?error_string);
+
+                        Ok(ErrorResponse {
+                            status_code,
+                            code: consts::NO_ERROR_CODE.to_string(),
+                            message: error_string.clone(),
+                            reason: Some(error_string),
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                        })
+                    }
+                    Err(string_error) => {
+                        router_env::error!(
+                            string_parse_error = ?string_error,
+                            original_json_error = ?json_error,
+                            "Failed to parse Facilitapay error response as JSON structure or simple String"
+                        );
+
+                        Err(json_error)
+                            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper function to extract error messages from JSON values
+fn extract_error_message(value: &serde_json::Value) -> String {
+    if let Some(obj) = value.as_object() {
+        let error_messages: Vec<String> = obj
+            .iter()
+            .flat_map(|(field, error_val)| {
+                let field_name = field.clone();
+
+                if let Some(errors) = error_val.as_array() {
+                    errors
+                        .iter()
+                        .filter_map(|e| e.as_str().map(|s| format!("{}: {}", field_name, s)))
+                        .collect::<Vec<String>>()
+                } else if let Some(error) = error_val.as_str() {
+                    vec![format!("{}: {}", field_name, error)]
+                } else {
+                    vec![format!("{}: {}", field_name, error_val)]
+                }
+            })
+            .collect();
+
+        if !error_messages.is_empty() {
+            error_messages.join(", ")
+        } else {
+            serde_json::to_string(value).unwrap_or_else(|_| consts::NO_ERROR_MESSAGE.to_string())
+        }
+    } else {
+        serde_json::to_string(value).unwrap_or_else(|_| consts::NO_ERROR_MESSAGE.to_string())
+    }
+}
+
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for Facilitapay
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/{}/{}",
+            self.base_url(connectors),
+            "subject",
+            "people"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = FacilitapayCustomerRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::ConnectorCustomerType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorCustomerType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorCustomerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError> {
+        let response: FacilitapayCustomerResponse = res
             .response
-            .parse_struct("FacilitapayErrorResponse")
+            .parse_struct("FacilitapayCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let response_message = response
-            .message
-            .as_ref()
-            .map_or_else(|| consts::NO_ERROR_MESSAGE.to_string(), ToString::to_string);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response_message,
-            reason: Some(response.error),
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
         })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -175,10 +368,10 @@ impl ConnectorValidation for Facilitapay {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => Ok(()),
+            enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
