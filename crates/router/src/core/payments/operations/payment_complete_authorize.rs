@@ -80,7 +80,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .or(payment_intent.setup_future_usage);
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
-        
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
             &[
