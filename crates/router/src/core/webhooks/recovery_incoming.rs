@@ -110,8 +110,7 @@ pub async fn recovery_incoming_webhook_flow(
         .await?;
 
     let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
-
-    let payment_attempt_with_recovery_intent =
+    let (recovery_attempt_from_payment_attempt , recovery_intent_from_payment_attempt) =
         RevenueRecoveryAttempt::get_recovery_payment_attempt(
             is_event_recovery_transaction_event,
             &billing_connector_account,
@@ -127,8 +126,7 @@ pub async fn recovery_incoming_webhook_flow(
         )
         .await?;
 
-    let attempt_triggered_by = payment_attempt_with_recovery_intent
-        .0
+    let attempt_triggered_by = recovery_attempt_from_payment_attempt
         .as_ref()
         .and_then(|attempt| attempt.get_attempt_triggered_by());
 
@@ -140,8 +138,7 @@ pub async fn recovery_incoming_webhook_flow(
             errors::RevenueRecoveryError::BillingThresholdRetryCountFetchFailed
         ))?;
 
-    let intent_retry_count = payment_attempt_with_recovery_intent
-        .1
+    let intent_retry_count = recovery_intent_from_payment_attempt
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.get_retry_count())
@@ -157,7 +154,10 @@ pub async fn recovery_incoming_webhook_flow(
                 mca_retry_threshold,
                 &state,
                 &merchant_account,
-                &payment_attempt_with_recovery_intent,
+                &(
+                    recovery_attempt_from_payment_attempt,
+                    recovery_intent_from_payment_attempt,
+                ),
                 &business_profile,
             )
             .await
@@ -199,30 +199,30 @@ async fn handle_schedule_failed_payment(
     ),
     business_profile: &domain::Profile,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
-    match intent_retry_count <= mca_retry_threshold {
-        true => {
-            router_env::logger::error!(
-                "Payment retry count {} is less than threshold {}",
-                intent_retry_count,
-                mca_retry_threshold
-            );
-            Ok(webhooks::WebhookResponseTracker::NoEffect)
-        }
-        false => RevenueRecoveryAttempt::insert_execute_pcr_task(
-            &*state.store,
-            merchant_account.get_id().to_owned(),
-            payment_attempt_with_recovery_intent.1.clone(),
-            business_profile.get_id().to_owned(),
+    let(recovery_attempt_from_payment_attempt , recovery_intent_from_payment_attempt)=payment_attempt_with_recovery_intent;
+    (intent_retry_count <= mca_retry_threshold).then(|| {
+        router_env::logger::error!(
+            "Payment retry count {} is less than threshold {}",
             intent_retry_count,
-            payment_attempt_with_recovery_intent
-                .0
-                .as_ref()
-                .map(|attempt| attempt.attempt_id.clone()),
-            storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
-        )
-        .await
-        .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed),
-    }
+            mca_retry_threshold
+        );
+        Ok(webhooks::WebhookResponseTracker::NoEffect)
+    }).async_unwrap_or_else (
+        || async {
+            RevenueRecoveryAttempt::insert_execute_pcr_task(
+                        &*state.store,
+                        merchant_account.get_id().to_owned(),
+                        recovery_intent_from_payment_attempt.clone(),
+                        business_profile.get_id().to_owned(),
+                        intent_retry_count,
+                        recovery_attempt_from_payment_attempt
+                            .as_ref()
+                            .map(|attempt| attempt.attempt_id.clone()),
+                        storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                    )
+                    .await
+        }
+    ).await
 }
 
 #[derive(Debug)]
@@ -676,10 +676,8 @@ impl RevenueRecoveryAttempt {
         .await
         .map_or_else(
             || {
-                Err(
-                    report!(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
-                        .attach_printable("Failed to get schedule time for pcr workflow"),
-                )
+            Err(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
+                .attach_printable("Failed to get schedule time for pcr workflow")
             },
             Ok, // Simply returns `time` wrapped in `Ok`
         )?;
