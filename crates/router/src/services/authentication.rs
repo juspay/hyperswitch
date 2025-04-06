@@ -2103,7 +2103,7 @@ where
 
         match db_client_secret.resource_id {
             common_utils::types::authentication::ResourceId::Payment(global_payment_id) => {
-                common_utils::fp_utils::when(
+                fp_utils::when(
                     global_payment_id.get_string_repr() != self.0.to_str(),
                     || Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized),
                 );
