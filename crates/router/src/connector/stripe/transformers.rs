@@ -1692,11 +1692,11 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                             state: shipping_address.and_then(|a| a.state.clone()),
                             name: format!(
                                 "{} {}",
-                                String::from(first_name),
+                                first_name.clone().expose(),
                                 shipping_detail
                                     .last_name
                                     .clone()
-                                    .map(String::from)
+                                    .expose_option()
                                     .unwrap_or_default()
                             )
                             .into(),
@@ -1728,8 +1728,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         a.first_name.as_ref().map(|first_name| {
                             format!(
                                 "{} {}",
-                                String::from(first_name),
-                                a.last_name.clone().map(String::from).unwrap_or_default()
+                                first_name.clone().expose(),
+                                a.last_name.clone().expose_option().unwrap_or_default()
                             )
                             .into()
                         })
@@ -2386,6 +2386,8 @@ impl From<AdditionalPaymentMethodDetails> for types::AdditionalPaymentMethodConn
         Self::Card {
             authentication_data: item.authentication_details,
             payment_checks: item.payment_checks,
+            card_network: None,
+            domestic_network: None,
         }
     }
 }
@@ -3288,8 +3290,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3325,8 +3328,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3595,8 +3599,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -4223,8 +4228,9 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response_id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

@@ -68,6 +68,7 @@ pub struct Profile {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[cfg(feature = "v1")]
@@ -120,6 +121,7 @@ pub struct ProfileNew {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[cfg(feature = "v1")]
@@ -289,6 +291,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
+            id: source.id,
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
@@ -348,6 +351,7 @@ pub struct Profile {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub id: common_utils::id_type::ProfileId,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -356,7 +360,6 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
-    pub id: common_utils::id_type::ProfileId,
 }
 
 impl Profile {
