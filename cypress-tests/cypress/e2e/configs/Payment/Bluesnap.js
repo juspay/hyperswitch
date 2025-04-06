@@ -16,6 +16,42 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "737",
 };
 
+const payment_method_data_3ds = {
+  card: {
+    last4: "1091",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "400000",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "Joseph",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "30",
+    card_holder_name: "John",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -83,6 +119,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -103,6 +140,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -120,6 +158,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -137,6 +176,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
