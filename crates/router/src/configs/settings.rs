@@ -66,7 +66,7 @@ pub struct Settings<S: SecretState> {
     pub redis: RedisSettings,
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
-    pub fallback_merchant_id: FallbackMerchantId,
+    pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
@@ -679,8 +679,8 @@ pub struct Secrets {
 
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
-pub struct FallbackMerchantId {
-    pub merchant_id: Option<id_type::MerchantId>,
+pub struct FallbackMerchantIds {
+    pub merchant_ids: Option<Vec<id_type::MerchantId>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
