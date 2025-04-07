@@ -2155,7 +2155,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                     None,
                     StripeBillingAddress::default(),
                     None,
-        )?
+                )?
                 .0
             }
         };
