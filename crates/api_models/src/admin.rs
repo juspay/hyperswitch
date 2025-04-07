@@ -2398,6 +2398,7 @@ pub struct ProfileResponse {
     pub is_network_tokenization_enabled: bool,
 
     /// Indicates if CVV should be collected during payment or not.
+    #[schema(value_type = Option<bool>)]
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
 
