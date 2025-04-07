@@ -9,14 +9,15 @@ use cards::CardNumber;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_types::primitive_wrappers;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::generate_id;
 use common_utils::id_type;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_types::primitive_wrappers;
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     consts,
