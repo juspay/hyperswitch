@@ -1,3 +1,7 @@
+use api_models::payments as payments_api;
+use common_utils::id_type;
+use hyperswitch_domain_models::payments as payments_domain;
+
 use super::types;
 use crate::{
     core::{
@@ -11,9 +15,6 @@ use crate::{
         storage::{self, revenue_recovery as revenue_recovery_types},
     },
 };
-use api_models::payments as payments_api;
-use common_utils::id_type;
-use hyperswitch_domain_models::payments as payments_domain;
 
 pub async fn call_psync_api(
     state: &SessionState,
