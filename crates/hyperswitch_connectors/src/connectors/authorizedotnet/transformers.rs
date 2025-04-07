@@ -551,8 +551,9 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -734,8 +735,8 @@ impl
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
                 .map(|address| BillTo {
-                    first_name: address.first_name.clone().map(From::from),
-                    last_name: address.last_name.clone().map(From::from),
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
                     address: address.line1.clone(),
                     city: address.city.clone(),
                     state: address.state.clone(),
@@ -871,8 +872,8 @@ impl
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
                 .map(|address| BillTo {
-                    first_name: address.first_name.clone().map(From::from),
-                    last_name: address.last_name.clone().map(From::from),
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
                     address: address.line1.clone(),
                     city: address.city.clone(),
                     state: address.state.clone(),
@@ -945,8 +946,8 @@ impl
                 .get_optional_billing()
                 .and_then(|billing_address| billing_address.address.as_ref())
                 .map(|address| BillTo {
-                    first_name: address.first_name.clone().map(From::from),
-                    last_name: address.last_name.clone().map(From::from),
+                    first_name: address.first_name.clone(),
+                    last_name: address.last_name.clone(),
                     address: address.line1.clone(),
                     city: address.city.clone(),
                     state: address.state.clone(),
@@ -1221,8 +1222,9 @@ impl<F, T>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1314,8 +1316,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1464,8 +1467,9 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         });
 
@@ -1747,8 +1751,9 @@ fn get_err_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     })
 }
 
