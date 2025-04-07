@@ -620,8 +620,9 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
 
                 Ok(Self {
@@ -998,8 +999,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
 
                 (response, enums::AttemptStatus::Failure)
@@ -1157,8 +1159,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
 
                 (response, enums::AttemptStatus::Failure)
@@ -1251,8 +1254,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCaptureData, Payme
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(response_data.ds_order.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1278,8 +1282,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCaptureData, Payme
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 (response, enums::AttemptStatus::Failure)
             }
@@ -1350,8 +1355,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCancelData, Paymen
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(response_data.ds_order.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1377,8 +1383,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsCancelData, Paymen
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
 
                 (response, enums::AttemptStatus::VoidFailed)
@@ -1427,8 +1434,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
@@ -1444,8 +1452,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, RedsysResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
         };
 
@@ -1478,8 +1487,9 @@ fn get_payments_response(
                 status_code: http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(redsys_payments_response.ds_order.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1764,8 +1774,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                             reason: Some(ds_response.0.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         });
                         (status, payment_response)
                     } else {
@@ -1808,8 +1819,9 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 (item.data.status, response)
             }
@@ -1856,8 +1868,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
             (Some(response), None) => {
@@ -1872,8 +1885,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
                             reason: Some(ds_response.0.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
