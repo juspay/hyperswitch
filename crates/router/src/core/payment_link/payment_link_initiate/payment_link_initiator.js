@@ -9,7 +9,8 @@
  **/
 function initializeSDK() {
   // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
+  var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+  var paymentDetails = decodeUri(encodedPaymentDetails);
   var clientSecret = paymentDetails.client_secret;
   var sdkUiRules = paymentDetails.sdk_ui_rules;
   var appearance = {
@@ -88,8 +89,7 @@ function initializeSDK() {
 /**
  * Use - redirect to /payment_link/status
  */
-function redirectToStatus() {
-  var paymentDetails = window.__PAYMENT_DETAILS;
+function redirectToStatus(paymentDetails) {
   var arr = window.location.pathname.split("/");
 
   // NOTE - This code preserves '/api' in url for integ and sbx

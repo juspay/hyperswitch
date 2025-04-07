@@ -1,8 +1,18 @@
-// @ts-nocheck
+// @ts-check
 
 /**
  * UTIL FUNCTIONS
  */
+
+function decodeUri(uri) {
+  try {
+    var uriStr = decodeURIComponent(uri);
+    return JSON.parse(uriStr);
+  } catch (e) {
+    console.error("Error decoding and parsing string URI:", e);
+    return uri;
+  }
+}
 
 function adjustLightness(hexColor, factor) {
   // Convert hex to RGB
@@ -176,10 +186,13 @@ window.state = {
 var widgets = null;
 var unifiedCheckout = null;
 // @ts-ignore
-var pub_key = window.__PAYMENT_DETAILS.pub_key;
+var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+var paymentDetails = decodeUri(encodedPaymentDetails);
+var pub_key = paymentDetails.pub_key;
 var hyper = null;
 
-const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
+// @ts-ignore
+const translations = getTranslations(paymentDetails.locale);
 
 var isFramed = false;
 try {
@@ -215,10 +228,6 @@ function emitPaymentStatus(paymentDetails) {
  *  - Initialize SDK
  **/
 function boot() {
-
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
-
   // Emit latest payment status
   if (isFramed) {
     emitPaymentStatus(paymentDetails);
@@ -427,7 +436,7 @@ function initializeEventListeners(paymentDetails) {
   if (paymentForm instanceof HTMLFormElement) {
     paymentForm.addEventListener("submit", function (event) {
       event.preventDefault();
-      handleSubmit(event);
+      handleSubmit(event, paymentDetails);
     })
   }
 
@@ -439,18 +448,20 @@ function initializeEventListeners(paymentDetails) {
 function handleFormReadyForSubmission() {
   window.addEventListener("message", function (event) {
     // Event listener for updating the button rules
-    if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
-      let isFormReadyForSubmission = event.data["isFormReadyForSubmission"];
-      var submitButtonNode = document.getElementById("submit");
-      if (submitButtonNode instanceof HTMLButtonElement) {
-        if (isFormReadyForSubmission === false) {
-          submitButtonNode.disabled = true;
-          addClass("#submit", "not-ready");
-          addClass("#submit", "disabled");
-        } else if (isFormReadyForSubmission === true) {
-          submitButtonNode.disabled = false;
-          removeClass("#submit", "not-ready");
-          removeClass("#submit", "disabled");
+    if (event.origin == "{{sdk_origin}}") {
+      if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
+        let isFormReadyForSubmission = event.data["isFormReadyForSubmission"];
+        var submitButtonNode = document.getElementById("submit");
+        if (submitButtonNode instanceof HTMLButtonElement) {
+          if (isFormReadyForSubmission === false) {
+            submitButtonNode.disabled = true;
+            addClass("#submit", "not-ready");
+            addClass("#submit", "disabled");
+          } else if (isFormReadyForSubmission === true) {
+            submitButtonNode.disabled = false;
+            removeClass("#submit", "not-ready");
+            removeClass("#submit", "disabled");
+          }
         }
       }
     }
@@ -496,12 +507,10 @@ function mountUnifiedCheckout(id) {
  *    - Toggle UI loaders appropriately
  *    - Handle errors and redirect to status page
  * @param {Event} e
+ * @param {PaymentDetails} paymentDetails
  */
 // @ts-ignore
-function handleSubmit(e) {
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
-
+function handleSubmit(e, paymentDetails) {
   // Update button loader
   hide("#submit-button-text");
   show("#submit-spinner");
@@ -545,7 +554,7 @@ function handleSubmit(e) {
         url.search = params.toString();
         window.top.location.href = url.toString();
       } else {
-        redirectToStatus();
+        redirectToStatus(paymentDetails);
       }
     })
     .catch(function (error) {
@@ -764,25 +773,33 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
       );
       var horizontalLine = document.createElement("hr");
       horizontalLine.className = "hyper-checkout-payment-horizontal-line";
-      horizontalLineContainer.append(horizontalLine);
+      if (horizontalLineContainer instanceof HTMLDivElement) {
+        horizontalLineContainer.append(horizontalLine);
+      }
 
       // max number of items to show in the merchant details
       let maxItemsInDetails = 50;
       for (var item of merchantDetailsObject) {
         var merchantData = document.createElement("div");
         merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
+        var keyNode = document.createElement("span");
+        keyNode.textContent = item.key;
+        var valueNode = document.createElement("span");
+        valueNode.textContent = item.value;
         // make the key and value bold if specified in the ui_configuration
-        var key = item.ui_configuration
-          ? item.ui_configuration.is_key_bold
-            ? item.key.bold()
-            : item.key
-          : item.key;
-        var value = item.ui_configuration
-          ? item.ui_configuration.is_value_bold
-            ? item.value.bold()
-            : item.value
-          : item.value;
-        merchantData.innerHTML = key + " : " + value;
+        if (isObject(item.ui_configuration)) {
+          if (item.ui_configuration.is_key_bold) {
+            keyNode.style.fontWeight = "bold";
+          }
+          if (item.ui_configuration.is_value_bold) {
+            valueNode.style.fontWeight = "bold";
+          }
+        }
+        var separatorNode = document.createElement("span");
+        separatorNode.textContent = " : ";
+        merchantData.appendChild(keyNode);
+        merchantData.appendChild(separatorNode);
+        merchantData.appendChild(valueNode);
 
         merchantDynamicDetails.append(merchantData);
         if (--maxItemsInDetails === 0) {

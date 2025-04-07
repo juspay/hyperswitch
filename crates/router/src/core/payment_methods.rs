@@ -389,7 +389,7 @@ pub async fn render_pm_collect_link(
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
-                    sdk_url: default_config.sdk_url.to_string(),
+                    sdk_url: default_config.sdk_url.clone(),
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
