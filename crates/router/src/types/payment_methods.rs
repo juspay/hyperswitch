@@ -15,7 +15,8 @@ use common_utils::id_type;
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_types::primitive_wrappers;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     consts,
@@ -123,7 +124,7 @@ impl VaultingInterface for VaultDelete {
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
     pub profile: domain::Profile,
-    pub collect_cvv_during_payment: bool,
+    pub collect_cvv_during_payment: Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub off_session_payment_flag: bool,
     pub is_connector_agnostic_mit_enabled: bool,
 }

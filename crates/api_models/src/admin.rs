@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-#[cfg(feature = "v1")]
-use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_types::primitive_wrappers;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -1966,7 +1965,8 @@ pub struct ProfileCreate {
 
     /// Bool indicating if extended authentication must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
 
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
@@ -2256,7 +2256,8 @@ pub struct ProfileResponse {
 
     /// Bool indicating if extended authentication must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
@@ -2397,7 +2398,8 @@ pub struct ProfileResponse {
     pub is_network_tokenization_enabled: bool,
 
     /// Indicates if CVV should be collected during payment or not.
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
