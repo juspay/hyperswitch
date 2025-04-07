@@ -1328,7 +1328,10 @@ where
         if request_api_key == admin_api_key.peek() {
             return Ok(((), AuthenticationType::AdminApiKey));
         }
-        let fallback_merchant_id = conf.fallback_merchant_id.merchant_id;
+        let Some(fallback_merchant_id) = conf.fallback_merchant_id.merchant_id else {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Api Key Authentication Failure");
+        };
 
         let api_key = api_keys::PlaintextApiKey::from(request_api_key);
         let hash_key = conf.api_keys.get_inner().get_hash_key()?;
@@ -1373,7 +1376,7 @@ impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
     async fn build_auth_data<A: SessionStateInfo + Sync>(
         merchant_id: &id_type::MerchantId,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(domain::MerchantKeyStore, domain::MerchantAccount)> {
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1391,12 +1394,7 @@ impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        Ok(AuthenticationData {
-            merchant_account: merchant,
-            platform_merchant_account: None,
-            key_store,
-            profile_id: None,
-        })
+        Ok((key_store, merchant))
     }
 }
 
@@ -1419,7 +1417,14 @@ where
         let admin_api_key: &masking::Secret<String> = &conf.secrets.get_inner().admin_api_key;
 
         if request_api_key == admin_api_key.peek() {
-            let auth = Self::build_auth_data(&merchant_id_from_route, state).await?;
+            let (key_store, merchant) =
+                Self::build_auth_data(&merchant_id_from_route, state).await?;
+            let auth = AuthenticationData {
+                merchant_account: merchant,
+                platform_merchant_account: None,
+                key_store,
+                profile_id: None,
+            };
             return Ok((
                 auth,
                 AuthenticationType::AdminApiAuthWithMerchantId {
@@ -1427,7 +1432,10 @@ where
                 },
             ));
         }
-        let fallback_merchant_id = conf.fallback_merchant_id.merchant_id;
+        let Some(fallback_merchant_id) = conf.fallback_merchant_id.merchant_id else {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Api Key Authentication Failure");
+        };
 
         let api_key = api_keys::PlaintextApiKey::from(request_api_key);
         let hash_key = conf.api_keys.get_inner().get_hash_key()?;
@@ -1451,35 +1459,22 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_manager_state = &(&state.session_state()).into();
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id_from_route,
-                &state.store().get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
-        let merchant = state
-            .store()
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &merchant_id_from_route,
-                &key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
         if stored_api_key.merchant_id == fallback_merchant_id {
-            let auth = Self::build_auth_data(&merchant_id_from_route, state).await?;
-            if auth.merchant_account.get_org_id() == merchant.get_org_id() {
+            let (_, api_key_merchant) =
+                Self::build_auth_data(&stored_api_key.merchant_id, state).await?;
+            let (route_key_store, route_merchant) =
+                Self::build_auth_data(&merchant_id_from_route, state).await?;
+            if api_key_merchant.get_org_id() == route_merchant.get_org_id() {
+                let auth = AuthenticationData {
+                    merchant_account: route_merchant,
+                    platform_merchant_account: None,
+                    key_store: route_key_store,
+                    profile_id: None,
+                };
                 return Ok((
                     auth.clone(),
-                    AuthenticationType::ApiKey {
+                    AuthenticationType::MerchantId {
                         merchant_id: auth.merchant_account.get_id().clone(),
-                        key_id: stored_api_key.key_id,
                     },
                 ));
             }

@@ -680,7 +680,7 @@ pub struct Secrets {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct FallbackMerchantId {
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

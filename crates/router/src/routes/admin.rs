@@ -249,7 +249,7 @@ pub async fn retrieve_merchant_account(
         payload,
         |state, _, req, _| get_merchant_account(state, req, None),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallback,
+            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be MerchantAccountRead, but since FE is calling this API for
@@ -409,7 +409,7 @@ pub async fn update_merchant_account(
         json_payload.into_inner(),
         |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallback,
+            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
