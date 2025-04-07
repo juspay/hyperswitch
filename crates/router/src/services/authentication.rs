@@ -1375,7 +1375,7 @@ pub struct AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(pub id_type::Mer
 
 #[cfg(feature = "v1")]
 impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
-    async fn build_auth_data<A: SessionStateInfo + Sync>(
+    async fn fetch_merchant_key_store_and_account<A: SessionStateInfo + Sync>(
         merchant_id: &id_type::MerchantId,
         state: &A,
     ) -> RouterResult<(domain::MerchantKeyStore, domain::MerchantAccount)> {
@@ -1421,7 +1421,7 @@ where
 
         if request_api_key == admin_api_key.peek() {
             let (key_store, merchant) =
-                Self::build_auth_data(&merchant_id_from_route, state).await?;
+                Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
             let auth = AuthenticationData {
                 merchant_account: merchant,
                 platform_merchant_account: None,
@@ -1464,9 +1464,9 @@ where
 
         if stored_api_key.merchant_id == fallback_merchant_id {
             let (_, api_key_merchant) =
-                Self::build_auth_data(&stored_api_key.merchant_id, state).await?;
+                Self::fetch_merchant_key_store_and_account(&stored_api_key.merchant_id, state).await?;
             let (route_key_store, route_merchant) =
-                Self::build_auth_data(&merchant_id_from_route, state).await?;
+                Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
             if api_key_merchant.get_org_id() == route_merchant.get_org_id() {
                 let auth = AuthenticationData {
                     merchant_account: route_merchant,
