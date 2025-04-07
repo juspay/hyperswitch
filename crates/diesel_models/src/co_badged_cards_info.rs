@@ -18,10 +18,10 @@ use crate::schema::co_badged_cards_info;
 pub struct CoBadgedCardInfo {
     /// The unique identifier for the co-badged card info
     pub id: common_utils::id_type::CoBadgedCardsInfoID,
-    /// Represents the minimum value of the primary card brand's BIN range in which a 
+    /// Represents the minimum value of the primary card brand's BIN range in which a
     /// specific BIN value falls. It is a 19-digit number, padded with zeros.
     pub card_bin_min: i64,
-    /// Represents the maximum value of the primary card brand's BIN range in which a 
+    /// Represents the maximum value of the primary card brand's BIN range in which a
     /// specific BIN value falls. It is a 19-digit number, padded with zeros.
     pub card_bin_max: i64,
     /// The issuing bank name
