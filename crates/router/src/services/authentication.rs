@@ -1464,7 +1464,8 @@ where
 
         if stored_api_key.merchant_id == fallback_merchant_id {
             let (_, api_key_merchant) =
-                Self::fetch_merchant_key_store_and_account(&stored_api_key.merchant_id, state).await?;
+                Self::fetch_merchant_key_store_and_account(&stored_api_key.merchant_id, state)
+                    .await?;
             let (route_key_store, route_merchant) =
                 Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
             if api_key_merchant.get_org_id() == route_merchant.get_org_id() {
