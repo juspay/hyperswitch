@@ -29,6 +29,7 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_subtypes: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
+// Custom FromSql implmentation to handle deserialization of v1 data format
 impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn from_sql(bytes: <diesel::pg::Pg as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
         let helper: PaymentMethodsEnabledHelper = serde_json::from_slice(bytes.as_bytes())
@@ -36,6 +37,8 @@ impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
         Ok(helper.into())
     }
 }
+
+// In this ToSql implementation, we are directly serializing the PaymentMethodsEnabled struct to JSON
 impl ToSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn to_sql<'b>(
         &'b self,
@@ -49,6 +52,7 @@ impl ToSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     }
 }
 
+// Intermediate type to handle deserialization of v1 data format of PaymentMethodsEnabled
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 enum PaymentMethodsEnabledHelper {
