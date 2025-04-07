@@ -1,13 +1,14 @@
-#!/bin/sh
+#! /usr/bin/env sh
+set -euo pipefail
 
 # Define the URL and parameters
 PLATFORM="docker"
-URL="https://hyperswitch.gateway.scarf.sh/$PLATFORM"
+WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/${PLATFORM}"
 VERSION="unknown"
 STATUS="initiated"
 
 # Send the GET request
-curl -G "$URL" --data-urlencode "version=$VERSION" --data-urlencode "status=$STATUS"
+curl --get "${WEBHOOK_URL}" --data-urlencode "version=${VERSION}" --data-urlencode "status=${STATUS}"
 
 # Print confirmation
-echo "Request sent to $URL with version=$VERSION and status=$STATUS"
+echo "Request sent to $WEBHOOK_URL with version=$VERSION and status=$STATUS"
