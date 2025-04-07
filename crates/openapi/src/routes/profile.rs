@@ -108,7 +108,7 @@ pub async fn profile_retrieve() {}
     ),
     tag = "Profile",
     operation_id = "Delete the Profile",
-    security(("api_key" = []))
+    security(("admin_api_key" = []))
 )]
 pub async fn profile_delete() {}
 

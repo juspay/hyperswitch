@@ -341,6 +341,7 @@ credit = { currency = "USD" }
 debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
+samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
 credit = { currency = "USD,GBP,EUR,PLN" }
@@ -589,3 +590,6 @@ connector_list = "cybersource"
 
 [platform]
 enabled = false
+
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling"

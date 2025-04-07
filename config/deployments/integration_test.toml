@@ -327,6 +327,7 @@ credit = { currency = "USD" }
 debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
+samsung_pay = { currency = "USD" }
 
 [pm_filters.braintree]
 paypal.currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD"
@@ -574,3 +575,6 @@ connector_list = "cybersource"
 
 [platform]
 enabled = true
+
+[billing_connectors_payment_sync]
+billing_connectors_which_require_payment_sync = "stripebilling"

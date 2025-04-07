@@ -150,25 +150,15 @@ pub fn calculate_interchange_fee(
     amount: f64,
     debit_routing: &settings::DebitRoutingConfig,
 ) -> CustomResult<f64, errors::ApiErrorResponse> {
-    let fee_data = if *is_regulated {
-        &debit_routing.interchange_fee.regulated
-    } else {
-        debit_routing
-            .interchange_fee
-            .non_regulated
-            .0
-            .get("merchant_category_code_0001")
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "interchange fee for merchant category code",
-            })?
-            .get(network)
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "interchange fee for non regulated",
-            })
-            .attach_printable(
-                "Failed to fetch interchange fee for non regulated banks in debit routing",
-            )?
-    };
+
+    let fee_data = (*is_regulated)
+        .then(|| Ok(&debit_routing.interchange_fee.regulated))
+        .unwrap_or_else(|| {
+            debit_routing
+                .interchange_fee
+                .non_regulated
+                .get_network_processing_data_for_non_regulated_issuer(network)
+        })?;
 
     let percentage = fee_data.percentage;
 
@@ -197,6 +187,28 @@ pub fn calculate_interchange_fee(
         });
 
     Ok(total_interchange_fee)
+}
+
+impl settings::NonRegulatedNetworkProcessingData {
+    pub fn get_network_processing_data_for_non_regulated_issuer(
+        &self,
+        network: &enums::CardNetwork,
+    ) -> CustomResult<&settings::NetworkProcessingData, errors::ApiErrorResponse> {
+        let network_processing_data = self
+            .0
+            .get("merchant_category_code_0001")
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "interchange fee for merchant category code",
+            })?
+            .get(network)
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "interchange fee for non regulated",
+            })
+            .attach_printable(
+                "Failed to fetch interchange fee for non regulated banks in debit routing",
+            )?;
+        Ok(network_processing_data)
+    }
 }
 
 pub fn calculate_network_fee(

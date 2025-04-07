@@ -76,14 +76,15 @@ impl CoBadgedCardInfoInterface for Store {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?
                 .into_iter()
-                .map(|a| async {
-                    a.convert(
-                        key_manager_state,
-                        merchant_key_store.key.get_inner(),
-                        merchant_key_store.merchant_id.clone().into(),
-                    )
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                .map(|co_badged_cards_info| async {
+                    co_badged_cards_info
+                        .convert(
+                            key_manager_state,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
                 }),
         )
         .await?;

@@ -2334,7 +2334,6 @@ pub enum CountryAlpha2 {
     Clone,
     Debug,
     Eq,
-    Default,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -2349,7 +2348,6 @@ pub enum CountryAlpha2 {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 pub enum PanOrToken {
-    #[default]
     Pan,
     Token,
 }
