@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.07.0
+
+### Features
+
+- **connector:** [BANKOFAMERICA] Enable SamsungPay In Dashboard ([#7677](https://github.com/juspay/hyperswitch/pull/7677)) ([`f7b0409`](https://github.com/juspay/hyperswitch/commit/f7b040942ceed5d031a8154b630845186e39b7ad))
+- **core:** Add network error related columns in payment attempt [v2] ([#7706](https://github.com/juspay/hyperswitch/pull/7706)) ([`5e9e923`](https://github.com/juspay/hyperswitch/commit/5e9e9238cf841ff9a8ca994026869e39b86ed321))
+- **session:** Added dpa_client_id, provider to click to pay session response ([#7683](https://github.com/juspay/hyperswitch/pull/7683)) ([`fbc092f`](https://github.com/juspay/hyperswitch/commit/fbc092f7b11aa95327c5d2f789adc6216c96603f))
+
+### Bug Fixes
+
+- **config:** Add billing payment sync configs in different environments ([#7708](https://github.com/juspay/hyperswitch/pull/7708)) ([`c75d8cd`](https://github.com/juspay/hyperswitch/commit/c75d8cdec53689c2b6500135c0d2bb3a58173f65))
+- **connector:**
+  - [Coingate] Fix Wasm Changes ([#7716](https://github.com/juspay/hyperswitch/pull/7716)) ([`bd32dd4`](https://github.com/juspay/hyperswitch/commit/bd32dd4f0f259336f004a2358a7771652a3c6689))
+  - [Nexixpay] handle error code and message in failure response ([#7713](https://github.com/juspay/hyperswitch/pull/7713)) ([`f532b70`](https://github.com/juspay/hyperswitch/commit/f532b70af9c8acddfd00752d7a3893ac68e3c1eb))
+  - [Novalnet] handle refund failure response in novalnet ([#7721](https://github.com/juspay/hyperswitch/pull/7721)) ([`ae00ef9`](https://github.com/juspay/hyperswitch/commit/ae00ef9c081657d3da892c25432691870fb24bc9))
+
+### Miscellaneous Tasks
+
+- **dashboard:** Update dashboard toml ([#7703](https://github.com/juspay/hyperswitch/pull/7703)) ([`6e0041c`](https://github.com/juspay/hyperswitch/commit/6e0041c222168135d356885a85472a761c033c0d))
+- **postman:**
+  - Update auth for payment connectors in postman collection ([#7702](https://github.com/juspay/hyperswitch/pull/7702)) ([`879cacd`](https://github.com/juspay/hyperswitch/commit/879cacd64b0a9bbcbfa44c74e6dbe59fba45440d))
+  - Update Postman collection files ([`a934b7b`](https://github.com/juspay/hyperswitch/commit/a934b7b8a8d5bd23660b7766ec3b6a949520ddf8))
+
+**Full Changelog:** [`2025.04.04.0...2025.04.07.0`](https://github.com/juspay/hyperswitch/compare/2025.04.04.0...2025.04.07.0)
+
+
+- - -
+
 ## 2025.04.04.0
 
 ### Bug Fixes
