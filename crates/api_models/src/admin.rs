@@ -2892,6 +2892,12 @@ pub struct PaymentLinkConfigRequest {
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
+    /// Optional header for the SDK's payment form
+    pub payment_form_header_text: Option<String>,
+    /// Label type in the SDK's payment form
+    pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
+    /// Boolean for controlling whether or not to show the explicit consent for storing cards
+    pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2979,6 +2985,12 @@ pub struct PaymentLinkConfig {
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: bool,
+    /// Optional header for the SDK's payment form
+    pub payment_form_header_text: Option<String>,
+    /// Label type in the SDK's payment form
+    pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
+    /// Boolean for controlling whether or not to show the explicit consent for storing cards
+    pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
