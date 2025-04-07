@@ -39,6 +39,10 @@ use crate::{
 
 const MAX_ID_LENGTH: usize = 20;
 
+fn get_random_string() -> String {
+    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+}
+
 #[derive(Debug, Serialize)]
 pub enum TransactionType {
     #[serde(rename = "authCaptureTransaction")]
@@ -732,20 +736,14 @@ impl
             }),
             profile: None,
             order: Order {
-                invoice_number: if item.router_data.connector_request_reference_id.len()
-                    <= MAX_ID_LENGTH
-                {
-                    item.router_data.connector_request_reference_id.clone()
-                } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
-                },
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
                 id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
                     item.router_data.payment_id.clone()
                 } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+                    get_random_string()
                 },
                 email: item.router_data.request.get_optional_email(),
             }),
@@ -817,20 +815,14 @@ impl
                     })
                 }),
             order: Order {
-                invoice_number: if item.router_data.connector_request_reference_id.len()
-                    <= MAX_ID_LENGTH
-                {
-                    item.router_data.connector_request_reference_id.clone()
-                } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
-                },
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer: Some(CustomerDetails {
                 id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
                     item.router_data.payment_id.clone()
                 } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+                    get_random_string()
                 },
                 email: item.router_data.request.get_optional_email(),
             }),
@@ -878,7 +870,7 @@ impl
                 id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
                     item.router_data.payment_id.clone()
                 } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+                    get_random_string()
                 },
                 email: item.router_data.request.get_optional_email(),
             }),
@@ -894,13 +886,7 @@ impl
             })),
             profile,
             order: Order {
-                invoice_number: if item.router_data.connector_request_reference_id.len()
-                    <= MAX_ID_LENGTH
-                {
-                    item.router_data.connector_request_reference_id.clone()
-                } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
-                },
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -956,7 +942,7 @@ impl
                 id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
                     item.router_data.payment_id.clone()
                 } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+                    get_random_string()
                 },
                 email: item.router_data.request.get_optional_email(),
             }),
@@ -971,13 +957,7 @@ impl
             )?),
             profile,
             order: Order {
-                invoice_number: if item.router_data.connector_request_reference_id.len()
-                    <= MAX_ID_LENGTH
-                {
-                    item.router_data.connector_request_reference_id.clone()
-                } else {
-                    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
-                },
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
