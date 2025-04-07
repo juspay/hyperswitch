@@ -1308,6 +1308,7 @@ where
 #[derive(Debug, Default)]
 pub struct AdminApiAuthWithApiKeyFallback;
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for AdminApiAuthWithApiKeyFallback
 where
@@ -1372,6 +1373,7 @@ where
 #[derive(Debug, Default)]
 pub struct AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(pub id_type::MerchantId);
 
+#[cfg(feature = "v1")]
 impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
     async fn build_auth_data<A: SessionStateInfo + Sync>(
         merchant_id: &id_type::MerchantId,
@@ -1398,6 +1400,7 @@ impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A>
     for AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute
