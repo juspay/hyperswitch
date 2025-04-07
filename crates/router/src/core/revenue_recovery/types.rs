@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use api_models::{
     enums as api_enums,
     payments::{
@@ -10,10 +12,18 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     id_type,
 };
-use diesel_models::{enums, process_tracker::business_status};
+use diesel_models::{enums, process_tracker::business_status, types as diesel_types};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    payments::{payment_attempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    business_profile, merchant_connector_account,
+    payments::{
+        self as domain_payments, payment_attempt, PaymentConfirmData, PaymentIntent,
+        PaymentIntentData,
+    },
+    router_data_v2::{self, flow_common_types},
+    router_flow_types,
+    router_request_types::revenue_recovery as revenue_recovery_request,
+    router_response_types::revenue_recovery as revenue_recovery_response,
     ApiModelToDieselModelConvertor,
 };
 use time::PrimitiveDateTime;
@@ -21,18 +31,17 @@ use time::PrimitiveDateTime;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        passive_churn_recovery::{self as core_pcr},
-        payments::{self, operations::Operation},
+        payments::{self, helpers, operations::Operation},
+        revenue_recovery::{self as core_pcr},
     },
     db::StorageInterface,
     logger,
     routes::SessionState,
+    services::{self, connector_integration_interface::RouterDataConversion},
     types::{
-        api::payments as api_types,
-        storage::{self, passive_churn_recovery as pcr_storage_types},
-        transformers::ForeignInto,
+        self, api as api_types, api::payments as payments_types, storage, transformers::ForeignInto,
     },
-    workflows::passive_churn_recovery_workflow::get_schedule_time_to_retry_mit_payments,
+    workflows::revenue_recovery::get_schedule_time_to_retry_mit_payments,
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
@@ -84,8 +93,8 @@ impl PcrAttemptStatus {
         &self,
         state: &SessionState,
         process_tracker: storage::ProcessTracker,
-        pcr_data: &pcr_storage_types::PcrPaymentData,
-        tracking_data: &pcr_storage_types::PcrWorkflowTrackingData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
+        tracking_data: &storage::revenue_recovery::PcrWorkflowTrackingData,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -168,7 +177,7 @@ impl Decision {
         intent_status: enums::IntentStatus,
         called_connector: enums::PaymentConnectorTransmission,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
-        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         Ok(match (intent_status, called_connector, active_attempt_id) {
@@ -212,8 +221,8 @@ impl Decision {
 pub enum Action {
     SyncPayment(id_type::GlobalAttemptId),
     RetryPayment(PrimitiveDateTime),
-    TerminalFailure,
-    SuccessfulPayment,
+    TerminalFailure(payment_attempt::PaymentAttempt),
+    SuccessfulPayment(payment_attempt::PaymentAttempt),
     ReviewPayment,
     ManualReviewAction,
 }
@@ -223,7 +232,7 @@ impl Action {
         merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
-        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
@@ -237,13 +246,21 @@ impl Action {
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
-                PcrAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
+                PcrAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment(
+                    payment_data.payment_attempt.clone(),
+                )),
                 PcrAttemptStatus::Failed => {
-                    Self::decide_retry_failure_action(db, merchant_id, process.clone()).await
+                    Self::decide_retry_failure_action(
+                        db,
+                        merchant_id,
+                        process.clone(),
+                        &payment_data.payment_attempt,
+                    )
+                    .await
                 }
 
                 PcrAttemptStatus::Processing => {
-                    Ok(Self::SyncPayment(payment_data.payment_attempt.id))
+                    Ok(Self::SyncPayment(payment_data.payment_attempt.id.clone()))
                 }
                 PcrAttemptStatus::InvalidStatus(action) => {
                     logger::info!(?action, "Invalid Payment Status For PCR Payment");
@@ -267,8 +284,9 @@ impl Action {
         state: &SessionState,
         payment_intent: &PaymentIntent,
         execute_task_process: &storage::ProcessTracker,
-        pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         match self {
@@ -326,8 +344,7 @@ impl Action {
                 .change_context(errors::RecoveryError::PaymentCallFailed)?;
                 Ok(())
             }
-            Self::TerminalFailure => {
-                // TODO: Record a failure transaction back to Billing Connector
+            Self::TerminalFailure(payment_attempt) => {
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -336,10 +353,20 @@ impl Action {
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
+                // Record back to billing connector for terminal status
+                // TODO: Add support for retrying failed outgoing recordback webhooks
+                self.record_back_to_billing_connector(
+                    state,
+                    payment_attempt,
+                    payment_intent,
+                    billing_mca,
+                )
+                .await
+                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                .attach_printable("Failed to record back the billing connector")?;
                 Ok(())
             }
-            Self::SuccessfulPayment => {
-                // TODO: Record a successful transaction back to Billing Connector
+            Self::SuccessfulPayment(payment_attempt) => {
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -348,13 +375,24 @@ impl Action {
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
+                // Record back to billing connector for terminal status
+                // TODO: Add support for retrying failed outgoing recordback webhooks
+                self.record_back_to_billing_connector(
+                    state,
+                    payment_attempt,
+                    payment_intent,
+                    billing_mca,
+                )
+                .await
+                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
             Self::ReviewPayment => {
                 let tracking_data_for_review = execute_task_process
                     .tracking_data
                     .clone()
-                    .parse_value::<pcr_storage_types::PcrWorkflowTrackingData>(
+                    .parse_value::<storage::revenue_recovery::PcrWorkflowTrackingData>(
                     "PCRWorkflowTrackingData",
                 )?;
                 core_pcr::insert_review_task(
@@ -387,7 +425,7 @@ impl Action {
 
     pub async fn payment_sync_call(
         state: &SessionState,
-        pcr_data: &pcr_storage_types::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::PcrPaymentData,
         global_payment_id: &id_type::GlobalPaymentId,
         process: &storage::ProcessTracker,
         payment_attempt: payment_attempt::PaymentAttempt,
@@ -397,12 +435,13 @@ impl Action {
         let active_attempt_id = payment_attempt.get_id().clone();
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
-                PcrAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment),
+                PcrAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment(payment_attempt)),
                 PcrAttemptStatus::Failed => {
                     Self::decide_retry_failure_action(
                         db,
                         pcr_data.merchant_account.get_id(),
                         process.clone(),
+                        &payment_attempt,
                     )
                     .await
                 }
@@ -425,8 +464,8 @@ impl Action {
         &self,
         db: &dyn StorageInterface,
         psync_task_process: &storage::ProcessTracker,
-        tracking_data: &pcr_storage_types::PcrWorkflowTrackingData,
-    ) -> RecoveryResult<()> {
+        tracking_data: &storage::revenue_recovery::PcrWorkflowTrackingData,
+    ) -> Result<(), errors::ProcessTrackerError> {
         match self {
             Self::SyncPayment(_active_attempt_id) => {
                 // retry the Psync Tasks
@@ -468,7 +507,7 @@ impl Action {
                     .find_process_by_id(&process_tracker_id)
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)?
-                    .ok_or(errors::RecoveryError::ProcessTrackerFailure)?;
+                    .get_required_value("Process Tracker")?;
 
                 db.as_scheduler()
                     .retry_process(execute_task_process, *schedule_time)
@@ -477,7 +516,8 @@ impl Action {
                     .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
-            Self::TerminalFailure => {
+
+            Self::TerminalFailure(payment_attempt) => {
                 // TODO: Record a failure transaction back to Billing Connector
                 // finish the current psync task
                 db.as_scheduler()
@@ -490,7 +530,7 @@ impl Action {
                     .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
-            Self::SuccessfulPayment => {
+            Self::SuccessfulPayment(payment_attempt) => {
                 // TODO: Record a successful transaction back to Billing Connector
                 // finish the current psync task
                 db.as_scheduler()
@@ -539,18 +579,118 @@ impl Action {
             }
         }
     }
+    async fn record_back_to_billing_connector(
+        &self,
+        state: &SessionState,
+        payment_attempt: &payment_attempt::PaymentAttempt,
+        payment_intent: &PaymentIntent,
+        billing_mca: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> RecoveryResult<()> {
+        let connector_name = billing_mca.connector_name.to_string();
+        let connector_data = api_types::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector_name,
+            api_types::GetToken::Connector,
+            Some(billing_mca.get_id()),
+        )
+        .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+        .attach_printable(
+            "invalid connector name received in billing merchant connector account",
+        )?;
+
+        let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
+            router_flow_types::RecoveryRecordBack,
+            revenue_recovery_request::RevenueRecoveryRecordBackRequest,
+            revenue_recovery_response::RevenueRecoveryRecordBackResponse,
+        > = connector_data.connector.get_connector_integration();
+
+        let router_data = self.construct_recovery_record_back_router_data(
+            state,
+            billing_mca,
+            payment_attempt,
+            payment_intent,
+        )?;
+
+        let response = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+        .attach_printable("Failed while handling response of record back to billing connector")?;
+
+        let record_back_response = match response.response {
+            Ok(response) => Ok(response),
+            error @ Err(_) => {
+                router_env::logger::error!(?error);
+                Err(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                    .attach_printable("Failed while recording back to billing connector")
+            }
+        }?;
+        Ok(())
+    }
+
+    pub fn construct_recovery_record_back_router_data(
+        &self,
+        state: &SessionState,
+        billing_mca: &merchant_connector_account::MerchantConnectorAccount,
+        payment_attempt: &payment_attempt::PaymentAttempt,
+        payment_intent: &PaymentIntent,
+    ) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
+        let auth_type: types::ConnectorAuthType =
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))
+                .get_connector_account_details()
+                .parse_value("ConnectorAuthType")
+                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)?;
+
+        let merchant_reference_id = payment_intent
+            .merchant_reference_id
+            .clone()
+            .ok_or(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+            .attach_printable(
+                "Merchant reference id not found while recording back to billing connector",
+            )?;
+
+        let router_data = router_data_v2::RouterDataV2 {
+            flow: PhantomData::<router_flow_types::RecoveryRecordBack>,
+            tenant_id: state.tenant.tenant_id.clone(),
+            resource_common_data: flow_common_types::RevenueRecoveryRecordBackData,
+            connector_auth_type: auth_type,
+            request: revenue_recovery_request::RevenueRecoveryRecordBackRequest {
+                merchant_reference_id,
+                amount: payment_attempt.get_total_amount(),
+                currency: payment_intent.amount_details.currency,
+                payment_method_type: payment_attempt.payment_method_subtype,
+                attempt_status: payment_attempt.status,
+                connector_transaction_id: payment_attempt
+                    .connector_payment_id
+                    .as_ref()
+                    .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id.clone())),
+            },
+            response: Err(types::ErrorResponse::default()),
+        };
+        let old_router_data =
+            flow_common_types::RevenueRecoveryRecordBackData::to_old_router_data(router_data)
+                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                .attach_printable("Cannot construct record back router data")?;
+        Ok(old_router_data)
+    }
 
     pub(crate) async fn decide_retry_failure_action(
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
+        payment_attempt: &payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
         let schedule_time =
             get_schedule_time_to_retry_mit_payments(db, merchant_id, pt.retry_count + 1).await;
         match schedule_time {
             Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
 
-            None => Ok(Self::TerminalFailure),
+            None => Ok(Self::TerminalFailure(payment_attempt.clone())),
         }
     }
 }

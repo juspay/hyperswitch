@@ -28,14 +28,14 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
-#[cfg(feature = "v2")]
-pub mod passive_churn_recovery;
 pub mod payment_attempt;
 pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;

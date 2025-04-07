@@ -8,7 +8,7 @@ use crate::{
     routes::SessionState,
     types::{
         api::payments as api_types,
-        storage::{self, passive_churn_recovery as revenue_recovery_types},
+        storage::{self, revenue_recovery as revenue_recovery_types},
     },
 };
 use api_models::payments as payments_api;
@@ -67,7 +67,7 @@ pub async fn call_psync_api(
 pub async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,
-    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+    pcr_data: &storage::revenue_recovery::PcrPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
@@ -126,7 +126,7 @@ pub async fn call_proxy_api(
 pub async fn update_payment_intent_api(
     state: &SessionState,
     global_payment_id: id_type::GlobalPaymentId,
-    pcr_data: &storage::passive_churn_recovery::PcrPaymentData,
+    pcr_data: &storage::revenue_recovery::PcrPaymentData,
     update_req: payments_api::PaymentsUpdateIntentRequest,
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core

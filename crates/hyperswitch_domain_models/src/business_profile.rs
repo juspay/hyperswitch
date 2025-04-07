@@ -15,10 +15,7 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
-use crate::{
-    consts,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
-};
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
@@ -162,7 +159,7 @@ impl From<ProfileSetter> for Profile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
-            version: consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             dynamic_routing_algorithm: value.dynamic_routing_algorithm,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_auto_retries_enabled: value.is_auto_retries_enabled,
@@ -644,7 +641,8 @@ impl super::behaviour::Conversion for Profile {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::business_profile::Profile {
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
+            id: Some(self.profile_id),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
@@ -796,7 +794,8 @@ impl super::behaviour::Conversion for Profile {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::business_profile::ProfileNew {
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
+            id: Some(self.profile_id),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
@@ -993,7 +992,7 @@ impl From<ProfileSetter> for Profile {
             should_collect_cvv_during_payment: value.should_collect_cvv_during_payment,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
-            version: consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,

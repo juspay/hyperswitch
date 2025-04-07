@@ -223,6 +223,8 @@ diesel::table! {
         force_3ds_challenge -> Nullable<Bool>,
         is_debit_routing_enabled -> Bool,
         merchant_business_country -> Nullable<CountryAlpha2>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -474,6 +476,7 @@ diesel::table! {
         response -> Nullable<Bytea>,
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
         metadata -> Nullable<Jsonb>,
+        is_overall_delivery_successful -> Nullable<Bool>,
     }
 }
 
@@ -787,6 +790,8 @@ diesel::table! {
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
         version -> ApiVersion,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -817,6 +822,7 @@ diesel::table! {
         #[max_length = 32]
         id -> Nullable<Varchar>,
         organization_name -> Nullable<Text>,
+        version -> ApiVersion,
     }
 }
 

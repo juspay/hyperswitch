@@ -72,6 +72,10 @@ RUN mkdir -p ${BIN_DIR}
 
 COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
 
+# Create the 'app' user and group
+RUN useradd --user-group --system --no-create-home --no-log-init app
+USER app:app
+
 WORKDIR ${BIN_DIR}
 
 CMD ./${BINARY}

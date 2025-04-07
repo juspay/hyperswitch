@@ -41,6 +41,7 @@ pub struct ConnectorAuthentication {
     pub dummyconnector: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
     pub elavon: Option<HeaderKey>,
+    pub facilitapay: Option<BodyKey>,
     pub fiserv: Option<SignatureKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,

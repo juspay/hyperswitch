@@ -1801,7 +1801,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: hyperswitch_domain_models::consts::API_VERSION,
+                        version: common_types::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -6544,6 +6544,7 @@ pub fn add_connector_response_to_additional_payment_data(
             AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data,
                 payment_checks,
+                ..
             },
         ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
             api_models::payments::AdditionalCardInfo {
@@ -6805,14 +6806,22 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
             )
         }
         None => {
-            if *do_authorisation_confirmation {
-                Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-            } else if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if let Some(payment_method) = payment_data.payment_attempt.payment_method {
                 if payment_method == storage_enums::PaymentMethod::Card
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    let should_do_uas_confirmation_call = payment_data
+                        .service_details
+                        .as_ref()
+                        .map(|details| details.is_network_confirmation_call_required())
+                        .unwrap_or(true);
+
+                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
+                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
+                    } else {
+                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
+                    }
                 } else {
                     None
                 }
