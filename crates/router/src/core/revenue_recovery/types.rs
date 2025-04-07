@@ -203,6 +203,7 @@ impl Action {
         match self {
             Self::SyncPayment(attempt_id) => {
                 core_pcr::insert_psync_pcr_task(
+                    billing_mca.get_id().clone(),
                     db,
                     pcr_data.merchant_account.get_id().to_owned(),
                     payment_intent.id.clone(),

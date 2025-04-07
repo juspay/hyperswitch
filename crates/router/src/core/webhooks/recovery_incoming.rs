@@ -150,6 +150,7 @@ pub async fn recovery_incoming_webhook_flow(
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
         revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
             handle_schedule_failed_payment(
+                &billing_connector_account,
                 intent_retry_count,
                 mca_retry_threshold,
                 &state,
@@ -189,6 +190,7 @@ pub async fn recovery_incoming_webhook_flow(
 }
 
 async fn handle_schedule_failed_payment(
+    billing_connector_account: &domain::MerchantConnectorAccount,
     intent_retry_count: u16,
     mca_retry_threshold: u16,
     state: &SessionState,
@@ -212,6 +214,7 @@ async fn handle_schedule_failed_payment(
         })
         .async_unwrap_or_else(|| async {
             RevenueRecoveryAttempt::insert_execute_pcr_task(
+                &billing_connector_account.get_id(),
                 &*state.store,
                 merchant_account.get_id().to_owned(),
                 recovery_intent_from_payment_attempt.clone(),
@@ -640,7 +643,7 @@ impl RevenueRecoveryAttempt {
                                 business_profile,
                                 key_store,
                                 payment_intent,
-                                &billing_connector_account.id,
+                                &billing_connector_account.get_id(),
                                 payment_merchant_connector_account,
                             )
                             .await
@@ -655,7 +658,9 @@ impl RevenueRecoveryAttempt {
         Ok(payment_attempt_with_recovery_intent)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn insert_execute_pcr_task(
+        billing_mca_id: &id_type::MerchantConnectorAccountId,
         db: &dyn StorageInterface,
         merchant_id: id_type::MerchantId,
         payment_intent: revenue_recovery::RecoveryPaymentIntent,
@@ -691,6 +696,7 @@ impl RevenueRecoveryAttempt {
             .attach_printable("payment attempt id is required for pcr workflow tracking")?;
 
         let execute_workflow_tracking_data = storage_churn_recovery::PcrWorkflowTrackingData {
+            billing_mca_id: billing_mca_id.clone(),
             global_payment_id: payment_id.clone(),
             merchant_id,
             profile_id,

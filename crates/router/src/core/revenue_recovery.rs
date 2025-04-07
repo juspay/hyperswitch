@@ -117,6 +117,7 @@ pub async fn perform_execute_payment(
                 None => {
                     // insert new psync task
                     insert_psync_pcr_task(
+                        billing_mca.get_id().clone(),
                         db,
                         pcr_data.merchant_account.get_id().clone(),
                         payment_intent.get_id().clone(),
@@ -149,6 +150,7 @@ pub async fn perform_execute_payment(
 }
 
 async fn insert_psync_pcr_task(
+    billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
     payment_id: id_type::GlobalPaymentId,
@@ -160,6 +162,7 @@ async fn insert_psync_pcr_task(
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
     let schedule_time = common_utils::date_time::now();
     let psync_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
+        billing_mca_id,
         global_payment_id: payment_id,
         merchant_id,
         profile_id,
