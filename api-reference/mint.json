@@ -285,6 +285,10 @@
     },
     {
       "group": "Hyperswitch Intelligent Router",
+      "pages": ["intelligent-router-api-reference/overview"]
+    },
+    {
+      "group": "API Reference",
       "pages": [
         {
           "group": "Success Rate",
