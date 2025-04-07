@@ -116,6 +116,8 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -470,6 +472,9 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<id_type::MerchantId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -573,6 +578,7 @@ impl PaymentIntent {
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -645,6 +651,8 @@ impl PaymentIntent {
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         })
     }
 
