@@ -66,6 +66,7 @@ pub struct Settings<S: SecretState> {
     pub redis: RedisSettings,
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
+    pub fallback_merchant_id: FallbackMerchantId,
     pub locker: Locker,
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
@@ -674,6 +675,12 @@ pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct FallbackMerchantId {
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

@@ -29,7 +29,7 @@ pub async fn api_key_create(
             api_keys::create_api_key(state, payload, auth_data.key_store).await
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
@@ -130,7 +130,7 @@ pub async fn api_key_retrieve(
         (merchant_id.clone(), key_id.clone()),
         |state, _, (merchant_id, key_id), _| api_keys::retrieve_api_key(state, merchant_id, key_id),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::AdminApiAuthWithApiKeyFallback,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyRead,
@@ -166,7 +166,7 @@ pub async fn api_key_update(
         payload,
         |state, _, payload, _| api_keys::update_api_key(state, payload),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::AdminApiAuthWithApiKeyFallback,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyWrite,
@@ -303,7 +303,7 @@ pub async fn api_key_list(
             api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::AdminApiAuthWithApiKeyFallback,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyRead,
