@@ -321,7 +321,7 @@ fn get_card_request_data(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .and_then(|address| address.last_name.clone().map(From::from));
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -374,7 +374,7 @@ fn get_debtor_info(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .and_then(|address| address.last_name.clone().map(From::from));
     Ok(match pm {
         TrustpayPaymentMethod::Blik => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),
@@ -400,7 +400,7 @@ fn get_bank_transfer_debtor_info(
     Ok(match pm {
         TrustpayBankTransferPaymentMethod::SepaCreditTransfer
         | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
-            name: get_full_name(params.billing_first_name, billing_last_name),
+            name: get_full_name(params.billing_first_name, billing_last_name.map(From::from)),
             email: item.request.get_email()?,
         }),
     })
