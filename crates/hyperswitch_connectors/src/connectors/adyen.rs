@@ -145,8 +145,9 @@ impl ConnectorCommon for Adyen {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -295,7 +296,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::VietQr
                 | PaymentMethodType::Mifinity
                 | PaymentMethodType::LocalBankRedirect
-                | PaymentMethodType::OpenBankingPIS => {
+                | PaymentMethodType::OpenBankingPIS
+                | PaymentMethodType::InstantBankTransfer
+                | PaymentMethodType::SepaBankTransfer => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -991,8 +994,9 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })

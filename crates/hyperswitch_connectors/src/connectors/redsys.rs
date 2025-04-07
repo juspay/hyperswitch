@@ -116,8 +116,9 @@ impl ConnectorCommon for Redsys {
             reason: Some(response.error_code.clone()),
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -888,8 +889,7 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static REDSYS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Redsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -901,6 +901,6 @@ impl ConnectorSpecifications for Redsys {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
-        Some(&*REDSYS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&REDSYS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

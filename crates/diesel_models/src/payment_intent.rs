@@ -564,6 +564,7 @@ pub struct PaymentIntentUpdateFields {
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentUpdateInternal {
     pub status: Option<storage_enums::IntentStatus>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
     pub active_attempt_id: Option<Option<common_utils::id_type::GlobalAttemptId>>,

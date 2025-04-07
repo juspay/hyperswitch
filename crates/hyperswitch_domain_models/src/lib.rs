@@ -5,6 +5,7 @@ pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
+pub mod configs;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -29,6 +30,7 @@ pub mod router_data_v2;
 pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
+pub mod routing;
 pub mod type_encryption;
 pub mod types;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -621,6 +623,9 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             reason: Some(error.message.clone()),
             unified_code: None,
             unified_message: None,
+            network_advice_code: error.network_advice_code.clone(),
+            network_decline_code: error.network_decline_code.clone(),
+            network_error_message: error.network_error_message.clone(),
         }
     }
 }

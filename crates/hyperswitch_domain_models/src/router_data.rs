@@ -429,6 +429,10 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         authentication_data: Option<serde_json::Value>,
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
+        /// Card Network returned by the processor
+        card_network: Option<String>,
+        /// Domestic(Co-Branded) Card network returned by the processor
+        domestic_network: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
@@ -455,8 +459,9 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
-    pub issuer_error_code: Option<String>,
-    pub issuer_error_message: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -468,8 +473,9 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -483,8 +489,9 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -663,8 +670,9 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
-                    issuer_error_code: _,
-                    issuer_error_message: _,
+                    network_decline_code,
+                    network_advice_code,
+                    network_error_message,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -674,6 +682,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -862,8 +873,9 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
-                    issuer_error_code: _,
-                    issuer_error_message: _,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -873,6 +885,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1079,8 +1094,9 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
-                    issuer_error_code: _,
-                    issuer_error_message: _,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 } = error_response.clone();
 
                 let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
@@ -1091,6 +1107,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1324,8 +1343,9 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
-                    issuer_error_code: _,
-                    issuer_error_message: _,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1335,6 +1355,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
