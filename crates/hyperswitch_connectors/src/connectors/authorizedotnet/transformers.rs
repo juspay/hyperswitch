@@ -743,7 +743,7 @@ impl
                 } else {
                     Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
                 },
-                email: Some(item.router_data.request.get_email()?),
+                email: item.router_data.request.get_optional_email(),
             }),
             bill_to: item
                 .router_data
@@ -826,7 +826,7 @@ impl
                 } else {
                     Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
                 },
-                email: Some(item.router_data.request.get_email()?),
+                email: item.router_data.request.get_optional_email(),
             }),
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
@@ -874,7 +874,7 @@ impl
                 } else {
                     Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
                 },
-                email: Some(item.router_data.request.get_email()?),
+                email: item.router_data.request.get_optional_email(),
             }),
         );
         Ok(Self {
@@ -950,7 +950,7 @@ impl
                 } else {
                     Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
                 },
-                email: Some(item.router_data.request.get_email()?),
+                email: item.router_data.request.get_optional_email(),
             }),
         );
         Ok(Self {
