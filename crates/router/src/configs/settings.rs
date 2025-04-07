@@ -29,7 +29,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::Deserialize;
+use serde::{de::Error as DeError, Deserialize};
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
@@ -680,6 +680,7 @@ pub struct Secrets {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct FallbackMerchantIds {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
     pub merchant_ids: HashSet<id_type::MerchantId>,
 }
 
@@ -1276,6 +1277,53 @@ where
             }
         })
     })?
+}
+
+fn deserialize_merchant_ids_inner(
+    value: impl AsRef<str>,
+) -> Result<HashSet<id_type::MerchantId>, String> {
+    let (values, errors) = value
+        .as_ref()
+        .trim()
+        .split(',')
+        .map(|s| {
+            let trimmed = s.trim();
+            id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `MerchantId`: {error}",
+                    trimmed
+                )
+            })
+        })
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok(t) => {
+                    values.insert(t);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+pub fn deserialize_merchant_ids<'de, D>(
+    deserializer: D,
+) -> Result<HashSet<id_type::MerchantId>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    deserialize_merchant_ids_inner(s).map_err(DeError::custom)
 }
 
 impl<'de> Deserialize<'de> for TenantConfig {
