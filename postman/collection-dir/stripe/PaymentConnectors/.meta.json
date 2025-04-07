@@ -5,6 +5,7 @@
     "Payment Connector - Update",
     "List Connectors by MID",
     "Payment Connector - Delete",
-    "Merchant Account - Delete"
+    "Merchant Account - Delete",
+    "Delete API Key"
   ]
 }

@@ -786,8 +786,9 @@ impl<F, T>
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             (_, Some((code, message))) => Err(ErrorResponse {
                 code,
@@ -796,8 +797,9 @@ impl<F, T>
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
         };
         Ok(Self {
