@@ -344,8 +344,9 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         }
     }
@@ -553,7 +554,7 @@ impl<Flow, Request, Response> RouterData
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.first_name.map(From::from))
+                .and_then(|shipping_details| shipping_details.first_name)
         })
     }
 
@@ -562,7 +563,7 @@ impl<Flow, Request, Response> RouterData
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.last_name.map(From::from))
+                .and_then(|shipping_details| shipping_details.last_name)
         })
     }
 
@@ -671,7 +672,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.first_name.map(From::from))
+                    .and_then(|billing_details| billing_details.first_name.clone())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.first_name",
@@ -694,7 +695,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.last_name.map(From::from))
+                    .and_then(|billing_details| billing_details.last_name.clone())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.last_name",
@@ -877,7 +878,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.first_name.map(From::from))
+                    .and_then(|billing_details| billing_details.first_name)
             })
     }
 
@@ -888,7 +889,7 @@ impl<Flow, Request, Response> RouterData
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.last_name.map(From::from))
+                    .and_then(|billing_details| billing_details.last_name)
             })
     }
 
@@ -1151,7 +1152,6 @@ impl CardData for Card {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
-            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
@@ -1259,7 +1259,6 @@ impl CardData for CardDetailsForNetworkTransactionId {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
-            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }
@@ -1304,8 +1303,8 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
 });
 
 pub trait AddressDetailsData {
-    fn get_first_name(&self) -> Result<Secret<String>, Error>;
-    fn get_last_name(&self) -> Result<Secret<String>, Error>;
+    fn get_first_name(&self) -> Result<&Secret<String>, Error>;
+    fn get_last_name(&self) -> Result<&Secret<String>, Error>;
     fn get_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
@@ -1328,23 +1327,26 @@ pub trait AddressDetailsData {
 }
 
 impl AddressDetailsData for AddressDetails {
-    fn get_first_name(&self) -> Result<Secret<String>, Error> {
+    fn get_first_name(&self) -> Result<&Secret<String>, Error> {
         self.first_name
-            .clone()
-            .map(From::from)
+            .as_ref()
             .ok_or_else(missing_field_err("address.first_name"))
     }
 
-    fn get_last_name(&self) -> Result<Secret<String>, Error> {
+    fn get_last_name(&self) -> Result<&Secret<String>, Error> {
         self.last_name
-            .clone()
-            .map(From::from)
+            .as_ref()
             .ok_or_else(missing_field_err("address.last_name"))
     }
 
     fn get_full_name(&self) -> Result<Secret<String>, Error> {
-        let first_name = self.get_first_name()?.expose();
-        let last_name = self.get_last_name().unwrap_or_default().expose();
+        let first_name = self.get_first_name()?.peek().to_owned();
+        let last_name = self
+            .get_last_name()
+            .ok()
+            .cloned()
+            .unwrap_or(Secret::new("".to_string()));
+        let last_name = last_name.peek();
         let full_name = format!("{} {}", first_name, last_name).trim().to_string();
         Ok(Secret::new(full_name))
     }
@@ -1537,11 +1539,11 @@ impl AddressDetailsData for AddressDetails {
     }
 
     fn get_optional_first_name(&self) -> Option<Secret<String>> {
-        self.first_name.clone().map(From::from)
+        self.first_name.clone()
     }
 
     fn get_optional_last_name(&self) -> Option<Secret<String>> {
-        self.last_name.clone().map(From::from)
+        self.last_name.clone()
     }
 
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
@@ -1845,7 +1847,6 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
                 .card_holder_name
                 .clone()
-                .map(From::from)
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "card_holder_name",
                 })?),
@@ -5859,7 +5860,6 @@ impl CardData for api_models::payouts::CardPayout {
     fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()
-            .map(From::from)
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
 }

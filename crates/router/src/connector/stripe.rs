@@ -128,8 +128,9 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -330,8 +331,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -460,8 +462,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -615,8 +618,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -787,8 +791,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -954,8 +959,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1083,8 +1089,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1245,8 +1252,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1416,8 +1424,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1552,8 +1561,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1708,8 +1718,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1823,8 +1834,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -1956,8 +1968,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
