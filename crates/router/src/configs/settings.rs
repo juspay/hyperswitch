@@ -29,7 +29,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::{de::Error as DeError, Deserialize};
+use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
@@ -1316,14 +1316,14 @@ fn deserialize_merchant_ids_inner(
     }
 }
 
-pub fn deserialize_merchant_ids<'de, D>(
+fn deserialize_merchant_ids<'de, D>(
     deserializer: D,
 ) -> Result<HashSet<id_type::MerchantId>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    deserialize_merchant_ids_inner(s).map_err(DeError::custom)
+    deserialize_merchant_ids_inner(s).map_err(serde::de::Error::custom)
 }
 
 impl<'de> Deserialize<'de> for TenantConfig {
