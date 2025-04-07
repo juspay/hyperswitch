@@ -1329,13 +1329,9 @@ where
         if request_api_key == admin_api_key.peek() {
             return Ok(((), AuthenticationType::AdminApiKey));
         }
-        let Some(fallback_merchant_ids) = conf
-            .fallback_merchant_ids_api_key_auth
-            .as_ref()
-            .and_then(|f| f.merchant_ids.as_ref())
-        else {
+        let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
-                "Api Key Authentication Failure: fallback merchant list not configured",
+                "Api Key Authentication Failure: fallback merchant set not configured",
             );
         };
 
@@ -1361,7 +1357,10 @@ where
                 .attach_printable("API key has expired");
         }
 
-        if fallback_merchant_ids.contains(&stored_api_key.merchant_id) {
+        if fallback_merchant_ids
+            .merchant_ids
+            .contains(&stored_api_key.merchant_id)
+        {
             return Ok((
                 (),
                 AuthenticationType::ApiKey {
@@ -1440,13 +1439,9 @@ where
                 },
             ));
         }
-        let Some(fallback_merchant_ids) = conf
-            .fallback_merchant_ids_api_key_auth
-            .as_ref()
-            .and_then(|f| f.merchant_ids.as_ref())
-        else {
+        let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
-                "Api Key Authentication Failure: fallback merchant list not configured",
+                "Api Key Authentication Failure: fallback merchant set not configured",
             );
         };
 
@@ -1472,7 +1467,10 @@ where
                 .attach_printable("API key has expired");
         }
 
-        if fallback_merchant_ids.contains(&stored_api_key.merchant_id) {
+        if fallback_merchant_ids
+            .merchant_ids
+            .contains(&stored_api_key.merchant_id)
+        {
             let (_, api_key_merchant) =
                 Self::fetch_merchant_key_store_and_account(&stored_api_key.merchant_id, state)
                     .await?;
