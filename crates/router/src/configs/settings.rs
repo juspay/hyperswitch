@@ -150,12 +150,12 @@ pub struct DebitRoutingConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkInterchangeFee {
-    pub non_regulated: NoneRegulatedNetworkProcessingData,
+    pub non_regulated: NonRegulatedNetworkProcessingData,
     pub regulated: NetworkProcessingData,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct NoneRegulatedNetworkProcessingData(
+pub struct NonRegulatedNetworkProcessingData(
     pub HashMap<String, HashMap<enums::CardNetwork, NetworkProcessingData>>,
 );
 

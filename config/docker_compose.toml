@@ -670,6 +670,20 @@ bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
 bank_redirect.giropay = { connector_list = "globalpay" }
 
+[debit_routing_config]
+fraud_check_fee = 0.01
+
+[debit_routing_config.network_fee]
+visa = { percentage = 0.1375, fixed = 0.020 }
+star = { percentage = 0.1000, fixed = 0.015 }
+
+[debit_routing_config.interchange_fee]
+regulated = { percentage = 0.05, fixed = 0.21 }
+
+[debit_routing_config.interchange_fee.non_regulated]
+merchant_category_code_0001.visa = { percentage = 1.65, fixed = 0.15 }
+merchant_category_code_0001.star = { percentage = 1.63, fixed = 0.15 }
+
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
