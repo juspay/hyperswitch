@@ -1867,7 +1867,6 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
-    pub supported_card_networks: Option<Vec<api_enums::CardNetwork>>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
@@ -1929,7 +1928,6 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
-            supported_card_networks: None,
         }
     }
 }

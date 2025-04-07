@@ -366,7 +366,7 @@ where
         &business_profile,
         &payment_data,
         connector,
-    ).await?;
+    ).await;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -6173,7 +6173,7 @@ async fn perform_debit_routing<F, Req, D>(
     business_profile: &domain::Profile,
     payment_data: &D,
     connector: Option<ConnectorCallType>,
-) -> RouterResult<(Option<ConnectorCallType>, bool)>
+) -> (Option<ConnectorCallType>, bool)
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -6192,7 +6192,7 @@ where
 
             if should_perform_debit_routing_for_the_flow(operation, payment_data, &debit_routing_config) {
                 let is_debit_routable_connector_present_in_profile =
-                    co_badged_cards_info::check_for_debit_routing_connector_in_profile(state, business_profile.get_id(), payment_data).await?;
+                    co_badged_cards_info::check_for_debit_routing_connector_in_profile(state, business_profile.get_id(), payment_data).await;
 
                 if is_debit_routable_connector_present_in_profile {
                         logger::debug!("Debit routable connector is configured for the profile");
@@ -6241,7 +6241,7 @@ where
         logger::info!("Debit routing is not performed, returning static routing output");
     }
 
-    Ok((debit_routing_output, is_debit_routing_performed))
+    (debit_routing_output, is_debit_routing_performed)
 }
 
 async fn handle_pre_determined_connector<F, D>(
@@ -6300,15 +6300,19 @@ where
 {
     let mut supported_connectors = Vec::new();
 
-    for connector_data in connector_data_list {
-        if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
-            let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data, acquirer_country).await?;
-            
-            for network in fee_sorted_debit_networks {
+    let is_any_connector_supported = connector_data_list.iter().any(|connector_data| {
+            debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name)
+        });
+
+    if is_any_connector_supported {
+        let fee_sorted_debit_networks = co_badged_cards_info::get_sorted_co_badged_networks_by_fee::<F, D>(state, key_store, payment_data, acquirer_country).await?;
+
+        for connector_data in connector_data_list {
+            for network in &fee_sorted_debit_networks {
                 if let Some(valid_network) = check_connector_support_for_network(
                     debit_routing_config,
                     connector_data.connector_data.connector_name,
-                    &network,
+                    network,
                 ) {
                     supported_connectors.push(api::ConnectorRoutingData {
                         connector_data: connector_data.connector_data.clone(),

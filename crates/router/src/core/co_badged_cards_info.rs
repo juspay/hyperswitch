@@ -390,7 +390,7 @@ pub async fn check_for_debit_routing_connector_in_profile<
     state: &SessionState,
     business_profile_id: &common_utils::id_type::ProfileId,
     payment_data: &D,
-) -> CustomResult<bool, errors::ApiErrorResponse> {
+) -> bool {
     logger::debug!("Checking for debit routing connector in profile");
     let debit_routing_supported_connectors =
         state.conf.debit_routing_config.supported_connectors.clone();
@@ -427,5 +427,5 @@ pub async fn check_for_debit_routing_connector_in_profile<
         })
         .unwrap_or(false);
 
-    Ok(is_debit_routable_connector_present)
+    is_debit_routable_connector_present
 }
