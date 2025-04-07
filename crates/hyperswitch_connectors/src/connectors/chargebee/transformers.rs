@@ -402,7 +402,7 @@ impl ChargebeeCustomer {
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 let mandate_id = parts
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 Ok(ChargebeeMandateDetails {

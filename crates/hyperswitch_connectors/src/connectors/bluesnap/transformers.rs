@@ -308,9 +308,9 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                     let apple_pay_payment_data =
                         payment_method_data.get_applepay_decoded_payment_data()?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
-                        .expose()[..]
-                        .as_bytes()
-                        .parse_struct("ApplePayEncodedPaymentData")
+                        .expose()
+                        .as_bytes()[..]
+                        .parse_struct::<ApplePayEncodedPaymentData>("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::InvalidWalletToken {
                             wallet_name: "Apple Pay".to_string(),
                         })?;
