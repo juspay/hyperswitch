@@ -150,7 +150,6 @@ pub fn calculate_interchange_fee(
     amount: f64,
     debit_routing: &settings::DebitRoutingConfig,
 ) -> CustomResult<f64, errors::ApiErrorResponse> {
-
     let fee_data = (*is_regulated)
         .then(|| Ok(&debit_routing.interchange_fee.regulated))
         .unwrap_or_else(|| {
