@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.02.0-hotfix2
+
+### Bug Fixes
+
+- **errors:** Entry not found error as 4xx instead of 5xx ([#7763](https://github.com/juspay/hyperswitch/pull/7763)) ([`00a8487`](https://github.com/juspay/hyperswitch/commit/00a8487b190c3f8c3028bb40e02cc267c7956333))
+
+**Full Changelog:** [`2025.04.02.0-hotfix1...2025.04.02.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.04.02.0-hotfix1...2025.04.02.0-hotfix2)
+
+
+- - -
+
 ## 2025.04.02.0-hotfix1
 
 ### Refactors
