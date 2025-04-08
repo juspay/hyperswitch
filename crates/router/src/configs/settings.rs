@@ -66,6 +66,7 @@ pub struct Settings<S: SecretState> {
     pub redis: RedisSettings,
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
+    pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
@@ -676,6 +677,13 @@ pub struct Secrets {
     pub master_enc_key: Secret<String>,
 }
 
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct FallbackMerchantIds {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
@@ -1269,6 +1277,53 @@ where
             }
         })
     })?
+}
+
+fn deserialize_merchant_ids_inner(
+    value: impl AsRef<str>,
+) -> Result<HashSet<id_type::MerchantId>, String> {
+    let (values, errors) = value
+        .as_ref()
+        .trim()
+        .split(',')
+        .map(|s| {
+            let trimmed = s.trim();
+            id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `MerchantId`: {error}",
+                    trimmed
+                )
+            })
+        })
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok(t) => {
+                    values.insert(t);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_merchant_ids<'de, D>(
+    deserializer: D,
+) -> Result<HashSet<id_type::MerchantId>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    deserialize_merchant_ids_inner(s).map_err(serde::de::Error::custom)
 }
 
 impl<'de> Deserialize<'de> for TenantConfig {
