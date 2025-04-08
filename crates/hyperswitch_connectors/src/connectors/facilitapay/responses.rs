@@ -181,6 +181,11 @@ pub struct TransactionData {
     // Exchange details
     pub exchanged_value: Option<StringMajorUnit>,
 
+    // Cancelation details
+    pub canceled_reason: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub canceled_at: Option<PrimitiveDateTime>,
+
     // Other fields
     pub bank_transaction: Option<serde_json::Value>,
     pub meta: Option<serde_json::Value>,

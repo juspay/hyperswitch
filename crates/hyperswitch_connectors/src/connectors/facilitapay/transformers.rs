@@ -58,7 +58,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                             // might require discussions to be done
                             subject_id: item.router_data.connector_customer.clone().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "customer id",
+                                    field_name: "connector_customer (facilitapay subject_id)",
                                 },
                             )?,
                             from_bank_account_id: source_bank_account_id.clone().ok_or(
@@ -188,18 +188,18 @@ impl TryFrom<&RefreshTokenRouterData> for FacilitapayAuthRequest {
 }
 
 fn convert_to_document_type(document_type: &str) -> Result<DocumentType, errors::ConnectorError> {
-    match document_type {
+    match document_type.to_lowercase().as_str() {
         "cc" => Ok(DocumentType::Cc),
         "cnpj" => Ok(DocumentType::Cnpj),
         "cpf" => Ok(DocumentType::Cpf),
         "curp" => Ok(DocumentType::Curp),
-        "not" => Ok(DocumentType::Nit),
+        "nit" => Ok(DocumentType::Nit),
         "passport" => Ok(DocumentType::Passport),
         "rfc" => Ok(DocumentType::Rfc),
         "rut" => Ok(DocumentType::Rut),
-        "tax_id" => Ok(DocumentType::TaxId),
+        "tax_id" | "taxid" => Ok(DocumentType::TaxId),
         _ => Err(errors::ConnectorError::NotSupported {
-            message: "Document type".to_string(),
+            message: format!("Document type '{document_type}'"),
             connector: "Facilitapay",
         }),
     }
@@ -214,23 +214,22 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for FacilitapayCustomerRequest
             .request
             .name
             .clone()
-            .ok_or_else(missing_field_err("customer name"))?;
+            .ok_or_else(missing_field_err("name or customer_id"))?;
 
         let document_number = item
             .request
             .document_number
             .clone()
-            .ok_or_else(missing_field_err("document number"))?;
+            .ok_or_else(missing_field_err("document_number"))?;
 
         let document_type = convert_to_document_type(
             item.request
                 .document_type
                 .as_ref()
-                .ok_or_else(missing_field_err("document type"))?,
+                .ok_or_else(missing_field_err("document_type"))?,
         )
-        .map_err(|_| errors::ConnectorError::NotSupported {
-            message: "Document type".to_string(),
-            connector: "Facilitapay",
+        .change_context(errors::ConnectorError::CustomerCreationFailed {
+            field_name: "document_type",
         })?;
 
         let fiscal_country = item
@@ -238,8 +237,8 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for FacilitapayCustomerRequest
             .get_payment_billing()
             .and_then(|bl| bl.address.as_ref())
             .and_then(|address| address.country)
-            .unwrap_or(Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "country",
+            .ok_or_else(Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "billing address country (fiscal_country)",
             })?);
 
         let person = FacilitapayPerson {
@@ -330,8 +329,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
             status: common_enums::AttemptStatus::from(item.response.data.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.data.id),
-                // Redirection data might be needed if PIX code needs user action
-                redirection_data: Box::new(None), // Adjust if needed
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None), // Add logic if mandates are supported
                 connector_metadata,
                 network_txn_id: None,
