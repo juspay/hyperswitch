@@ -30,6 +30,7 @@ pub mod payments;
 pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
+pub mod process_tracker;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;

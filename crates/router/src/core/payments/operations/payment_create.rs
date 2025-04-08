@@ -315,6 +315,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             session_expiry,
             platform_merchant_account,
+            &business_profile,
         )
         .await?;
 
@@ -1391,6 +1392,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
         _platform_merchant_account: Option<&domain::MerchantAccount>,
+        business_profile: &domain::Profile,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1519,6 +1521,9 @@ impl PaymentCreate {
                 }),
                 payment_method_type: None,
             });
+        let force_3ds_challenge_trigger = request
+            .force_3ds_challenge
+            .unwrap_or(business_profile.force_3ds_challenge);
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
@@ -1582,6 +1587,8 @@ impl PaymentCreate {
             created_by: Some(common_utils::types::CreatedBy::Api {
                 merchant_id: merchant_account.get_id().get_string_repr().to_string(),
             }),
+            force_3ds_challenge: request.force_3ds_challenge,
+            force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
         })
     }
 

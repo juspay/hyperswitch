@@ -1803,6 +1803,8 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
         Self::Card {
             authentication_data: None,
             payment_checks,
+            card_network: None,
+            domestic_network: None,
         }
     }
 }
@@ -2379,8 +2381,9 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 pub fn get_error_reason(
