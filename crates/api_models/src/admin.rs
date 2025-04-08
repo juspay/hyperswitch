@@ -2895,8 +2895,10 @@ pub struct PaymentLinkConfigRequest {
     /// Optional header for the SDK's payment form
     pub payment_form_header_text: Option<String>,
     /// Label type in the SDK's payment form
+    #[schema(value_type = Option<PaymentLinkSdkLabelType>, example = "floating")]
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
+    #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
 }
 
@@ -2988,8 +2990,10 @@ pub struct PaymentLinkConfig {
     /// Optional header for the SDK's payment form
     pub payment_form_header_text: Option<String>,
     /// Label type in the SDK's payment form
+    #[schema(value_type = Option<PaymentLinkSdkLabelType>, example = "floating")]
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
+    #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
 }
 
