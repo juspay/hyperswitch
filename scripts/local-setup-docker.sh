@@ -1,23 +1,6 @@
 #!/bin/bash
 set -e
 
-# Remove existing repository if it exists
-if [ -d "hyperswitch" ]; then
-    echo "Removing existing repository..."
-    rm -rf hyperswitch
-fi
-
-# Clone the repository
-echo "Cloning repository..."
-git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
-
-# Change into the repository folder
-cd hyperswitch
-
-# Start the containers in detached mode
-echo "Starting services with Docker Compose..."
-docker compose up -d
-
 # Define the URL to check service availability (adjust HOST and PORT if needed)
 HOST="localhost"
 PORT="8080"
