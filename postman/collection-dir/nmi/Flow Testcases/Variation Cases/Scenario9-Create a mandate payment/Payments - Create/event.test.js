@@ -31,12 +31,12 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should contain the string "mandate payment is not supported by nmi" in "error reason"
+// Response body should have value "mandate payment is not supported by nmi" for "error reason"
 if (jsonData?.error?.message) {
   pm.test(
-    "[POST]::/payments/:id/confirm - Content check if 'error.reason' contains 'mandate payment is not supported by nmi'",
+    "[POST]::/payments/:id/confirm - Content check if value for 'error.reason' matches 'credit mandate payment is not supported by nmi'" ,
     function () {
-      pm.expect(jsonData.error.reason).to.include("mandate payment is not supported by nmi");
+      pm.expect(jsonData.error.reason).to.eql("credit mandate payment is not supported by nmi");
     },
   );
 }
