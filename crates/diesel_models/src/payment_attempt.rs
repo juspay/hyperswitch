@@ -189,6 +189,8 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -399,6 +401,8 @@ pub struct PaymentAttemptNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]
