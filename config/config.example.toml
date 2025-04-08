@@ -956,4 +956,4 @@ primary_color = "#006DF9"                                                       
 background_color = "#FFFFFF"                                                     # Email background color
 
 [billing_connectors_payment_sync]
-billing_connectors_which_require_payment_sync = "stripebilling" # List of billing connectors which has payment sync api call
+billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List of billing connectors which has payment sync api call
