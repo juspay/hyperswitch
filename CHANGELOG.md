@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.07.0-hotfix1
+
+### Features
+
+- **authentication:** Create authentications to fallback to ApiKeyAuth if AdminApiAuth fails ([#7758](https://github.com/juspay/hyperswitch/pull/7758)) ([`0c2c429`](https://github.com/juspay/hyperswitch/commit/0c2c429534c3285312ecb07fa8caaf8edf7d7591))
+
+**Full Changelog:** [`2025.04.07.0...2025.04.07.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.04.07.0...2025.04.07.0-hotfix1)
+
+
+- - -
+
 ## 2025.04.07.0
 
 ### Features
