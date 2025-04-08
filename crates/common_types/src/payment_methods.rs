@@ -246,8 +246,6 @@ where
     }
 }
 
-// common_utils::impl_to_sql_from_sql_json!(PaymentMethodsEnabled);
-
 /// The network tokenization configuration for creating the payment method session
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenization {
