@@ -480,6 +480,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         replica_database,
         secrets,
+        fallback_merchant_ids_api_key_auth: conf.fallback_merchant_ids_api_key_auth,
         locker: conf.locker,
         connectors: conf.connectors,
         forex_api,
