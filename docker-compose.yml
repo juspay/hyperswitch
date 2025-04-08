@@ -11,7 +11,7 @@ services:
   prestart-hook:
     image: curlimages/curl-base:latest
     container_name: prestart-hook
-    entrypoint: ["/bin/sh", "-c", "chmod +x /prestart_hook.sh && /prestart_hook.sh"]
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash && /bin/bash /prestart_hook.sh"]
     volumes:
       - ./scripts/prestart_hook.sh:/prestart_hook.sh
     networks:
@@ -101,7 +101,7 @@ services:
     depends_on:
       hyperswitch-server:
         condition: service_healthy  # Ensures it only starts when `hyperswitch-server` is healthy
-    entrypoint: ["/bin/sh", "-c", "apk add --no-cache jq && chmod +x /poststart_hook.sh && /poststart_hook.sh"]
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh"]
     volumes:
       - ./scripts/poststart_hook.sh:/poststart_hook.sh
     networks:
