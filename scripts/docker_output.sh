@@ -1,5 +1,5 @@
-#!/bin/bash
-set -e
+#! /usr/bin/env bash
+set -euo pipefail
 
 # Define the URL to check service availability (adjust HOST and PORT if needed)
 HOST="localhost"
