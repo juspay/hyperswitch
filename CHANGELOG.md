@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.08.0
+
+### Features
+
+- **core:** Added force_3ds_challenge for decoupled txns ([#7484](https://github.com/juspay/hyperswitch/pull/7484)) ([`c245ece`](https://github.com/juspay/hyperswitch/commit/c245ece19fb1b3988c61e12c0faa37c527cabd71))
+
+**Full Changelog:** [`2025.04.07.0...2025.04.08.0`](https://github.com/juspay/hyperswitch/compare/2025.04.07.0...2025.04.08.0)
+
+
+- - -
+
 ## 2025.04.07.0
 
 ### Features
