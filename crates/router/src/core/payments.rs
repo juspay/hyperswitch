@@ -698,6 +698,7 @@ where
                                 #[cfg(not(feature = "frm"))]
                                 None,
                                 &business_profile,
+                                is_debit_routing_performed,
                             )
                             .await?;
                         };
@@ -1466,6 +1467,34 @@ pub fn find_connector_with_networks(
     })
 }
 
+pub fn get_next_connector_with_global_network(
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
+    connectors
+        .find_map(|connector_data| {
+            connector_data
+                .network
+                .filter(|n| n.is_global_network())
+                .map(|network| (connector_data.connector_data, network))
+        })
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector with global network not found in connectors iterator")
+}
+
+pub fn get_next_connector_with_diff_network(
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+    prev_network: Option<enums::CardNetwork>,
+) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
+    connectors
+        .find_map(|connector_data| {
+            connector_data
+                .network
+                .filter(|n| Some(n) != prev_network.as_ref())
+                .map(|network| (connector_data.connector_data, network))
+        })
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector with different network not found in connectors iterator")
+}
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
