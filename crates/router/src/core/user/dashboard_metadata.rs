@@ -15,7 +15,6 @@ use masking::PeekInterface;
 use router_env::logger;
 
 use crate::{
-    consts::user::DEFAULT_PRODUCT_TYPE,
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
@@ -456,16 +455,12 @@ async fn insert_metadata(
             }
             metadata
         }
-        types::MetaData::ProdIntent(mut data) => {
+        types::MetaData::ProdIntent(data) => {
             if let Some(poc_email) = &data.poc_email {
                 let inner_poc_email = poc_email.peek().as_str();
                 pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
-            if data.product_type.is_none() {
-                data.product_type = Some(DEFAULT_PRODUCT_TYPE);
-            }
-
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),

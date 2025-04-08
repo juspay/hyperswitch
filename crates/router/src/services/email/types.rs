@@ -586,7 +586,7 @@ impl BizEmailProd {
             business_website: data.business_website.unwrap_or_default(),
             theme_id,
             theme_config,
-            product_type: data.product_type.unwrap_or_default(),
+            product_type: data.product_type,
         })
     }
 }
