@@ -7,7 +7,6 @@ PORT="8080"
 SERVICE_URL="http://${HOST}:${PORT}/health"
 
 # Wait until the service is available
-echo "Waiting for services at ${SERVICE_URL}..."
 while ! curl --silent --fail "${SERVICE_URL}" > /dev/null; do
     printf "."
     sleep 2
