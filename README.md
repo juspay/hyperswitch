@@ -80,9 +80,7 @@ Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 You can run Hyperswitch on your system using Docker compose after cloning this repository. 
 
 ```shell
-git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
-cd hyperswitch
-docker compose up -d
+https://raw.githubusercontent.com/juspay/hyperswitch/refs/heads/main/scripts/local-setup-docker.sh
 ```
 
 Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
