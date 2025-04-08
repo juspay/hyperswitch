@@ -3,7 +3,7 @@ use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
     errors::CustomResult,
     fallback_reverse_lookup_not_found,
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait},
+    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy},
 };
 use diesel_models::{
     enums::{
@@ -650,6 +650,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
+                    created_by: payment_attempt.created_by.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1655,6 +1657,8 @@ impl DataModelExt for PaymentAttempt {
             issuer_error_message: self.issuer_error_message,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1738,6 +1742,10 @@ impl DataModelExt for PaymentAttempt {
             charges: storage_model.charges,
             issuer_error_code: storage_model.issuer_error_code,
             issuer_error_message: storage_model.issuer_error_message,
+            processor_merchant_id: storage_model.processor_merchant_id.unwrap_or_default(),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }
@@ -1824,6 +1832,8 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1899,6 +1909,10 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
+            processor_merchant_id: storage_model.processor_merchant_id.unwrap_or_default(),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

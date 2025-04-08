@@ -14,7 +14,7 @@ use common_utils::{
     type_name,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
-        MinorUnit,
+        CreatedBy, MinorUnit,
     },
 };
 #[cfg(feature = "v2")]
@@ -1957,7 +1957,9 @@ impl behaviour::Conversion for PaymentIntent {
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
         })
     }
 
@@ -2047,7 +2049,16 @@ impl behaviour::Conversion for PaymentIntent {
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 request_extended_authorization: storage_model.request_extended_authorization,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
-                platform_merchant_id: storage_model.platform_merchant_id,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                created_by: storage_model
+                    .created_by
+                    .map(|cb| cb.parse::<CreatedBy>())
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to parse created_by")?,
             })
         }
         .await
@@ -2113,7 +2124,9 @@ impl behaviour::Conversion for PaymentIntent {
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
         })
     }
 }

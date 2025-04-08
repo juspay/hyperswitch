@@ -15,7 +15,7 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy, MinorUnit,
     },
 };
 use diesel_models::{
@@ -850,6 +850,8 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub processor_merchant_id: id_type::MerchantId,
+    pub created_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v1")]
@@ -1099,6 +1101,8 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub processor_merchant_id: id_type::MerchantId,
+    pub created_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v1")]
@@ -1844,6 +1848,8 @@ impl behaviour::Conversion for PaymentAttempt {
             issuer_error_message: self.issuer_error_message,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
         })
     }
 
@@ -1932,6 +1938,16 @@ impl behaviour::Conversion for PaymentAttempt {
                 charges: storage_model.charges,
                 issuer_error_code: storage_model.issuer_error_code,
                 issuer_error_message: storage_model.issuer_error_message,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                created_by: storage_model
+                    .created_by
+                    .map(|cb| cb.parse::<CreatedBy>())
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to parse created_by")?,
             })
         }
         .await
@@ -2017,6 +2033,8 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
         })
     }
 }

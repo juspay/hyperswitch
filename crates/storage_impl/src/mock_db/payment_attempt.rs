@@ -232,6 +232,8 @@ impl PaymentAttemptInterface for MockDb {
             charges: None,
             issuer_error_code: None,
             issuer_error_message: None,
+            processor_merchant_id: payment_attempt.processor_merchant_id,
+            created_by: payment_attempt.created_by,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
