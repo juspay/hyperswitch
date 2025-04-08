@@ -2101,26 +2101,38 @@ where
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
 
-        match db_client_secret.resource_id {
-            common_utils::types::authentication::ResourceId::Payment(global_payment_id) => {
-                fp_utils::when(
-                    global_payment_id.get_string_repr() != self.0.to_str(),
-                    || Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized),
-                );
-            }
-            common_utils::types::authentication::ResourceId::Customer(global_customer_id) => {
-                if global_customer_id.get_string_repr() != self.0.to_str() {
-                    return Err(errors::ApiErrorResponse::Unauthorized.into());
-                }
-            }
-            common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                global_payment_method_session_id,
+        match (&self.0, &db_client_secret.resource_id) {
+            (
+                common_utils::types::authentication::ResourceId::Payment(self_id),
+                common_utils::types::authentication::ResourceId::Payment(db_id),
             ) => {
-                if global_payment_method_session_id.get_string_repr() != self.0.to_str() {
-                    return Err(errors::ApiErrorResponse::Unauthorized.into());
-                }
+                fp_utils::when(self_id != db_id, || {
+                    Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                });
             }
-        };
+
+            (
+                common_utils::types::authentication::ResourceId::Customer(self_id),
+                common_utils::types::authentication::ResourceId::Customer(db_id),
+            ) => {
+                fp_utils::when(self_id != db_id, || {
+                    Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                });
+            }
+
+            (
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(self_id),
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(db_id),
+            ) => {
+                fp_utils::when(self_id != db_id, || {
+                    Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
+                });
+            }
+
+            _ => {
+                return Err(errors::ApiErrorResponse::Unauthorized.into());
+            }
+        }
 
         let (merchant_account, key_store) = state
             .store()
