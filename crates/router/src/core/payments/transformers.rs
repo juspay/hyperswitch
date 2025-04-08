@@ -2619,6 +2619,8 @@ where
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
             card_discovery: payment_attempt.card_discovery,
+            force_3ds_challenge: payment_intent.force_3ds_challenge,
+            force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
             issuer_error_code: payment_attempt.issuer_error_code,
             issuer_error_message: payment_attempt.issuer_error_message,
         };
@@ -2909,6 +2911,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector_mandate_id:None,
             shipping_cost: None,
             card_discovery: pa.card_discovery,
+            force_3ds_challenge: pi.force_3ds_challenge,
+            force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
         }
@@ -4502,6 +4506,9 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
             message: error_details.message.to_owned(),
             unified_code: error_details.unified_code.clone(),
             unified_message: error_details.unified_message.clone(),
+            network_advice_code: error_details.network_advice_code.clone(),
+            network_decline_code: error_details.network_decline_code.clone(),
+            network_error_message: error_details.network_error_message.clone(),
         }
     }
 }

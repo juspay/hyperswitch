@@ -4218,6 +4218,12 @@ pub async fn get_session_token_for_click_to_pay(
 
     validate_customer_details_for_click_to_pay(&customer_details)?;
 
+    let provider = match merchant_connector_account.connector_name.as_str() {
+        "ctp_mastercard" => Some(enums::CtpServiceProvider::Mastercard),
+        "ctp_visa" => Some(enums::CtpServiceProvider::Visa),
+        _ => None,
+    };
+
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
@@ -4233,6 +4239,8 @@ pub async fn get_session_token_for_click_to_pay(
             phone_number: customer_details.phone.clone(),
             email: customer_details.email.clone(),
             phone_country_code: customer_details.phone_country_code.clone(),
+            provider,
+            dpa_client_id: click_to_pay_metadata.dpa_client_id.clone(),
         },
     )))
 }
@@ -7730,7 +7738,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
                 payment_intent.payment_id,
-                business_profile.force_3ds_challenge,
+                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
             ))
             .await?
         };
