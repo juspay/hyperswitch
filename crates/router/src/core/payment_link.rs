@@ -298,11 +298,9 @@ pub async fn form_payment_link_data(
         sdk_ui_rules: payment_link_config.sdk_ui_rules.clone(),
         payment_link_ui_rules: payment_link_config.payment_link_ui_rules.clone(),
         status: payment_intent.status,
-        enable_button_only_on_form_ready: payment_link_config
-            .enable_button_only_on_form_ready
-            .clone(),
+        enable_button_only_on_form_ready: payment_link_config.enable_button_only_on_form_ready,
         payment_form_header_text: payment_link_config.payment_form_header_text.clone(),
-        payment_form_label_type: payment_link_config.payment_form_label_type.clone(),
+        payment_form_label_type: payment_link_config.payment_form_label_type,
         show_card_terms: payment_link_config.show_card_terms,
     };
 
