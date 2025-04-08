@@ -304,7 +304,7 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {

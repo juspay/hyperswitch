@@ -5524,7 +5524,7 @@ pub struct ErrorDetails {
 
 /// Token information that can be used to initiate transactions by the merchant.
 #[cfg(feature = "v2")]
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConnectorTokenDetails {
     /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
@@ -5540,7 +5540,7 @@ pub struct ConnectorTokenDetails {
 /// For example
 /// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.

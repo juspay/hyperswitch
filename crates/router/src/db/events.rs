@@ -914,6 +914,7 @@ mod tests {
         let state = &Arc::new(app_state)
             .get_session_state(
                 &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -982,6 +983,7 @@ mod tests {
                         )
                         .unwrap(),
                     }),
+                    is_overall_delivery_successful: Some(false),
                 },
                 &merchant_key_store,
             )
