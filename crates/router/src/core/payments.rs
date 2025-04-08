@@ -3055,16 +3055,6 @@ where
     // Validating the blocklist guard and generate the fingerprint
     blocklist_guard(state, merchant_account, key_store, operation, payment_data).await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_account,
-        key_store,
-        &merchant_connector_account,
-        payment_data,
-    )
-    .await?;
-
     #[cfg(feature = "v1")]
     let merchant_recipient_data = if let Some(true) = payment_data
         .get_payment_intent()
@@ -3116,6 +3106,17 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        &merchant_connector_account,
+        payment_data,
+        &router_data,
+    )
+    .await?;
 
     router_data.payment_method_token = if let Some(decrypted_token) =
         add_decrypted_payment_method_token(tokenization_action.clone(), payment_data).await?
@@ -4278,6 +4279,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     key_store: &domain::MerchantKeyStore,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
+    payment_router_data: &RouterData<F, Req, router_types::PaymentsResponseData>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -4340,7 +4342,7 @@ where
 
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
-                let router_data = payment_data
+                let mut customer_router_data = payment_data
                     .construct_router_data(
                         state,
                         connector.connector.id(),
@@ -4353,7 +4355,9 @@ where
                     )
                     .await?;
 
-                let connector_customer_id = router_data
+                customer_router_data.access_token = payment_router_data.access_token.clone();
+                
+                let connector_customer_id = customer_router_data
                     .create_connector_customer(state, &connector)
                     .await?;
 
