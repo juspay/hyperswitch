@@ -697,9 +697,9 @@ macro_rules! impl_enum_str {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::panic, clippy::expect_used)]
-    use crate::errors::ParsingError;
-    use crate::impl_enum_str;
     use core::str::FromStr;
+
+    use crate::{errors::ParsingError, impl_enum_str};
 
     impl_enum_str!(
         tag_delimeter = ":",
