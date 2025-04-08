@@ -65,18 +65,18 @@ pub struct FraudHighRiskResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RefusedResponse {
     pub refusal_description: String,
-    // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers. 
+    // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
     pub refusal_code: String,
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
     #[serde(rename = "threeDS")]
     pub three_ds: Option<ThreeDsResponse>,
-    pub advice : Option<Advice>
+    pub advice: Option<Advice>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Advice{
-    pub code : Option<String>
+pub struct Advice {
+    pub code: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

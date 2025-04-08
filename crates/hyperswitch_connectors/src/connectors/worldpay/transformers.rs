@@ -748,7 +748,13 @@ impl<F, T>
                     None,
                     None,
                     None,
-                    Some((res.refusal_code.clone(), res.refusal_description.clone(), res.advice.as_ref().and_then(|advice_code| advice_code.code.clone()))),
+                    Some((
+                        res.refusal_code.clone(),
+                        res.refusal_description.clone(),
+                        res.advice
+                            .as_ref()
+                            .and_then(|advice_code| advice_code.code.clone()),
+                    )),
                 ),
                 WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None, None),
             })

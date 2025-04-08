@@ -315,14 +315,14 @@ fn get_payment_response(
             attempt_status: Some(status),
             connector_transaction_id: Some(response.id),
             network_decline_code: response
-            .payment_method
-            .as_ref()
-            .and_then(|payment_method| payment_method.result.clone()),
+                .payment_method
+                .as_ref()
+                .and_then(|payment_method| payment_method.result.clone()),
             network_advice_code: None,
             network_error_message: response
-            .payment_method
-            .as_ref()
-            .and_then(|payment_method| payment_method.message.clone()),
+                .payment_method
+                .as_ref()
+                .and_then(|payment_method| payment_method.message.clone()),
         })),
         _ => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
@@ -364,7 +364,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
         let status_code = item.http_code;
         Ok(Self {
             status,
-            response: get_payment_response(status, item.response, redirection_data,status_code)
+            response: get_payment_response(status, item.response, redirection_data, status_code)
                 .map_err(|err| *err),
             ..item.data
         })

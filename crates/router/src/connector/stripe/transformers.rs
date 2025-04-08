@@ -4232,8 +4232,12 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response_id),
-            network_advice_code: response.as_ref().and_then(|res| res.network_advice_code.clone()),
-            network_decline_code: response.as_ref().and_then(|res| res.network_decline_code.clone()),
+            network_advice_code: response
+                .as_ref()
+                .and_then(|res| res.network_advice_code.clone()),
+            network_decline_code: response
+                .as_ref()
+                .and_then(|res| res.network_decline_code.clone()),
             network_error_message: response
                 .as_ref()
                 .and_then(|res| res.decline_code.clone().or(res.advice_code.clone())),
