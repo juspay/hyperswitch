@@ -1867,6 +1867,6 @@ pub(crate) trait ValidatePlatformMerchant {
 
 impl ValidatePlatformMerchant for storage::PaymentIntent {
     fn get_platform_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
-        self.platform_merchant_id.as_ref()
+        Some(&self.merchant_id)
     }
 }

@@ -682,6 +682,8 @@ pub fn make_new_payment_attempt(
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
+        processor_merchant_id: old_payment_attempt.processor_merchant_id,
+        created_by: old_payment_attempt.created_by,
     }
 }
 

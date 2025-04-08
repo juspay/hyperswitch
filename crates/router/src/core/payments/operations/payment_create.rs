@@ -1365,6 +1365,10 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                processor_merchant_id: merchant_id.to_owned(),
+                created_by: Some(common_utils::types::CreatedBy::Api {
+                    merchant_id: merchant_id.get_string_repr().to_string(),
+                }),
             },
             additional_pm_data,
 
@@ -1386,7 +1390,7 @@ impl PaymentCreate {
         active_attempt_id: String,
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1574,8 +1578,10 @@ impl PaymentCreate {
             skip_external_tax_calculation,
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
-            platform_merchant_id: platform_merchant_account
-                .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
+            processor_merchant_id: merchant_account.get_id().to_owned(),
+            created_by: Some(common_utils::types::CreatedBy::Api {
+                merchant_id: merchant_account.get_id().get_string_repr().to_string(),
+            }),
         })
     }
 

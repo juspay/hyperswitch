@@ -3840,7 +3840,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3912,7 +3913,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3982,7 +3984,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4518,6 +4521,8 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            processor_merchant_id: old_payment_attempt.processor_merchant_id,
+            created_by: old_payment_attempt.created_by,
         }
     }
 
