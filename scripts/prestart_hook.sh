@@ -1,8 +1,8 @@
-#! /usr/bin/env sh
+#! /usr/bin/env bash
 set -euo pipefail
 
 # Define the URL and parameters
-PLATFORM="docker"
+PLATFORM="docker-compose"
 WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/${PLATFORM}"
 VERSION="unknown"
 STATUS="initiated"
@@ -11,4 +11,4 @@ STATUS="initiated"
 curl --get "${WEBHOOK_URL}" --data-urlencode "version=${VERSION}" --data-urlencode "status=${STATUS}"
 
 # Print confirmation
-echo "Request sent to $WEBHOOK_URL with version=$VERSION and status=$STATUS"
+echo "Request sent to ${WEBHOOK_URL} with version=${VERSION} and status=${STATUS}"
