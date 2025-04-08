@@ -41,7 +41,12 @@ pub enum StorageError {
 
 impl From<error_stack::Report<RedisError>> for StorageError {
     fn from(err: error_stack::Report<RedisError>) -> Self {
-        Self::RedisError(err)
+        match err.current_context() {
+            RedisError::NotFound => Self::ValueNotFound("redis value not found".to_string()),
+            RedisError::JsonSerializationFailed => Self::SerializationFailed,
+            RedisError::JsonDeserializationFailed => Self::DeserializationFailed,
+            _ => Self::RedisError(err),
+        }
     }
 }
 
@@ -53,7 +58,15 @@ impl From<diesel::result::Error> for StorageError {
 
 impl From<error_stack::Report<DatabaseError>> for StorageError {
     fn from(err: error_stack::Report<DatabaseError>) -> Self {
-        Self::DatabaseError(err)
+        match err.current_context() {
+            DatabaseError::DatabaseConnectionError => Self::DatabaseConnectionError,
+            DatabaseError::NotFound => Self::ValueNotFound(String::from("db value not found")),
+            DatabaseError::UniqueViolation => Self::DuplicateValue {
+                entity: "db entity",
+                key: None,
+            },
+            _ => Self::DatabaseError(err),
+        }
     }
 }
 
@@ -72,6 +85,7 @@ impl StorageError {
             Self::DatabaseError(err) => {
                 matches!(err.current_context(), DatabaseError::UniqueViolation,)
             }
+            Self::DuplicateValue { .. } => true,
             _ => false,
         }
     }
