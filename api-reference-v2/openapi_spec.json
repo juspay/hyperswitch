@@ -7648,6 +7648,18 @@
           "phone_country_code": {
             "type": "string",
             "nullable": true
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "dpa_client_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -9804,6 +9816,21 @@
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
+            "nullable": true
+          },
+          "network_advice_code": {
+            "type": "string",
+            "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "nullable": true
+          },
+          "network_decline_code": {
+            "type": "string",
+            "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "nullable": true
+          },
+          "network_error_message": {
+            "type": "string",
+            "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
             "nullable": true
           }
         }
@@ -16880,6 +16907,11 @@
               }
             ],
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17659,6 +17691,11 @@
           "payment_method_id": {
             "type": "string",
             "description": "The payment_method_id to be associated with the payment",
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
             "nullable": true
           }
         },
