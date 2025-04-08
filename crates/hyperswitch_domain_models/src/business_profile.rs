@@ -642,7 +642,8 @@ impl super::behaviour::Conversion for Profile {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::business_profile::Profile {
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
+            id: Some(self.profile_id),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
@@ -794,7 +795,8 @@ impl super::behaviour::Conversion for Profile {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::business_profile::ProfileNew {
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
+            id: Some(self.profile_id),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,

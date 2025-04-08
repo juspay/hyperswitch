@@ -32,6 +32,7 @@ pub trait ConnectorV2:
     + api::ConnectorMandateRevokeV2
     + api::authentication_v2::ExternalAuthenticationV2
     + api::UnifiedAuthenticationServiceV2
+    + api::revenue_recovery_v2::RevenueRecoveryV2
 {
 }
 impl<
@@ -49,7 +50,8 @@ impl<
             + api::FraudCheckV2
             + api::ConnectorMandateRevokeV2
             + api::authentication_v2::ExternalAuthenticationV2
-            + api::UnifiedAuthenticationServiceV2,
+            + api::UnifiedAuthenticationServiceV2
+            + api::revenue_recovery_v2::RevenueRecoveryV2,
     > ConnectorV2 for T
 {
 }
@@ -204,8 +206,9 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 

@@ -4,6 +4,94 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.08.0
+
+### Features
+
+- **core:** Added force_3ds_challenge for decoupled txns ([#7484](https://github.com/juspay/hyperswitch/pull/7484)) ([`c245ece`](https://github.com/juspay/hyperswitch/commit/c245ece19fb1b3988c61e12c0faa37c527cabd71))
+
+**Full Changelog:** [`2025.04.07.0...2025.04.08.0`](https://github.com/juspay/hyperswitch/compare/2025.04.07.0...2025.04.08.0)
+
+
+- - -
+
+## 2025.04.07.0
+
+### Features
+
+- **connector:** [BANKOFAMERICA] Enable SamsungPay In Dashboard ([#7677](https://github.com/juspay/hyperswitch/pull/7677)) ([`f7b0409`](https://github.com/juspay/hyperswitch/commit/f7b040942ceed5d031a8154b630845186e39b7ad))
+- **core:** Add network error related columns in payment attempt [v2] ([#7706](https://github.com/juspay/hyperswitch/pull/7706)) ([`5e9e923`](https://github.com/juspay/hyperswitch/commit/5e9e9238cf841ff9a8ca994026869e39b86ed321))
+- **session:** Added dpa_client_id, provider to click to pay session response ([#7683](https://github.com/juspay/hyperswitch/pull/7683)) ([`fbc092f`](https://github.com/juspay/hyperswitch/commit/fbc092f7b11aa95327c5d2f789adc6216c96603f))
+
+### Bug Fixes
+
+- **config:** Add billing payment sync configs in different environments ([#7708](https://github.com/juspay/hyperswitch/pull/7708)) ([`c75d8cd`](https://github.com/juspay/hyperswitch/commit/c75d8cdec53689c2b6500135c0d2bb3a58173f65))
+- **connector:**
+  - [Coingate] Fix Wasm Changes ([#7716](https://github.com/juspay/hyperswitch/pull/7716)) ([`bd32dd4`](https://github.com/juspay/hyperswitch/commit/bd32dd4f0f259336f004a2358a7771652a3c6689))
+  - [Nexixpay] handle error code and message in failure response ([#7713](https://github.com/juspay/hyperswitch/pull/7713)) ([`f532b70`](https://github.com/juspay/hyperswitch/commit/f532b70af9c8acddfd00752d7a3893ac68e3c1eb))
+  - [Novalnet] handle refund failure response in novalnet ([#7721](https://github.com/juspay/hyperswitch/pull/7721)) ([`ae00ef9`](https://github.com/juspay/hyperswitch/commit/ae00ef9c081657d3da892c25432691870fb24bc9))
+
+### Miscellaneous Tasks
+
+- **dashboard:** Update dashboard toml ([#7703](https://github.com/juspay/hyperswitch/pull/7703)) ([`6e0041c`](https://github.com/juspay/hyperswitch/commit/6e0041c222168135d356885a85472a761c033c0d))
+- **postman:**
+  - Update auth for payment connectors in postman collection ([#7702](https://github.com/juspay/hyperswitch/pull/7702)) ([`879cacd`](https://github.com/juspay/hyperswitch/commit/879cacd64b0a9bbcbfa44c74e6dbe59fba45440d))
+  - Update Postman collection files ([`a934b7b`](https://github.com/juspay/hyperswitch/commit/a934b7b8a8d5bd23660b7766ec3b6a949520ddf8))
+
+**Full Changelog:** [`2025.04.04.0...2025.04.07.0`](https://github.com/juspay/hyperswitch/compare/2025.04.04.0...2025.04.07.0)
+
+
+- - -
+
+## 2025.04.04.0
+
+### Bug Fixes
+
+- **errors:** Entry not found error as 4xx instead of 5xx ([#7712](https://github.com/juspay/hyperswitch/pull/7712)) ([`b25f071`](https://github.com/juspay/hyperswitch/commit/b25f071a607d1f12425eb4b7ba4304ce34777054))
+- Web-docker pull from docker hub ([#7700](https://github.com/juspay/hyperswitch/pull/7700)) ([`d2f7473`](https://github.com/juspay/hyperswitch/commit/d2f74737e4e8299365825d70ea39aa4bae270e6c))
+
+### Refactors
+
+- **accounts:** Move accounts related tables to accounts schema ([#7626](https://github.com/juspay/hyperswitch/pull/7626)) ([`4b7f55a`](https://github.com/juspay/hyperswitch/commit/4b7f55aeedfcd9f8294463e98e329607552a0c03))
+- **analytics:** Default config for forex_enabled ([#7695](https://github.com/juspay/hyperswitch/pull/7695)) ([`11f7804`](https://github.com/juspay/hyperswitch/commit/11f7804ba90fd73e91848f6da9eb513b32430641))
+- **core:** Made provider field in ctp_service_details backward compatible ([#7705](https://github.com/juspay/hyperswitch/pull/7705)) ([`ab3dcea`](https://github.com/juspay/hyperswitch/commit/ab3dcea82fafc3cef9e1da9ac98c20d27f127652))
+- **openapi:** Modify profile-delete auth to AdminAPIKey in API doc ([#7697](https://github.com/juspay/hyperswitch/pull/7697)) ([`b8f6615`](https://github.com/juspay/hyperswitch/commit/b8f66155d4a23c10f129591994a8a30715375b87))
+
+### Documentation
+
+- Updated next steps after deployment setup on Readme ([#7686](https://github.com/juspay/hyperswitch/pull/7686)) ([`e39731d`](https://github.com/juspay/hyperswitch/commit/e39731da5ef99f0fca53a72ca78cc6635acc9a44))
+
+### Revert
+
+- Implement `NameType` for name validation ([#6734](https://github.com/juspay/hyperswitch/pull/6734)) ([#7717](https://github.com/juspay/hyperswitch/pull/7717)) ([`d892ee7`](https://github.com/juspay/hyperswitch/commit/d892ee7af087b43c87f98c5d7a43eebafb91b5b6))
+
+**Full Changelog:** [`2025.04.03.0...2025.04.04.0`](https://github.com/juspay/hyperswitch/compare/2025.04.03.0...2025.04.04.0)
+
+
+- - -
+
+## 2025.04.03.0
+
+### Features
+
+- **connector:** Add recovery support for stripebilling ([#7461](https://github.com/juspay/hyperswitch/pull/7461)) ([`cfe2269`](https://github.com/juspay/hyperswitch/commit/cfe226943dc5b473e88b7830c54ac73a943ba04b))
+- **process_tracker:** Invoke record back flow in PCR workflow [V2] ([#7660](https://github.com/juspay/hyperswitch/pull/7660)) ([`40174b3`](https://github.com/juspay/hyperswitch/commit/40174b3c62afb0e93af56ea87cd2adf952bbfa17))
+
+### Bug Fixes
+
+- **connector:**
+  - [WISE] Changed error status to string ([#7468](https://github.com/juspay/hyperswitch/pull/7468)) ([`fa7971f`](https://github.com/juspay/hyperswitch/commit/fa7971f56db0f0469326eee885ca83c52c631fec))
+  - [JPMORGAN, PAYU, DIGITALVIRGO, BITPAY, HELCIM, PAYBOX] Replaced lazystatic macros with LazyLock ([#7524](https://github.com/juspay/hyperswitch/pull/7524)) ([`fcbd863`](https://github.com/juspay/hyperswitch/commit/fcbd863bc79b424fc5ed1a0c23069cb9b9b9154c))
+
+### Refactors
+
+- **openapi:** Update authentication for profiles and mca openapi ([#7678](https://github.com/juspay/hyperswitch/pull/7678)) ([`7358b3a`](https://github.com/juspay/hyperswitch/commit/7358b3a3b99c92fde065f71ee8a8cd527089d6be))
+
+**Full Changelog:** [`2025.04.02.0...2025.04.03.0`](https://github.com/juspay/hyperswitch/compare/2025.04.02.0...2025.04.03.0)
+
+
+- - -
+
 ## 2025.04.02.0
 
 ### Features

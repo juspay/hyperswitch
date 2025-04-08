@@ -786,8 +786,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: card.card_holder_name.clone().or(billing_name
-                            .map(common_utils::types::NameType::get_unchecked_from_secret)), // this is unchecked because billing name is coming from a checked type
+                        card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
                         card_network: card.card_network.clone(),
@@ -2510,6 +2509,7 @@ fn construct_zero_auth_payments_request(
         request_external_three_ds_authentication: None,
         customer_acceptance: None,
         browser_info: None,
+        force_3ds_challenge: None,
     })
 }
 
