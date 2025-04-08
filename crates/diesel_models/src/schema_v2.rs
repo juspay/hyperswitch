@@ -231,7 +231,7 @@ diesel::table! {
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
-        should_collect_cvv_during_payment -> Bool,
+        should_collect_cvv_during_payment -> Nullable<Bool>,
     }
 }
 
