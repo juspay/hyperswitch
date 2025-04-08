@@ -391,7 +391,7 @@ pub async fn link_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     auth_profile_id: Option<id_type::ProfileId>,
-    algorithm_id: id_type::RoutingId,
+    algorithm_id: SurchargeRoutingId,
 ) -> RouterResponse<SurchargeConfigResponse> {
     let profile_id =
         auth_profile_id.ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
@@ -414,15 +414,13 @@ pub async fn link_surcharge_decision_config(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let surcharge_algorithm_id = SurchargeRoutingId(algorithm_id);
-
     let record = db
-        .find_surcharge_algorithm_by_profile_id_algorithm_id(&profile_id, &surcharge_algorithm_id)
+        .find_surcharge_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     let profile_update = ProfileUpdate::ActiveSurchargeIdUpdate {
-        active_surcharge_algorithm_id: Some(surcharge_algorithm_id),
+        active_surcharge_algorithm_id: Some(algorithm_id),
     };
 
     let updated_profile = db

@@ -817,7 +817,7 @@ pub async fn add_surcharge_decision_manager_config(
 pub async fn surcharge_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<common_utils::id_type::RoutingId>,
+    path: web::Path<common_utils::id_type::SurchargeRoutingId>,
 ) -> impl Responder {
     let flow = Flow::DecisionManagerUpsertConfig;
     Box::pin(oss_api::server_wrap(

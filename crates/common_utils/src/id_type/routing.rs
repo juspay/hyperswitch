@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use crate::events::ApiEventMetric;
+
 crate::id_type!(
     RoutingId,
     " A type for routing_id that can be used for routing ids"
@@ -16,7 +18,7 @@ crate::impl_serializable_secret_id_type!(RoutingId);
 crate::impl_queryable_id_type!(RoutingId);
 crate::impl_to_sql_from_sql_id_type!(RoutingId);
 
-impl crate::events::ApiEventMetric for RoutingId {
+impl ApiEventMetric for RoutingId {
     fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
         Some(crate::events::ApiEventsType::Routing)
     }
@@ -43,6 +45,12 @@ impl Deref for SurchargeRoutingId {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl ApiEventMetric for SurchargeRoutingId {
+    fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
+        Some(crate::events::ApiEventsType::Routing)
     }
 }
 crate::impl_serializable_secret_id_type!(SurchargeRoutingId);
