@@ -957,6 +957,8 @@ diesel::table! {
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
+        force_3ds_challenge -> Nullable<Bool>,
+        force_3ds_challenge_trigger -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
