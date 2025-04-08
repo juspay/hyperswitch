@@ -2629,6 +2629,15 @@ pub struct ClientProcessorInformation {
     network_transaction_id: Option<String>,
     avs: Option<Avs>,
     card_verification: Option<CardVerification>,
+    merchant_advice: Option<MerchantAdvice>,
+    response_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantAdvice {
+    code: Option<String>,
+    code_raw: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
