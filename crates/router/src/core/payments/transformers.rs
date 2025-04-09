@@ -4557,6 +4557,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         api_models::payments::BillingConnectorPaymentDetails::foreign_from(
                             &payment_revenue_recovery_metadata.billing_connector_payment_details,
                         ),
+                    invoice_next_billing_time: payment_revenue_recovery_metadata.invoice_next_billing_time
                 }
             });
         let apple_pay_details = feature_metadata
