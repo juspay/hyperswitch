@@ -1,0 +1,57 @@
+[connector]
+name = "paymentwall"
+display_name = "Paymentwall"
+description = "Paymentwall is a global payment service provider that offers a comprehensive payment solution for online businesses."
+logo_url = "https://paymentwall.com/images/logo.png"
+website_url = "https://paymentwall.com/"
+documentation_url = "https://docs.paymentwall.com/"
+contact_email = "support@paymentwall.com"
+contact_phone = "+1 (415) 513-1561"
+contact_address = "Paymentwall, Inc., 255 9th St, San Francisco, CA 94103, USA"
+contact_website = "https://www.paymentwall.com/en/contacts"
+support_email = "support@paymentwall.com"
+support_phone = "+1 (415) 513-1561"
+support_website = "https://www.paymentwall.com/en/contacts"
+support_documentation = "https://docs.paymentwall.com/"
+support_chat = "https://www.paymentwall.com/en/contacts"
+support_contact_form = "https://www.paymentwall.com/en/contacts"
+support_ticket_system = "https://www.paymentwall.com/en/contacts"
+support_hours = "24/7"
+support_response_time = "24 hours"
+support_languages = ["English"]
+connector_type = "payment_processor"
+business_type = ["direct_integration"]
+business_status = ["live"]
+regions_supported = ["global"]
+countries_supported = ["global"]
+currencies_supported = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "SGD", "HKD", "CNY", "INR"]
+payment_methods_supported = ["credit", "debit"]
+payment_method_types_supported = ["card"]
+payment_flows_supported = ["direct_flow", "redirect_flow"]
+authentication_method = "signature_key"
+authentication_fields = [
+    { name = "api_key", label = "Public Key", type = "string", required = true, placeholder = "Your Paymentwall Public Key", sensitive = true },
+    { name = "key1", label = "Private Key", type = "string", required = true, placeholder = "Your Paymentwall Private Key", sensitive = true },
+]
+metadata_fields = []
+features_supported = ["payment", "refund", "capture", "void", "mandate"]
+setup_future_usage_supported = ["on_session"]
+capture_methods_supported = ["automatic", "manual"]
+refund_methods_supported = ["automatic"]
+payment_cancellation_supported = true
+payment_authentication_supported = true
+payment_authorization_supported = true
+payment_bank_redirect_supported = false
+payment_sync_supported = true
+refund_sync_supported = true
+dispute_supported = false
+webhook_signature_supported = true
+setup_future_usage_mandate_supported = true
+recurring_mandate_supported = true
+connector_webhook_details = { merchant_secret = "api_key" }
+payment_method_tokenization_supported = true
+customer_payment_method_tokenization_supported = true
+payment_method_tokenization_storage_algorithm = "external"
+payment_method_tokenization_storage_location = "connector"
+customer_payment_method_tokenization_storage_algorithm = "external"
+customer_payment_method_tokenization_storage_location = "connector"

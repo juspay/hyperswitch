@@ -324,3 +324,7 @@ api_key = "API Key"
 
 [recurly]
 api_key= "API Key"
+
+[paymentwall]
+api_key = "Public Key"
+key1 = "Private Key"
