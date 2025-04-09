@@ -8038,6 +8038,9 @@ pub struct PaymentLinkDetails {
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub status: api_enums::IntentStatus,
     pub enable_button_only_on_form_ready: bool,
+    pub payment_form_header_text: Option<String>,
+    pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
+    pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -8056,6 +8059,9 @@ pub struct SecurePaymentLinkDetails {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub enable_button_only_on_form_ready: bool,
+    pub payment_form_header_text: Option<String>,
+    pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
+    pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
 }
 
 #[derive(Debug, serde::Serialize)]

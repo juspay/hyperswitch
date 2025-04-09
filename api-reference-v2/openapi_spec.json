@@ -14830,6 +14830,27 @@
           "enable_button_only_on_form_ready": {
             "type": "boolean",
             "description": "Flag to enable the button only when the payment form is ready for submission"
+          },
+          "payment_form_header_text": {
+            "type": "string",
+            "description": "Optional header for the SDK's payment form",
+            "nullable": true
+          },
+          "payment_form_label_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkSdkLabelType"
+              }
+            ],
+            "nullable": true
+          },
+          "show_card_terms": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14972,6 +14993,27 @@
             "type": "boolean",
             "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
+          },
+          "payment_form_header_text": {
+            "type": "string",
+            "description": "Optional header for the SDK's payment form",
+            "nullable": true
+          },
+          "payment_form_label_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkSdkLabelType"
+              }
+            ],
+            "nullable": true
+          },
+          "show_card_terms": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15018,6 +15060,22 @@
             "description": "Identifier for the payment link"
           }
         }
+      },
+      "PaymentLinkSdkLabelType": {
+        "type": "string",
+        "enum": [
+          "above",
+          "floating",
+          "never"
+        ]
+      },
+      "PaymentLinkShowSdkTerms": {
+        "type": "string",
+        "enum": [
+          "always",
+          "auto",
+          "never"
+        ]
       },
       "PaymentLinkStatus": {
         "type": "string",

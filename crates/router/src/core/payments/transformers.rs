@@ -4633,6 +4633,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules: config.sdk_ui_rules,
             payment_link_ui_rules: config.payment_link_ui_rules,
             enable_button_only_on_form_ready: config.enable_button_only_on_form_ready,
+            payment_form_header_text: config.payment_form_header_text,
+            payment_form_label_type: config.payment_form_label_type,
+            show_card_terms: config.show_card_terms,
         }
     }
 }
@@ -4704,6 +4707,9 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             sdk_ui_rules: config.sdk_ui_rules,
             payment_link_ui_rules: config.payment_link_ui_rules,
             enable_button_only_on_form_ready: config.enable_button_only_on_form_ready,
+            payment_form_header_text: config.payment_form_header_text,
+            payment_form_label_type: config.payment_form_label_type,
+            show_card_terms: config.show_card_terms,
         }
     }
 }
