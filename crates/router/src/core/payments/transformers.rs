@@ -3228,7 +3228,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
-        let request_overcapture = payment_data.payment_attempt.request_overcapture;
+        let overcapture_status = payment_data.payment_attempt.overcapture_status;
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -3284,7 +3284,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             shipping_cost,
             merchant_account_id,
             merchant_config_currency,
-            request_overcapture,
+            overcapture_status,
         })
     }
 }

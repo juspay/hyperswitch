@@ -4521,7 +4521,7 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
-            request_overcapture: None,
+            overcapture_status: None,
         }
     }
 
@@ -7433,32 +7433,32 @@ pub fn validate_overcapture_request(
 }
 
 #[cfg(feature = "v1")]
-pub fn validate_and_get_overcapture_request(
+pub fn validate_and_get_overcapture_status(
     capture_method: &Option<storage_enums::CaptureMethod>,
     request_overcapture: &Option<api_enums::OverCaptureRequest>,
     profile: &domain::Profile,
     confirm: bool,
-) -> Result<Option<api_enums::OverCaptureRequest>, errors::ApiErrorResponse> {
+) -> Result<Option<api_enums::OverCaptureStatus>, errors::ApiErrorResponse> {
     if let Some(api_enums::CaptureMethod::Manual) = capture_method {
-        let is_overcapture_requested = match *request_overcapture {
-            Some(request_overcapture) => Some(request_overcapture),
+        let is_overcapture_applied = match *request_overcapture {
+            Some(request_overcapture) => Some(api_enums::OverCaptureStatus::from(request_overcapture)),
             None => {
                 if confirm {
                     profile
                         .always_request_overcapture
-                        .map(api_enums::OverCaptureRequest::from)
+                        .map(api_enums::OverCaptureStatus::from)
                 } else {
                     None
                 }
             }
         };
-        Ok(is_overcapture_requested)
+        Ok(is_overcapture_applied)
     } else {
-        match *request_overcapture {
-            Some(_) => Err(errors::ApiErrorResponse::PreconditionFailed {
+        request_overcapture.map_or(
+            Ok(None),
+            |_| Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Requesting overcapture is only supported when the capture method is set to manual".to_string(),
-            }),
-            request_overcapture => Ok(request_overcapture),
-        }
+            })
+        )
     }
 }

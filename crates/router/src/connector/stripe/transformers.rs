@@ -1867,7 +1867,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                                 &item.request,
                             )),
                             billing_address,
-                            item.request.request_overcapture.map(|request_overcapture|request_overcapture.is_enabled()),
+                            item.request.overcapture_status.map(|overcapture_status|overcapture_status.is_applicable()),
                         )?;
 
                     validate_shipping_address_against_payment_method(

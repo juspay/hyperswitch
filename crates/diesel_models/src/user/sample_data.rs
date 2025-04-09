@@ -1,5 +1,5 @@
 use common_enums::{
-    AttemptStatus, AuthenticationType, CaptureMethod, Currency, OverCaptureRequest,
+    AttemptStatus, AuthenticationType, CaptureMethod, Currency, OverCaptureStatus,
     PaymentExperience, PaymentMethod, PaymentMethodType,
 };
 use common_types::primitive_wrappers::{
@@ -210,7 +210,7 @@ pub struct PaymentAttemptBatchNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
-    pub request_overcapture: Option<OverCaptureRequest>,
+    pub overcapture_status: Option<OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -293,7 +293,7 @@ impl PaymentAttemptBatchNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
-            request_overcapture: self.request_overcapture,
+            overcapture_status: self.overcapture_status,
         }
     }
 }

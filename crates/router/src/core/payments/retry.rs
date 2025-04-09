@@ -691,7 +691,7 @@ pub fn make_new_payment_attempt(
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
-        request_overcapture: old_payment_attempt.request_overcapture,
+        overcapture_status: old_payment_attempt.overcapture_status,
     }
 }
 

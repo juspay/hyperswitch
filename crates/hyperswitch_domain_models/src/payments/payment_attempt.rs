@@ -868,7 +868,6 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
@@ -1119,7 +1118,7 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -1141,7 +1140,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        request_overcapture: Option<storage_enums::OverCaptureRequest>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1188,7 +1187,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
-        request_overcapture: Option<storage_enums::OverCaptureRequest>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1346,7 +1345,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                request_overcapture,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1365,7 +1364,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
-                request_overcapture,
+                overcapture_status,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -1449,7 +1448,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 card_discovery,
-                request_overcapture,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1485,7 +1484,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
-                request_overcapture,
+                overcapture_status,
             },
             Self::VoidUpdate {
                 status,
@@ -1874,7 +1873,6 @@ impl behaviour::Conversion for PaymentAttempt {
             issuer_error_message: self.issuer_error_message,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
-            request_overcapture: self.request_overcapture,
             overcapture_status: self.overcapture_status,
         })
     }
@@ -1964,7 +1962,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 charges: storage_model.charges,
                 issuer_error_code: storage_model.issuer_error_code,
                 issuer_error_message: storage_model.issuer_error_message,
-                request_overcapture: storage_model.request_overcapture,
                 overcapture_status: storage_model.overcapture_status,
             })
         }
@@ -2051,7 +2048,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
-            request_overcapture: self.request_overcapture,
+            overcapture_status: self.overcapture_status,
         })
     }
 }

@@ -7563,7 +7563,7 @@ pub enum External3dsAuthenticationRequest {
     Skip,
 }
 
-/// Whether overcapture is requested or not
+/// Whether overcapture is requested for the payment
 #[derive(
     Clone,
     Copy,
@@ -7590,7 +7590,7 @@ pub enum OverCaptureRequest {
     Skip,
 }
 
-/// Whether overcapture is allowed by the connector
+/// Whether overcapture is applicable for the payment
 #[derive(
     Clone,
     Copy,
@@ -8061,11 +8061,11 @@ pub enum CryptoPadding {
     ZeroPadding,
 }
 
-impl From<bool> for OverCaptureRequest {
+impl From<bool> for OverCaptureStatus {
     fn from(value: bool) -> Self {
         match value {
-            true => Self::Enable,
-            _ => Self::Skip,
+            true => Self::Applicable,
+            _ => Self::NotApplicable,
         }
     }
 }
@@ -8084,6 +8084,15 @@ impl OverCaptureStatus {
         match self {
             Self::Applicable => true,
             Self::NotApplicable => false,
+        }
+    }
+}
+
+impl From<OverCaptureRequest> for OverCaptureStatus {
+    fn from(value: OverCaptureRequest) -> Self {
+        match value {
+            OverCaptureRequest::Enable => Self::Applicable,
+            OverCaptureRequest::Skip => Self::NotApplicable,
         }
     }
 }

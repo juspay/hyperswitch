@@ -1294,7 +1294,7 @@ impl PaymentCreate {
             address_id => address_id,
         };
 
-        let request_overcapture = helpers::validate_and_get_overcapture_request(
+        let overcapture_status = helpers::validate_and_get_overcapture_status(
             &request.capture_method,
             &request.request_overcapture,
             business_profile,
@@ -1376,7 +1376,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
-                request_overcapture,
+                overcapture_status,
             },
             additional_pm_data,
 

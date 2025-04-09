@@ -935,8 +935,6 @@ diesel::table! {
         issuer_error_code -> Nullable<Varchar>,
         issuer_error_message -> Nullable<Text>,
         #[max_length = 32]
-        request_overcapture -> Nullable<Varchar>,
-        #[max_length = 32]
         overcapture_status -> Nullable<Varchar>,
     }
 }

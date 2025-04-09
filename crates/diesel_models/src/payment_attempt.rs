@@ -89,8 +89,6 @@ pub struct PaymentAttempt {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
-    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
@@ -112,6 +110,7 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -199,7 +198,6 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
@@ -414,7 +412,7 @@ pub struct PaymentAttemptNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -438,7 +436,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
-        request_overcapture: Option<storage_enums::OverCaptureRequest>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -489,7 +487,7 @@ pub enum PaymentAttemptUpdate {
         order_tax_amount: Option<MinorUnit>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<storage_enums::CardDiscovery>,
-        request_overcapture: Option<storage_enums::OverCaptureRequest>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -930,7 +928,6 @@ pub struct PaymentAttemptUpdateInternal {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
@@ -1120,7 +1117,6 @@ impl PaymentAttemptUpdate {
             charges,
             issuer_error_code,
             issuer_error_message,
-            request_overcapture,
             overcapture_status,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -1186,7 +1182,6 @@ impl PaymentAttemptUpdate {
             charges: charges.or(source.charges),
             issuer_error_code: issuer_error_code.or(source.issuer_error_code),
             issuer_error_message: issuer_error_message.or(source.issuer_error_message),
-            request_overcapture: request_overcapture.or(source.request_overcapture),
             overcapture_status: overcapture_status.or(source.overcapture_status),
             ..source
         }
@@ -2187,7 +2182,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 fingerprint_id,
                 updated_by,
                 payment_method_billing_address_id,
-                request_overcapture,
+                overcapture_status,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2246,8 +2241,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture,
-                overcapture_status: None,
+                overcapture_status,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2309,7 +2303,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
@@ -2347,7 +2340,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount,
                 connector_mandate_detail,
                 card_discovery,
-                request_overcapture,
+                overcapture_status,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2405,8 +2398,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture,
-                overcapture_status: None,
+                overcapture_status,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2469,7 +2461,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
@@ -2534,7 +2525,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
@@ -2599,7 +2589,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
@@ -2662,7 +2651,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
@@ -2725,7 +2713,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
@@ -2816,7 +2803,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_discovery: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    request_overcapture: None,
                     overcapture_status,
                 }
             }
@@ -2898,7 +2884,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_mandate_detail: None,
                     card_discovery: None,
                     charges: None,
-                    request_overcapture: None,
                     overcapture_status: None,
                 }
             }
@@ -2959,7 +2944,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
@@ -3028,7 +3012,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -3104,7 +3087,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    request_overcapture: None,
                     overcapture_status: None,
                 }
             }
@@ -3179,7 +3161,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    request_overcapture: None,
                     overcapture_status: None,
                 }
             }
@@ -3244,7 +3225,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
@@ -3308,7 +3288,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
@@ -3381,7 +3360,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_discovery: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    request_overcapture: None,
                     overcapture_status: None,
                 }
             }
@@ -3445,7 +3423,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
@@ -3511,7 +3488,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
@@ -3586,7 +3562,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    request_overcapture: None,
                     overcapture_status: None,
                 }
             }
@@ -3650,7 +3625,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                request_overcapture: None,
                 overcapture_status: None,
             },
         }

@@ -63,7 +63,7 @@ impl VerifyConnectorData {
             shipping_cost: None,
             merchant_account_id: None,
             merchant_config_currency: None,
-            request_overcapture: None,
+            overcapture_status: None,
         }
     }
 
