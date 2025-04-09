@@ -69,6 +69,7 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    
 }
 
 #[cfg(feature = "v1")]
@@ -360,6 +361,8 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
+    pub recovery_retry_algorithm : Option<common_enums::RecoveryAlgorithm>,
+
 }
 
 impl Profile {
@@ -427,6 +430,7 @@ pub struct ProfileNew {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: bool,
     pub id: common_utils::id_type::ProfileId,
+    pub recovery_retry_algorithm : Option<common_enums::RecoveryAlgorithm>,
 }
 
 #[cfg(feature = "v2")]
@@ -478,6 +482,7 @@ pub struct ProfileUpdateInternal {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment: Option<bool>,
+    pub recovery_retry_algorithm : Option<common_enums::RecoveryAlgorithm>,
 }
 
 #[cfg(feature = "v2")]
@@ -527,6 +532,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
+            recovery_retry_algorithm
         } = self;
         Profile {
             id: source.id,
@@ -607,6 +613,7 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            recovery_retry_algorithm,
         }
     }
 }

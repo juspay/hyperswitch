@@ -270,6 +270,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
+            recovery_retry_algorithm:item.recovery_retry_algorithm,
         })
     }
 }
