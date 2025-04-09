@@ -1402,8 +1402,9 @@ pub async fn generate_token_data_response(
             let network_token_requestor_ref_id = payment_method
                 .network_token_requestor_reference_id
                 .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("NetworkTokenRequestorReferenceId is not present")?;
+                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "NetworkTokenRequestorReferenceId is not present".to_string(),
+                })?;
 
             let network_token = network_tokenization::get_token_from_tokenization_service(
                 state,
