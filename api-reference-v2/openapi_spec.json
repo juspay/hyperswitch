@@ -14088,7 +14088,7 @@
       },
       "OverCaptureRequest": {
         "type": "string",
-        "description": "Whether overcapture is requested or not",
+        "description": "Whether overcapture is requested for the payment",
         "enum": [
           "enable",
           "skip"
@@ -14096,7 +14096,7 @@
       },
       "OverCaptureStatus": {
         "type": "string",
-        "description": "Whether overcapture is allowed by the connector",
+        "description": "Whether overcapture is applicable for the payment",
         "enum": [
           "applicable",
           "not_applicable"
