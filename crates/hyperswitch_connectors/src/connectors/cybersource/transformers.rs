@@ -3552,6 +3552,7 @@ impl<F, T>
 pub struct CybersourceTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
+    processor_information: Option<ClientProcessorInformation>,
     client_reference_information: Option<ClientReferenceInformation>,
     error_information: Option<CybersourceErrorInformation>,
 }
