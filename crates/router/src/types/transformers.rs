@@ -2188,6 +2188,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
             enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
+            payment_form_header_text: item.payment_form_header_text,
+            payment_form_label_type: item.payment_form_label_type,
+            show_card_terms: item.show_card_terms,
         }
     }
 }
@@ -2219,6 +2222,9 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
             enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
+            payment_form_header_text: item.payment_form_header_text,
+            payment_form_label_type: item.payment_form_label_type,
+            show_card_terms: item.show_card_terms,
         }
     }
 }
