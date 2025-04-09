@@ -471,9 +471,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let payment_method_details: ChargebeePaymentMethodDetails =
             serde_json::from_str(&item.content.transaction.payment_method_details)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payment_method_sub_type = Some(enums::PaymentMethodType::from(
-            payment_method_details.card.funding_type,
-        ));
+        let payment_method_sub_type =
+            enums::PaymentMethodType::from(payment_method_details.card.funding_type);
         #[allow(clippy::as_conversions)]
         let retry_count: u16 = item.content.invoice.linked_payments.len() as u16;
         let invoice_next_billing_time = item

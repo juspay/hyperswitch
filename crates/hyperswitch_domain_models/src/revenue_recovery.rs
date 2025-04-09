@@ -33,7 +33,7 @@ pub struct RevenueRecoveryAttemptData {
     /// payment method of payment attempt.
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
-    pub payment_method_sub_type: Option<common_enums::PaymentMethodType>,
+    pub payment_method_sub_type: common_enums::PaymentMethodType,
     /// This field can be returned for both approved and refused Mastercard payments.
     /// This code provides additional information about the type of transaction or the reason why the payment failed.
     /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
@@ -77,6 +77,7 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
+#[derive(Clone)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
@@ -203,6 +204,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+            force_3ds_challenge: None,
         }
     }
 }
@@ -233,7 +235,7 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
             transaction_created_at: data.transaction_created_at,
             status: data.status,
             payment_method_type: data.payment_method_type,
-            payment_method_sub_type: Some(data.payment_method_sub_type),
+            payment_method_sub_type: data.payment_method_sub_type,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

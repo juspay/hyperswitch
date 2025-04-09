@@ -1738,7 +1738,7 @@ pub async fn record_attempt_core(
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+) -> RouterResponse<api_models::payments::PaymentAttemptRecordResponse> {
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
     let operation: &operations::payment_attempt_record::PaymentAttemptRecord =
@@ -7738,7 +7738,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
                 payment_intent.payment_id,
-                business_profile.force_3ds_challenge,
+                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
             ))
             .await?
         };

@@ -63,7 +63,7 @@ impl FeatureMetadata {
     pub fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.payment_revenue_recovery_metadata
             .as_ref()
-            .and_then(|val| val.payment_method_subtype)
+            .map(|rrm| rrm.payment_method_subtype)
     }
 
     pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
@@ -168,7 +168,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     ///Payment Method Type
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
-    pub payment_method_subtype: Option<common_enums::enums::PaymentMethodType>,
+    pub payment_method_subtype: common_enums::enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
