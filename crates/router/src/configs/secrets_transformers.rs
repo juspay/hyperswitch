@@ -501,6 +501,7 @@ pub(crate) async fn fetch_raw_secrets(
         email: conf.email,
         user: conf.user,
         mandates: conf.mandates,
+        zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         required_fields: conf.required_fields,

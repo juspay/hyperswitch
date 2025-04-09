@@ -4518,6 +4518,7 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            setup_future_usage: old_payment_attempt.setup_future_usage,
         }
     }
 

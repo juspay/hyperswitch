@@ -3384,6 +3384,7 @@ pub async fn list_payment_methods(
                 None => continue,
             };
             filter_payment_methods(
+                &state,
                 &graph,
                 mca.get_id(),
                 payment_methods,
@@ -3439,6 +3440,7 @@ pub async fn list_payment_methods(
                 None => continue,
             };
             filter_payment_methods(
+                &state,
                 &graph,
                 mca.get_id().clone(),
                 payment_methods,
@@ -4439,6 +4441,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 ))]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
+    state: &routes::SessionState,
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
     mca_id: id_type::MerchantConnectorAccountId,
     payment_methods: &[Secret<serde_json::Value>],
@@ -4530,20 +4533,67 @@ pub async fn filter_payment_methods(
                         payment_method_object.payment_method_type,
                     );
 
-                    if payment_attempt
-                        .and_then(|attempt| attempt.mandate_details.as_ref())
-                        .is_some()
-                        || payment_intent
-                            .and_then(|intent| intent.setup_future_usage)
-                            .map(|future_usage| {
-                                future_usage == common_enums::FutureUsage::OffSession
-                            })
-                            .unwrap_or(false)
+                    if payment_intent
+                        .and_then(|intent| intent.setup_future_usage)
+                        .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+                        .unwrap_or(false)
                     {
+                        payment_intent.map(|intent| intent.amount).map(|amount| {
+                            if amount == MinorUnit::zero() {
+                                if state
+                                    .conf
+                                    .zero_mandates
+                                    .supported_payment_methods
+                                    .0
+                                    .get(&payment_method)
+                                    .and_then(|supported_pm_for_mandates| {
+                                        supported_pm_for_mandates
+                                            .0
+                                            .get(&payment_method_type_info.payment_method_type)
+                                            .map(|supported_connector_for_mandates| {
+                                                supported_connector_for_mandates
+                                                    .connector_list
+                                                    .contains(&connector_variant)
+                                            })
+                                    })
+                                    .unwrap_or(false)
+                                {
+                                    context_values.push(dir::DirValue::PaymentType(
+                                        euclid::enums::PaymentType::NewMandate,
+                                    ));
+                                }
+                            } else if state
+                                .conf
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&payment_method)
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates
+                                        .0
+                                        .get(&payment_method_type_info.payment_method_type)
+                                        .map(|supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector_variant)
+                                        })
+                                })
+                                .unwrap_or(false)
+                            {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NewMandate,
+                                ));
+                            } else {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NonMandate,
+                                ));
+                            }
+                        });
+                    } else {
                         context_values.push(dir::DirValue::PaymentType(
-                            euclid::enums::PaymentType::NewMandate,
+                            euclid::enums::PaymentType::NonMandate,
                         ));
-                    };
+                    }
 
                     payment_attempt
                         .and_then(|attempt| attempt.mandate_data.as_ref())
@@ -4553,25 +4603,6 @@ pub async fn filter_payment_methods(
                                     euclid::enums::PaymentType::UpdateMandate,
                                 ));
                             }
-                        });
-
-                    payment_attempt
-                        .map(|attempt| {
-                            attempt.mandate_data.is_none()
-                                && attempt.mandate_details.is_none()
-                                && payment_intent
-                                    .and_then(|intent| intent.setup_future_usage)
-                                    .map(|future_usage| {
-                                        future_usage == common_enums::FutureUsage::OnSession
-                                    })
-                                    .unwrap_or(true)
-                        })
-                        .and_then(|res| {
-                            res.then(|| {
-                                context_values.push(dir::DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NonMandate,
-                                ))
-                            })
                         });
 
                     payment_attempt
@@ -4644,6 +4675,7 @@ pub async fn filter_payment_methods(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
+    _state: &routes::SessionState,
     _graph: &cgraph::ConstraintGraph<dir::DirValue>,
     _mca_id: String,
     _payment_methods: &[Secret<serde_json::Value>],

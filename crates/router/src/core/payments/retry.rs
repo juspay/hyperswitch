@@ -490,6 +490,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
+                setup_future_usage: None,
             };
 
             #[cfg(feature = "v1")]
@@ -682,6 +683,7 @@ pub fn make_new_payment_attempt(
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
+        setup_future_usage: old_payment_attempt.setup_future_usage,
     }
 }
 

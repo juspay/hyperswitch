@@ -5,8 +5,112 @@ use api_models::{enums, payment_methods::RequiredFieldInfo};
 use crate::settings::{
     self, ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+
+impl Default for ZeroMandates {
+    fn default() -> Self {
+        Self {
+            supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::from([
+                (
+                    enums::PaymentMethod::PayLater,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([(
+                        enums::PaymentMethodType::Klarna,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([enums::Connector::Adyen]),
+                        },
+                    )])),
+                ),
+                (
+                    enums::PaymentMethod::Wallet,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::GooglePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Bankofamerica,
+                                    enums::Connector::Novalnet,
+                                    enums::Connector::Noon,
+                                    enums::Connector::Cybersource,
+                                    enums::Connector::Wellsfargo,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::ApplePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Bankofamerica,
+                                    enums::Connector::Cybersource,
+                                    enums::Connector::Novalnet,
+                                    enums::Connector::Wellsfargo,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::SamsungPay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([enums::Connector::Cybersource]),
+                            },
+                        ),
+                    ])),
+                ),
+                (
+                    enums::PaymentMethod::Card,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::Credit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Aci,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Fiuu,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                    enums::Connector::Novalnet,
+                                    enums::Connector::Payme,
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Bankofamerica,
+                                    enums::Connector::Cybersource,
+                                    enums::Connector::Wellsfargo,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::Debit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Aci,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Fiuu,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                    enums::Connector::Novalnet,
+                                    enums::Connector::Payme,
+                                    enums::Connector::Stripe,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+            ])),
+        }
+    }
+}
 
 impl Default for Mandates {
     fn default() -> Self {

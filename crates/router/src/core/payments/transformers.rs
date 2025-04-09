@@ -2493,7 +2493,7 @@ where
             captures: captures_response,
             mandate_id,
             mandate_data,
-            setup_future_usage: payment_intent.setup_future_usage,
+            setup_future_usage: payment_attempt.setup_future_usage,
             off_session: payment_intent.off_session,
             capture_on: None,
             capture_method: payment_attempt.capture_method,
@@ -3227,7 +3227,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
-            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            setup_future_usage: payment_data.payment_attempt.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             setup_mandate_details: payment_data.setup_mandate.clone(),
@@ -3668,7 +3668,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,
             shipping_cost: payment_data.payment_intent.shipping_cost,
-            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            setup_future_usage: payment_data.payment_attempt.setup_future_usage,
             router_return_url,
         })
     }
@@ -3992,7 +3992,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .payment_method_data
                 .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
-            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            setup_future_usage: payment_data.payment_attempt.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,

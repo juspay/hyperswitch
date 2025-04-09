@@ -896,6 +896,7 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
+        setup_future_usage -> Nullable<FutureUsage>,
     }
 }
 
