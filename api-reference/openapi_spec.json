@@ -950,6 +950,45 @@
         ]
       }
     },
+    "/payments/{payment_id}/post_authorization_update": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Post Authorization Update",
+        "operationId": "Create Post Authorization Update for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsPostAuthorizationUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Post Authorization Update is done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsPostAuthorizationUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -20328,6 +20367,34 @@
           "reason": {
             "type": "string",
             "description": "Reason for incremental authorization",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsPostAuthorizationUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentsPostAuthorizationUpdateResponse": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
         }
