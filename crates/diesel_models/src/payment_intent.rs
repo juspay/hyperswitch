@@ -147,10 +147,10 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub created_by: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -404,10 +404,10 @@ pub struct PaymentIntentNew {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub created_by: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v2")]
