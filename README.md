@@ -84,23 +84,12 @@ We recommend using Docker Desktop for Windows and Mac OS (Or Orbstack). On Linux
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
 docker compose up -d
-```
-
-Once the containers have started, you can check if they're running properly by executing the command below. Note that this may take some time depending on your internet speed.
-```shell
-curl -sSL https://raw.githubusercontent.com/juspay/hyperswitch/refs/heads/main/scripts/docker_output.sh | bash
-```
-Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
-```shell
-Control Centre running at http://localhost:9000
-App server running at http://localhost:8080/health
-Web-SDK running at http://localhost:5252/HyperLoader.js
-Mailhog running at http://localhost:8025
-PostgreSQL running at localhost:5432 (no web interface)
-Redis running at localhost:6379 (no web interface)
+./scripts/docker_output.sh
 ```
 
 The next step is to configure a connector with the Hyperswitch Control Center and try a payment.
+
+Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
 
 ### 2. Deployment on cloud
 
