@@ -599,6 +599,21 @@ pub fn payments_dynamic_tax_calculation() {}
 
 pub fn payments_post_session_tokens() {}
 
+/// Payments - Post Authorization Update
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/post_authorization_update",
+    request_body=PaymentsPostAuthorizationUpdateRequest,
+    responses(
+        (status = 200, description = "Post Authorization Update is done", body = PaymentsPostAuthorizationUpdateResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Post Authorization Update for a Payment",
+    security(("publishable_key" = []))
+)]
+pub fn payments_post_authorization_update() {}
+
 /// Payments - Create Intent
 ///
 /// **Creates a payment intent object when amount_details are passed.**

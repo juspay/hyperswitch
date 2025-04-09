@@ -3432,6 +3432,44 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct PostAuthorizationRequest {
+    #[serde(flatten)]
+    pub metadata: StripeUpdateMetadata,
+}
+
+#[derive(Debug, Serialize)]
+pub struct StripeUpdateMetadata {
+    #[serde(rename = "metadata[order_id]")]
+    pub order_id: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsPostAuthorizationUpdateRouterData> for PostAuthorizationRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &types::PaymentsPostAuthorizationUpdateRouterData,
+    ) -> Result<Self, Self::Error> {
+        let metadata = item
+            .request
+            .metadata
+            .as_ref()
+            .get_required_value("refund_connector_metadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "refund_connector_metadata",
+            })?
+            .clone()
+            .expose();
+
+        let order_id = metadata
+            .get("order_id")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        Ok(Self {
+            metadata: StripeUpdateMetadata { order_id },
+        })
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 #[serde(rename_all = "snake_case")]

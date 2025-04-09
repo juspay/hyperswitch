@@ -4,15 +4,16 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, Void,
+        PostAuthorizationUpdate, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsPostAuthorizationUpdateData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -42,6 +43,7 @@ pub trait Payment:
     + PaymentIncrementalAuthorization
     + PaymentSessionUpdate
     + PaymentPostSessionTokens
+    + PaymentPostAuthorizationUpdate
 {
 }
 
@@ -130,6 +132,16 @@ pub trait PaymentSessionUpdate:
 /// trait PostSessionTokens
 pub trait PaymentPostSessionTokens:
     api::ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
+{
+}
+
+/// trait PostAuthorizationUpdate
+pub trait PaymentPostAuthorizationUpdate:
+    api::ConnectorIntegration<
+    PostAuthorizationUpdate,
+    PaymentsPostAuthorizationUpdateData,
+    PaymentsResponseData,
+>
 {
 }
 

@@ -177,6 +177,7 @@ impl ConnectorValidation for Stripe {
 impl api::Payment for Stripe {}
 
 impl api::PaymentAuthorize for Stripe {}
+impl api::PaymentPostAuthorizationUpdate for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
@@ -963,6 +964,122 @@ impl
             network_decline_code: None,
             network_error_message: None,
         })
+    }
+}
+
+impl
+    services::ConnectorIntegration<
+        api::PostAuthorizationUpdate,
+        types::PaymentsPostAuthorizationUpdateData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::PostAuthorizationUpdate,
+            types::PaymentsPostAuthorizationUpdateData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let auth = stripe::StripeAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", auth.api_key.peek()).into_masked(),
+            ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsPostAuthorizationUpdateType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+        ])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsPostAuthorizationUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}v1/payment_intents/{}",
+            self.base_url(connectors),
+            payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsPostAuthorizationUpdateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = stripe::PostAuthorizationRequest::try_from(req)?;
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ req{:?}", printrequest);
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsPostAuthorizationUpdateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsPostAuthorizationUpdateType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(types::PaymentsPostAuthorizationUpdateType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(
+                types::PaymentsPostAuthorizationUpdateType::get_request_body(
+                    self, req, connectors,
+                )?,
+            )
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPostAuthorizationUpdateRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsPostAuthorizationUpdateRouterData, errors::ConnectorError>
+    {
+        println!("$$$$$ res{:?}", res.response);
+        router_env::logger::debug!("skipped parsing of the response");
+        // If 200 status code, then metadata was updated successfully.
+        let status = if res.status_code == 200 {
+            enums::SessionUpdateStatus::Success
+        } else {
+            enums::SessionUpdateStatus::Failure
+        };
+        Ok(types::PaymentsPostAuthorizationUpdateRouterData {
+            response: Ok(types::PaymentsResponseData::SessionUpdateResponse { status }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 

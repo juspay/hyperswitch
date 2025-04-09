@@ -70,3 +70,6 @@ pub struct PostSessionTokens;
 
 #[derive(Debug, Clone)]
 pub struct RecordAttempt;
+
+#[derive(Debug, Clone)]
+pub struct PostAuthorizationUpdate;

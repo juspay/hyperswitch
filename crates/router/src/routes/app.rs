@@ -777,6 +777,10 @@ impl Payments {
                 .service(
                 web::resource("{payment_id}/calculate_tax")
                     .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                )
+                .service(
+                    web::resource("{payment_id}/update_metadata")
+                        .route(web::post().to(payments::payments_post_authorization_update)),
                 );
         }
         route

@@ -7,8 +7,8 @@ use crate::{
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
+        PostAuthenticate, PostAuthorizationUpdate, PostSessionTokens, PreAuthenticate,
+        PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
@@ -20,9 +20,9 @@ use crate::{
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SdkPaymentsSessionUpdateData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthorizationUpdateData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, SdkPaymentsSessionUpdateData,
         SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -62,6 +62,8 @@ pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequest
 pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsPostAuthorizationUpdateRouterData =
+    RouterData<PostAuthorizationUpdate, PaymentsPostAuthorizationUpdateData, PaymentsResponseData>;
 
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;

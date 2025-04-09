@@ -4,6 +4,7 @@ pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod incremental_authorization_flow;
+pub mod post_authorization_update_flow;
 pub mod post_session_tokens_flow;
 pub mod psync_flow;
 pub mod reject_flow;
@@ -1695,6 +1696,46 @@ default_imp_for_post_session_tokens!(
     connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_post_authorization_update {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentPostAuthorizationUpdate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::PostAuthorizationUpdate,
+                types::PaymentsPostAuthorizationUpdateData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentPostAuthorizationUpdate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PostAuthorizationUpdate,
+        types::PaymentsPostAuthorizationUpdateData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_post_authorization_update!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
