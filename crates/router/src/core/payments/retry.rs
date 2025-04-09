@@ -1,4 +1,4 @@
-use std::{str::FromStr, vec::IntoIter};
+use std::vec::IntoIter;
 
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
@@ -124,7 +124,7 @@ where
             };
 
             match get_gsm_decision(gsm) {
-                api_models::gsm::GsmDecision::Retry => {
+                storage_enums::GsmDecision::Retry => {
                     retries =
                         get_retries(state, retries, merchant_account.get_id(), business_profile)
                             .await;
@@ -182,14 +182,14 @@ where
 
                     retries = retries.map(|i| i - 1);
                 }
-                api_models::gsm::GsmDecision::Requeue => {
+                storage_enums::GsmDecision::Requeue => {
                     Err(report!(errors::ApiErrorResponse::NotImplemented {
                         message: errors::NotImplementedMessage::Reason(
                             "Requeue not implemented".to_string(),
                         ),
                     }))?
                 }
-                api_models::gsm::GsmDecision::DoDefault => break,
+                storage_enums::GsmDecision::DoDefault => break,
             }
             initial_gsm = None;
         }
@@ -265,7 +265,7 @@ pub async fn get_retries(
 pub async fn get_gsm<F, FData>(
     state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
-) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
+) -> RouterResult<Option<hyperswitch_domain_models::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
     let error_code = error_response.map(|err| err.code.to_owned());
     let error_message = error_response.map(|err| err.message.to_owned());
@@ -279,19 +279,9 @@ pub async fn get_gsm<F, FData>(
 
 #[instrument(skip_all)]
 pub fn get_gsm_decision(
-    option_gsm: Option<storage::gsm::GatewayStatusMap>,
-) -> api_models::gsm::GsmDecision {
-    let option_gsm_decision = option_gsm
-            .and_then(|gsm| {
-                api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .map_err(|err| {
-                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("gsm decision parsing failed");
-                        logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
-                        api_error
-                    })
-                    .ok()
-            });
+    option_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
+) -> storage_enums::GsmDecision {
+    let option_gsm_decision = option_gsm.map(|gsm| gsm.decision);
 
     if option_gsm_decision.is_some() {
         metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(1, &[]);

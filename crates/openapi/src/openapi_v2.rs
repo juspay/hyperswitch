@@ -326,7 +326,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::gsm::GsmDeleteRequest,
         api_models::gsm::GsmDeleteResponse,
         api_models::gsm::GsmResponse,
-        api_models::gsm::GsmDecision,
+        api_models::enums::GsmDecision,
         api_models::payments::AddressDetails,
         api_models::payments::BankDebitData,
         api_models::payments::AliPayQr,

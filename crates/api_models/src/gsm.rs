@@ -20,7 +20,7 @@ pub struct GsmCreateRequest {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
-    pub decision: GsmDecision,
+    pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
     pub step_up_possible: bool,
     /// error code unified across the connectors
@@ -31,6 +31,10 @@ pub struct GsmCreateRequest {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     pub clear_pan_possible: bool,
+    /// indicates if retry with alternate network possible
+    pub alternate_network_possible: bool,
+    /// indicates gsm feature
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -45,28 +49,6 @@ pub struct GsmRetrieveRequest {
     pub code: String,
     /// message received from the connector
     pub message: String,
-}
-
-#[derive(
-    Default,
-    Clone,
-    Copy,
-    Debug,
-    strum::Display,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum GsmDecision {
-    Retry,
-    Requeue,
-    #[default]
-    DoDefault,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -86,7 +68,7 @@ pub struct GsmUpdateRequest {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
-    pub decision: Option<GsmDecision>,
+    pub decision: Option<common_enums::GsmDecision>,
     /// indicates if step_up retry is possible
     pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
@@ -97,6 +79,10 @@ pub struct GsmUpdateRequest {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     pub clear_pan_possible: Option<bool>,
+    /// indicates if retry with alternate network possible
+    pub alternate_network_possible: Option<bool>,
+    /// indicates gsm feature
+    pub feature: Option<common_enums::GsmFeature>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -143,7 +129,7 @@ pub struct GsmResponse {
     /// optional error provided by the router
     pub router_error: Option<String>,
     /// decision to be taken for auto retries flow
-    pub decision: String,
+    pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
     pub step_up_possible: bool,
     /// error code unified across the connectors
@@ -154,4 +140,8 @@ pub struct GsmResponse {
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
     pub clear_pan_possible: bool,
+    /// indicates if retry with alternate network possible
+    pub alternate_network_possible: bool,
+    /// indicates gsm feature
+    pub feature: Option<common_enums::GsmFeature>,
 }

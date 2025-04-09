@@ -1842,7 +1842,9 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     }
 }
 
-impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+impl ForeignFrom<gsm_api_types::GsmCreateRequest>
+    for hyperswitch_domain_models::gsm::GatewayStatusMap
+{
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
         Self {
             connector: value.connector.to_string(),
@@ -1850,7 +1852,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision.to_string(),
+            decision: value.decision,
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
@@ -1858,19 +1860,36 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             unified_message: value.unified_message,
             error_category: value.error_category,
             clear_pan_possible: value.clear_pan_possible,
+            feature_data: Some(hyperswitch_domain_models::gsm::FeatureData::Retry(
+                hyperswitch_domain_models::gsm::RetryFeatureData {
+                    step_up_possible: value.step_up_possible,
+                    clear_pan_possible: value.clear_pan_possible,
+                    alternate_network_possible: value.alternate_network_possible,
+                    decision: value.decision,
+                },
+            )),
+            feature: value.feature,
         }
     }
 }
 
-impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
-    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: hyperswitch_domain_models::gsm::GatewayStatusMap) -> Self {
+        let alternate_network_possible = value
+            .feature_data
+            .map(|feature_data| match feature_data {
+                hyperswitch_domain_models::gsm::FeatureData::Retry(ref retry_feature_data) => {
+                    retry_feature_data.alternate_network_possible
+                }
+            })
+            .unwrap_or(false);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision.to_string(),
+            decision: value.decision,
             status: value.status,
             router_error: value.router_error,
             step_up_possible: value.step_up_possible,
@@ -1878,6 +1897,9 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_message: value.unified_message,
             error_category: value.error_category,
             clear_pan_possible: value.clear_pan_possible,
+            alternate_network_possible,
+            // should this be combination with decision and feature
+            feature: value.feature,
         }
     }
 }

@@ -23,6 +23,7 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod relay;
+pub mod gsm;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub mod revenue_recovery;
 pub mod router_data;

@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
+use std::vec::IntoIter;
 
 use common_enums::PayoutRetryType;
 use error_stack::{report, ResultExt};
@@ -39,7 +39,7 @@ pub async fn do_gsm_multiple_connector_actions(
         let gsm = get_gsm(state, &connector, payout_data).await?;
 
         match get_gsm_decision(gsm) {
-            api_models::gsm::GsmDecision::Retry => {
+            common_enums::GsmDecision::Retry => {
                 retries = get_retries(
                     state,
                     retries,
@@ -73,14 +73,14 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 retries = retries.map(|i| i - 1);
             }
-            api_models::gsm::GsmDecision::Requeue => {
+            common_enums::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
                     message: errors::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
                 }))?
             }
-            api_models::gsm::GsmDecision::DoDefault => break,
+            common_enums::GsmDecision::DoDefault => break,
         }
     }
     Ok(())
@@ -105,13 +105,13 @@ pub async fn do_gsm_single_connector_actions(
         let gsm = get_gsm(state, &original_connector_data, payout_data).await?;
 
         // if the error config is same as previous, we break out of the loop
-        if let Ordering::Equal = gsm.cmp(&previous_gsm) {
+        if gsm == previous_gsm {
             break;
         }
         previous_gsm.clone_from(&gsm);
 
         match get_gsm_decision(gsm) {
-            api_models::gsm::GsmDecision::Retry => {
+            common_enums::GsmDecision::Retry => {
                 retries = get_retries(
                     state,
                     retries,
@@ -137,14 +137,14 @@ pub async fn do_gsm_single_connector_actions(
 
                 retries = retries.map(|i| i - 1);
             }
-            api_models::gsm::GsmDecision::Requeue => {
+            common_enums::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
                     message: errors::NotImplementedMessage::Reason(
                         "Requeue not implemented".to_string(),
                     ),
                 }))?
             }
-            api_models::gsm::GsmDecision::DoDefault => break,
+            common_enums::GsmDecision::DoDefault => break,
         }
     }
     Ok(())
@@ -186,7 +186,7 @@ pub async fn get_gsm(
     state: &app::SessionState,
     original_connector_data: &api::ConnectorData,
     payout_data: &PayoutData,
-) -> RouterResult<Option<storage::gsm::GatewayStatusMap>> {
+) -> RouterResult<Option<hyperswitch_domain_models::gsm::GatewayStatusMap>> {
     let error_code = payout_data.payout_attempt.error_code.to_owned();
     let error_message = payout_data.payout_attempt.error_message.to_owned();
     let connector_name = Some(original_connector_data.connector_name.to_string());
@@ -203,19 +203,9 @@ pub async fn get_gsm(
 
 #[instrument(skip_all)]
 pub fn get_gsm_decision(
-    option_gsm: Option<storage::gsm::GatewayStatusMap>,
-) -> api_models::gsm::GsmDecision {
-    let option_gsm_decision = option_gsm
-            .and_then(|gsm| {
-                api_models::gsm::GsmDecision::from_str(gsm.decision.as_str())
-                    .map_err(|err| {
-                        let api_error = report!(err).change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("gsm decision parsing failed");
-                        logger::warn!(get_gsm_decision_parse_error=?api_error, "error fetching gsm decision");
-                        api_error
-                    })
-                    .ok()
-            });
+    option_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
+) -> common_enums::GsmDecision {
+    let option_gsm_decision = option_gsm.map(|gsm| gsm.decision);
 
     if option_gsm_decision.is_some() {
         metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(1, &[]);
