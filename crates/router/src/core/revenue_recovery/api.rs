@@ -18,7 +18,7 @@ use hyperswitch_domain_models::payments as payments_domain;
 pub async fn call_psync_api(
     state: &SessionState,
     global_payment_id: &id_type::GlobalPaymentId,
-    revenue_recovery_data: &revenue_recovery_types::PcrPaymentData,
+    revenue_recovery_data: &revenue_recovery_types::RevenueRecoveryPaymentData,
 ) -> RouterResult<payments_domain::PaymentStatusData<api_types::PSync>> {
     let operation = payments::operations::PaymentGet;
     let req = payments_api::PaymentsRetrieveRequest {
@@ -67,7 +67,7 @@ pub async fn call_psync_api(
 pub async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,
-    pcr_data: &storage::revenue_recovery::PcrPaymentData,
+    pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
@@ -126,7 +126,7 @@ pub async fn call_proxy_api(
 pub async fn update_payment_intent_api(
     state: &SessionState,
     global_payment_id: id_type::GlobalPaymentId,
-    pcr_data: &storage::revenue_recovery::PcrPaymentData,
+    pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     update_req: payments_api::PaymentsUpdateIntentRequest,
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core

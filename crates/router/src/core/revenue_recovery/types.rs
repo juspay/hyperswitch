@@ -32,7 +32,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation},
-        revenue_recovery::{self as core_pcr},
+        revenue_recovery::{self as revenue_recovery_core},
     },
     db::StorageInterface,
     logger,
@@ -93,8 +93,8 @@ impl PcrAttemptStatus {
         &self,
         state: &SessionState,
         process_tracker: storage::ProcessTracker,
-        pcr_data: &storage::revenue_recovery::PcrPaymentData,
-        tracking_data: &storage::revenue_recovery::PcrWorkflowTrackingData,
+        pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        tracking_data: &storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
@@ -152,7 +152,12 @@ impl PcrAttemptStatus {
 
                 //handle the response
                 action
-                    .psync_response_handler(db, &process_tracker, tracking_data)
+                    .psync_response_handler(
+                        state,
+                        &process_tracker,
+                        tracking_data,
+                        revenue_recovery_metadat,
+                    )
                     .await?;
             }
             Self::InvalidStatus(status) => logger::debug!(
@@ -177,7 +182,7 @@ impl Decision {
         intent_status: enums::IntentStatus,
         called_connector: enums::PaymentConnectorTransmission,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
-        pcr_data: &storage::revenue_recovery::PcrPaymentData,
+        revenue_recovery_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         Ok(match (intent_status, called_connector, active_attempt_id) {
@@ -191,10 +196,14 @@ impl Decision {
                 enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
                 Some(_),
             ) => {
-                let psync_data = core_pcr::api::call_psync_api(state, payment_id, pcr_data)
-                    .await
-                    .change_context(errors::RecoveryError::PaymentCallFailed)
-                    .attach_printable("Error while executing the Psync call")?;
+                let psync_data = revenue_recovery_core::api::call_psync_api(
+                    state,
+                    payment_id,
+                    revenue_recovery_data,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)
+                .attach_printable("Error while executing the Psync call")?;
                 let payment_attempt = psync_data
                     .payment_attempt
                     .get_required_value("Payment Attempt")
@@ -207,11 +216,7 @@ impl Decision {
                 enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
                 Some(_),
             ) => Self::ReviewForFailedPayment,
-            (
-                enums::IntentStatus::Succeeded,
-                enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
-                Some(_),
-            ) => Self::ReviewForSuccessfulPayment,
+            (enums::IntentStatus::Succeeded, _, _) => Self::ReviewForSuccessfulPayment,
             _ => Self::InvalidDecision,
         })
     }
@@ -232,14 +237,14 @@ impl Action {
         merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
-        pcr_data: &storage::revenue_recovery::PcrPaymentData,
+        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
-        let response = core_pcr::api::call_proxy_api(
+        let response = revenue_recovery_core::api::call_proxy_api(
             state,
             payment_intent,
-            pcr_data,
+            revenue_recovery_payment_data,
             revenue_recovery_metadata,
         )
         .await;
@@ -284,18 +289,20 @@ impl Action {
         state: &SessionState,
         payment_intent: &PaymentIntent,
         execute_task_process: &storage::ProcessTracker,
-        pcr_data: &storage::revenue_recovery::PcrPaymentData,
+        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
-        billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         match self {
             Self::SyncPayment(attempt_id) => {
-                core_pcr::insert_psync_pcr_task(
+                revenue_recovery_core::insert_psync_pcr_task_to_pt(
                     db,
-                    pcr_data.merchant_account.get_id().to_owned(),
+                    revenue_recovery_payment_data
+                        .merchant_account
+                        .get_id()
+                        .to_owned(),
                     payment_intent.id.clone(),
-                    pcr_data.profile.get_id().to_owned(),
+                    revenue_recovery_payment_data.profile.get_id().to_owned(),
                     attempt_id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 )
@@ -334,10 +341,10 @@ impl Action {
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
                 );
-                core_pcr::api::update_payment_intent_api(
+                revenue_recovery_core::api::update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
-                    pcr_data,
+                    revenue_recovery_payment_data,
                     payment_update_req,
                 )
                 .await
@@ -359,7 +366,7 @@ impl Action {
                     state,
                     payment_attempt,
                     payment_intent,
-                    billing_mca,
+                    revenue_recovery_payment_data.billing_mca,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -381,7 +388,7 @@ impl Action {
                     state,
                     payment_attempt,
                     payment_intent,
-                    billing_mca,
+                    revenue_recovery_payment_data.billing_mca,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -392,10 +399,10 @@ impl Action {
                 let tracking_data_for_review = execute_task_process
                     .tracking_data
                     .clone()
-                    .parse_value::<storage::revenue_recovery::PcrWorkflowTrackingData>(
-                    "PCRWorkflowTrackingData",
+                    .parse_value::<storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData>(
+                    "RevenueRecoveryWorkflowTrackingData",
                 )?;
-                core_pcr::insert_review_task(
+                revenue_recovery_core::insert_review_task_to_pt(
                     db,
                     &tracking_data_for_review,
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
@@ -425,12 +432,13 @@ impl Action {
 
     pub async fn payment_sync_call(
         state: &SessionState,
-        pcr_data: &storage::revenue_recovery::PcrPaymentData,
+        pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         global_payment_id: &id_type::GlobalPaymentId,
         process: &storage::ProcessTracker,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
-        let response = core_pcr::api::call_psync_api(state, global_payment_id, pcr_data).await;
+        let response =
+            revenue_recovery_core::api::call_psync_api(state, global_payment_id, pcr_data).await;
         let db = &*state.store;
         let active_attempt_id = payment_attempt.get_id().clone();
         match response {
@@ -462,10 +470,12 @@ impl Action {
     }
     pub async fn psync_response_handler(
         &self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         psync_task_process: &storage::ProcessTracker,
-        tracking_data: &storage::revenue_recovery::PcrWorkflowTrackingData,
+        tracking_data: &storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData,
+        revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
+        let db = &*state.store;
         match self {
             Self::SyncPayment(_active_attempt_id) => {
                 // retry the Psync Tasks
@@ -518,7 +528,18 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
-                // TODO: Record a failure transaction back to Billing Connector
+                // Record a failure transaction back to Billing Connector
+                // TODO: Add support for retrying failed outgoing recordback webhooks
+                self.record_back_to_billing_connector(
+                    state,
+                    payment_attempt,
+                    payment_intent,
+                    revenue_recovery_payment_data.billing_mca,
+                )
+                .await
+                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                .attach_printable("Failed to record back the billing connector")?;
+
                 // finish the current psync task
                 db.as_scheduler()
                     .finish_process_with_business_status(
@@ -544,7 +565,7 @@ impl Action {
                 Ok(())
             }
             Self::ReviewPayment => {
-                core_pcr::insert_review_task(
+                revenue_recovery_core::insert_review_task_to_pt(
                     db,
                     tracking_data,
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,

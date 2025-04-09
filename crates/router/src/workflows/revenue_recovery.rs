@@ -52,7 +52,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<pcr_storage_types::PcrWorkflowTrackingData>(
+            .parse_value::<pcr_storage_types::RevenueRecoveryWorkflowTrackingData>(
             "PCRWorkflowTrackingData",
         )?;
         let request = PaymentsGetIntentRequest {
@@ -79,22 +79,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         .await?;
         let store = state.store.as_ref();
 
-        let billing_merchant_connector_account_id: id_type::MerchantConnectorAccountId =
-            payment_data
-                .payment_intent
-                .get_billing_merchant_connector_account_id()
-                .ok_or(errors::ProcessTrackerError::ERecoveryError(
-                    storage_errors::RecoveryError::BillingMerchantConnectorAccountIdNotFound.into(),
-                ))?;
-        let key_manager_state = &state.into();
-        let billing_mca = store
-            .find_merchant_connector_account_by_id(
-                key_manager_state,
-                &billing_merchant_connector_account_id,
-                &pcr_data.key_store,
-            )
-            .await?;
-
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
                 pcr::perform_execute_payment(
@@ -103,7 +87,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     &tracking_data,
                     &pcr_data,
                     &payment_data.payment_intent,
-                    &billing_mca,
                 )
                 .await
             }
@@ -136,8 +119,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
-    tracking_data: &pcr_storage_types::PcrWorkflowTrackingData,
-) -> Result<pcr_storage_types::PcrPaymentData, errors::ProcessTrackerError> {
+    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
+) -> Result<pcr_storage_types::RevenueRecoveryPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
     let key_manager_state = &state.into();
@@ -165,10 +148,19 @@ pub(crate) async fn extract_data_and_perform_action(
         )
         .await?;
 
-    let pcr_payment_data = pcr_storage_types::PcrPaymentData {
+    let billing_mca = db
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &tracking_data.billing_merchant_connector_account_id,
+            &key_store,
+        )
+        .await?;
+
+    let pcr_payment_data = pcr_storage_types::RevenueRecoveryPaymentData {
         merchant_account,
         profile,
         key_store,
+        billing_mca,
     };
     Ok(pcr_payment_data)
 }

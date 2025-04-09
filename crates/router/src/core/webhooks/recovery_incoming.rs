@@ -612,12 +612,13 @@ impl RevenueRecoveryAttempt {
             ))
             .attach_printable("payment attempt id is required for pcr workflow tracking")?;
 
-        let execute_workflow_tracking_data = storage_churn_recovery::PcrWorkflowTrackingData {
-            global_payment_id: payment_id.clone(),
-            merchant_id,
-            profile_id,
-            payment_attempt_id,
-        };
+        let execute_workflow_tracking_data =
+            storage_churn_recovery::RevenueRecoveryWorkflowTrackingData {
+                global_payment_id: payment_id.clone(),
+                merchant_id,
+                profile_id,
+                payment_attempt_id,
+            };
 
         let tag = ["PCR"];
 
