@@ -68,6 +68,7 @@ pub mod rapyd;
 pub mod razorpay;
 pub mod recurly;
 pub mod redsys;
+pub mod riskified;
 pub mod shift4;
 pub mod square;
 pub mod stax;
@@ -84,7 +85,6 @@ pub mod worldpay;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
-
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, amazonpay::Amazonpay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
@@ -102,9 +102,9 @@ pub use self::{
     novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
     payeezy::Payeezy, payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu,
     placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd,
-    razorpay::Razorpay, recurly::Recurly, redsys::Redsys, shift4::Shift4, square::Square,
-    stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
-    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
-    zsl::Zsl,
+    razorpay::Razorpay, recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4,
+    square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes,
+    trustpay::Trustpay, tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService,
+    volt::Volt, wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit,
+    zen::Zen, zsl::Zsl,
 };

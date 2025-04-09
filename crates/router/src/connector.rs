@@ -5,7 +5,7 @@ pub mod ebanx;
 pub mod gpayments;
 pub mod netcetera;
 pub mod plaid;
-pub mod riskified;
+// pub mod riskified;
 pub mod signifyd;
 pub mod stripe;
 pub mod threedsecureio;
@@ -37,9 +37,10 @@ pub use hyperswitch_connectors::connectors::{
     payme, payme::Payme, payone::Payone, paypal, paypal::Paypal, paystack, paystack::Paystack,
     payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz,
     prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay,
-    recurly::Recurly, redsys, redsys::Redsys, shift4, shift4::Shift4, square, square::Square, stax,
-    stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes,
-    thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
+    recurly::Recurly, redsys, redsys::Redsys, riskified, riskified::Riskified, shift4,
+    shift4::Shift4, square, square::Square, stax, stax::Stax, stripebilling,
+    stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, trustpay,
+    trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
     wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
     xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
@@ -49,6 +50,6 @@ pub use hyperswitch_connectors::connectors::{
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyenplatform::Adyenplatform, ebanx::Ebanx, gpayments::Gpayments, netcetera::Netcetera,
-    plaid::Plaid, riskified::Riskified, signifyd::Signifyd, stripe::Stripe,
-    threedsecureio::Threedsecureio, wellsfargopayout::Wellsfargopayout, wise::Wise,
+    plaid::Plaid, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
+    wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
