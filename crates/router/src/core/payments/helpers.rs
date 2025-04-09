@@ -2644,7 +2644,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
             };
 
             if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
-                let (_,  payment_token) = payment_methods::retrieve_payment_method_core(
+                let (_, payment_token) = payment_methods::retrieve_payment_method_core(
                     &Some(payment_method_data.clone()),
                     state,
                     &payment_data.payment_intent,
@@ -2655,7 +2655,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 .await?;
 
                 payment_data.token = payment_token;
-
             };
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
