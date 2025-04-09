@@ -331,6 +331,259 @@ paths:
         "500":
           description: Internal server error
 
+  /contract_routing.ContractScoreCalculator/FetchContractScore:
+    post:
+      summary: Fetch contract scores for an entity
+      operationId: fetchContractScore
+      description: Calculates contract scores for an entity based on provided parameters and labels
+      tags:
+        - Contract Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalContractScoreRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels: ["stripe", "adyen"]
+              config:
+                constants: [0.7, 0.3]
+                time_scale:
+                  time_scale: "Day"
+      responses:
+        "200":
+          description: Success rate calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalContractScoreResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /contract_routing.ContractScoreCalculator/UpdateContract:
+    post:
+      summary: Update contract information for an entity
+      operationId: updateContract
+      description: Updates the contract information for processors based on provided parameters
+      tags:
+        - Contract Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContractRequest"
+            example:
+              id: "merchant1"
+              params: "update"
+              labels_information:
+                - label: "stripe"
+                  target_count: 1000
+                  target_time: 86400
+                  current_count: 500
+                - label: "adyen"
+                  target_count: 1500
+                  target_time: 86400
+                  current_count: 750
+      responses:
+        "200":
+          description: Contract update succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateContractResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /contract_routing.ContractScoreCalculator/InvalidateContract:
+    post:
+      summary: Invalidate contract information for an entity
+      operationId: invalidateContract
+      description: Invalidates the contract for a given entity identifier
+      tags:
+        - Contract Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvalidateContractRequest"
+            example:
+              id: "merchant1"
+      responses:
+        "200":
+          description: Contract invalidation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidateContractResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /routing/create:
+    post:
+      summary: Create a routing rule
+      description: Creates a new routing rule with the specified parameters
+      operationId: createRoutingRule
+      tags:
+        - Static Routing
+      requestBody:
+        description: The routing rule to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutingRule"
+            example:
+              name: "Priority Based Config"
+              algorithm:
+                globals: {}
+                defaultSelection:
+                  priority:
+                    - "stripe"
+                    - "adyen"
+                    - "checkout"
+                rules:
+                  - name: "Card Rule"
+                    routingType: "priority"
+                    output:
+                      priority:
+                        - "stripe"
+                        - "adyen"
+                    statements:
+                      - condition:
+                          - lhs: "payment_method"
+                            comparison: "equal"
+                            value:
+                              type: "enum_variant"
+                              value: "card"
+                            metadata: {}
+                          - lhs: "amount"
+                            comparison: "greater_than"
+                            value:
+                              type: "number"
+                              value: 1000
+                            metadata: {}
+                metadata: {}
+      responses:
+        201:
+          description: Routing rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingApiResponse"
+        400:
+          description: Bad request due to invalid input or configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingApiResponse"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingApiResponse"
+
+  /routing/evaluate:
+    post:
+      summary: Evaluate an existing routing rule
+      description: This endpoint evaluates routing based on the given parameters and routing ID
+      operationId: evaluateRouting
+      tags:
+        - Static Routing
+      requestBody:
+        description: The routing request containing the routing ID and parameters
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutingRequest"
+      responses:
+        200:
+          description: Successfully evaluated routing request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluatedRoutingResponse"
+        400:
+          description: Bad request, invalid routing ID or parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluatedRoutingResponse"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluatedRoutingResponse"
+
 components:
   schemas:
     LabelWithScoreList:
@@ -651,3 +904,399 @@ components:
             - BUCKET_INVALIDATION_FAILED
       required:
         - status
+
+    CalContractScoreRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier
+        params:
+          type: string
+          description: Additional parameters for contract calculation
+        labels:
+          type: array
+          items:
+            type: string
+          description: Labels (processors) to calculate scores for
+        config:
+          $ref: "#/components/schemas/CalContractScoreConfig"
+          description: Configuration for calculation
+      required:
+        - id
+        - params
+        - labels
+        - config
+
+    CalContractScoreConfig:
+      type: object
+      properties:
+        constants:
+          type: array
+          items:
+            type: number
+            format: double
+          description: Constants used in score calculation algorithm
+        time_scale:
+          $ref: "#/components/schemas/TimeScale"
+          description: Time scale for contract calculation
+      required:
+        - constants
+        - time_scale
+
+    TimeScale:
+      type: object
+      properties:
+        time_scale:
+          type: string
+          enum:
+            - Day
+            - Month
+          description: Selected time scale for contract calculation
+
+    CalContractScoreResponse:
+      type: object
+      properties:
+        labels_with_score:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoreData"
+          description: Contract scores for each label
+
+    ScoreData:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          description: Contract score (higher values indicate higher priority)
+          example: 0.95
+        label:
+          type: string
+          description: Label (processor) identifier
+          example: "stripe"
+        current_count:
+          type: integer
+          format: uint64
+          description: Current transaction count for this processor
+          example: 500
+      required:
+        - score
+        - label
+        - current_count
+
+    UpdateContractRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier
+        params:
+          type: string
+          description: Additional parameters
+        labels_information:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelInformation"
+          description: Contract information for processors
+      required:
+        - id
+        - params
+        - labels_information
+
+    LabelInformation:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Processor identifier
+        target_count:
+          type: integer
+          format: uint64
+          description: Target transaction count in contract
+        target_time:
+          type: integer
+          format: uint64
+          description: Time period for the target (in seconds)
+        current_count:
+          type: integer
+          format: uint64
+          description: Current transaction count
+      required:
+        - label
+        - target_count
+        - target_time
+        - current_count
+
+    UpdateContractResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - CONTRACT_UPDATION_SUCCEEDED
+            - CONTRACT_UPDATION_FAILED
+          description: Status of the update operation
+      required:
+        - status
+
+    InvalidateContractRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier to invalidate
+      required:
+        - id
+
+    InvalidateContractResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - CONTRACT_INVALIDATION_SUCCEEDED
+            - CONTRACT_INVALIDATION_FAILED
+          description: Status of the invalidation operation
+      required:
+        - status
+
+    RoutingRule:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the routing rule
+        algorithm:
+          $ref: "#/components/schemas/Program"
+
+    Program:
+      type: object
+      properties:
+        globals:
+          $ref: "#/components/schemas/Globals"
+        default_selection:
+          oneOf:
+            - $ref: "#/components/schemas/OutputPriority"
+            - $ref: "#/components/schemas/OutputVolumeSplit"
+            - $ref: "#/components/schemas/OutputVolumeSplitPriority"
+        rules:
+          type: array
+          items:
+            type: object
+            description: The list of rules for the algorithm
+        metadata:
+          type: object
+          additionalProperties:
+            type: object
+            description: Arbitrary metadata associated with the rule
+
+    Globals:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+          description: The type of the value in the set
+
+    OutputPriority:
+      type: object
+      properties:
+        priority:
+          type: array
+          items:
+            type: string
+            description: List of priority strings
+            example: "Priority1"
+
+    OutputVolumeSplit:
+      type: object
+      properties:
+        volume_split:
+          type: array
+          items:
+            $ref: "#/components/schemas/VolumeSplitString"
+
+    OutputVolumeSplitPriority:
+      type: object
+      properties:
+        volume_split_priority:
+          type: array
+          items:
+            $ref: "#/components/schemas/VolumeSplitArray"
+
+    VolumeSplitString:
+      type: object
+      properties:
+        split:
+          type: integer
+          description: The split percentage or value
+        output:
+          type: string
+          description: The output of the volume split
+
+    VolumeSplitArray:
+      type: object
+      properties:
+        split:
+          type: integer
+          description: The split percentage or value
+        output:
+          type: array
+          items:
+            type: string
+            description: List of output strings
+
+    Metadata:
+      type: object
+      additionalProperties:
+        type: object
+        description: Arbitrary metadata associated with the rule
+
+    RoutingApiResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: The status of the response, e.g., "success" or "error"
+          example: "success"
+        message:
+          type: string
+          description: A message describing the response
+          example: "Routing rule created successfully"
+        rule_id:
+          type: string
+          description: The unique identifier for the routing rule (only present in success)
+          example: "routing_123"
+        rule_count:
+          type: integer
+          description: The count of rules in the algorithm (only present in success)
+          example: 3
+        default_selection:
+          oneOf:
+            - $ref: "#/components/schemas/OutputPriority"
+            - $ref: "#/components/schemas/OutputVolumeSplit"
+            - $ref: "#/components/schemas/OutputVolumeSplitPriority"
+          description: The default selection for the routing rule (only present in success)
+        config_name:
+          type: string
+          description: The name of the config that caused an error (only present in error)
+        validation_errors:
+          type: array
+          items:
+            type: string
+          description: List of validation errors (only present in error)
+
+    RoutingRequest:
+      type: object
+      properties:
+        routing_id:
+          type: string
+          description: The ID of the routing rule to evaluate
+        parameters:
+          type: object
+          additionalProperties:
+            oneOf:
+              - $ref: "#/components/schemas/ValueType"
+          description: A dictionary of parameters used for evaluation
+
+    ValueType:
+      type: object
+      oneOf:
+        - $ref: "#/components/schemas/ValueTypeNumber"
+        - $ref: "#/components/schemas/ValueTypeEnumVariant"
+        - $ref: "#/components/schemas/ValueTypeMetadataVariant"
+        - $ref: "#/components/schemas/ValueTypeStrValue"
+        - $ref: "#/components/schemas/ValueTypeGlobalRef"
+
+    ValueTypeNumber:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - number
+        value:
+          type: integer
+          description: A numeric value (u64)
+
+    ValueTypeEnumVariant:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - enum_variant
+        value:
+          type: string
+          description: The enum variant as a string
+
+    ValueTypeMetadataVariant:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - metadata_variant
+        value:
+          $ref: "#/components/schemas/MetadataValue"
+
+    ValueTypeStrValue:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - str_value
+        value:
+          type: string
+          description: A string value
+
+    ValueTypeGlobalRef:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - global_ref
+        value:
+          type: string
+          description: A reference to a global value
+
+    MetadataValue:
+      type: object
+      properties:
+        key:
+          type: string
+          description: The key associated with the metadata
+        value:
+          type: string
+          description: The value associated with the metadata
+
+    EvaluatedRoutingResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - success
+            - error
+          description: The status of the response, either "success" or "error"
+        message:
+          type: string
+          description: A message describing the status or error
+        output:
+          type: object
+          additionalProperties:
+            type: string
+          description: The output JSON (only in success)
+        evaluated_output:
+          type: array
+          items:
+            type: string
+          description: A list of evaluated outputs (only in success)
+        eligible_connectors:
+          type: array
+          items:
+            type: string
+          description: A list of eligible connectors (only in success)
