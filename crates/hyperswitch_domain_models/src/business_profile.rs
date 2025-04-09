@@ -119,7 +119,6 @@ pub struct ProfileSetter {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
-    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
