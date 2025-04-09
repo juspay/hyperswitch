@@ -393,10 +393,13 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_revenue_recovery_invoice_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,errors::ConnectorError>{
-        match self{
-            Self::Old(connector)=> connector.get_revenue_recovery_invoice_details(request),
-            Self::New(connector)=> connector.get_revenue_recovery_invoice_details(request)
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_revenue_recovery_invoice_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_invoice_details(request),
         }
     }
 
@@ -404,10 +407,13 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_revenue_recovery_attempt_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,errors::ConnectorError>{
-        match self{
-            Self::Old(connector)=> connector.get_revenue_recovery_attempt_details(request),
-            Self::New(connector)=> connector.get_revenue_recovery_attempt_details(request)
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_revenue_recovery_attempt_details(request),
+            Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
         }
     }
 }

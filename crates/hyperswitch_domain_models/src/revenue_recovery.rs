@@ -45,7 +45,7 @@ pub struct RevenueRecoveryAttemptData {
     /// Number of attempts made for an invoice
     pub retry_count: Option<u16>,
     /// Time when next invoice will be generated which will be equal to the end time of the current invoice
-    pub invoice_next_billing_time : Option<PrimitiveDateTime>
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -58,7 +58,7 @@ pub struct RevenueRecoveryInvoiceData {
     /// merchant reference id at billing connector. ex: invoice_id
     pub merchant_reference_id: id_type::PaymentReferenceId,
     /// billing address id of the invoice
-    pub billing_address : Option<api_payments::Address>
+    pub billing_address: Option<api_payments::Address>,
 }
 
 /// type of action that needs to taken after consuming recovery payload
@@ -213,7 +213,7 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryInvoiceData 
             amount: data.amount,
             currency: data.currency,
             merchant_reference_id: data.merchant_reference_id.clone(),
-            billing_address : None
+            billing_address: None,
         }
     }
 }
@@ -238,7 +238,7 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
             network_decline_code: None,
             network_error_message: None,
             retry_count: None,
-            invoice_next_billing_time: None
+            invoice_next_billing_time: None,
         }
     }
 }

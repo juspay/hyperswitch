@@ -8511,7 +8511,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
     /// Invoice Next billing time
-    pub invoice_next_billing_time : Option<PrimitiveDateTime> 
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
@@ -8621,7 +8621,7 @@ pub struct PaymentsAttemptRecordRequest {
     /// Next Billing time of the Invoice
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub invoice_next_billing_time : Option<PrimitiveDateTime>
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 
 /// Error details for the payment

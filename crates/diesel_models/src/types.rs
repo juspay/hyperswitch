@@ -172,7 +172,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// The name of the payment connector through which the payment attempt was made.
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
-    pub invoice_next_billing_time: Option<time::PrimitiveDateTime>
+    pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
