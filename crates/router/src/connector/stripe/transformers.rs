@@ -691,6 +691,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
         match value {
             enums::PaymentMethodType::Credit => Ok(Self::Card),
             enums::PaymentMethodType::Debit => Ok(Self::Card),
+            #[cfg(feature = "v2")]
+            enums::PaymentMethodType::Card => Ok(Self::Card),
             enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
             enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
             enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
