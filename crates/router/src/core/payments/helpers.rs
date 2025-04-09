@@ -2643,6 +2643,21 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 }
             };
 
+            if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
+                let (_,  payment_token) = payment_methods::retrieve_payment_method_core(
+                    &Some(payment_method_data.clone()),
+                    state,
+                    &payment_data.payment_intent,
+                    &payment_data.payment_attempt,
+                    merchant_key_store,
+                    Some(business_profile),
+                )
+                .await?;
+
+                payment_data.token = payment_token;
+
+            };
+
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
                 if let Some(payment_method_data) = payment_method_details.payment_method_data {
                     payment_data.payment_attempt.payment_method =
