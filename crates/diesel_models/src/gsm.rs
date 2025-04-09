@@ -1,9 +1,9 @@
 //! Gateway status mapping
 use common_enums::ErrorCategory;
-use common_utils::pii::SecretSerdeValue;
 use common_utils::{
     custom_serde,
     events::{ApiEventMetric, ApiEventsType},
+    pii::SecretSerdeValue,
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
