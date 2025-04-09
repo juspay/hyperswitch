@@ -7,18 +7,13 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{
+    payment_method_data::PaymentMethodData, router_data::{ConnectorAuthType, RouterData}, router_flow_types::{
         refunds::{Execute, RSync},
         RecoveryRecordBack,
-    },
-    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
-    router_response_types::{
+    }, router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId}, router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
         RefundsResponseData,
-    },
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
+    }, types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData}
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -274,8 +269,14 @@ pub struct ChargebeeWebhookContent {
     pub transaction: ChargebeeTransactionData,
     pub invoice: ChargebeeInvoiceData,
     pub customer: Option<ChargebeeCustomer>,
+    pub subscription: Option<ChargebeeSubscriptionData>
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeSubscriptionData{
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub next_billing_at : Option<PrimitiveDateTime>
+}
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeEventType {
@@ -290,6 +291,13 @@ pub struct ChargebeeInvoiceData {
     pub id: String,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
+    pub billing_address: ChargebeeInvoiceBillingAddress,
+    pub linked_payments: Vec<ChargebeeInvoicePayments>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoicePayments{
+    pub txn_status : String
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -351,6 +359,18 @@ pub enum ChargebeeTranasactionStatus {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCustomer {
     pub payment_method: ChargebeePaymentMethod,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceBillingAddress{
+    pub line1 : Option<Secret<String>>,
+    pub line2 : Option<Secret<String>>,
+    pub line3 : Option<Secret<String>>,
+    pub state : Option<Secret<String>>,
+    pub country : Option<enums::CountryAlpha2>,
+    pub zip : Option<Secret<String>>,
+    pub city : Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -450,6 +470,9 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let payment_method_sub_type = Some(enums::PaymentMethodType::from(
             payment_method_details.card.funding_type,
         ));
+        #[allow(clippy::as_conversions)]
+        let retry_count: u16 = item.content.invoice.linked_payments.len() as u16;
+        let invoice_next_billing_time = item.content.subscription.as_ref().and_then(|subscription| subscription.next_billing_at);
         Ok(Self {
             amount,
             currency,
@@ -467,6 +490,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            retry_count: Some(retry_count),
+            invoice_next_billing_time
         })
     }
 }
@@ -522,7 +547,35 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             amount: item.content.invoice.total,
             currency: item.content.invoice.currency_code,
             merchant_reference_id,
+            billing_address : Some(api_models::payments::Address::from(item.content.invoice))
         })
+    }
+}
+
+
+impl From<ChargebeeInvoiceData> for api_models::payments::Address {
+    fn from(item: ChargebeeInvoiceData)-> Self {
+        Self {
+            address: Some(api_models::payments::AddressDetails::from(item.billing_address)),
+            phone: None,
+            email: None
+        }
+    }
+}
+
+impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetails {
+    fn from(item: ChargebeeInvoiceBillingAddress) -> Self {
+        Self{
+            city : item.city,
+            country: item.country,
+            state : item.state,
+            zip : item.zip,
+            line1: item.line1,
+            line2  : item.line2,
+            line3: item.line3,
+            first_name : None,
+            last_name: None
+        }
     }
 }
 

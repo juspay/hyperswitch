@@ -304,4 +304,19 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .into())
     }
+
+    /// get billing address for invoice if present in the webhook
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_billing_address_for_invoice(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+       api_models::payments::Address,
+    errors::ConnectorError
+    >{
+        Err(errors::ConnectorError::NotImplemented(
+            "get_billing_address_for_invoice method".to_string(),
+        )
+        .into())
+    }
 }
