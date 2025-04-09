@@ -1815,6 +1815,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::CimbVa => Self::BankTransfer,
             PaymentMethodType::ClassicReward => Self::Reward,
             PaymentMethodType::Credit => Self::Card,
+            #[cfg(feature = "v2")]
+            PaymentMethodType::Card => Self::Card,
             PaymentMethodType::CryptoCurrency => Self::Crypto,
             PaymentMethodType::Dana => Self::Wallet,
             PaymentMethodType::DanamonVa => Self::BankTransfer,

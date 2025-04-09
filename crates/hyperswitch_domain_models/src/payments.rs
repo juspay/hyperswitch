@@ -290,7 +290,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -843,9 +843,9 @@ where
                 total_retry_count: revenue_recovery
                     .as_ref()
                     .map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallUnsuccessful.
                 payment_connector_transmission:
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                    common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
                 billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
                 active_attempt_payment_connector_id: self
                     .payment_attempt

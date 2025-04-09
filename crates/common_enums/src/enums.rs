@@ -1781,6 +1781,8 @@ pub enum PaymentMethodType {
     BcaBankTransfer,
     BniVa,
     BriVa,
+    #[cfg(feature = "v2")]
+    Card,
     CardRedirect,
     CimbVa,
     #[serde(rename = "classic")]
@@ -1893,6 +1895,8 @@ impl PaymentMethodType {
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
             Self::ClassicReward => "Classic Reward",
+            #[cfg(feature = "v2")]
+            Self::Card => "Card",
             Self::Credit => "Credit Card",
             Self::CryptoCurrency => "Crypto",
             Self::Cashapp => "Cash App",
@@ -7939,10 +7943,13 @@ pub enum AdyenSplitType {
     Vat,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, Default,
+)]
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
     /// Failed to call the payment connector
+    #[default]
     ConnectorCallUnsuccessful,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
