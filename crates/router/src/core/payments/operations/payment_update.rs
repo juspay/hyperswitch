@@ -947,6 +947,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_details,
                     is_payment_processor_token_flow: None,
                     tax_details: None,
+                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
                     request_overcapture,
                 })),
                 key_store,

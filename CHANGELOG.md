@@ -4,6 +4,44 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0
+
+### Features
+
+- **authentication:** Create authentications to fallback to ApiKeyAuth if AdminApiAuth fails ([#7744](https://github.com/juspay/hyperswitch/pull/7744)) ([`d6c26c5`](https://github.com/juspay/hyperswitch/commit/d6c26c5d75652a2ba2ecfbc0df7d33172df1705b))
+- **connector:**
+  - Add recovery support for recurly [v2] ([#7497](https://github.com/juspay/hyperswitch/pull/7497)) ([`68e22ee`](https://github.com/juspay/hyperswitch/commit/68e22eefe81980666737e34336210dbea57ff40d))
+  - [AIRWALLEX, ELAVON, NOVALNET, XENDIT] add in feature API ([#7163](https://github.com/juspay/hyperswitch/pull/7163)) ([`98738d0`](https://github.com/juspay/hyperswitch/commit/98738d0b923415a0f72ea9d7b535ab376bc12a20))
+- **router:** Support `card` in `payment_method_subtype` [V2] ([#7662](https://github.com/juspay/hyperswitch/pull/7662)) ([`187cceb`](https://github.com/juspay/hyperswitch/commit/187cceb39d760ada4f1df816f8174d59602e68eb))
+- Add open API reference for Intelligent router ([#7727](https://github.com/juspay/hyperswitch/pull/7727)) ([`bce9d48`](https://github.com/juspay/hyperswitch/commit/bce9d48277853824668e09d774ce55352623e243))
+
+### Refactors
+
+- **cypress:** Update BOA configs for manual payments' refunds and connector agnostic ([#7690](https://github.com/juspay/hyperswitch/pull/7690)) ([`4a89567`](https://github.com/juspay/hyperswitch/commit/4a8956728861068f64a552ae8b6c86ff673601a5))
+- Move merchant_key_store table to accounts schema ([#7746](https://github.com/juspay/hyperswitch/pull/7746)) ([`e88672c`](https://github.com/juspay/hyperswitch/commit/e88672c97cc02001fb656e550cd670eda424d9c9))
+
+### Miscellaneous Tasks
+
+- **postman:**
+  - Update `Stripe` response `status`, `error_code`, and `error_message` for deprecated `Sofort` ([#7730](https://github.com/juspay/hyperswitch/pull/7730)) ([`5d5dbe0`](https://github.com/juspay/hyperswitch/commit/5d5dbe0c26c249d1edb247399b60dc206fafbf11))
+  - Update Postman collection files ([`e4865c6`](https://github.com/juspay/hyperswitch/commit/e4865c646f063631a032085942402be24e61fc57))
+
+**Full Changelog:** [`2025.04.08.0...2025.04.09.0`](https://github.com/juspay/hyperswitch/compare/2025.04.08.0...2025.04.09.0)
+
+
+- - -
+
+## 2025.04.08.0
+
+### Features
+
+- **core:** Added force_3ds_challenge for decoupled txns ([#7484](https://github.com/juspay/hyperswitch/pull/7484)) ([`c245ece`](https://github.com/juspay/hyperswitch/commit/c245ece19fb1b3988c61e12c0faa37c527cabd71))
+
+**Full Changelog:** [`2025.04.07.0...2025.04.08.0`](https://github.com/juspay/hyperswitch/compare/2025.04.07.0...2025.04.08.0)
+
+
+- - -
+
 ## 2025.04.07.0
 
 ### Features

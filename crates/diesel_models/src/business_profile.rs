@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
-use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
@@ -58,7 +58,8 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -164,7 +165,8 @@ pub struct ProfileUpdateInternal {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -347,7 +349,8 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -366,7 +369,8 @@ pub struct Profile {
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
 }
 
 impl Profile {
@@ -432,7 +436,8 @@ pub struct ProfileNew {
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
 }
 
@@ -484,7 +489,8 @@ pub struct ProfileUpdateInternal {
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
-    pub should_collect_cvv_during_payment: Option<bool>,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
 }
 
 #[cfg(feature = "v2")]
@@ -591,7 +597,7 @@ impl ProfileUpdateInternal {
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             should_collect_cvv_during_payment: should_collect_cvv_during_payment
-                .unwrap_or(source.should_collect_cvv_during_payment),
+                .or(source.should_collect_cvv_during_payment),
             version: source.version,
             dynamic_routing_algorithm: None,
             is_network_tokenization_enabled: is_network_tokenization_enabled
@@ -689,6 +695,9 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub enable_button_only_on_form_ready: Option<bool>,
+    pub payment_form_header_text: Option<String>,
+    pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
+    pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
