@@ -7268,6 +7268,8 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let payment_attempt = transaction_data.payment_attempt.clone();
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -7341,15 +7343,28 @@ where
                             .map(|card_isin| card_isin.to_string()),
                     );
 
-                routing::perform_dynamic_routing(
-                    state,
-                    connectors.clone(),
-                    business_profile,
-                    dynamic_routing_config_params_interpolator,
-                )
-                .await
-                .map_err(|e| logger::error!(dynamic_routing_error=?e))
-                .unwrap_or(connectors)
+                let should_route_to_open_router = state.conf.open_router_integration.enabled;
+                if should_route_to_open_router {
+                    routing::perform_open_routing(
+                        state,
+                        connectors.clone(),
+                        business_profile,
+                        &payment_attempt,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(dynamic_routing_error=?e))
+                    .unwrap_or(connectors)
+                } else {
+                    routing::perform_dynamic_routing(
+                        state,
+                        connectors.clone(),
+                        business_profile,
+                        dynamic_routing_config_params_interpolator,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(dynamic_routing_error=?e))
+                    .unwrap_or(connectors)
+                }
             } else {
                 connectors
             }

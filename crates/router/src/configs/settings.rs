@@ -139,8 +139,13 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub open_router_integration: OpenRouterIntegration,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OpenRouterIntegration {
+    pub enabled: bool,
+}
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,

@@ -1033,3 +1033,6 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
+
+[open_router_integration]
+enabled = false

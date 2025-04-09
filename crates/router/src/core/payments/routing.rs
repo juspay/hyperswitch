@@ -1484,6 +1484,53 @@ pub fn make_dsl_input_for_surcharge(
     Ok(backend_input)
 }
 
+#[cfg(feature = "v1")]
+pub async fn perform_open_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile: &domain::Profile,
+    payment_data: &oss_storage::PaymentAttempt,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::RoutingError::DeserializationError {
+            from: "JSON".to_string(),
+            to: "DynamicRoutingAlgorithmRef".to_string(),
+        })
+        .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+        .ok_or(errors::RoutingError::GenericNotFoundError {
+            field: "dynamic_routing_algorithm".to_string(),
+        })?;
+
+    logger::debug!(
+        "performing dynamic_routing with open_router for profile {}",
+        profile.get_id().get_string_repr()
+    );
+
+    let connectors = dynamic_routing_algo_ref
+        .success_based_algorithm
+        .async_map(|algo| {
+            perform_success_based_routing_with_open_router(
+                state,
+                routable_connectors.clone(),
+                profile.get_id(),
+                algo,
+                payment_data,
+            )
+        })
+        .await
+        .transpose()
+        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
+        .ok()
+        .flatten()
+        .unwrap_or(routable_connectors);
+
+    Ok(connectors)
+}
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn perform_dynamic_routing(
     state: &SessionState,
@@ -1553,6 +1600,31 @@ pub async fn perform_dynamic_routing(
     };
 
     Ok(connector_list)
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn perform_success_based_routing_with_open_router(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile_id: &common_utils::id_type::ProfileId,
+    success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
+    payment_data: &oss_storage::PaymentAttempt,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    if success_based_algo_ref.enabled_feature
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
+    {
+        logger::debug!(
+            "performing success_based_routing with open_router for profile {}",
+            profile_id.get_string_repr()
+        );
+
+        // Actual Open router integration
+
+        Ok(vec![])
+    } else {
+        Ok(routable_connectors)
+    }
 }
 
 /// success based dynamic routing
