@@ -168,6 +168,7 @@ pub trait AccountsStorageInterface:
     + merchant_account::MerchantAccountInterface
     + business_profile::ProfileInterface
     + merchant_connector_account::MerchantConnectorAccountInterface
+    + merchant_key_store::MerchantKeyStoreInterface
     + 'static
 {
 }
