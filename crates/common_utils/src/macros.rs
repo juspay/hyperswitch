@@ -551,8 +551,6 @@ macro_rules! type_name {
 ///     let json_output = serde_json::to_string(&setting1)?;
 ///     assert_eq!(json_output, "\"Timeout:5000\""); // Note the outer quotes - it's a JSON string
 ///
-///     // The custom Desecrates/router/src/services/api.rs:804:14ized_setting, Setting::Username { name: "guest".to_string() });
-///
 ///     Ok(())
 /// }
 ///
@@ -568,8 +566,7 @@ macro_rules! impl_enum_str {
             $(
                 $(#[$variant_attr:meta])*
                 $variant:ident {
-                    $(#[$field_attr:meta])* // Allow attributes on the field itself
-                    // Enforce exactly one named field. No '?' or '*' around this part.
+                    $(#[$field_attr:meta])*
                     $field:ident : $field_ty:ty $(,)?
                 }
             ),* $(,)? // Allow optional trailing comma after last variant
@@ -586,9 +583,9 @@ macro_rules! impl_enum_str {
             ),*
         }
 
-        // Implement FromStr with a custom error type.
+        // Implement FromStr
         impl core::str::FromStr for $enum_name {
-            type Err = $crate::errors::ParsingError; // Assumes this error type exists in the crate
+            type Err = $crate::errors::ParsingError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 let Some((tag, associated_data)) = s.split_once($tag_delim) else {
@@ -622,8 +619,6 @@ macro_rules! impl_enum_str {
             where
                 S: ::serde::Serializer,
             {
-                // Use a temporary string buffer for efficiency if formatting is complex,
-                // but for simple cases, format! is okay.
                 let s = match self {
                     $(
                         // Destructure the single field using its captured name `$field`
@@ -670,9 +665,6 @@ macro_rules! impl_enum_str {
                 }
 
                 deserializer.deserialize_str(EnumVisitor)
-                // Use deserialize_string if you expect owned strings more often,
-                // but deserialize_str handles both borrowed and owned via visitor.
-                // deserializer.deserialize_string(EnumVisitor)
             }
         }
 
