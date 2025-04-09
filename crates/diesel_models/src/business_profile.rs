@@ -687,6 +687,9 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub enable_button_only_on_form_ready: Option<bool>,
+    pub payment_form_header_text: Option<String>,
+    pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
+    pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
