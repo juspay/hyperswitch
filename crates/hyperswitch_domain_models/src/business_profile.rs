@@ -119,7 +119,7 @@ pub struct ProfileSetter {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
-    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>
+    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
@@ -902,7 +902,7 @@ pub struct Profile {
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
-    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>
+    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v2")]
@@ -1009,7 +1009,7 @@ impl From<ProfileSetter> for Profile {
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
-            recovery_retry_algorithm_type: value.recovery_retry_algorithm_type, 
+            recovery_retry_algorithm_type: value.recovery_retry_algorithm_type,
         }
     }
 }
@@ -1187,7 +1187,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_clear_pan_retries_enabled: None,
                     is_debit_routing_enabled,
                     merchant_business_country,
-                    recovery_retry_algorithm_type:None,
+                    recovery_retry_algorithm_type: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1237,7 +1237,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1285,7 +1285,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1333,7 +1333,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1381,7 +1381,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1477,7 +1477,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1525,7 +1525,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1573,7 +1573,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                recovery_retry_algorithm_type:None,
+                recovery_retry_algorithm_type: None,
             },
         }
     }
@@ -1797,7 +1797,7 @@ impl super::behaviour::Conversion for Profile {
             is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
-            recovery_retry_algorithm_type:self.recovery_retry_algorithm_type,
+            recovery_retry_algorithm_type: self.recovery_retry_algorithm_type,
         })
     }
 }

@@ -17,15 +17,15 @@ pub mod diesel_exports {
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
-        DbRefundStatus as RefundStatus, DbRefundType as RefundType, DbRelayStatus as RelayStatus,
-        DbRelayType as RelayType,
+        DbRecoveryAlgorithmType as RecoveryAlgorithmType, DbRefundStatus as RefundStatus,
+        DbRefundType as RefundType, DbRelayStatus as RelayStatus, DbRelayType as RelayType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,DbRecoveryAlgorithmType as RecoveryAlgorithmType,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
