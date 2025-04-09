@@ -452,8 +452,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.overcapture_status = helpers::validate_and_get_overcapture_status(
             &payment_attempt.capture_method,
-            &request
-                .request_overcapture,
+            &request.request_overcapture,
             &business_profile,
             request.confirm.unwrap_or_default(),
         )?;
@@ -838,7 +837,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
-                        overcapture_status,
+                    overcapture_status,
                 },
                 storage_scheme,
             )

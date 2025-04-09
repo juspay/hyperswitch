@@ -7447,7 +7447,9 @@ pub fn validate_and_get_overcapture_status(
 ) -> Result<Option<api_enums::OverCaptureStatus>, errors::ApiErrorResponse> {
     if let Some(api_enums::CaptureMethod::Manual) = capture_method {
         let is_overcapture_applied = match *request_overcapture {
-            Some(request_overcapture) => Some(api_enums::OverCaptureStatus::from(request_overcapture)),
+            Some(request_overcapture) => {
+                Some(api_enums::OverCaptureStatus::from(request_overcapture))
+            }
             None => {
                 if confirm {
                     profile
