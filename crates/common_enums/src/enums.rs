@@ -227,7 +227,7 @@ pub enum CardDiscovery {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum RecoveryAlgorithm {
+pub enum RecoveryAlgorithmType {
     #[default]
     Monitoring,
     Smart,

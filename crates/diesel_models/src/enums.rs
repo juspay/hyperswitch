@@ -25,7 +25,7 @@ pub mod diesel_exports {
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,DbRecoveryAlgorithm as RecoveryAlgorithm,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,DbRecoveryAlgorithmType as RecoveryAlgorithmType,
     };
 }
 pub use common_enums::*;

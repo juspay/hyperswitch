@@ -2127,8 +2127,8 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Recovery Algorithm in use
-    #[schema(value_type = Option<RecoveryAlgorithm>, example = "Cascading")]
-    pub recovery_retry_algorithm : Option<api_enums::RecoveryAlgorithm>,
+    #[schema(value_type = Option<RecoveryAlgorithmType>, example = "Cascading")]
+    pub recovery_retry_algorithm_type : Option<api_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
@@ -2430,8 +2430,8 @@ pub struct ProfileResponse {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Recovery Algorithm in use
-    #[schema(value_type = Option<RecoveryAlgorithm>, example = "Cascading")]
-    pub recovery_retry_algorithm : Option<api_enums::RecoveryAlgorithm>,
+    #[schema(value_type = Option<RecoveryAlgorithmType>, example = "Cascading")]
+    pub recovery_retry_algorithm_type : Option<api_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
@@ -2708,8 +2708,8 @@ pub struct ProfileUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     
     /// Recovery Algorithm in use
-    #[schema(value_type = Option<RecoveryAlgorithm>, example = "Cascading")]
-    pub recovery_retry_algorithm : Option<api_enums::RecoveryAlgorithm>,
+    #[schema(value_type = Option<RecoveryAlgorithmType>, example = "Cascading")]
+    pub recovery_retry_algorithm_type : Option<api_enums::RecoveryAlgorithmType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
