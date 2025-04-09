@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix8
+
+### Features
+
+- **docker:** Add webhook notifiers for installation tracking ([#7647](https://github.com/juspay/hyperswitch/pull/7647)) ([`804573b`](https://github.com/juspay/hyperswitch/commit/804573b61833e6971d38a31cafb4ee8763c42fcd))
+
+- - -
+
 ## 2025.02.10.0-hotfix7
 
 ### Miscellaneous Tasks
