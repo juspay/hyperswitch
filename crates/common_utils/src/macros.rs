@@ -484,18 +484,18 @@ macro_rules! type_name {
 /// When `serde` features are enabled and the necessary traits are derived or implemented,
 /// this macro implements `Serialize` and `Deserialize` for the enum:
 ///
-/// * **Serialization:** An enum value like `MyEnum::VariantA { value: 123 }` (with `tag_delimeter = ":",`)
+/// **Serialization:** An enum value like `MyEnum::VariantA { value: 123 }` (with `tag_delimeter = ":",`)
 ///     will be serialized into the string `"VariantA:123"`. If serializing to JSON, this results
 ///     in a JSON string: `"\"VariantA:123\""`.
-/// * **Deserialization:** The macro expects a string matching the format `"VariantName<delimiter>FieldValue"`.
+/// **Deserialization:** The macro expects a string matching the format `"VariantName<delimiter>FieldValue"`.
 ///     It uses the enum's `FromStr` implementation internally. When deserializing from JSON, it
 ///     expects a JSON string containing the correctly formatted value (e.g., `"\"VariantA:123\""`).
 ///
 /// # `Display` and `FromStr`
 ///
-/// * **`Display`:** Formats the enum into the `"VariantName<delimiter>FieldValue"` string.
+/// **`Display`:** Formats the enum into the `"VariantName<delimiter>FieldValue"` string.
 ///     `your_enum_value.to_string()` will produce this format.
-/// * **`FromStr`:** Parses the `"VariantName<delimiter>FieldValue"` string back into an enum value.
+/// **`FromStr`:** Parses the `"VariantName<delimiter>FieldValue"` string back into an enum value.
 ///     `"VariantA:123".parse::<MyEnum>()` will attempt this conversion.
 ///
 /// # Example
