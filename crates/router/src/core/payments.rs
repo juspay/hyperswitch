@@ -1485,11 +1485,18 @@ pub fn get_next_connector_with_diff_network(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
     prev_network: Option<enums::CardNetwork>,
 ) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
+
+    let filtered_prev_network_connectors: Vec<_> = connectors
+        .by_ref()
+        .filter(|connector| connector.network.as_ref() != prev_network.as_ref())
+        .collect();
+
+    *connectors = filtered_prev_network_connectors.into_iter();
+
     connectors
         .find_map(|connector_data| {
             connector_data
                 .network
-                .filter(|n| Some(n) != prev_network.as_ref())
                 .map(|network| (connector_data.connector_data, network))
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)

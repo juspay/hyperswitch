@@ -246,6 +246,7 @@ where
                             false, //should_retry_with_pan is not applicable for step-up
                         )
                         .await?;
+                    break;
                     } else {
                         let is_network_token = payment_data
                             .get_payment_method_data()
