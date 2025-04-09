@@ -454,6 +454,8 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    pub processor_merchant_id: id_type::MerchantId,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl PaymentAttempt {
@@ -583,6 +585,8 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             feature_metadata: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
         })
     }
 
@@ -670,6 +674,8 @@ impl PaymentAttempt {
             feature_metadata: None,
             id,
             card_discovery: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
         })
     }
 
@@ -767,6 +773,8 @@ impl PaymentAttempt {
             }),
             card_discovery: None,
             charges: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
         })
     }
 
@@ -2113,6 +2121,8 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            processor_merchant_id,
+            created_by,
         } = self;
 
         let AttemptAmountDetails {
@@ -2205,6 +2215,8 @@ impl behaviour::Conversion for PaymentAttempt {
             network_error_message: error
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
         })
     }
 
@@ -2321,6 +2333,16 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
                 feature_metadata: storage_model.feature_metadata.map(From::from),
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                created_by: storage_model
+                    .created_by
+                    .map(|cb| cb.parse::<CreatedBy>())
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to parse created_by")?,
             })
         }
         .await
@@ -2377,6 +2399,8 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            processor_merchant_id,
+            created_by,
         } = self;
 
         let card_network = payment_method_data
@@ -2466,6 +2490,8 @@ impl behaviour::Conversion for PaymentAttempt {
             network_error_message: error_details
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
         })
     }
 }

@@ -469,13 +469,13 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
-    /// Identifier for the platform merchant.
-    pub platform_merchant_id: Option<id_type::MerchantId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: id_type::MerchantId,
+    pub created_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v2")]
@@ -649,11 +649,13 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
-            platform_merchant_id: platform_merchant_id
-                .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
+            processor_merchant_id: merchant_account.get_id().clone(),
+            created_by: Some(CreatedBy::Api {
+                merchant_id: merchant_account.get_id().get_string_repr().to_string(),
+            }),
         })
     }
 
