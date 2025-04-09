@@ -55,7 +55,9 @@ pub async fn perform_execute_payment(
     let decision = types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
-        pcr_metadata.payment_connector_transmission,
+        pcr_metadata
+            .payment_connector_transmission
+            .unwrap_or_default(),
         payment_intent.active_attempt_id.clone(),
         revenue_recovery_payment_data,
         &tracking_data.global_payment_id,
@@ -106,6 +108,7 @@ pub async fn perform_execute_payment(
                 None => {
                     // insert new psync task
                     insert_psync_pcr_task_to_pt(
+                        revenue_recovery_payment_data.billing_mca.get_id().clone(),
                         db,
                         revenue_recovery_payment_data
                             .merchant_account
@@ -154,6 +157,7 @@ pub async fn perform_execute_payment(
 }
 
 async fn insert_psync_pcr_task_to_pt(
+    billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
     payment_id: id_type::GlobalPaymentId,
@@ -165,6 +169,7 @@ async fn insert_psync_pcr_task_to_pt(
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
     let schedule_time = common_utils::date_time::now();
     let psync_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
+        billing_mca_id,
         global_payment_id: payment_id,
         merchant_id,
         profile_id,
@@ -255,142 +260,142 @@ async fn insert_review_task_to_pt(
     Ok(response)
 }
 
-pub async fn perform_review_task(
-    state: &SessionState,
-    process: &storage::ProcessTracker,
-    tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
-    pcr_data: &pcr::RevenueRecoveryPaymentData,
-    payment_intent: &PaymentIntent,
-) -> Result<(), errors::ProcessTrackerError> {
-    let db = &*state.store;
-    let mut pcr_metadata = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
-        .get_required_value("Payment Revenue Recovery Metadata")?
-        .convert_back();
+// pub async fn perform_review_task(
+//     state: &SessionState,
+//     process: &storage::ProcessTracker,
+//     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
+//     pcr_data: &pcr::RevenueRecoveryPaymentData,
+//     payment_intent: &PaymentIntent,
+// ) -> Result<(), errors::ProcessTrackerError> {
+//     let db = &*state.store;
+//     let mut pcr_metadata = payment_intent
+//         .feature_metadata
+//         .as_ref()
+//         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+//         .get_required_value("Payment Revenue Recovery Metadata")?
+//         .convert_back();
 
-    let decision = types::Decision::get_decision_based_on_params(
-        state,
-        payment_intent.status,
-        pcr_metadata.payment_connector_transmission,
-        payment_intent.active_attempt_id.clone(),
-        pcr_data,
-        &tracking_data.global_payment_id,
-    )
-    .await?;
+//     let decision = types::Decision::get_decision_based_on_params(
+//         state,
+//         payment_intent.status,
+//         pcr_metadata.payment_connector_transmission,
+//         payment_intent.active_attempt_id.clone(),
+//         pcr_data,
+//         &tracking_data.global_payment_id,
+//     )
+//     .await?;
 
-    let task = "EXECUTE_WORKFLOW";
-    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
-    let process_tracker_id = payment_intent
-        .get_id()
-        .get_execute_revenue_recovery_id(task, runner);
-    let mut execute_task_process = db
-        .as_scheduler()
-        .find_process_by_id(&process_tracker_id)
-        .await?
-        .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
+//     let task = "EXECUTE_WORKFLOW";
+//     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+//     let process_tracker_id = payment_intent
+//         .get_id()
+//         .get_execute_revenue_recovery_id(task, runner);
+//     let mut execute_task_process = db
+//         .as_scheduler()
+//         .find_process_by_id(&process_tracker_id)
+//         .await?
+//         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
 
-    match decision {
-        types::Decision::Execute => {
-            // get a reschedule time , without increasing the retry count
-            let schedule_time = get_schedule_time_to_retry_mit_payments(
-                db,
-                pcr_data.merchant_account.get_id(),
-                execute_task_process.retry_count,
-            )
-            .await;
+//     match decision {
+//         types::Decision::Execute => {
+//             // get a reschedule time , without increasing the retry count
+//             let schedule_time = get_schedule_time_to_retry_mit_payments(
+//                 db,
+//                 pcr_data.merchant_account.get_id(),
+//                 execute_task_process.retry_count,
+//             )
+//             .await;
 
-            // check if retry is possible
-            if let Some(schedule_time) = schedule_time {
-                // schedule a requeue for execute_task with a new schedule time
-                execute_task_process.schedule_time = Some(schedule_time);
+//             // check if retry is possible
+//             if let Some(schedule_time) = schedule_time {
+//                 // schedule a requeue for execute_task with a new schedule time
+//                 execute_task_process.schedule_time = Some(schedule_time);
 
-                let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
-                    status: storage::enums::ProcessTrackerStatus::Pending,
-                    business_status: Some(business_status::PENDING.to_owned()),
-                };
-                db.as_scheduler()
-                    .update_process(execute_task_process.clone(), pt_task_update)
-                    .await?;
-            } else {
-                // TODO: send back the failure webhook
-            }
+//                 let pt_task_update = diesel_models::ProcessTrackerUpdate::StatusUpdate {
+//                     status: storage::enums::ProcessTrackerStatus::Pending,
+//                     business_status: Some(business_status::PENDING.to_owned()),
+//                 };
+//                 db.as_scheduler()
+//                     .update_process(execute_task_process.clone(), pt_task_update)
+//                     .await?;
+//             } else {
+//                 // TODO: send back the failure webhook
+//             }
 
-            // finish current review task as the payment was a success
-            db.as_scheduler()
-                .finish_process_with_business_status(
-                    process.clone(),
-                    business_status::REVIEW_WORKFLOW_COMPLETE,
-                )
-                .await?;
-        }
-        // if active attempt id is there do a psync check for the already present psync task for that attempt
-        types::Decision::Psync(_attempt_status, attempt_id) => {
-            // create a Psync task
-            insert_psync_pcr_task_to_pt(
-                db,
-                pcr_data.merchant_account.get_id().clone(),
-                payment_intent.get_id().clone(),
-                pcr_data.profile.get_id().clone(),
-                attempt_id.clone(),
-                storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
-            )
-            .await?;
-            // finish current review task as the payment was a success
-            db.as_scheduler()
-                .finish_process_with_business_status(
-                    process.clone(),
-                    business_status::REVIEW_WORKFLOW_COMPLETE,
-                )
-                .await?;
-        }
+//             // finish current review task as the payment was a success
+//             db.as_scheduler()
+//                 .finish_process_with_business_status(
+//                     process.clone(),
+//                     business_status::REVIEW_WORKFLOW_COMPLETE,
+//                 )
+//                 .await?;
+//         }
+//         // if active attempt id is there do a psync check for the already present psync task for that attempt
+//         types::Decision::Psync(_attempt_status, attempt_id) => {
+//             // create a Psync task
+//             insert_psync_pcr_task_to_pt(
+//                 db,
+//                 pcr_data.merchant_account.get_id().clone(),
+//                 payment_intent.get_id().clone(),
+//                 pcr_data.profile.get_id().clone(),
+//                 attempt_id.clone(),
+//                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+//             )
+//             .await?;
+//             // finish current review task as the payment was a success
+//             db.as_scheduler()
+//                 .finish_process_with_business_status(
+//                     process.clone(),
+//                     business_status::REVIEW_WORKFLOW_COMPLETE,
+//                 )
+//                 .await?;
+//         }
 
-        types::Decision::ReviewForFailedPayment => {
-            // get a reschedule time for the next retry
-            let schedule_time = get_schedule_time_to_retry_mit_payments(
-                db,
-                pcr_data.merchant_account.get_id(),
-                process.retry_count + 1,
-            )
-            .await;
+//         types::Decision::ReviewForFailedPayment => {
+//             // get a reschedule time for the next retry
+//             let schedule_time = get_schedule_time_to_retry_mit_payments(
+//                 db,
+//                 pcr_data.merchant_account.get_id(),
+//                 process.retry_count + 1,
+//             )
+//             .await;
 
-            // check if retry is possible
-            if let Some(schedule_time) = schedule_time {
-                // schedule a retry for execute_task
-                db.as_scheduler()
-                    .retry_process(execute_task_process.clone(), schedule_time)
-                    .await?;
-            } else {
-                // TODO: send back the failure webhook
-            }
-            // a retry has been scheduled
-            // TODO: set the connector called as false and active attempt id field None
-        }
+//             // check if retry is possible
+//             if let Some(schedule_time) = schedule_time {
+//                 // schedule a retry for execute_task
+//                 db.as_scheduler()
+//                     .retry_process(execute_task_process.clone(), schedule_time)
+//                     .await?;
+//             } else {
+//                 // TODO: send back the failure webhook
+//             }
+//             // a retry has been scheduled
+//             // TODO: set the connector called as false and active attempt id field None
+//         }
 
-        types::Decision::ReviewForSuccessfulPayment => {
-            // finish current review task as the payment was already a success
+//         types::Decision::ReviewForSuccessfulPayment => {
+//             // finish current review task as the payment was already a success
 
-            db.as_scheduler()
-                .finish_process_with_business_status(
-                    process.clone(),
-                    business_status::REVIEW_WORKFLOW_COMPLETE,
-                )
-                .await?;
-        }
+//             db.as_scheduler()
+//                 .finish_process_with_business_status(
+//                     process.clone(),
+//                     business_status::REVIEW_WORKFLOW_COMPLETE,
+//                 )
+//                 .await?;
+//         }
 
-        types::Decision::InvalidDecision => {
-            db.as_scheduler()
-                .finish_process_with_business_status(
-                    process.clone(),
-                    business_status::REVIEW_WORKFLOW_COMPLETE,
-                )
-                .await?;
-            logger::warn!("Abnormal State Identified")
-        }
-    }
-    Ok(())
-}
+//         types::Decision::InvalidDecision => {
+//             db.as_scheduler()
+//                 .finish_process_with_business_status(
+//                     process.clone(),
+//                     business_status::REVIEW_WORKFLOW_COMPLETE,
+//                 )
+//                 .await?;
+//             logger::warn!("Abnormal State Identified")
+//         }
+//     }
+//     Ok(())
+// }
 
 pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,

@@ -231,7 +231,7 @@ diesel::table! {
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
-        should_collect_cvv_during_payment -> Bool,
+        should_collect_cvv_during_payment -> Nullable<Bool>,
     }
 }
 
@@ -878,7 +878,7 @@ diesel::table! {
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
-        payment_method_subtype -> Nullable<Varchar>,
+        payment_method_subtype -> Varchar,
         routing_result -> Nullable<Jsonb>,
         authentication_applied -> Nullable<AuthenticationType>,
         #[max_length = 128]
@@ -891,6 +891,11 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         feature_metadata -> Nullable<Jsonb>,
+        #[max_length = 32]
+        network_advice_code -> Nullable<Varchar>,
+        #[max_length = 32]
+        network_decline_code -> Nullable<Varchar>,
+        network_error_message -> Nullable<Text>,
     }
 }
 
@@ -948,6 +953,8 @@ diesel::table! {
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
+        force_3ds_challenge -> Nullable<Bool>,
+        force_3ds_challenge_trigger -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

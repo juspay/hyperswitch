@@ -101,17 +101,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                 Ok(())
             }
 
-            Some("REVIEW_WORKFLOW") => {
-                pcr::perform_review_task(
-                    state,
-                    &process,
-                    &tracking_data,
-                    &pcr_data,
-                    &payment_data.payment_intent,
-                )
-                .await?;
-                Ok(())
-            }
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
@@ -151,7 +140,7 @@ pub(crate) async fn extract_data_and_perform_action(
     let billing_mca = db
         .find_merchant_connector_account_by_id(
             key_manager_state,
-            &tracking_data.billing_merchant_connector_account_id,
+            &tracking_data.billing_mca_id,
             &key_store,
         )
         .await?;

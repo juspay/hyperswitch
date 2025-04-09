@@ -93,7 +93,7 @@ impl PcrAttemptStatus {
         &self,
         state: &SessionState,
         process_tracker: storage::ProcessTracker,
-        pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         tracking_data: &storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> Result<(), errors::ProcessTrackerError> {
@@ -122,7 +122,10 @@ impl PcrAttemptStatus {
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
                     db,
-                    &pcr_data.merchant_account.get_id().clone(),
+                    &revenue_recovery_payment_data
+                        .merchant_account
+                        .get_id()
+                        .clone(),
                     process_tracker.retry_count + 1,
                 )
                 .await;
@@ -143,7 +146,7 @@ impl PcrAttemptStatus {
                 // do a psync payment
                 let action = Box::pin(Action::payment_sync_call(
                     state,
-                    pcr_data,
+                    revenue_recovery_payment_data,
                     &tracking_data.global_payment_id,
                     &process_tracker,
                     payment_attempt,
@@ -156,7 +159,7 @@ impl PcrAttemptStatus {
                         state,
                         &process_tracker,
                         tracking_data,
-                        revenue_recovery_metadat,
+                        // revenue_recovery_metadata,
                     )
                     .await?;
             }
@@ -296,6 +299,7 @@ impl Action {
         match self {
             Self::SyncPayment(attempt_id) => {
                 revenue_recovery_core::insert_psync_pcr_task_to_pt(
+                    revenue_recovery_payment_data.billing_mca.get_id().clone(),
                     db,
                     revenue_recovery_payment_data
                         .merchant_account
@@ -366,7 +370,7 @@ impl Action {
                     state,
                     payment_attempt,
                     payment_intent,
-                    revenue_recovery_payment_data.billing_mca,
+                    &revenue_recovery_payment_data.billing_mca,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -388,7 +392,7 @@ impl Action {
                     state,
                     payment_attempt,
                     payment_intent,
-                    revenue_recovery_payment_data.billing_mca,
+                    &revenue_recovery_payment_data.billing_mca,
                 )
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -402,6 +406,7 @@ impl Action {
                     .parse_value::<storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData>(
                     "RevenueRecoveryWorkflowTrackingData",
                 )?;
+                // this is avoided by the record back call
                 revenue_recovery_core::insert_review_task_to_pt(
                     db,
                     &tracking_data_for_review,
@@ -464,6 +469,7 @@ impl Action {
             // if there is an error while psync we create a new Review Task
             {
                 logger::error!(sync_payment_response=?err);
+                //requeue
                 Ok(Self::ReviewPayment)
             }
         }
@@ -473,7 +479,7 @@ impl Action {
         state: &SessionState,
         psync_task_process: &storage::ProcessTracker,
         tracking_data: &storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData,
-        revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        // revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         match self {
@@ -530,15 +536,15 @@ impl Action {
             Self::TerminalFailure(payment_attempt) => {
                 // Record a failure transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                self.record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
+                // self.record_back_to_billing_connector(
+                //     state,
+                //     payment_attempt,
+                //     payment_intent,
+                //     revenue_recovery_payment_data.billing_mca,
+                // )
+                // .await
+                // .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                // .attach_printable("Failed to record back the billing connector")?;
 
                 // finish the current psync task
                 db.as_scheduler()
@@ -684,7 +690,7 @@ impl Action {
                 merchant_reference_id,
                 amount: payment_attempt.get_total_amount(),
                 currency: payment_intent.amount_details.currency,
-                payment_method_type: payment_attempt.payment_method_subtype,
+                payment_method_type: Some(payment_attempt.payment_method_subtype),
                 attempt_status: payment_attempt.status,
                 connector_transaction_id: payment_attempt
                     .connector_payment_id

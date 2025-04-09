@@ -307,21 +307,9 @@ pub enum StripeBankName {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum BankSpecificData {
-    Sofort {
-        #[serde(rename = "payment_method_options[sofort][preferred_language]")]
-        preferred_language: String,
-        #[serde(rename = "payment_method_data[sofort][country]")]
-        country: api_enums::CountryAlpha2,
-    },
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
 pub enum StripeBankRedirectData {
     StripeGiropay(Box<StripeGiropay>),
     StripeIdeal(Box<StripeIdeal>),
-    StripeSofort(Box<StripeSofort>),
     StripeBancontactCard(Box<StripeBancontactCard>),
     StripePrezelewy24(Box<StripePrezelewy24>),
     StripeEps(Box<StripeEps>),
@@ -341,16 +329,6 @@ pub struct StripeIdeal {
     pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[ideal][bank]")]
     ideal_bank_name: Option<StripeBankNames>,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct StripeSofort {
-    #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(rename = "payment_method_options[sofort][preferred_language]")]
-    preferred_language: Option<String>,
-    #[serde(rename = "payment_method_data[sofort][country]")]
-    country: api_enums::CountryAlpha2,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -691,6 +669,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
         match value {
             enums::PaymentMethodType::Credit => Ok(Self::Card),
             enums::PaymentMethodType::Debit => Ok(Self::Card),
+            #[cfg(feature = "v2")]
+            enums::PaymentMethodType::Card => Ok(Self::Card),
             enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
             enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
             enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
@@ -1224,10 +1204,7 @@ fn create_stripe_payment_method(
                 billing_address
             };
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
-            let bank_redirect_data = StripePaymentMethodData::try_from((
-                bank_redirect_data,
-                Some(billing_address.to_owned()),
-            ))?;
+            let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
 
             Ok((bank_redirect_data, Some(pm_type), billing_address))
         }
@@ -1546,16 +1523,9 @@ impl TryFrom<(&domain::WalletData, Option<types::PaymentMethodToken>)> for Strip
     }
 }
 
-impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
-    for StripePaymentMethodData
-{
+impl TryFrom<&domain::BankRedirectData> for StripePaymentMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (bank_redirect_data, billing_address): (
-            &domain::BankRedirectData,
-            Option<StripeBillingAddress>,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(bank_redirect_data: &domain::BankRedirectData) -> Result<Self, Self::Error> {
         let payment_method_data_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
         match bank_redirect_data {
             domain::BankRedirectData::BancontactCard { .. } => Ok(Self::BankRedirect(
@@ -1608,19 +1578,6 @@ impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
                     })),
                 ))
             }
-            domain::BankRedirectData::Sofort {
-                preferred_language, ..
-            } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
-                Box::new(StripeSofort {
-                    payment_method_data_type,
-                    country: billing_address
-                        .and_then(|billing_data| billing_data.country)
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing_address.country",
-                        })?,
-                    preferred_language: preferred_language.clone(),
-                }),
-            ))),
             domain::BankRedirectData::OnlineBankingFpx { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -1636,6 +1593,7 @@ impl TryFrom<(&domain::BankRedirectData, Option<StripeBillingAddress>)>
             | domain::BankRedirectData::OnlineBankingSlovakia { .. }
             | domain::BankRedirectData::OnlineBankingThailand { .. }
             | domain::BankRedirectData::OpenBankingUk { .. }
+            | domain::BankRedirectData::Sofort { .. }
             | domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -2333,12 +2291,9 @@ pub struct StripeAdditionalCardDetails {
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum StripePaymentMethodDetailsResponse {
-    //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
+    //only ideal and bancontact is supported by stripe for recurring payment in bank redirect
     Ideal {
         ideal: StripeBankRedirectDetails,
-    },
-    Sofort {
-        sofort: StripeBankRedirectDetails,
     },
     Bancontact {
         bancontact: StripeBankRedirectDetails,
@@ -2400,7 +2355,6 @@ impl StripePaymentMethodDetailsResponse {
                 authentication_details: card.three_d_secure.clone(),
             }),
             Self::Ideal { .. }
-            | Self::Sofort { .. }
             | Self::Bancontact { .. }
             | Self::Blik
             | Self::Eps
@@ -2770,10 +2724,6 @@ where
                                     .unwrap_or(payment_method_id.expose())
                             }
                             Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => ideal
-                                .attached_payment_method
-                                .map(|attached_payment_method| attached_payment_method.expose())
-                                .unwrap_or(payment_method_id.expose()),
-                            Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => sofort
                                 .attached_payment_method
                                 .map(|attached_payment_method| attached_payment_method.expose())
                                 .unwrap_or(payment_method_id.expose()),
@@ -3290,8 +3240,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3327,8 +3278,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(types::RefundsResponseData {
@@ -3597,8 +3549,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -3888,7 +3841,7 @@ impl
                 payment_method_data_type: pm_type,
             })),
             domain::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
-                Ok(Self::try_from((bank_redirect_data, None))?)
+                Ok(Self::try_from(bank_redirect_data)?)
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(Self::try_from((wallet_data, None))?)
@@ -4071,7 +4024,7 @@ pub struct Evidence {
     pub submit: bool,
 }
 
-// Mandates for bank redirects - ideal and sofort happens through sepa direct debit in stripe
+// Mandates for bank redirects - ideal happens through sepa direct debit in stripe
 fn mandatory_parameters_for_sepa_bank_debit_mandates(
     billing_details: &Option<StripeBillingAddress>,
     is_customer_initiated_mandate_payment: Option<bool>,
@@ -4225,8 +4178,9 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response_id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
