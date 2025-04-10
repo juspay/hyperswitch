@@ -4539,15 +4539,12 @@ pub async fn filter_payment_methods(
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
-                        || (payment_intent
+                        || payment_intent
                             .and_then(|intent| intent.setup_future_usage)
                             .map(|future_usage| {
                                 future_usage == common_enums::FutureUsage::OffSession
                             })
                             .unwrap_or(false)
-                            && payment_attempt
-                                .and_then(|attempt| attempt.customer_acceptance.as_ref())
-                                .is_some())
                     {
                         payment_intent.map(|intent| intent.amount).map(|amount| {
                             if amount == MinorUnit::zero() {
