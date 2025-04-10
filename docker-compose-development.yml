@@ -64,7 +64,7 @@ services:
         FROM rust:latest
         RUN apt-get update && \
             apt-get install -y protobuf-compiler
-        RUN rustup component add rustfmt clippy  
+        RUN rustup component add rustfmt clippy
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
@@ -327,17 +327,27 @@ services:
       sdkBaseUrl: http://localhost:9050/HyperLoader.js
 
   hyperswitch-web-sdk:
-    build:
-      dockerfile_inline: |
-        FROM node:lts
-        RUN git clone https://github.com/juspay/hyperswitch-web.git --depth 1
-        WORKDIR hyperswitch-web
-        RUN npm i --force
-    command: bash -c 'npm run re:build && npx run webpack serve --config webpack.dev.js --host 0.0.0.0'
+    image: docker.juspay.io/juspaydotin/hyperswitch-web:latest
+    pull_policy: always
     ports:
       - "9050:9050"
+      - "9060:9060"
+      - "5252:5252"
+    networks:
+      - router_net
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
     environment:
-      sdkEnv: local
-      envSdkUrl: http://localhost:9050
-      envBackendUrl: http://localhost:8080
-      envLoggingUrl: http://localhost:8207
+      - SDK_ENV=local
+      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
+      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
+      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+      - HYPERSWITCH_SERVER_URL_FOR_DEMO_APP=http://hyperswitch-server:8080
+      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
+      - SELF_SERVER_URL=http://localhost:5252
+      - SDK_ENV=local
+      - ENV_LOGGING_URL=http://localhost:8207
+      - ENV_BACKEND_URL=http://localhost:8080
+    labels:
+      logs: "promtail"
