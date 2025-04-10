@@ -3118,6 +3118,10 @@ where
     )
     .await?;
 
+    if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
+        router_data.connector_customer = Some(connector_customer_id);
+    }
+
     router_data.payment_method_token = if let Some(decrypted_token) =
         add_decrypted_payment_method_token(tokenization_action.clone(), payment_data).await?
     {
@@ -4356,7 +4360,6 @@ where
                     .await?;
 
                 customer_router_data.access_token = payment_router_data.access_token.clone();
-                
                 let connector_customer_id = customer_router_data
                     .create_connector_customer(state, &connector)
                     .await?;
@@ -8047,6 +8050,7 @@ pub trait OperationSessionGetters<F> {
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
+    fn get_connector_customer_id(&self) -> Option<String>;
 
     #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation>;
@@ -8235,6 +8239,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation> {
         self.vault_operation.as_ref()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_connector_customer_id(&self) -> Option<String> {
+        self.connector_customer_id.clone()
     }
 
     // #[cfg(feature = "v2")]
