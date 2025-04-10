@@ -116,6 +116,8 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -288,7 +290,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -470,6 +472,9 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<id_type::MerchantId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -573,6 +578,7 @@ impl PaymentIntent {
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -645,6 +651,8 @@ impl PaymentIntent {
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         })
     }
 
@@ -686,6 +694,7 @@ pub struct ClickToPayMetaData {
     pub acquirer_merchant_id: String,
     pub merchant_category_code: String,
     pub merchant_country_code: String,
+    pub dpa_client_id: Option<String>,
 }
 
 // TODO: uncomment fields as necessary
@@ -834,9 +843,9 @@ where
                 total_retry_count: revenue_recovery
                     .as_ref()
                     .map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallUnsuccessful.
                 payment_connector_transmission:
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                    common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
                 billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
                 active_attempt_payment_connector_id: self
                     .payment_attempt
