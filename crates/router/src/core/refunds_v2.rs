@@ -583,8 +583,8 @@ pub async fn validate_and_create_refund(
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 Err(err)
-                    .change_context(errors::ApiErrorResponse::RefundNotFound)
-                    .attach_printable("Inserting Refund failed")?
+                    .change_context(errors::ApiErrorResponse::RefundFailed { data: None })
+                    .attach_printable("Failed to insert refund")?
             }
         }
     };
