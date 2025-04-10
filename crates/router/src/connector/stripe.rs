@@ -1022,7 +1022,7 @@ impl
         req: &types::PaymentsUpdateMetadataRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = stripe::PostAuthorizationRequest::try_from(req)?;
+        let connector_req = stripe::UpdateMetadataRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 

@@ -125,11 +125,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
 
         payment_intent.metadata = Some(payment_intent_metadata);
 
-        println!(
-            "$$$PaymentUpdateMetadata: payment_intent.metadata: {:?}",
-            payment_intent.metadata
-        );
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,

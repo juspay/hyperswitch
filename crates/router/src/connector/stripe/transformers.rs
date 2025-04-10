@@ -3433,7 +3433,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PostAuthorizationRequest {
+pub struct UpdateMetadataRequest {
     #[serde(flatten)]
     pub metadata: StripeUpdateMetadata,
 }
@@ -3444,23 +3444,23 @@ pub struct StripeUpdateMetadata {
     pub order_id: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsUpdateMetadataRouterData> for PostAuthorizationRequest {
+impl TryFrom<&types::PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
         let metadata = item
             .request
             .metadata
             .as_ref()
-            .get_required_value("refund_connector_metadata")
+            .get_required_value("request.metadata")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "refund_connector_metadata",
+                field_name: "request.metadata",
             })?
             .clone()
             .expose();
 
         let order_id = metadata
             .get("order_id")
-            .and_then(|v| v.as_str())
+            .and_then(|val| val.as_str())
             .map(String::from);
         Ok(Self {
             metadata: StripeUpdateMetadata { order_id },
