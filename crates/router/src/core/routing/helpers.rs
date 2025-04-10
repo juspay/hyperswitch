@@ -691,6 +691,30 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 },
             )?;
 
+            let payment_status_attribute =
+                get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
+
+            let should_route_to_open_router = state.conf.open_router_integration.enabled;
+
+            if should_route_to_open_router {
+                routing::payments_routing::update_success_rate_score_with_open_router(
+                    state,
+                    common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("unable to infer routable_connector from connector")?,
+                    profile_id,
+                    &payment_attempt.payment_id,
+                    payment_status_attribute == common_enums::AttemptStatus::Charged,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to update success based routing window in dynamic routing service",
+                )?;
+
+                return Ok(());
+            }
+
             let success_based_routing_configs = fetch_dynamic_routing_configs::<
                 routing_types::SuccessBasedRoutingConfig,
             >(
@@ -734,9 +758,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 .attach_printable(
                     "unable to calculate/fetch success rate from dynamic routing service",
                 )?;
-
-            let payment_status_attribute =
-                get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
             let first_merchant_success_based_connector = &success_based_connectors
                 .entity_scores_with_labels
@@ -909,53 +930,32 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     .attach_printable("Unable to push dynamic routing stats to db")?;
             };
 
-            let should_route_to_open_router = state.conf.open_router_integration.enabled;
-
-            if should_route_to_open_router {
-                routing::payments_routing::update_success_rate_score_with_open_router(
-                    state,
-                    common_enums::RoutableConnectors::from_str(payment_connector.as_str())
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to infer routable_connector from connector")?,
-                    profile_id,
-                    &payment_attempt.payment_id,
-                    payment_status_attribute == common_enums::AttemptStatus::Charged,
+            client
+                .update_success_rate(
+                    profile_id.get_string_repr().into(),
+                    success_based_routing_configs,
+                    success_based_routing_config_params,
+                    vec![routing_types::RoutableConnectorChoiceWithStatus::new(
+                        routing_types::RoutableConnectorChoice {
+                            choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                            connector: common_enums::RoutableConnectors::from_str(
+                                payment_connector.as_str(),
+                            )
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "unable to infer routable_connector from connector",
+                            )?,
+                            merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                        },
+                        payment_status_attribute == common_enums::AttemptStatus::Charged,
+                    )],
+                    state.get_grpc_headers(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "unable to update success based routing window in dynamic routing service",
                 )?;
-            } else {
-                client
-                    .update_success_rate(
-                        profile_id.get_string_repr().into(),
-                        success_based_routing_configs,
-                        success_based_routing_config_params,
-                        vec![routing_types::RoutableConnectorChoiceWithStatus::new(
-                            routing_types::RoutableConnectorChoice {
-                                choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                                connector: common_enums::RoutableConnectors::from_str(
-                                    payment_connector.as_str(),
-                                )
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable(
-                                    "unable to infer routable_connector from connector",
-                                )?,
-                                merchant_connector_id: payment_attempt
-                                    .merchant_connector_id
-                                    .clone(),
-                            },
-                            payment_status_attribute == common_enums::AttemptStatus::Charged,
-                        )],
-                        state.get_grpc_headers(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "unable to update success based routing window in dynamic routing service",
-                    )?;
-            }
 
             Ok(())
         } else {
