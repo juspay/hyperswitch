@@ -936,7 +936,7 @@ impl IncomingWebhook for Nmi {
             .parse_struct("nmi NmiWebhookEventType")
             .change_context(ConnectorError::WebhookResourceObjectNotFound)?;
 
-        Ok(transformers::foreign_from_nmi_webhook_event_type(
+        Ok(transformers::get_nmi_webhook_event(
             event_type_body.event_type,
         ))
     }

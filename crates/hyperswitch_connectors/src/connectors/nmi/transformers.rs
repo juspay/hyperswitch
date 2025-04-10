@@ -391,7 +391,7 @@ impl
                 },
             ),
             Response::Declined | Response::Error => (
-                Err(foreign_from_nmi_response(item.response, item.http_code)),
+                Err(get_nmi_error_response(item.response, item.http_code)),
                 AttemptStatus::Failure,
             ),
         };
@@ -403,7 +403,7 @@ impl
     }
 }
 
-fn foreign_from_nmi_response(response: NmiCompleteResponse, http_code: u16) -> ErrorResponse {
+fn get_nmi_error_response(response: NmiCompleteResponse, http_code: u16) -> ErrorResponse {
     ErrorResponse {
         code: response.response_code,
         message: response.responsetext.to_owned(),
@@ -745,10 +745,7 @@ impl
                 AttemptStatus::CaptureInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(foreign_from_standard_response(
-                    item.response,
-                    item.http_code,
-                )),
+                Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::CaptureFailed,
             ),
         };
@@ -852,10 +849,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                 AttemptStatus::Charged,
             ),
             Response::Declined | Response::Error => (
-                Err(foreign_from_standard_response(
-                    item.response,
-                    item.http_code,
-                )),
+                Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::Failure,
             ),
         };
@@ -866,7 +860,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
         })
     }
 }
-fn foreign_from_standard_response(response: StandardResponse, http_code: u16) -> ErrorResponse {
+fn get_standard_error_response(response: StandardResponse, http_code: u16) -> ErrorResponse {
     ErrorResponse {
         code: response.response_code,
         message: response.responsetext.to_owned(),
@@ -913,10 +907,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                 },
             ),
             Response::Declined | Response::Error => (
-                Err(foreign_from_standard_response(
-                    item.response,
-                    item.http_code,
-                )),
+                Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::Failure,
             ),
         };
@@ -952,10 +943,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                 AttemptStatus::VoidInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(foreign_from_standard_response(
-                    item.response,
-                    item.http_code,
-                )),
+                Err(get_standard_error_response(item.response, item.http_code)),
                 AttemptStatus::VoidFailed,
             ),
         };
@@ -1258,7 +1246,7 @@ pub enum NmiWebhookEventType {
     CaptureUnknown,
 }
 
-pub fn foreign_from_nmi_webhook_event_type(status: NmiWebhookEventType) -> IncomingWebhookEvent {
+pub fn get_nmi_webhook_event(status: NmiWebhookEventType) -> IncomingWebhookEvent {
     match status {
         NmiWebhookEventType::SaleSuccess => IncomingWebhookEvent::PaymentIntentSuccess,
         NmiWebhookEventType::SaleFailure => IncomingWebhookEvent::PaymentIntentFailure,

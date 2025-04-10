@@ -56,7 +56,8 @@ use router_env::{instrument, tracing};
 
 use self::transformers as payone;
 use crate::{
-    constants::headers::AUTHORIZATION,
+    constants::headers::{AUTHORIZATION, DATE},
+    get_formatted_date_time,
     utils::{
         get_error_code_error_message_based_on_priority, ConnectorErrorType,
         ConnectorErrorTypeMapping,
@@ -64,7 +65,6 @@ use crate::{
 };
 #[cfg(feature = "payouts")]
 use crate::{types::ResponseRouterData, utils::convert_amount};
-
 #[derive(Clone)]
 pub struct Payone {
     #[cfg(feature = "payouts")]
@@ -134,11 +134,6 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        use crate::{
-            constants::headers::{AUTHORIZATION, DATE},
-            get_formatted_date_time,
-        };
-
         let auth = payone::PayoneAuthType::try_from(&req.connector_auth_type)?;
         let http_method = self.get_http_method().to_string();
         let content_type = Self::get_content_type(self);

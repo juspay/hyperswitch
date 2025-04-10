@@ -9,8 +9,9 @@ use api_models::payments;
 use api_models::payouts::PayoutVendorAccountDetails;
 use base64::Engine;
 use common_enums::{
+    enums,
     enums::{
-        self, AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
+        AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
         AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
         BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
         CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
@@ -27,7 +28,6 @@ use common_enums::{
         SwedenStatesAbbreviation, SwitzerlandStatesAbbreviation, UkraineStatesAbbreviation,
         UnitedKingdomStatesAbbreviation, UsStatesAbbreviation,
     },
-    Currency,
 };
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -92,7 +92,7 @@ pub(crate) fn construct_not_supported_error_report(
 
 pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_with_zero_decimal_check(amount)
@@ -107,7 +107,7 @@ pub(crate) fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64
 pub(crate) fn get_amount_as_string(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
         api::CurrencyUnit::Minor => amount.to_string(),
@@ -124,7 +124,7 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
 
 pub(crate) fn to_currency_base_unit(
     amount: i64,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
@@ -133,7 +133,7 @@ pub(crate) fn to_currency_base_unit(
 
 pub(crate) fn to_currency_lower_unit(
     amount: String,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_lower_unit(amount)
@@ -271,7 +271,7 @@ impl From<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
 pub(crate) fn get_amount_as_f64(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
         api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
@@ -284,7 +284,7 @@ pub(crate) fn get_amount_as_f64(
 
 pub(crate) fn to_currency_base_unit_asf64(
     amount: i64,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
@@ -383,7 +383,7 @@ where
 pub(crate) fn convert_amount<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: MinorUnit,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<T, error_stack::Report<errors::ConnectorError>> {
     amount_convertor
         .convert(amount, currency)
@@ -391,8 +391,8 @@ pub(crate) fn convert_amount<T>(
 }
 
 pub(crate) fn validate_currency(
-    request_currency: Currency,
-    merchant_config_currency: Option<Currency>,
+    request_currency: enums::Currency,
+    merchant_config_currency: Option<enums::Currency>,
 ) -> Result<(), errors::ConnectorError> {
     let merchant_config_currency =
         merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
@@ -411,7 +411,7 @@ pub(crate) fn validate_currency(
 pub(crate) fn convert_back_amount_to_minor_units<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
-    currency: Currency,
+    currency: enums::Currency,
 ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
     amount_convertor
         .convert_back(amount, currency)
@@ -1989,7 +1989,7 @@ impl PaymentsPostSessionTokensRequestData for PaymentsPostSessionTokensData {
 pub trait PaymentsCancelRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_amount(&self) -> Result<i64, Error>;
-    fn get_currency(&self) -> Result<Currency, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -1999,7 +1999,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
     }
-    fn get_currency(&self) -> Result<Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_cancellation_reason(&self) -> Result<String, Error> {
@@ -2256,7 +2256,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<Currency, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -2277,7 +2277,7 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
-    fn get_currency(&self) -> Result<Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_amount(&self) -> Result<i64, Error> {
@@ -5755,7 +5755,7 @@ impl RevokeMandateRequestData for MandateRevokeRequestData {
 }
 pub trait RecurringMandateData {
     fn get_original_payment_amount(&self) -> Result<i64, Error>;
-    fn get_original_payment_currency(&self) -> Result<Currency, Error>;
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error>;
 }
 
 impl RecurringMandateData for RecurringMandatePaymentData {
@@ -5763,7 +5763,7 @@ impl RecurringMandateData for RecurringMandatePaymentData {
         self.original_payment_authorized_amount
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
-    fn get_original_payment_currency(&self) -> Result<Currency, Error> {
+    fn get_original_payment_currency(&self) -> Result<enums::Currency, Error> {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
@@ -6143,11 +6143,11 @@ impl FraudCheckCheckoutRequest for FraudCheckCheckoutData {
 
 #[cfg(feature = "frm")]
 pub trait FraudCheckTransactionRequest {
-    fn get_currency(&self) -> Result<Currency, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
 }
 #[cfg(feature = "frm")]
 impl FraudCheckTransactionRequest for FraudCheckTransactionData {
-    fn get_currency(&self) -> Result<Currency, Error> {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
 }

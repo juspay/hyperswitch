@@ -5,7 +5,6 @@ pub mod ebanx;
 pub mod gpayments;
 pub mod netcetera;
 pub mod plaid;
-// pub mod riskified;
 pub mod signifyd;
 pub mod stripe;
 pub mod threedsecureio;
@@ -31,14 +30,14 @@ pub use hyperswitch_connectors::connectors::{
     itaubank::Itaubank, jpmorgan, jpmorgan::Jpmorgan, juspaythreedsserver,
     juspaythreedsserver::Juspaythreedsserver, klarna, klarna::Klarna, mifinity, mifinity::Mifinity,
     mollie, mollie::Mollie, moneris, moneris::Moneris, multisafepay, multisafepay::Multisafepay,
-    nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nmi::Nmi, nomupay,
+    nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nmi, nmi::Nmi, nomupay,
     nomupay::Nomupay, noon, noon::Noon, novalnet, novalnet::Novalnet, nuvei, nuvei::Nuvei, opayo,
     opayo::Opayo, opennode, opennode::Opennode, paybox, paybox::Paybox, payeezy, payeezy::Payeezy,
-    payme, payme::Payme, payone::Payone, paypal, paypal::Paypal, paystack, paystack::Paystack,
-    payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz,
-    prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay,
-    recurly::Recurly, redsys, redsys::Redsys, riskified, riskified::Riskified, shift4,
-    shift4::Shift4, square, square::Square, stax, stax::Stax, stripebilling,
+    payme, payme::Payme, payone, payone::Payone, paypal, paypal::Paypal, paystack,
+    paystack::Paystack, payu, payu::Payu, placetopay, placetopay::Placetopay, powertranz,
+    powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
+    razorpay::Razorpay, recurly::Recurly, redsys, redsys::Redsys, riskified, riskified::Riskified,
+    shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, stripebilling,
     stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, trustpay,
     trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
