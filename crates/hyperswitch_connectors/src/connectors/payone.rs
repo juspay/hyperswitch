@@ -1,5 +1,7 @@
 pub mod transformers;
 
+#[cfg(feature = "payouts")]
+use crate::constants::headers::DATE;
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
 #[cfg(feature = "payouts")]
@@ -55,7 +57,7 @@ use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as payone;
-use crate::constants::headers::DATE;
+
 #[cfg(feature = "payouts")]
 use crate::get_formatted_date_time;
 use crate::{
