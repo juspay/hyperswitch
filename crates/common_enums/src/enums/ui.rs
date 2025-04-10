@@ -90,6 +90,54 @@ pub enum PaymentLinkDetailsLayout {
     Layout2,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum PaymentLinkSdkLabelType {
+    #[default]
+    Above,
+    Floating,
+    Never,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum PaymentLinkShowSdkTerms {
+    Always,
+    #[default]
+    Auto,
+    Never,
+}
+
 impl<'de> Deserialize<'de> for ElementSize {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
