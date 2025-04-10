@@ -11,6 +11,7 @@ use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
+    open_router as or_types,
     routing::ConnectorSelection,
 };
 #[cfg(feature = "dynamic_routing")]
@@ -1625,6 +1626,25 @@ pub async fn perform_success_based_routing_with_open_router(
     } else {
         Ok(routable_connectors)
     }
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn update_success_rate_score_with_open_router(
+    state: &SessionState,
+    payment_connector: common_enums::connector_enums::RoutableConnectors,
+    profile_id: &common_utils::id_type::ProfileId,
+    payment_id: &common_utils::id_type::PaymentId,
+    payment_status: bool,
+) -> RoutingResult<()> {
+    logger::debug!(
+        "performing success_based_routing with open_router for profile {}",
+        profile_id.get_string_repr()
+    );
+
+    // API call to Open router
+
+    Ok(())
 }
 
 /// success based dynamic routing
