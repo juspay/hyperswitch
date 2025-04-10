@@ -169,8 +169,6 @@ pub struct ConnectorCustomerData {
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: PaymentMethodData,
-    pub document_number: Option<Secret<String>>,
-    pub document_type: Option<String>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -183,8 +181,6 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             phone: None,
             name: None,
             preprocessing_id: None,
-            document_number: None,
-            document_type: None,
         })
     }
 }
@@ -209,8 +205,6 @@ impl
             phone: None,
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
-            document_number: None,
-            document_type: None,
         })
     }
 }
