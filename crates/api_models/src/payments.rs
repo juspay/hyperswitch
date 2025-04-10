@@ -483,8 +483,8 @@ pub struct PaymentsIntentResponse {
     pub amount_details: AmountDetailsResponse,
 
     /// It's a token used for client side verification.
-    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: common_utils::types::ClientSecret,
+    #[schema(value_type = String, example = "cs_0195b34da95d75239c6a4bf514458896")]
+    pub client_secret: Option<Secret<String>>,
 
     /// The identifier for the profile. This is inferred from the `x-profile-id` header
     #[schema(value_type = String)]
@@ -5614,10 +5614,6 @@ pub struct PaymentsResponse {
     /// The connector used for the payment
     #[schema(example = "stripe")]
     pub connector: Option<String>,
-
-    /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: common_utils::types::ClientSecret,
 
     /// Time when the payment was created
     #[schema(example = "2022-09-10T10:11:12Z")]
