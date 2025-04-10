@@ -2,7 +2,7 @@ use std::vec::IntoIter;
 
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -181,13 +181,6 @@ where
                     .await?;
 
                     retries = retries.map(|i| i - 1);
-                }
-                storage_enums::GsmDecision::Requeue => {
-                    Err(report!(errors::ApiErrorResponse::NotImplemented {
-                        message: errors::NotImplementedMessage::Reason(
-                            "Requeue not implemented".to_string(),
-                        ),
-                    }))?
                 }
                 storage_enums::GsmDecision::DoDefault => break,
             }

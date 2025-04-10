@@ -1,7 +1,7 @@
 use std::vec::IntoIter;
 
 use common_enums::PayoutRetryType;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -73,13 +73,6 @@ pub async fn do_gsm_multiple_connector_actions(
 
                 retries = retries.map(|i| i - 1);
             }
-            common_enums::GsmDecision::Requeue => {
-                Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::NotImplementedMessage::Reason(
-                        "Requeue not implemented".to_string(),
-                    ),
-                }))?
-            }
             common_enums::GsmDecision::DoDefault => break,
         }
     }
@@ -136,13 +129,6 @@ pub async fn do_gsm_single_connector_actions(
                 .await?;
 
                 retries = retries.map(|i| i - 1);
-            }
-            common_enums::GsmDecision::Requeue => {
-                Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::NotImplementedMessage::Reason(
-                        "Requeue not implemented".to_string(),
-                    ),
-                }))?
             }
             common_enums::GsmDecision::DoDefault => break,
         }

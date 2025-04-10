@@ -1909,7 +1909,6 @@ impl
             api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
                 api_enums::GsmFeature::Retry
             }
-            api_enums::GsmDecision::Requeue => api_enums::GsmFeature::Retry,
         };
 
         let gsm_feature = gsm_update_request
