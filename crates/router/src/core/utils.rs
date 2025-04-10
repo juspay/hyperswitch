@@ -301,10 +301,11 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
     let capture_method = payment_intent.capture_method;
 
-    let customer_id = payment_intent.get_optional_customer_id()
+    let customer_id = payment_intent
+        .get_optional_customer_id()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get optional customer id")?;
-        
+
     let braintree_metadata = payment_intent
         .get_optional_connector_metadata()
         .change_context(errors::ApiErrorResponse::InternalServerError)

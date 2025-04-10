@@ -158,6 +158,19 @@ pub struct RefundManualUpdateRequest {
     pub error_message: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+/// To indicate whether to refund needs to be instant or scheduled
+#[derive(
+    Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RefundType {
+    #[default]
+    Scheduled,
+    Instant,
+}
+
+#[cfg(feature = "v2")]
 /// To indicate whether to refund needs to be instant or scheduled
 #[derive(
     Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,

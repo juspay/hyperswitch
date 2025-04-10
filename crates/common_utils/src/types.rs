@@ -1647,12 +1647,25 @@ impl ConnectorTransactionId {
         }
     }
 
+    /// Implementation for constructing ConnectorTransactionId from String.
+    pub fn new(src: String) -> Self {
+        Self::from(src.clone())
+    }
+
     /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and processor_transaction_data
     pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
         let txn_id = Self::from(src.clone());
         match txn_id {
             Self::TxnId(_) => (txn_id, None),
             Self::HashedData(_) => (txn_id, Some(src)),
+        }
+    }
+
+    /// Implementation for extracting hashed data
+    pub fn extract_hashed_data(&self) -> Option<String> {
+        match self {
+            Self::TxnId(_) => None,
+            Self::HashedData(src) => Some(src.clone()),
         }
     }
 
