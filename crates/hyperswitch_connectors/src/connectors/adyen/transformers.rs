@@ -142,6 +142,7 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
 }
@@ -1937,8 +1938,8 @@ fn get_shopper_name(
 ) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
-        first_name: billing.and_then(|a| a.first_name.clone().map(From::from)),
-        last_name: billing.and_then(|a| a.last_name.clone().map(From::from)),
+        first_name: billing.and_then(|a| a.first_name.clone()),
+        last_name: billing.and_then(|a| a.last_name.clone()),
     })
 }
 
@@ -2232,7 +2233,6 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         holder_name: paze_decrypted_data
                             .billing_address
                             .name
-                            .map(From::from)
                             .or(item.get_optional_billing_full_name()),
                         brand: Some(paze_decrypted_data.payment_card_network.clone())
                             .and_then(get_adyen_card_network),
@@ -3745,14 +3745,19 @@ pub fn get_adyen_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.psp_reference.clone()),
-            issuer_error_code: response
+            network_advice_code: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.extract_network_advice_code()),
+            network_decline_code: response
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_code_raw.clone()),
-            issuer_error_message: response
-                .additional_data
-                .as_ref()
-                .and_then(|data| data.refusal_reason_raw.clone()),
+            network_error_message: response.additional_data.as_ref().and_then(|data| {
+                data.refusal_reason_raw
+                    .clone()
+                    .or(data.merchant_advice_code.clone())
+            }),
         })
     } else {
         None
@@ -3825,8 +3830,9 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
-            issuer_error_code: response.refusal_code_raw.clone(),
-            issuer_error_message: response.refusal_reason_raw.clone(),
+            network_advice_code: None,
+            network_decline_code: response.refusal_code_raw.clone(),
+            network_error_message: response.refusal_reason_raw.clone(),
         })
     } else {
         None
@@ -3892,11 +3898,12 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: response
+            network_advice_code: None,
+            network_decline_code: response
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_code_raw.clone()),
-            issuer_error_message: response
+            network_error_message: response
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_reason_raw.clone()),
@@ -3976,8 +3983,9 @@ pub fn get_present_to_shopper_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -4043,8 +4051,9 @@ pub fn get_qr_code_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -4102,11 +4111,15 @@ pub fn get_redirection_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: response.psp_reference.clone(),
-        issuer_error_code: response
+        network_advice_code: response
+            .additional_data
+            .as_ref()
+            .and_then(|data| data.extract_network_advice_code()),
+        network_decline_code: response
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_code_raw.clone()),
-        issuer_error_message: response
+        network_error_message: response
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_reason_raw.clone()),
@@ -5141,7 +5154,6 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
                 holder_name: card
                     .card_holder_name
                     .clone()
-                    .map(From::from)
                     .get_required_value("card_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data.card.holder_name",
@@ -5628,8 +5640,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5668,8 +5681,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5710,8 +5724,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5829,6 +5844,20 @@ impl
             store,
             splits,
             device_fingerprint,
+        })
+    }
+}
+
+impl AdditionalData {
+    // Split merchant advice code into at most 2 parts and get the first part and trim spaces,
+    // Return the first part as a String.
+    pub fn extract_network_advice_code(&self) -> Option<String> {
+        self.merchant_advice_code.as_ref().and_then(|code| {
+            let mut parts = code.splitn(2, ':');
+            let first_part = parts.next()?.trim();
+            // Ensure there is a second part (meaning ':' was present).
+            parts.next()?;
+            Some(first_part.to_string())
         })
     }
 }
