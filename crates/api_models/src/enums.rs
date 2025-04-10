@@ -247,7 +247,6 @@ pub enum FieldType {
     UserPixKey,
     UserCpf,
     UserCnpj,
-    UserPixQrExpiry,
     UserIban,
     UserBsbNumber,
     UserBankSortCode,

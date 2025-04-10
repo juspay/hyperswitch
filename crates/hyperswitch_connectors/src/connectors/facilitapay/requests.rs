@@ -82,37 +82,6 @@ pub struct FacilitapayCustomerRequest {
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Eq)]
-pub enum AddressState {
-    AC,
-    AL,
-    AP,
-    AM,
-    BA,
-    CE,
-    DF,
-    ES,
-    GO,
-    MA,
-    MT,
-    MS,
-    MG,
-    PA,
-    PB,
-    PR,
-    PE,
-    PI,
-    RJ,
-    RN,
-    RS,
-    RO,
-    RR,
-    SC,
-    SP,
-    SE,
-    TO,
-}
-
-#[derive(Debug, Serialize, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DocumentType {
     Cc,
