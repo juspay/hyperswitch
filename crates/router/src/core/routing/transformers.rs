@@ -1,12 +1,17 @@
-use api_models::routing::{
-    MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
-    RoutingDictionaryRecord,
+use api_models::{
+    open_router::{OpenRouterDecideGatewayRequest, PaymentInfo, RankingAlgorithm},
+    routing::{
+        MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
+        RoutingDictionaryRecord,
+    },
 };
+use common_enums::RoutableConnectors;
 use common_utils::ext_traits::ValueExt;
 use diesel_models::{
     enums as storage_enums,
     routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
 };
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 
 use crate::{
     core::{errors, routing},
@@ -95,6 +100,38 @@ impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
             routing::TransactionData::Payment(_) => Self::Payment,
             #[cfg(feature = "payouts")]
             routing::TransactionData::Payout(_) => Self::Payout,
+        }
+    }
+}
+
+pub trait OpenRouterDecideGatewayRequestExt {
+    fn construct_sr_request(
+        attempt: PaymentAttempt,
+        eligible_gateway_list: Vec<RoutableConnectors>,
+    ) -> Self
+    where
+        Self: Sized;
+}
+
+impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
+    fn construct_sr_request(
+        attempt: PaymentAttempt,
+        eligible_gateway_list: Vec<RoutableConnectors>,
+    ) -> Self {
+        Self {
+            payment_info: PaymentInfo {
+                payment_id: attempt.payment_id.get_string_repr().into(),
+                amount: attempt.net_amount.get_order_amount(),
+                currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
+                payment_type: "ORDER_PAYMENT".to_string(),
+                // payment_method_type: attempt.payment_method_type.clone().unwrap(),
+                payment_method_type: "UPI".into(),
+                payment_method: attempt.payment_method.unwrap(),
+            },
+            merchant_id: attempt.merchant_id.get_string_repr().into(),
+            eligible_gateway_list: Some(eligible_gateway_list),
+            ranking_algorithm: Some(RankingAlgorithm::SrBasedRouting),
+            elimination_enabled: None,
         }
     }
 }

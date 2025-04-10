@@ -23,6 +23,7 @@ pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
+#[cfg(feature = "dynamic_routing")]
 pub mod open_router;
 pub mod organization;
 pub mod payment_methods;

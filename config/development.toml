@@ -1034,5 +1034,6 @@ background_color = "#FFFFFF"                                                    
 [platform]
 enabled = true
 
-[open_router_integration]
-enabled = false
+[open_router]
+enabled = true
+url = "http://localhost:8080"
