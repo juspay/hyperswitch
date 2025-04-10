@@ -1020,7 +1020,7 @@ impl NetAmount {
 impl PaymentAttempt {
     #[track_caller]
     pub fn get_total_amount(&self) -> MinorUnit {
-        todo!();
+        self.amount_details.get_net_amount()
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
