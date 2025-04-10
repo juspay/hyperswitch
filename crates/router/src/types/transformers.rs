@@ -1987,7 +1987,6 @@ impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_t
             error_category: value.error_category,
             clear_pan_possible: value.clear_pan_possible,
             alternate_network_possible,
-            // should this be combination with decision and feature
             feature: value.feature,
         }
     }
