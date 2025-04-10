@@ -1,0 +1,653 @@
+openapi: 3.0.0
+info:
+  title: Dynamic routing - OpenAPI 3.0
+  description: This the the open API 3.0 specification for the dynamic routing.
+  version: 1.0.0
+paths:
+  /success_rate.SuccessRateCalculator/FetchSuccessRate:
+    post:
+      summary: Fetch success rate for an entity
+      operationId: fetchSuccessRate
+      description: Calculates success rate for an entity based on provided parameters and labels
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalSuccessRateRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels: ["stripe", "adyen"]
+      responses:
+        "200":
+          description: Success rate calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalSuccessRateResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /success_rate.SuccessRateCalculator/UpdateSuccessRateWindow:
+    post:
+      summary: Update success rate window
+      operationId: updateSuccessRateWindow
+      description: Updates the success rate calculation window with new data points
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSuccessRateWindowRequest"
+      responses:
+        "200":
+          description: Window updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateSuccessRateWindowResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /success_rate.SuccessRateCalculator/InvalidateWindows:
+    post:
+      summary: Invalidate windows
+      operationId: invalidateWindows
+      description: Invalidates the success rate calculation windows for a specific ID
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvalidateWindowsRequest"
+      responses:
+        "200":
+          description: Windows invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidateWindowsResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /success_rate.SuccessRateCalculator/FetchEntityAndGlobalSuccessRate:
+    post:
+      summary: Fetch entity and global success rates
+      operationId: fetchEntityAndGlobalSuccessRate
+      description: Calculates success rates for both entity-specific and global metrics
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalGlobalSuccessRateRequest"
+      responses:
+        "200":
+          description: Success rates calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalGlobalSuccessRateResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /elimination.EliminationAnalyser/GetEliminationStatus:
+    post:
+      summary: Fetch eliminated processor list
+      operationId: GetEliminationStatus
+      description: Determines which processors should be eliminated from routing consideration based on historical performance data.
+      tags:
+        - Elimination
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EliminationRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels: ["stripe", "adyen"]
+              config:
+                bucket_size: 5
+                bucket_leak_interval_in_secs: 10
+      responses:
+        "200":
+          description: Returns a eliminated processor list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EliminationResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /elimination.EliminationAnalyser/UpdateEliminationBucket:
+    post:
+      summary: Update elimination bucket
+      operationId: UpdateEliminationBucket
+      description: Updates the failure records for specific processors, affecting future elimination decisions.
+      tags:
+        - Elimination
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEliminationBucketRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels_with_bucket_name:
+                [{ "label": "stripe", "bucket_name": "bucket1" }]
+              config:
+                bucket_size: 5
+                bucket_leak_interval_in_secs: 10
+      responses:
+        "200":
+          description: Bucket updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateEliminationBucketResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /elimination.EliminationAnalyser/InvalidateBucket:
+    post:
+      summary: Invalidate elimination bucket
+      operationId: InvalidateBucket
+      description: Invalidates all elimination bucket data for a specific entity, effectively resetting its processor elimination history.
+      tags:
+        - Elimination
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvalidateBucketRequest"
+      responses:
+        "200":
+          description: Buckets invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidateBucketResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+components:
+  schemas:
+    LabelWithScoreList:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          example: 100.0
+          description: Calculated success rate score
+        label:
+          type: string
+          example: stripe
+          description: Label identifier
+      required:
+        - score
+        - label
+
+    LabelWithScore:
+      type: array
+      items:
+        $ref: "#/components/schemas/LabelWithScoreList"
+      example:
+        - score: 100.0
+          label: stripe
+        - score: 98.5
+          label: adyen
+
+    LabelWithStatusList:
+      type: object
+      properties:
+        status:
+          type: number
+          format: boolean
+          example: true
+          description: Labels terminal status
+        label:
+          type: string
+          example: stripe
+          description: Label identifier
+      required:
+        - status
+        - label
+
+    LabelWithStatus:
+      type: array
+      items:
+        $ref: "#/components/schemas/LabelWithStatusList"
+      example:
+        - status: false
+          label: stripe
+        - status: true
+          label: adyen
+
+    CalSuccessRateRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier
+        params:
+          type: string
+          description: Parameters on which success rate scores has to be maintained
+        labels:
+          type: array
+          items:
+            type: string
+          description: Labels for which to calculate success rates
+      required:
+        - id
+        - params
+        - labels
+
+    CalSuccessRateResponse:
+      type: object
+      properties:
+        labels_with_score:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithScore"
+          description: List of labels with their calculated success rates
+
+    UpdateSuccessRateWindowRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: Entity identifier
+        params:
+          type: string
+          example: card
+          description: Additional parameters for window update
+        labels_with_status:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithStatus"
+          description: Entity-specific labels with their success/failure status
+        global_labels_with_status:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithStatus"
+          description: Global labels with their success/failure status
+      required:
+        - id
+        - params
+        - labels_with_status
+
+    UpdateSuccessRateWindowResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [WINDOW_UPDATION_SUCCEEDED, WINDOW_UPDATION_FAILED]
+          description: Status of the window update operation
+      required:
+        - status
+
+    InvalidateWindowsRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: Entity identifier for which to invalidate windows
+      required:
+        - id
+
+    InvalidateWindowsResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [WINDOW_INVALIDATION_SUCCEEDED, WINDOW_INVALIDATION_FAILED]
+          description: Status of the window invalidation operation
+      required:
+        - status
+
+    CalGlobalSuccessRateRequest:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          example: merchant1
+          description: Entity identifier
+        entity_params:
+          type: string
+          example: card
+          description: Additional parameters for entity success rate calculation
+        entity_labels:
+          type: array
+          example: ["stripe", "adyen"]
+          items:
+            type: string
+          description: Entity-specific labels for which to calculate success rates
+        global_labels:
+          type: array
+          example: ["stripe", "adyen"]
+          items:
+            type: string
+          description: Global labels for which to calculate success rates
+      required:
+        - entity_id
+        - entity_params
+        - entity_labels
+        - global_labels
+
+    CalGlobalSuccessRateResponse:
+      type: object
+      properties:
+        entity_scores_with_labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithScore"
+          description: Entity-specific labels with their calculated success rates
+        global_scores_with_labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithScore"
+          description: Global labels with their calculated success rates
+
+    EliminationRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier
+        params:
+          type: string
+          description: AAdditional parameters for elimination analysis
+        labels:
+          type: array
+          items:
+            type: string
+          description: Labels (processors) to check for elimination
+        config:
+          $ref: "#/components/schemas/EliminationBucketConfig"
+      required:
+        - id
+        - labels
+        - config
+
+    EliminationBucketConfig:
+      type: object
+      properties:
+        bucket_size:
+          type: integer
+          format: uint64
+          description: Maximum failures allowed before elimination
+        bucket_leak_interval_in_secs:
+          type: number
+          format: uint64
+          description: Time interval after which failures are "forgotten"
+      required:
+        - bucket_size
+        - bucket_leak_interval_in_secs
+
+    EliminationResponse:
+      type: object
+      properties:
+        labels_with_score:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithStatus"
+          description: Elimination status for each label
+
+    EliminationInformation:
+      type: object
+      properties:
+        entity:
+          $ref: "#/components/schemas/BucketInformation"
+        global:
+          $ref: "#/components/schemas/BucketInformation"
+
+    BucketInformation:
+      type: object
+      properties:
+        is_eliminated:
+          type: boolean
+          example: true
+          description: Whether the processor should be eliminated
+        bucket_name:
+          type: array
+          items:
+            type: string
+          description: Bucket identifiers that triggered elimination
+
+    UpdateEliminationBucketRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Entity identifier"
+        params:
+          type: string
+          description: "Additional parameters"
+        labels_with_bucket_name:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+                description: "Processor identifier"
+              bucket_name:
+                type: string
+                description: "Bucket to update (failure type)"
+        config:
+          $ref: "#/components/schemas/EliminationBucketConfig"
+      required:
+        - id
+        - labels_with_bucket_name
+        - config
+
+    LabelWithBucketName:
+      type: object
+      properties:
+        label:
+          type: string
+          description: "Processor identifier"
+        bucket_name:
+          type: string
+          description: "Bucket to update (failure type)"
+      required:
+        - label
+        - bucket_name
+
+    UpdateEliminationBucketResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Status of the update operation"
+          enum:
+            - BUCKET_UPDATION_SUCCEEDED
+            - BUCKET_UPDATION_FAILED
+      required:
+        - status
+
+    InvalidateBucketRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: "Entity identifier to invalidate the bucket"
+      required:
+        - id
+
+    InvalidateBucketResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Status of the invalidate operation"
+          enum:
+            - BUCKET_INVALIDATION_SUCCEEDED
+            - BUCKET_INVALIDATION_FAILED
+      required:
+        - status

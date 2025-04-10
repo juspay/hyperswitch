@@ -4,6 +4,92 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.10.0
+
+### Features
+
+- **connector:** Add invoice number and email in AuthorizeDotNet connector ([#7726](https://github.com/juspay/hyperswitch/pull/7726)) ([`c2f9658`](https://github.com/juspay/hyperswitch/commit/c2f9658c9d8a6ff43aed6b5fdc4b00dc07b1d6d2))
+- **payment_link:** Expose configurations for payment links ([#7742](https://github.com/juspay/hyperswitch/pull/7742)) ([`b475171`](https://github.com/juspay/hyperswitch/commit/b475171dd274ac7e19ebb4d8fe14a58ea0579514))
+
+### Bug Fixes
+
+- **router:** Fix retry_count and add validation for process_tracker ([#7614](https://github.com/juspay/hyperswitch/pull/7614)) ([`6ef7105`](https://github.com/juspay/hyperswitch/commit/6ef71051f6fb3c9b936b5df07dbf22e9d068e3b5))
+
+### Refactors
+
+- **connector:** [STRIPE] Remove sofort bank redirect from stripe ([#7733](https://github.com/juspay/hyperswitch/pull/7733)) ([`8ec56e5`](https://github.com/juspay/hyperswitch/commit/8ec56e5ba4b68a6cf6ab4f2fa685848198ccadbe))
+
+**Full Changelog:** [`2025.04.09.0...2025.04.10.0`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0...2025.04.10.0)
+
+
+- - -
+
+## 2025.04.09.0
+
+### Features
+
+- **authentication:** Create authentications to fallback to ApiKeyAuth if AdminApiAuth fails ([#7744](https://github.com/juspay/hyperswitch/pull/7744)) ([`d6c26c5`](https://github.com/juspay/hyperswitch/commit/d6c26c5d75652a2ba2ecfbc0df7d33172df1705b))
+- **connector:**
+  - Add recovery support for recurly [v2] ([#7497](https://github.com/juspay/hyperswitch/pull/7497)) ([`68e22ee`](https://github.com/juspay/hyperswitch/commit/68e22eefe81980666737e34336210dbea57ff40d))
+  - [AIRWALLEX, ELAVON, NOVALNET, XENDIT] add in feature API ([#7163](https://github.com/juspay/hyperswitch/pull/7163)) ([`98738d0`](https://github.com/juspay/hyperswitch/commit/98738d0b923415a0f72ea9d7b535ab376bc12a20))
+- **router:** Support `card` in `payment_method_subtype` [V2] ([#7662](https://github.com/juspay/hyperswitch/pull/7662)) ([`187cceb`](https://github.com/juspay/hyperswitch/commit/187cceb39d760ada4f1df816f8174d59602e68eb))
+- Add open API reference for Intelligent router ([#7727](https://github.com/juspay/hyperswitch/pull/7727)) ([`bce9d48`](https://github.com/juspay/hyperswitch/commit/bce9d48277853824668e09d774ce55352623e243))
+
+### Refactors
+
+- **cypress:** Update BOA configs for manual payments' refunds and connector agnostic ([#7690](https://github.com/juspay/hyperswitch/pull/7690)) ([`4a89567`](https://github.com/juspay/hyperswitch/commit/4a8956728861068f64a552ae8b6c86ff673601a5))
+- Move merchant_key_store table to accounts schema ([#7746](https://github.com/juspay/hyperswitch/pull/7746)) ([`e88672c`](https://github.com/juspay/hyperswitch/commit/e88672c97cc02001fb656e550cd670eda424d9c9))
+
+### Miscellaneous Tasks
+
+- **postman:**
+  - Update `Stripe` response `status`, `error_code`, and `error_message` for deprecated `Sofort` ([#7730](https://github.com/juspay/hyperswitch/pull/7730)) ([`5d5dbe0`](https://github.com/juspay/hyperswitch/commit/5d5dbe0c26c249d1edb247399b60dc206fafbf11))
+  - Update Postman collection files ([`e4865c6`](https://github.com/juspay/hyperswitch/commit/e4865c646f063631a032085942402be24e61fc57))
+
+**Full Changelog:** [`2025.04.08.0...2025.04.09.0`](https://github.com/juspay/hyperswitch/compare/2025.04.08.0...2025.04.09.0)
+
+
+- - -
+
+## 2025.04.08.0
+
+### Features
+
+- **core:** Added force_3ds_challenge for decoupled txns ([#7484](https://github.com/juspay/hyperswitch/pull/7484)) ([`c245ece`](https://github.com/juspay/hyperswitch/commit/c245ece19fb1b3988c61e12c0faa37c527cabd71))
+
+**Full Changelog:** [`2025.04.07.0...2025.04.08.0`](https://github.com/juspay/hyperswitch/compare/2025.04.07.0...2025.04.08.0)
+
+
+- - -
+
+## 2025.04.07.0
+
+### Features
+
+- **connector:** [BANKOFAMERICA] Enable SamsungPay In Dashboard ([#7677](https://github.com/juspay/hyperswitch/pull/7677)) ([`f7b0409`](https://github.com/juspay/hyperswitch/commit/f7b040942ceed5d031a8154b630845186e39b7ad))
+- **core:** Add network error related columns in payment attempt [v2] ([#7706](https://github.com/juspay/hyperswitch/pull/7706)) ([`5e9e923`](https://github.com/juspay/hyperswitch/commit/5e9e9238cf841ff9a8ca994026869e39b86ed321))
+- **session:** Added dpa_client_id, provider to click to pay session response ([#7683](https://github.com/juspay/hyperswitch/pull/7683)) ([`fbc092f`](https://github.com/juspay/hyperswitch/commit/fbc092f7b11aa95327c5d2f789adc6216c96603f))
+
+### Bug Fixes
+
+- **config:** Add billing payment sync configs in different environments ([#7708](https://github.com/juspay/hyperswitch/pull/7708)) ([`c75d8cd`](https://github.com/juspay/hyperswitch/commit/c75d8cdec53689c2b6500135c0d2bb3a58173f65))
+- **connector:**
+  - [Coingate] Fix Wasm Changes ([#7716](https://github.com/juspay/hyperswitch/pull/7716)) ([`bd32dd4`](https://github.com/juspay/hyperswitch/commit/bd32dd4f0f259336f004a2358a7771652a3c6689))
+  - [Nexixpay] handle error code and message in failure response ([#7713](https://github.com/juspay/hyperswitch/pull/7713)) ([`f532b70`](https://github.com/juspay/hyperswitch/commit/f532b70af9c8acddfd00752d7a3893ac68e3c1eb))
+  - [Novalnet] handle refund failure response in novalnet ([#7721](https://github.com/juspay/hyperswitch/pull/7721)) ([`ae00ef9`](https://github.com/juspay/hyperswitch/commit/ae00ef9c081657d3da892c25432691870fb24bc9))
+
+### Miscellaneous Tasks
+
+- **dashboard:** Update dashboard toml ([#7703](https://github.com/juspay/hyperswitch/pull/7703)) ([`6e0041c`](https://github.com/juspay/hyperswitch/commit/6e0041c222168135d356885a85472a761c033c0d))
+- **postman:**
+  - Update auth for payment connectors in postman collection ([#7702](https://github.com/juspay/hyperswitch/pull/7702)) ([`879cacd`](https://github.com/juspay/hyperswitch/commit/879cacd64b0a9bbcbfa44c74e6dbe59fba45440d))
+  - Update Postman collection files ([`a934b7b`](https://github.com/juspay/hyperswitch/commit/a934b7b8a8d5bd23660b7766ec3b6a949520ddf8))
+
+**Full Changelog:** [`2025.04.04.0...2025.04.07.0`](https://github.com/juspay/hyperswitch/compare/2025.04.04.0...2025.04.07.0)
+
+
+- - -
+
 ## 2025.04.04.0
 
 ### Bug Fixes
