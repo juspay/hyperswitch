@@ -296,13 +296,13 @@ pub struct ChargebeeInvoiceData {
     pub id: String,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
-    pub billing_address: ChargebeeInvoiceBillingAddress,
-    pub linked_payments: Vec<ChargebeeInvoicePayments>,
+    pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
+    pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeInvoicePayments {
-    pub txn_status: String,
+    pub txn_status: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -474,7 +474,11 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let payment_method_sub_type =
             enums::PaymentMethodType::from(payment_method_details.card.funding_type);
         #[allow(clippy::as_conversions)]
-        let retry_count: u16 = item.content.invoice.linked_payments.len() as u16;
+        let retry_count = item
+            .content
+            .invoice
+            .linked_payments
+            .map(|linked_payments| linked_payments.len() as u16); // Chargbee retry count will always be less than u16 always.
         let invoice_next_billing_time = item
             .content
             .subscription
@@ -497,7 +501,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
-            retry_count: Some(retry_count),
+            retry_count,
             invoice_next_billing_time,
         })
     }
@@ -559,18 +563,20 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
     }
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     fn from(item: ChargebeeInvoiceData) -> Self {
         Self {
-            address: Some(api_models::payments::AddressDetails::from(
-                item.billing_address,
-            )),
+            address: item
+                .billing_address
+                .map(api_models::payments::AddressDetails::from),
             phone: None,
             email: None,
         }
     }
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetails {
     fn from(item: ChargebeeInvoiceBillingAddress) -> Self {
         Self {
