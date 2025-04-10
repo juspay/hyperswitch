@@ -60,50 +60,29 @@ pub struct UpdateScorePayload {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TxnStatus {
-    #[serde(rename = "STARTED")]
     Started,
-    #[serde(rename = "AUTHENTICATION_FAILED")]
     AuthenticationFailed,
-    #[serde(rename = "JUSPAY_DECLINED")]
     JuspayDeclined,
-    #[serde(rename = "PENDING_VBV")]
     PendingVBV,
-    #[serde(rename = "VBV_SUCCESSFUL")]
     VBVSuccessful,
-    #[serde(rename = "AUTHORIZED")]
     Authorized,
-    #[serde(rename = "AUTHORIZATION_FAILED")]
     AuthorizationFailed,
-    #[serde(rename = "CHARGED")]
     Charged,
-    #[serde(rename = "AUTHORIZING")]
     Authorizing,
-    #[serde(rename = "COD_INITIATED")]
     CODInitiated,
-    #[serde(rename = "VOIDED")]
     Voided,
-    #[serde(rename = "VOID_INITIATED")]
     VoidInitiated,
-    #[serde(rename = "NOP")]
     Nop,
-    #[serde(rename = "CAPTURE_INITIATED")]
     CaptureInitiated,
-    #[serde(rename = "CAPTURE_FAILED")]
     CaptureFailed,
-    #[serde(rename = "VOID_FAILED")]
     VoidFailed,
-    #[serde(rename = "AUTO_REFUNDED")]
     AutoRefunded,
-    #[serde(rename = "PARTIAL_CHARGED")]
     PartialCharged,
-    #[serde(rename = "TO_BE_CHARGED")]
     ToBeCharged,
-    #[serde(rename = "PENDING")]
     Pending,
-    #[serde(rename = "FAILURE")]
     Failure,
-    #[serde(rename = "DECLINED")]
     Declined,
 }
 
