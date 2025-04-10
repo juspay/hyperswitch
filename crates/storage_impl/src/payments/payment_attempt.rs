@@ -1675,7 +1675,7 @@ impl DataModelExt for PaymentAttempt {
                 storage_model.tax_amount,
             ),
             payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
+            merchant_id: storage_model.merchant_id.clone(),
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             currency: storage_model.currency,
@@ -1742,7 +1742,9 @@ impl DataModelExt for PaymentAttempt {
             charges: storage_model.charges,
             issuer_error_code: storage_model.issuer_error_code,
             issuer_error_message: storage_model.issuer_error_message,
-            processor_merchant_id: storage_model.processor_merchant_id.unwrap_or_default(),
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
