@@ -10,8 +10,8 @@ use hyperswitch_domain_models::{
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostAuthorizationUpdate, PostProcessing, PostSessionTokens,
-            PreProcessing, SdkSessionUpdate, Session, SetupMandate, Void,
+            PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
+            Session, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
@@ -31,9 +31,9 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthorizationUpdateData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
@@ -80,12 +80,9 @@ pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
     PaymentsPostSessionTokensData,
     PaymentsResponseData,
 >;
-/// Type alias for `ConnectorIntegration<PostAuthorizationUpdate, PaymentsPostAuthorizationUpdateData, PaymentsResponseData>`
-pub type PaymentsPostAuthorizationUpdateType = dyn ConnectorIntegration<
-    PostAuthorizationUpdate,
-    PaymentsPostAuthorizationUpdateData,
-    PaymentsResponseData,
->;
+/// Type alias for `ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>`
+pub type PaymentsUpdateMetadataType =
+    dyn ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>`
 pub type SdkSessionUpdateType =
     dyn ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;

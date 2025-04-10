@@ -6433,7 +6433,7 @@ pub struct PaymentsSessionRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentsPostAuthorizationUpdateRequest {
+pub struct PaymentsUpdateMetadataRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
@@ -6444,7 +6444,7 @@ pub struct PaymentsPostAuthorizationUpdateRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsPostAuthorizationUpdateResponse {
+pub struct PaymentsUpdateMetadataResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,

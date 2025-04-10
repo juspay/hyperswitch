@@ -61,7 +61,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, post_authorization_update_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data"
 )]
 pub struct PaymentResponse;
 
@@ -854,7 +854,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostAuthorizationUpdateData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadataData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -863,7 +863,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostAuthoriza
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
-            types::PaymentsPostAuthorizationUpdateData,
+            types::PaymentsUpdateMetadataData,
             types::PaymentsResponseData,
         >,
         key_store: &domain::MerchantKeyStore,
@@ -932,7 +932,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostAuthoriza
             }
             _ => {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unexpected response in Post Authorization Update flow")?;
+                    .attach_printable("Unexpected response in Update Metadata flow")?;
             }
         }
 

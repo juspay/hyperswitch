@@ -599,20 +599,20 @@ pub fn payments_dynamic_tax_calculation() {}
 
 pub fn payments_post_session_tokens() {}
 
-/// Payments - Post Authorization Update
+/// Payments - Update Metadata
 #[utoipa::path(
     post,
-    path = "/payments/{payment_id}/post_authorization_update",
-    request_body=PaymentsPostAuthorizationUpdateRequest,
+    path = "/payments/{payment_id}/update_metadata",
+    request_body=PaymentsUpdateMetadataRequest,
     responses(
-        (status = 200, description = "Post Authorization Update is done", body = PaymentsPostAuthorizationUpdateResponse),
+        (status = 200, description = "Update Metadata is done", body = PaymentsUpdateMetadataResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create Post Authorization Update for a Payment",
+    operation_id = "Create Update Metadata for a Payment",
     security(("publishable_key" = []))
 )]
-pub fn payments_post_authorization_update() {}
+pub fn payments_update_metadata() {}
 
 /// Payments - Create Intent
 ///

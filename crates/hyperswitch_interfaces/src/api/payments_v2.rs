@@ -5,17 +5,16 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthorizationUpdate, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, Void,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthorizationUpdateData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -127,12 +126,12 @@ pub trait PaymentPostSessionTokensV2:
 {
 }
 
-/// trait PaymentPostAuthorizationUpdateV2
-pub trait PaymentPostAuthorizationUpdateV2:
+/// trait PaymentUpdateMetadataV2
+pub trait PaymentUpdateMetadataV2:
     ConnectorIntegrationV2<
-    PostAuthorizationUpdate,
+    UpdateMetadata,
     PaymentFlowData,
-    PaymentsPostAuthorizationUpdateData,
+    PaymentsUpdateMetadataData,
     PaymentsResponseData,
 >
 {
@@ -216,6 +215,6 @@ pub trait PaymentV2:
     + TaxCalculationV2
     + PaymentSessionUpdateV2
     + PaymentPostSessionTokensV2
-    + PaymentPostAuthorizationUpdateV2
+    + PaymentUpdateMetadataV2
 {
 }

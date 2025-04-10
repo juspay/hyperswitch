@@ -1862,7 +1862,7 @@ where
 }
 
 #[cfg(feature = "v1")]
-impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsPostAuthorizationUpdateResponse
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsUpdateMetadataResponse
 where
     F: Clone,
     Op: Debug,
@@ -3711,9 +3711,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
 }
 
 #[cfg(feature = "v2")]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
-    for types::PaymentsPostAuthorizationUpdateData
-{
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMetadataData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -3722,9 +3720,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
 }
 
 #[cfg(feature = "v1")]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
-    for types::PaymentsPostAuthorizationUpdateData
-{
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMetadataData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {

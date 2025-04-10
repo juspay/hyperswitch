@@ -14,10 +14,10 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<
-        api::PostAuthorizationUpdate,
-        types::PaymentsPostAuthorizationUpdateData,
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
         types::PaymentsResponseData,
-    > for PaymentData<api::PostAuthorizationUpdate>
+    > for PaymentData<api::UpdateMetadata>
 {
     #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
@@ -30,10 +30,10 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsPostAuthorizationUpdateRouterData> {
+    ) -> RouterResult<types::PaymentsUpdateMetadataRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
-            api::PostAuthorizationUpdate,
-            types::PaymentsPostAuthorizationUpdateData,
+            api::UpdateMetadata,
+            types::PaymentsUpdateMetadataData,
         >(
             state,
             self.clone(),
@@ -59,7 +59,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccount,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsPostAuthorizationUpdateRouterData> {
+    ) -> RouterResult<types::PaymentsUpdateMetadataRouterData> {
         todo!()
     }
 
@@ -76,10 +76,10 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::PostAuthorizationUpdate, types::PaymentsPostAuthorizationUpdateData>
+impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
     for types::RouterData<
-        api::PostAuthorizationUpdate,
-        types::PaymentsPostAuthorizationUpdateData,
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
         types::PaymentsResponseData,
     >
 {
@@ -93,8 +93,8 @@ impl Feature<api::PostAuthorizationUpdate, types::PaymentsPostAuthorizationUpdat
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::PostAuthorizationUpdate,
-            types::PaymentsPostAuthorizationUpdateData,
+            api::UpdateMetadata,
+            types::PaymentsUpdateMetadataData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
@@ -130,8 +130,8 @@ impl Feature<api::PostAuthorizationUpdate, types::PaymentsPostAuthorizationUpdat
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::PostAuthorizationUpdate,
-                    types::PaymentsPostAuthorizationUpdateData,
+                    api::UpdateMetadata,
+                    types::PaymentsUpdateMetadataData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 

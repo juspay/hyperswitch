@@ -83,7 +83,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_external_authentication,
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
-        routes::payments::payments_post_authorization_update,
+        routes::payments::payments_update_metadata,
 
         // Routes for relay
         routes::relay::relay,
@@ -728,8 +728,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::PaymentsPostSessionTokensRequest,
         api_models::payments::PaymentsPostSessionTokensResponse,
-        api_models::payments::PaymentsPostAuthorizationUpdateRequest,
-        api_models::payments::PaymentsPostAuthorizationUpdateResponse,
+        api_models::payments::PaymentsUpdateMetadataRequest,
+        api_models::payments::PaymentsUpdateMetadataResponse,
         api_models::payments::CtpServiceDetails,
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,

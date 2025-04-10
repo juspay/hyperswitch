@@ -177,7 +177,7 @@ impl ConnectorValidation for Stripe {
 impl api::Payment for Stripe {}
 
 impl api::PaymentAuthorize for Stripe {}
-impl api::PaymentPostAuthorizationUpdate for Stripe {}
+impl api::PaymentUpdateMetadata for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
@@ -969,16 +969,16 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::PostAuthorizationUpdate,
-        types::PaymentsPostAuthorizationUpdateData,
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
         types::PaymentsResponseData,
     > for Stripe
 {
     fn get_headers(
         &self,
         req: &types::RouterData<
-            api::PostAuthorizationUpdate,
-            types::PaymentsPostAuthorizationUpdateData,
+            api::UpdateMetadata,
+            types::PaymentsUpdateMetadataData,
             types::PaymentsResponseData,
         >,
         _connectors: &settings::Connectors,
@@ -993,7 +993,7 @@ impl
             ),
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsPostAuthorizationUpdateType::get_content_type(self)
+                types::PaymentsUpdateMetadataType::get_content_type(self)
                     .to_string()
                     .into(),
             ),
@@ -1006,7 +1006,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsPostAuthorizationUpdateRouterData,
+        req: &types::PaymentsUpdateMetadataRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_id = &req.request.connector_transaction_id;
@@ -1019,48 +1019,40 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsPostAuthorizationUpdateRouterData,
+        req: &types::PaymentsUpdateMetadataRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::PostAuthorizationRequest::try_from(req)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ req{:?}", printrequest);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsPostAuthorizationUpdateRouterData,
+        req: &types::PaymentsUpdateMetadataRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
-            .url(&types::PaymentsPostAuthorizationUpdateType::get_url(
+            .url(&types::PaymentsUpdateMetadataType::get_url(
                 self, req, connectors,
             )?)
             .attach_default_headers()
-            .headers(types::PaymentsPostAuthorizationUpdateType::get_headers(
+            .headers(types::PaymentsUpdateMetadataType::get_headers(
                 self, req, connectors,
             )?)
-            .set_body(
-                types::PaymentsPostAuthorizationUpdateType::get_request_body(
-                    self, req, connectors,
-                )?,
-            )
+            .set_body(types::PaymentsUpdateMetadataType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsPostAuthorizationUpdateRouterData,
+        data: &types::PaymentsUpdateMetadataRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsPostAuthorizationUpdateRouterData, errors::ConnectorError>
-    {
-        println!("$$$$$ res{:?}", res.response);
+    ) -> CustomResult<types::PaymentsUpdateMetadataRouterData, errors::ConnectorError> {
         router_env::logger::debug!("skipped parsing of the response");
         // If 200 status code, then metadata was updated successfully.
         let status = if res.status_code == 200 {
@@ -1068,7 +1060,7 @@ impl
         } else {
             enums::SessionUpdateStatus::Failure
         };
-        Ok(types::PaymentsPostAuthorizationUpdateRouterData {
+        Ok(types::PaymentsUpdateMetadataRouterData {
             response: Ok(types::PaymentsResponseData::SessionUpdateResponse { status }),
             ..data.clone()
         })

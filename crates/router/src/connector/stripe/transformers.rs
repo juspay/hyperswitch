@@ -3444,11 +3444,9 @@ pub struct StripeUpdateMetadata {
     pub order_id: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsPostAuthorizationUpdateRouterData> for PostAuthorizationRequest {
+impl TryFrom<&types::PaymentsUpdateMetadataRouterData> for PostAuthorizationRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &types::PaymentsPostAuthorizationUpdateRouterData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
         let metadata = item
             .request
             .metadata

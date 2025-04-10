@@ -37,8 +37,8 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-        PostAuthorizationUpdate, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, Void,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -69,12 +69,13 @@ pub use hyperswitch_domain_models::{
         DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthorizationUpdateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        RefundsData, ResponseId, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -95,9 +96,9 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::types::{
     AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, IncrementalAuthorizationType,
     MandateRevokeType, PaymentsAuthorizeType, PaymentsBalanceType, PaymentsCaptureType,
-    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostAuthorizationUpdateType,
-    PaymentsPostProcessingType, PaymentsPostSessionTokensType, PaymentsPreAuthorizeType,
-    PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType, PaymentsVoidType,
+    PaymentsCompleteAuthorizeType, PaymentsInitType, PaymentsPostProcessingType,
+    PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
+    PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
     RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
     SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
     VerifyWebhookSourceType,
@@ -154,8 +155,8 @@ pub type SdkSessionUpdateRouterData =
 pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
 
-pub type PaymentsPostAuthorizationUpdateRouterData =
-    RouterData<PostAuthorizationUpdate, PaymentsPostAuthorizationUpdateData, PaymentsResponseData>;
+pub type PaymentsUpdateMetadataRouterData =
+    RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -412,7 +413,7 @@ impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}
 impl Capturable for PaymentsPostSessionTokensData {}
-impl Capturable for PaymentsPostAuthorizationUpdateData {}
+impl Capturable for PaymentsUpdateMetadataData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where

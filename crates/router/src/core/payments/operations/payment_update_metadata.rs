@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -26,35 +26,29 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(operations = "all", flow = "post_authorization_update")]
-pub struct PaymentPostAuthorizationUpdate;
+#[operation(operations = "all", flow = "update_metadata")]
+pub struct PaymentUpdateMetadata;
 
-type PaymentPostAuthorizationUpdateOperation<'b, F> =
-    BoxedOperation<'b, F, api::PaymentsPostAuthorizationUpdateRequest, PaymentData<F>>;
+type PaymentUpdateMetadataOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone + Sync>
-    GetTracker<F, PaymentData<F>, api::PaymentsPostAuthorizationUpdateRequest>
-    for PaymentPostAuthorizationUpdate
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMetadataRequest>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsPostAuthorizationUpdateRequest,
+        request: &api::PaymentsUpdateMetadataRequest,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
-        operations::GetTrackerResponse<
-            'a,
-            F,
-            api::PaymentsPostAuthorizationUpdateRequest,
-            PaymentData<F>,
-        >,
+        operations::GetTrackerResponse<'a, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>,
     > {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -132,7 +126,7 @@ impl<F: Send + Clone + Sync>
         payment_intent.metadata = Some(payment_intent_metadata);
 
         println!(
-            "$$$PaymentPostAuthorizationUpdate: payment_intent.metadata: {:?}",
+            "$$$PaymentUpdateMetadata: payment_intent.metadata: {:?}",
             payment_intent.metadata
         );
 
@@ -194,8 +188,8 @@ impl<F: Send + Clone + Sync>
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostAuthorizationUpdateRequest, PaymentData<F>>
-    for PaymentPostAuthorizationUpdate
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -207,7 +201,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostAuthorizationUpdateReque
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
-            PaymentPostAuthorizationUpdateOperation<'a, F>,
+            PaymentUpdateMetadataOperation<'a, F>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -226,7 +220,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostAuthorizationUpdateReque
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
-        PaymentPostAuthorizationUpdateOperation<'a, F>,
+        PaymentUpdateMetadataOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -237,7 +231,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostAuthorizationUpdateReque
         &'a self,
         _merchant_account: &domain::MerchantAccount,
         state: &SessionState,
-        _request: &api::PaymentsPostAuthorizationUpdateRequest,
+        _request: &api::PaymentsUpdateMetadataRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -257,8 +251,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostAuthorizationUpdateReque
 }
 
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostAuthorizationUpdateRequest>
-    for PaymentPostAuthorizationUpdate
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetadataRequest>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -272,10 +266,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostAuthoriz
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<(
-        PaymentPostAuthorizationUpdateOperation<'b, F>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentUpdateMetadataOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -283,17 +274,16 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostAuthoriz
     }
 }
 
-impl<F: Send + Clone + Sync>
-    ValidateRequest<F, api::PaymentsPostAuthorizationUpdateRequest, PaymentData<F>>
-    for PaymentPostAuthorizationUpdate
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsPostAuthorizationUpdateRequest,
+        request: &api::PaymentsUpdateMetadataRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        PaymentPostAuthorizationUpdateOperation<'b, F>,
+        PaymentUpdateMetadataOperation<'b, F>,
         operations::ValidateResult,
     )> {
         //payment id is already generated and should be sent in the request

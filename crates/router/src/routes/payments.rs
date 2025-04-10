@@ -634,17 +634,17 @@ pub async fn payments_post_session_tokens(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsMetadataUpdate, payment_id))]
-pub async fn payments_post_authorization_update(
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdateMetadata, payment_id))]
+pub async fn payments_update_metadata(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsPostAuthorizationUpdateRequest>,
+    json_payload: web::Json<payment_types::PaymentsUpdateMetadataRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsMetadataUpdate;
+    let flow = Flow::PaymentsUpdateMetadata;
 
     let payment_id = path.into_inner();
-    let payload = payment_types::PaymentsPostAuthorizationUpdateRequest {
+    let payload = payment_types::PaymentsUpdateMetadataRequest {
         payment_id,
         ..json_payload.into_inner()
     };
@@ -665,19 +665,19 @@ pub async fn payments_post_authorization_update(
         payload,
         |state, auth, req, req_state| {
             payments::payments_core::<
-                api_types::PostAuthorizationUpdate,
-                payment_types::PaymentsPostAuthorizationUpdateResponse,
+                api_types::UpdateMetadata,
+                payment_types::PaymentsUpdateMetadataResponse,
                 _,
                 _,
                 _,
-                payments::PaymentData<api_types::PostAuthorizationUpdate>,
+                payments::PaymentData<api_types::UpdateMetadata>,
             >(
                 state,
                 req_state,
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
-                payments::PaymentPostAuthorizationUpdate,
+                payments::PaymentUpdateMetadata,
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
@@ -2184,7 +2184,7 @@ impl GetLockingInput for payment_types::PaymentsPostSessionTokensRequest {
 }
 
 #[cfg(feature = "v1")]
-impl GetLockingInput for payment_types::PaymentsPostAuthorizationUpdateRequest {
+impl GetLockingInput for payment_types::PaymentsUpdateMetadataRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,

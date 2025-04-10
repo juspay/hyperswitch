@@ -38,8 +38,8 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, PostAuthorizationUpdate,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
+            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
+            PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
         webhooks::VerifyWebhookSource,
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -53,11 +53,11 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthorizationUpdateData, PaymentsPostProcessingData,
+        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -89,10 +89,9 @@ use hyperswitch_interfaces::{
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
-            PaymentIncrementalAuthorization, PaymentPostAuthorizationUpdate,
-            PaymentPostSessionTokens, PaymentReject, PaymentSessionUpdate,
-            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
-            TaxCalculation,
+            PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
+            PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsCompleteAuthorize,
+            PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
@@ -501,13 +500,13 @@ default_imp_for_post_session_tokens!(
     connectors::CtpMastercard
 );
 
-macro_rules! default_imp_for_post_authorization_update {
+macro_rules! default_imp_for_update_metadata {
     ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentPostAuthorizationUpdate for $path::$connector {}
+        $( impl PaymentUpdateMetadata for $path::$connector {}
             impl
             ConnectorIntegration<
-            PostAuthorizationUpdate,
-            PaymentsPostAuthorizationUpdateData,
+            UpdateMetadata,
+            PaymentsUpdateMetadataData,
                 PaymentsResponseData,
         > for $path::$connector
         {}
@@ -515,7 +514,7 @@ macro_rules! default_imp_for_post_authorization_update {
     };
 }
 
-default_imp_for_post_authorization_update!(
+default_imp_for_update_metadata!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,

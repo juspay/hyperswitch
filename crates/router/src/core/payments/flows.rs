@@ -4,13 +4,13 @@ pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod incremental_authorization_flow;
-pub mod post_authorization_update_flow;
 pub mod post_session_tokens_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
 pub mod session_update_flow;
 pub mod setup_mandate_flow;
+pub mod update_metadata_flow;
 
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -1701,13 +1701,13 @@ default_imp_for_post_session_tokens!(
     connector::Wise
 );
 
-macro_rules! default_imp_for_post_authorization_update {
+macro_rules! default_imp_for_update_metadata {
     ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentPostAuthorizationUpdate for $path::$connector {}
+        $( impl api::PaymentUpdateMetadata for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::PostAuthorizationUpdate,
-                types::PaymentsPostAuthorizationUpdateData,
+                api::UpdateMetadata,
+                types::PaymentsUpdateMetadataData,
                 types::PaymentsResponseData
         > for $path::$connector
         {}
@@ -1715,18 +1715,18 @@ macro_rules! default_imp_for_post_authorization_update {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentPostAuthorizationUpdate for connector::DummyConnector<T> {}
+impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::PostAuthorizationUpdate,
-        types::PaymentsPostAuthorizationUpdateData,
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
 }
 
-default_imp_for_post_authorization_update!(
+default_imp_for_update_metadata!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,

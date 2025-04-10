@@ -780,7 +780,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("{payment_id}/update_metadata")
-                        .route(web::post().to(payments::payments_post_authorization_update)),
+                        .route(web::post().to(payments::payments_update_metadata)),
                 );
         }
         route

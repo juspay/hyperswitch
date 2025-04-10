@@ -72,4 +72,4 @@ pub struct PostSessionTokens;
 pub struct RecordAttempt;
 
 #[derive(Debug, Clone)]
-pub struct PostAuthorizationUpdate;
+pub struct UpdateMetadata;
