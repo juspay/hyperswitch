@@ -2167,7 +2167,9 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId")
@@ -2211,7 +2213,9 @@ Cypress.Commands.add(
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId")
@@ -2599,11 +2603,15 @@ Cypress.Commands.add(
               );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
                 if (setupFutureUsage === "off_session") {
                   expect(
                     response.body.connector_mandate_id,
@@ -2628,11 +2636,15 @@ Cypress.Commands.add(
               );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
                 if (setupFutureUsage === "off_session") {
                   expect(
                     response.body.connector_mandate_id,
