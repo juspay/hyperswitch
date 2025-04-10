@@ -1,3 +1,4 @@
+use ::payment_methods::cards::PaymentMethodsController;
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use common_utils::ext_traits::OptionExt;
@@ -79,11 +80,9 @@ impl MandateResponseExt for MandateResponse {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while getting card details")?
             } else {
-                payment_methods::cards::get_card_details_without_locker_fallback(
-                    &payment_method,
-                    state,
-                )
-                .await?
+                payment_methods::cards::PmCards { state }
+                    .get_card_details_without_locker_fallback(&payment_method)
+                    .await?
             };
 
             Some(MandateCardDetails::from(card_details).into_inner())

@@ -1,64 +1,57 @@
+use std::future::Future;
+
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
-use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord};
+use api_models::payment_methods::{
+    PaymentMethodMigrate, PaymentMethodMigrateResponse, PaymentMethodMigrationResponse,
+    PaymentMethodRecord,
+};
+use common_utils::errors::{CustomResult, ValidationError};
 use csv::Reader;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, errors::api_error_response::ApiErrorResponse,
+};
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
+pub mod payment_methods;
+pub use payment_methods::migrate_payment_method;
 
-use crate::{
-    core::{errors, payment_methods::cards::migrate_payment_method},
-    routes, services,
-    types::{api, domain},
-};
-
-pub async fn migrate_payment_methods(
-    state: routes::SessionState,
+type PmMigrationResult<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
+pub async fn migrate_payment_methods<R, Fut>(
     payment_methods: Vec<PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
+    migrate_pm_fut: R,
+) -> PmMigrationResult<Vec<PaymentMethodMigrationResponse>>
+where
+    R: FnOnce(PaymentMethodMigrate) -> Fut + Clone,
+    Fut: Future<Output = PmMigrationResult<PaymentMethodMigrateResponse>>,
+{
     let mut result = Vec::new();
     for record in payment_methods {
-        let req = api::PaymentMethodMigrate::try_from((
-            record.clone(),
-            merchant_id.clone(),
-            mca_id.clone(),
-        ))
-        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("error: {:?}", err),
-        })
-        .attach_printable("record deserialization failed");
-        match req {
-            Ok(_) => (),
-            Err(e) => {
-                result.push(PaymentMethodMigrationResponse::from((
-                    Err(e.to_string()),
-                    record,
-                )));
-                continue;
+        let req =
+            PaymentMethodMigrate::try_from((record.clone(), merchant_id.clone(), mca_id.clone()))
+                .map_err(|err| ApiErrorResponse::InvalidRequestData {
+                    message: format!("error: {:?}", err),
+                })
+                .attach_printable("record deserialization failed");
+
+        let res = match req {
+            Ok(migrate_request) => {
+                let fut = migrate_pm_fut.clone()(migrate_request);
+                let res = fut.await;
+                match res {
+                    Ok(ApplicationResponse::Json(response)) => Ok(response),
+                    Err(e) => Err(e.to_string()),
+                    _ => Err("Failed to migrate payment method".to_string()),
+                }
             }
+            Err(e) => Err(e.to_string()),
         };
-        let res = migrate_payment_method(
-            state.clone(),
-            req?,
-            merchant_id,
-            merchant_account,
-            key_store,
-        )
-        .await;
-        result.push(PaymentMethodMigrationResponse::from((
-            match res {
-                Ok(services::api::ApplicationResponse::Json(response)) => Ok(response),
-                Err(e) => Err(e.to_string()),
-                _ => Err("Failed to migrate payment method".to_string()),
-            },
-            record,
-        )));
+        result.push(PaymentMethodMigrationResponse::from((res, record)));
     }
-    Ok(services::api::ApplicationResponse::Json(result))
+    Ok(ApplicationResponse::Json(result))
 }
 
 #[derive(Debug, MultipartForm)]
@@ -91,7 +84,7 @@ pub fn get_payment_method_records(
         Vec<PaymentMethodRecord>,
         Option<common_utils::id_type::MerchantConnectorAccountId>,
     ),
-    errors::ApiErrorResponse,
+    ApiErrorResponse,
 > {
     match parse_csv(form.file.data.to_bytes()) {
         Ok(records) => {
@@ -99,7 +92,7 @@ pub fn get_payment_method_records(
             let mca_id = form.merchant_connector_id.clone();
             Ok((merchant_id.clone(), records, mca_id))
         }
-        Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
+        Err(e) => Err(ApiErrorResponse::PreconditionFailed {
             message: e.to_string(),
         }),
     }
@@ -109,42 +102,40 @@ pub fn get_payment_method_records(
 pub fn validate_card_expiry(
     card_exp_month: &masking::Secret<String>,
     card_exp_year: &masking::Secret<String>,
-) -> errors::CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<(), ApiErrorResponse> {
     let exp_month = card_exp_month
         .peek()
         .to_string()
         .parse::<u8>()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        .change_context(ApiErrorResponse::InvalidDataValue {
             field_name: "card_exp_month",
         })?;
     ::cards::CardExpirationMonth::try_from(exp_month).change_context(
-        errors::ApiErrorResponse::PreconditionFailed {
+        ApiErrorResponse::PreconditionFailed {
             message: "Invalid Expiry Month".to_string(),
         },
     )?;
 
     let year_str = card_exp_year.peek().to_string();
 
-    validate_card_exp_year(year_str).change_context(
-        errors::ApiErrorResponse::PreconditionFailed {
-            message: "Invalid Expiry Year".to_string(),
-        },
-    )?;
+    validate_card_exp_year(year_str).change_context(ApiErrorResponse::PreconditionFailed {
+        message: "Invalid Expiry Year".to_string(),
+    })?;
 
     Ok(())
 }
 
-fn validate_card_exp_year(year: String) -> Result<(), errors::ValidationError> {
+fn validate_card_exp_year(year: String) -> Result<(), ValidationError> {
     let year_str = year.to_string();
     if year_str.len() == 2 || year_str.len() == 4 {
         year_str
             .parse::<u16>()
-            .map_err(|_| errors::ValidationError::InvalidValue {
+            .map_err(|_| ValidationError::InvalidValue {
                 message: "card_exp_year".to_string(),
             })?;
         Ok(())
     } else {
-        Err(errors::ValidationError::InvalidValue {
+        Err(ValidationError::InvalidValue {
             message: "invalid card expiration year".to_string(),
         })
     }

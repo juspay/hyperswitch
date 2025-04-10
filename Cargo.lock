@@ -5634,16 +5634,28 @@ checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 name = "payment_methods"
 version = "0.1.0"
 dependencies = [
+ "actix-multipart",
+ "actix-web",
  "api_models",
  "async-trait",
+ "bytes 1.7.1",
+ "cards",
+ "common_enums",
  "common_utils",
+ "csv",
+ "diesel_models",
  "dyn-clone",
+ "error-stack",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
+ "rdkafka",
+ "router_env",
+ "scheduler",
  "serde",
  "serde_json",
  "storage_impl",
+ "thiserror",
 ]
 
 [[package]]

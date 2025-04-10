@@ -1,3 +1,4 @@
+pub use ::payment_methods::cards::{DataDuplicationCheck, DeleteCardResp};
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -71,13 +72,6 @@ pub struct StoreCardRespPayload {
     pub duplication_check: Option<DataDuplicationCheck>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum DataDuplicationCheck {
-    Duplicated,
-    MetaDataChanged,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
@@ -105,13 +99,6 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DeleteCardResp {
-    pub status: String,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

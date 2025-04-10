@@ -4,6 +4,7 @@ use common_utils::fp_utils::when;
 use csv::Reader;
 use diesel_models::cards_info as card_info_models;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::cards_info::CardsInfoInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
@@ -12,7 +13,6 @@ use crate::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
     },
-    db::cards_info::CardsInfoInterface,
     routes,
     services::ApplicationResponse,
     types::{

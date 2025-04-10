@@ -1,5 +1,6 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
+use ::payment_methods::{cards::PaymentMethodsController, core::migration};
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use common_utils::{
     consts,
@@ -15,12 +16,12 @@ use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use router_env::logger;
 
 use super::{
-    migration, CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
+    CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, create_payment_method},
+        cards::{add_card_to_hs_locker, PmCards},
         transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -563,27 +564,27 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
-        create_payment_method(
-            self.state,
-            &payment_method_create,
-            customer_id,
-            &payment_method_id,
-            Some(stored_locker_resp.store_card_resp.card_reference.clone()),
-            self.merchant_account.get_id(),
-            None,
-            None,
-            Some(enc_pm_data),
-            self.key_store,
-            None,
-            None,
-            None,
-            self.merchant_account.storage_scheme,
-            None,
-            None,
-            network_token_details.1.clone(),
-            Some(stored_locker_resp.store_token_resp.card_reference.clone()),
-            Some(enc_token_data),
-        )
-        .await
+        PmCards { state: self.state }
+            .create_payment_method(
+                &payment_method_create,
+                customer_id,
+                &payment_method_id,
+                Some(stored_locker_resp.store_card_resp.card_reference.clone()),
+                self.merchant_account.get_id(),
+                None,
+                None,
+                Some(enc_pm_data),
+                self.key_store,
+                None,
+                None,
+                None,
+                self.merchant_account.storage_scheme,
+                None,
+                None,
+                network_token_details.1.clone(),
+                Some(stored_locker_resp.store_token_resp.card_reference.clone()),
+                Some(enc_token_data),
+            )
+            .await
     }
 }

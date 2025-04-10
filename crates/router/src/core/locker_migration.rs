@@ -1,3 +1,4 @@
+use ::payment_methods::cards::PaymentMethodsController;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -192,8 +193,9 @@ pub async fn call_to_locker(
             network_transaction_id: None,
         };
 
-        let add_card_result = cards::add_card_hs(
-                state,
+        let add_card_result = cards::PmCards{
+            state,
+        }.add_card_hs(
                 pm_create,
                 &card_details,
                 customer_id,

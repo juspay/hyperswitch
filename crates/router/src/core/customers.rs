@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use common_utils::{
     crypto::Encryptable,
     errors::ReportSwitchExt,
@@ -10,6 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret, SwitchStrategy};
+use payment_methods::cards::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -804,14 +807,14 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_from_locker(
-                            state,
-                            self,
-                            merchant_account.get_id(),
-                            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                        )
-                        .await
-                        .switch()?;
+                        cards::PmCards { state }
+                            .delete_card_from_locker(
+                                self,
+                                merchant_account.get_id(),
+                                pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                            )
+                            .await
+                            .switch()?;
 
                         if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id
                         {

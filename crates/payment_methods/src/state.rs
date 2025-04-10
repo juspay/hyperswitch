@@ -4,6 +4,10 @@
 ))]
 use common_utils::errors::CustomResult;
 use common_utils::types::keymanager::KeyManagerState;
+use hyperswitch_domain_models::{
+    cards_info::CardsInfoInterface, customer::CustomerInterface,
+    merchant_key_store::MerchantKeyStore, payment_methods::PaymentMethodInterface,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -11,14 +15,17 @@ use common_utils::types::keymanager::KeyManagerState;
 use hyperswitch_domain_models::{
     merchant_account::MerchantAccount, payment_methods::PaymentMethod,
 };
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore, payment_methods::PaymentMethodInterface,
-};
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsStorageInterface:
-    Send + Sync + dyn_clone::DynClone + PaymentMethodInterface<Error = errors::StorageError> + 'static
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + PaymentMethodInterface<Error = errors::StorageError>
+    + CardsInfoInterface<Error = errors::StorageError>
+    + CustomerInterface<Error = errors::StorageError>
+    + 'static
 {
 }
 dyn_clone::clone_trait_object!(PaymentMethodsStorageInterface);

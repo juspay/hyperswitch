@@ -1,3 +1,4 @@
+use ::payment_methods::state::PaymentMethodsState;
 use common_utils::types::keymanager::KeyManagerState;
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
@@ -18,6 +19,17 @@ impl From<&crate::SessionState> for KeyManagerState {
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
             ca: conf.ca.clone(),
+        }
+    }
+}
+
+impl From<&crate::SessionState> for PaymentMethodsState {
+    fn from(state: &crate::SessionState) -> Self {
+        let conf = state.conf.key_manager.get_inner();
+        Self {
+            store: state.store.get_payment_methods_store(),
+            key_store: None,
+            key_manager_state: state.into(),
         }
     }
 }

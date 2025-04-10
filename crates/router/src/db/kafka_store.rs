@@ -21,6 +21,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    cards_info::CardsInfoInterface,
     disputes,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
@@ -61,7 +62,7 @@ use crate::{
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
         capture::CaptureInterface,
-        cards_info::CardsInfoInterface,
+        // cards_info::CardsInfoInterface,
         configs::ConfigInterface,
         customers::CustomerInterface,
         dispute::DisputeInterface,
@@ -81,8 +82,11 @@ use crate::{
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
         unified_translations::UnifiedTranslationsInterface,
-        AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
-        MasterKeyInterface, StorageInterface,
+        AccountsStorageInterface,
+        CommonStorageInterface,
+        GlobalStorageInterface,
+        MasterKeyInterface,
+        StorageInterface,
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
@@ -286,6 +290,7 @@ impl ApiKeyInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl CardsInfoInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn get_card_info(
         &self,
         card_iin: &str,
@@ -3184,6 +3189,10 @@ impl UnifiedTranslationsInterface for KafkaStore {
 #[async_trait::async_trait]
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
+        Box::new(self.clone())
+    }
+
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
 
