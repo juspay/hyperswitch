@@ -417,7 +417,7 @@ impl NewUserMerchant {
     }
 
     pub fn get_product_type(&self) -> Option<common_enums::MerchantProductType> {
-        self.product_type.clone()
+        self.product_type
     }
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
@@ -703,11 +703,18 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
         } else {
             id_type::MerchantId::new_from_unix_timestamp()
         };
+        let (user_from_storage, user_merchant_create, user_from_token) = value;
         Ok(Self {
             merchant_id,
-            company_name: Some(UserCompanyName::new(value.1.company_name.clone())?),
-            product_type: value.1.product_type.clone(),
-            new_organization: NewUserOrganization::from(value),
+            company_name: Some(UserCompanyName::new(
+                user_merchant_create.company_name.clone(),
+            )?),
+            product_type: user_merchant_create.product_type,
+            new_organization: NewUserOrganization::from((
+                user_from_storage,
+                user_merchant_create,
+                user_from_token,
+            )),
         })
     }
 }
