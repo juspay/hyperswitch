@@ -346,7 +346,6 @@ services:
       - HYPERSWITCH_SERVER_URL_FOR_DEMO_APP=http://hyperswitch-server:8080
       - HYPERSWITCH_CLIENT_URL=http://localhost:9050
       - SELF_SERVER_URL=http://localhost:5252
-      - SDK_ENV=local
       - ENV_LOGGING_URL=http://localhost:8207
       - ENV_BACKEND_URL=http://localhost:8080
     labels:
