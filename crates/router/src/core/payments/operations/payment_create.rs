@@ -1367,9 +1367,7 @@ impl PaymentCreate {
                 capture_before: None,
                 card_discovery: None,
                 processor_merchant_id: merchant_id.to_owned(),
-                created_by: Some(common_utils::types::CreatedBy::Api {
-                    merchant_id: merchant_id.get_string_repr().to_string(),
-                }),
+                created_by: None,
             },
             additional_pm_data,
 
@@ -1584,9 +1582,7 @@ impl PaymentCreate {
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             processor_merchant_id: merchant_account.get_id().to_owned(),
-            created_by: Some(common_utils::types::CreatedBy::Api {
-                merchant_id: merchant_account.get_id().get_string_repr().to_string(),
-            }),
+            created_by: None,
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
         })
