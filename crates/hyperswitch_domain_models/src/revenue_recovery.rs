@@ -71,6 +71,7 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
+#[derive(Clone)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,

@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.10.0
+
+### Features
+
+- **connector:** Add invoice number and email in AuthorizeDotNet connector ([#7726](https://github.com/juspay/hyperswitch/pull/7726)) ([`c2f9658`](https://github.com/juspay/hyperswitch/commit/c2f9658c9d8a6ff43aed6b5fdc4b00dc07b1d6d2))
+- **payment_link:** Expose configurations for payment links ([#7742](https://github.com/juspay/hyperswitch/pull/7742)) ([`b475171`](https://github.com/juspay/hyperswitch/commit/b475171dd274ac7e19ebb4d8fe14a58ea0579514))
+
+### Bug Fixes
+
+- **router:** Fix retry_count and add validation for process_tracker ([#7614](https://github.com/juspay/hyperswitch/pull/7614)) ([`6ef7105`](https://github.com/juspay/hyperswitch/commit/6ef71051f6fb3c9b936b5df07dbf22e9d068e3b5))
+
+### Refactors
+
+- **connector:** [STRIPE] Remove sofort bank redirect from stripe ([#7733](https://github.com/juspay/hyperswitch/pull/7733)) ([`8ec56e5`](https://github.com/juspay/hyperswitch/commit/8ec56e5ba4b68a6cf6ab4f2fa685848198ccadbe))
+
+**Full Changelog:** [`2025.04.09.0...2025.04.10.0`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0...2025.04.10.0)
+
+
+- - -
+
 ## 2025.04.09.0
 
 ### Features
