@@ -950,18 +950,18 @@
         ]
       }
     },
-    "/payments/{payment_id}/post_authorization_update": {
+    "/payments/{payment_id}/update_metadata": {
       "post": {
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Post Authorization Update",
-        "operationId": "Create Post Authorization Update for a Payment",
+        "summary": "Payments - Update Metadata",
+        "operationId": "Create Update Metadata for a Payment",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsPostAuthorizationUpdateRequest"
+                "$ref": "#/components/schemas/PaymentsUpdateMetadataRequest"
               }
             }
           },
@@ -969,11 +969,11 @@
         },
         "responses": {
           "200": {
-            "description": "Post Authorization Update is done",
+            "description": "Update Metadata is done",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsPostAuthorizationUpdateResponse"
+                  "$ref": "#/components/schemas/PaymentsUpdateMetadataResponse"
                 }
               }
             }
@@ -20371,34 +20371,6 @@
           }
         }
       },
-      "PaymentsPostAuthorizationUpdateRequest": {
-        "type": "object",
-        "properties": {
-          "metadata": {
-            "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "PaymentsPostAuthorizationUpdateResponse": {
-        "type": "object",
-        "required": [
-          "payment_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          }
-        }
-      },
       "PaymentsPostSessionTokensRequest": {
         "type": "object",
         "required": [
@@ -21656,6 +21628,34 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          }
+        }
+      },
+      "PaymentsUpdateMetadataRequest": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentsUpdateMetadataResponse": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
           }
         }
       },
