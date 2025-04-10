@@ -87,6 +87,7 @@ pub struct CreditCardResponseInfo {
 // PaymentsResponse
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(strum::Display)]
 pub enum FacilitapayPaymentStatus {
     #[default]
     Pending,

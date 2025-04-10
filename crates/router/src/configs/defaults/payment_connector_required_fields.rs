@@ -13230,15 +13230,6 @@ impl Default for settings::RequiredFields {
                                                             value: None,
                                                         }
                                                     ),
-                                                    (
-                                                        "payment_method_data.bank_transfer.pix.pix_qr_expiry".to_string(),
-                                                        RequiredFieldInfo {
-                                                            required_field: "payment_method_data.bank_transfer.pix.pix_qr_expiry".to_string(),
-                                                            display_name: "pix_qr_expiry".to_string(),
-                                                            field_type: enums::FieldType::UserPixQrExpiry,
-                                                            value: None,
-                                                        }
-                                                    ),
                                                 ]
                                             ),
                                         }
