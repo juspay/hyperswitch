@@ -22,7 +22,7 @@ pub struct GsmCreateRequest {
     /// decision to be taken for auto retries flow
     pub decision: common_enums::GsmDecision,
     /// indicates if step_up retry is possible
-    pub step_up_possible: bool,
+    pub step_up_possible: Option<bool>,
     /// error code unified across the connectors
     pub unified_code: Option<String>,
     /// error message unified across the connectors
@@ -30,11 +30,11 @@ pub struct GsmCreateRequest {
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
     /// indicates if retry with pan is possible
-    pub clear_pan_possible: bool,
+    pub clear_pan_possible: Option<bool>,
     /// indicates if retry with alternate network possible
-    pub alternate_network_possible: bool,
+    pub alternate_network_possible: Option<bool>,
     /// indicates gsm feature
-    pub feature: Option<common_enums::GsmFeature>,
+    pub feature: common_enums::GsmFeature,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
