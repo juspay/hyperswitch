@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.10.1
+
+### Features
+
+- **users:** Refactor `ProdIntent` to support product-type context and merchant-scope ([#7638](https://github.com/juspay/hyperswitch/pull/7638)) ([`bbd2102`](https://github.com/juspay/hyperswitch/commit/bbd2102274f1623ba5a0830e648972d8869cae2b))
+
+### Refactors
+
+- **users:** Modify query to list only v1 merchant_accounts for list v1 merchant accounts API ([#7782](https://github.com/juspay/hyperswitch/pull/7782)) ([`203ae3e`](https://github.com/juspay/hyperswitch/commit/203ae3e97e53eea88bb6332581956ab89002d9cf))
+
+**Full Changelog:** [`2025.04.10.0...2025.04.10.1`](https://github.com/juspay/hyperswitch/compare/2025.04.10.0...2025.04.10.1)
+
+
+- - -
+
 ## 2025.04.10.0
 
 ### Features
