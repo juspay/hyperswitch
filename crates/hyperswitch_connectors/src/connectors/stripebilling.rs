@@ -888,6 +888,21 @@ impl webhooks::IncomingWebhook for Stripebilling {
         )?;
         revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
     }
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_billing_address_for_invoice(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<api_models::payments::Address>, errors::ConnectorError> {
+        let webhook =
+            stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(webhook
+            .data
+            .object
+            .customer_address
+            .map(api_models::payments::Address::from))
+    }
 }
 
 fn get_signature_elements_from_header(

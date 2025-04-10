@@ -360,6 +360,32 @@ impl StripebillingInvoiceBody {
     }
 }
 
+impl From<StripebillingInvoiceBillingAddress> for api_models::payments::Address {
+    fn from(item: StripebillingInvoiceBillingAddress) -> Self {
+        Self {
+            address: Some(api_models::payments::AddressDetails::from(item)),
+            phone: None,
+            email: None,
+        }
+    }
+}
+
+impl From<StripebillingInvoiceBillingAddress> for api_models::payments::AddressDetails {
+    fn from(item: StripebillingInvoiceBillingAddress) -> Self {
+        Self {
+            city: item.city,
+            state: item.state,
+            country: item.country,
+            zip: item.zip_code,
+            line1: item.address_line1,
+            line2: item.address_line2,
+            line3: None,
+            first_name: None,
+            last_name: None,
+        }
+    }
+}
+
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
     type Error = error_stack::Report<errors::ConnectorError>;
