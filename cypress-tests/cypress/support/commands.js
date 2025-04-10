@@ -2779,7 +2779,15 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingPMId",
-  (requestBody, data, amount, confirm, capture_method, globalState) => {
+  (
+    requestBody,
+    data,
+    amount,
+    confirm,
+    capture_method,
+    globalState,
+    is_connector_agnostic_enabled
+  ) => {
     const {
       Configs: configs = {},
       Request: reqData,
@@ -2861,10 +2869,12 @@ Cypress.Commands.add(
                 "payment_method_status for active status"
               ).to.equal("active");
 
-              expect(
-                response.body.connector_mandate_id,
-                "connector_mandate_id for active status"
-              ).to.exist.and.not.be.null;
+              if (!is_connector_agnostic_enabled) {
+                expect(
+                  response.body.connector_mandate_id,
+                  "connector_mandate_id for active status"
+                ).to.exist.and.not.be.null;
+              }
             } else {
               expect(response.body.status, "response status").to.not.be.oneOf(
                 allowedActiveStatuses

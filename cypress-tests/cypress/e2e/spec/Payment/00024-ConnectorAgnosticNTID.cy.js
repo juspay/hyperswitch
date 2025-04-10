@@ -573,9 +573,10 @@ describe("Connector Agnostic Tests", () => {
           fixtures.pmIdConfirmBody,
           data,
           7000,
-          true,
+          true /* confirm */,
           "automatic",
-          globalState
+          globalState,
+          true /* is_connector_agnostic_enabled */
         );
       });
 
