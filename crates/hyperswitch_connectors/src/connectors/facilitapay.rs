@@ -337,7 +337,10 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         data: &ConnectorCustomerRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError> {
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError>
+    where
+        ConnectorCustomerRouterData: Clone,
+    {
         let response: FacilitapayCustomerResponse = res
             .response
             .parse_struct("FacilitapayCustomerResponse")
@@ -351,7 +354,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

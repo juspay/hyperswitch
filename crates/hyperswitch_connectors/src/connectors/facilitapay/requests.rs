@@ -75,8 +75,8 @@ pub struct FacilitapayRefundRequest {
     pub amount: StringMajorUnit,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub struct FacilitapayCustomerRequest {
     pub person: FacilitapayPerson,
 }
@@ -126,8 +126,8 @@ pub enum DocumentType {
     TaxId,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub struct FacilitapayPerson {
     pub document_number: Secret<String>,
     pub document_type: DocumentType,
@@ -146,11 +146,11 @@ pub struct FacilitapayPerson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address_city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address_state: Option<AddressState>,
+    pub address_state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address_complement: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address_country: Option<CountryAlpha2>,
+    pub address_country: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address_number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

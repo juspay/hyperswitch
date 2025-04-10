@@ -1,9 +1,8 @@
 use common_utils::{pii, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
 
-use super::requests::{AddressState, DocumentType};
+use super::requests::DocumentType;
 
 // Response body for POST /sign_in
 #[derive(Debug, Deserialize, Serialize)]
@@ -34,8 +33,7 @@ pub struct FacilitapaySubject {
     pub document_number: Secret<String>,
     // In documentation, both CountryAlpha2 and String are used. We cannot rely on CountryAlpha2.
     pub fiscal_country: String,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub updated_at: Option<String>,
     pub status: SubjectKycStatus,
     pub id: Secret<String>, // Subject ID
     pub birth_date: Option<time::Date>,
@@ -47,15 +45,17 @@ pub struct FacilitapaySubject {
     pub address_number: Option<Secret<String>>,
     pub address_complement: Option<Secret<String>>,
     pub address_city: Option<String>,
-    pub address_state: Option<AddressState>,
+    pub address_state: Option<String>,
     pub address_postal_code: Option<Secret<String>>,
     pub address_country: Option<String>,
+    pub address_neighborhood: Option<Secret<String>>,
     pub net_monthly_average_income: Option<StringMajorUnit>,
     pub clearance_level: Option<i32>,
     pub required_clearance_level: Option<i32>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub inserted_at: Option<PrimitiveDateTime>,
+    pub inserted_at: Option<String>,
     pub references: Option<Vec<serde_json::Value>>,
+    pub rfc_pf: Option<Secret<String>>, // 13-digit RFC, specific to Mexico users
+    pub documents: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -81,8 +81,7 @@ pub struct CreditCardResponseInfo {
     pub phone_country_code: Option<String>,
     pub phone_area_code: Option<String>,
     pub phone_number: Option<Secret<String>>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub inserted_at: Option<PrimitiveDateTime>,
+    pub inserted_at: Option<String>,
 }
 
 // PaymentsResponse
@@ -168,8 +167,7 @@ pub struct TransactionData {
     pub source_document_number: Secret<String>,
 
     // Timestamps and flags
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub inserted_at: Option<PrimitiveDateTime>,
+    pub inserted_at: Option<String>,
     pub for_exchange: Option<bool>,
     pub exchange_under_request: Option<bool>,
     pub estimated_value_until_exchange: Option<bool>,
@@ -182,9 +180,10 @@ pub struct TransactionData {
     pub exchanged_value: Option<StringMajorUnit>,
 
     // Cancelation details
-    pub canceled_reason: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub canceled_at: Option<PrimitiveDateTime>,
+    #[serde(rename = "canceled_reason")]
+    pub cancelled_reason: Option<String>,
+    #[serde(rename = "canceled_at")]
+    pub cancelled_at: Option<String>,
 
     // Other fields
     pub bank_transaction: Option<serde_json::Value>,
