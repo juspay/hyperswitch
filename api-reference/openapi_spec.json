@@ -8369,13 +8369,6 @@
                       }
                     ],
                     "nullable": true
-                  },
-                  "pix_qr_expiry": {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "Expiry date for the pix qr code",
-                    "example": "2025-04-03T13:35:30.655Z",
-                    "nullable": true
                   }
                 }
               }
@@ -23799,13 +23792,6 @@
             "type": "string",
             "description": "Partially masked destination bank account number",
             "example": "********-****-460b-****-f23b4e71c97b",
-            "nullable": true
-          },
-          "pix_qr_expiry": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Expiry date of the pix QR code",
-            "example": "2025-04-03T13:35:30.655Z",
             "nullable": true
           }
         }
