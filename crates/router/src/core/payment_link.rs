@@ -139,6 +139,9 @@ pub async fn form_payment_link_data(
                 sdk_ui_rules: None,
                 payment_link_ui_rules: None,
                 enable_button_only_on_form_ready: DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY,
+                payment_form_header_text: None,
+                payment_form_label_type: None,
+                show_card_terms: None,
             }
         };
 
@@ -296,6 +299,9 @@ pub async fn form_payment_link_data(
         payment_link_ui_rules: payment_link_config.payment_link_ui_rules.clone(),
         status: payment_intent.status,
         enable_button_only_on_form_ready: payment_link_config.enable_button_only_on_form_ready,
+        payment_form_header_text: payment_link_config.payment_form_header_text.clone(),
+        payment_form_label_type: payment_link_config.payment_form_label_type,
+        show_card_terms: payment_link_config.show_card_terms,
     };
 
     Ok((
@@ -356,6 +362,9 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_link_ui_rules: payment_link_config.payment_link_ui_rules,
                 enable_button_only_on_form_ready: payment_link_config
                     .enable_button_only_on_form_ready,
+                payment_form_header_text: payment_link_config.payment_form_header_text,
+                payment_form_label_type: payment_link_config.payment_form_label_type,
+                show_card_terms: payment_link_config.show_card_terms,
             };
             let payment_details_str = serde_json::to_string(&secure_payment_link_details)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -674,6 +683,9 @@ pub fn get_payment_link_config_based_on_priority(
         payment_button_text_colour,
         sdk_ui_rules,
         payment_link_ui_rules,
+        payment_form_header_text,
+        payment_form_label_type,
+        show_card_terms,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -688,6 +700,9 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_button_text_colour),
         (sdk_ui_rules),
         (payment_link_ui_rules),
+        (payment_form_header_text),
+        (payment_form_label_type),
+        (show_card_terms),
     );
 
     let payment_link_config =
@@ -716,6 +731,9 @@ pub fn get_payment_link_config_based_on_priority(
             sdk_ui_rules,
             payment_link_ui_rules,
             enable_button_only_on_form_ready,
+            payment_form_header_text,
+            payment_form_label_type,
+            show_card_terms,
         };
 
     Ok((payment_link_config, domain_name))
@@ -827,6 +845,9 @@ pub async fn get_payment_link_status(
             sdk_ui_rules: None,
             payment_link_ui_rules: None,
             enable_button_only_on_form_ready: DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY,
+            payment_form_header_text: None,
+            payment_form_label_type: None,
+            show_card_terms: None,
         }
     };
 

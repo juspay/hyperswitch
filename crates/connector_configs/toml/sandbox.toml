@@ -3937,8 +3937,6 @@ merchant_secret="Source verification key"
 [[stripe.bank_redirect]]
   payment_method_type = "giropay"
 [[stripe.bank_redirect]]
-  payment_method_type = "sofort"
-[[stripe.bank_redirect]]
   payment_method_type = "eps"
 [[stripe.bank_redirect]]
   payment_method_type = "bancontact_card"
