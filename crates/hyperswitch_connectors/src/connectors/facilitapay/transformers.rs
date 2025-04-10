@@ -1,5 +1,10 @@
-use common_enums::{enums, BrazilStatesAbbreviation};
-use common_utils::{errors::ParsingError, types::StringMajorUnit};
+use api_models::payments::QrCodeInformation;
+use common_enums::{enums, BrazilStatesAbbreviation, PaymentMethod};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    ext_traits::Encode,
+    types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
@@ -11,6 +16,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
+use time::PrimitiveDateTime;
+use url::Url;
 
 use super::{
     requests::{
@@ -25,7 +32,10 @@ use super::{
 };
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{is_payment_failure, missing_field_err, ForeignTryFrom, RouterData as OtherRouterData},
+    utils::{
+        is_payment_failure, missing_field_err, ForeignTryFrom, QrImage,
+        RouterData as OtherRouterData,
+    },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -57,7 +67,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                         let now = time::OffsetDateTime::now_utc();
                         let expires_at = now + time::Duration::minutes(15);
 
-                        time::PrimitiveDateTime::new(expires_at.date(), expires_at.time())
+                        PrimitiveDateTime::new(expires_at.date(), expires_at.time())
                     };
 
                     let transaction_data =
@@ -314,12 +324,10 @@ impl From<FacilitapayPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: FacilitapayPaymentStatus) -> Self {
         match item {
             FacilitapayPaymentStatus::Pending => Self::Pending,
-            FacilitapayPaymentStatus::Unknown => Self::Failure,
-            FacilitapayPaymentStatus::Identified | FacilitapayPaymentStatus::Exchanged => {
-                Self::Authorized
-            }
-            FacilitapayPaymentStatus::Wired => Self::Charged,
-            FacilitapayPaymentStatus::Canceled => Self::Voided,
+            FacilitapayPaymentStatus::Identified
+            | FacilitapayPaymentStatus::Exchanged
+            | FacilitapayPaymentStatus::Wired => Self::Charged,
+            FacilitapayPaymentStatus::Canceled => Self::Failure,
         }
     }
 }
@@ -348,12 +356,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
     fn try_from(
         item: ResponseRouterData<F, FacilitapayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
-        let connector_metadata = item
-            .response
-            .data
-            .dynamic_pix_code
-            .map(|code| serde_json::json!({ "dynamic_pix_code": code }));
+        let status = if item.data.payment_method == PaymentMethod::BankTransfer
+            && item.response.data.status == FacilitapayPaymentStatus::Identified
+        {
+            common_enums::AttemptStatus::AuthenticationPending
+        } else {
+            common_enums::AttemptStatus::from(item.response.data.status.clone())
+        };
+
+        let connector_metadata = get_qr_code_data(&item.response)?;
 
         Ok(Self {
             status,
@@ -371,34 +382,60 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(item.response.data.id),
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.data.id.clone()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.data.id),
                     incremental_authorization_allowed: None,
                     charges: None,
                 })
             },
             ..item.data
         })
-
-        // Ok(Self {
-        //     status,
-        //     response: Ok(PaymentsResponseData::TransactionResponse {
-        //         resource_id: ResponseId::ConnectorTransactionId(item.response.data.id),
-        //         redirection_data: Box::new(None),
-        //         mandate_reference: Box::new(None),
-        //         connector_metadata,
-        //         network_txn_id: None,
-        //         connector_response_reference_id: None,
-        //         incremental_authorization_allowed: None,
-        //         charges: None,
-        //     }),
-        //     ..item.data
-        // })
     }
+}
+
+fn get_qr_code_data(
+    response: &FacilitapayPaymentsResponse,
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let expiration_time: i64 = if let Some(meta) = &response.data.meta {
+        if let Some(due_date_str) = meta.get("dynamic_pix_due_date").and_then(|v| v.as_str()) {
+            let datetime = time::OffsetDateTime::parse(
+                due_date_str,
+                &time::format_description::well_known::Rfc3339,
+            )
+            .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
+
+            datetime.unix_timestamp() * 1000
+        } else {
+            // If dynamic_pix_due_date isn't present, use current time + 15 minutes
+            let now = time::OffsetDateTime::now_utc();
+            let expires_at = now + time::Duration::minutes(15);
+            expires_at.unix_timestamp() * 1000
+        }
+    } else {
+        // If meta is null, use current time + 15 minutes
+        let now = time::OffsetDateTime::now_utc();
+        let expires_at = now + time::Duration::minutes(15);
+        expires_at.unix_timestamp() * 1000
+    };
+
+    let image_data = QrImage::new_from_data(response.data.dynamic_pix_code.clone())
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    let image_data_url = Url::parse(image_data.data.clone().as_str())
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    let qr_code_info = QrCodeInformation::QrDataUrl {
+        image_data_url,
+        display_to_timestamp: Some(expiration_time),
+    };
+
+    Some(qr_code_info.encode_to_value())
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 impl<F> TryFrom<&FacilitapayRouterData<&types::RefundsRouterData<F>>> for FacilitapayRefundRequest {

@@ -89,14 +89,21 @@ pub struct CreditCardResponseInfo {
 #[serde(rename_all = "snake_case")]
 #[derive(strum::Display)]
 pub enum FacilitapayPaymentStatus {
+    /// Transaction has been created but it is waiting for an incoming TED/Wire.
+    /// This is the first recorded status in production mode.
     #[default]
     Pending,
+    /// Incoming TED/Wire has been identified into Facilita´s bank account.
+    /// When it is a deposit into an internal bank account and there is no
+    /// conversion involved (BRL to BRL for instance), that is the final state.
     Identified,
+    /// The conversion rate has been closed and therefore the exchanged value
+    /// is defined - when it is a deposit into an internal bank account, that is the final state.
     Exchanged,
+    /// The exchanged value has been wired to its destination (a real bank account) - that is also a final state.
     Wired,
+    /// When for any reason the transaction cannot be concluded or need to be reversed, it is canceled.
     Canceled,
-    #[serde(other)]
-    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -175,7 +182,7 @@ pub struct TransactionData {
     pub cleared: Option<bool>,
 
     // PIX specific field
-    pub dynamic_pix_code: Option<String>, // QR code string for PIX
+    pub dynamic_pix_code: String, // QR code string for PIX
 
     // Exchange details
     pub exchanged_value: Option<StringMajorUnit>,
