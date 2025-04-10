@@ -4533,10 +4533,21 @@ pub async fn filter_payment_methods(
                         payment_method_object.payment_method_type,
                     );
 
-                    if payment_intent
-                        .and_then(|intent| intent.setup_future_usage)
-                        .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
-                        .unwrap_or(false)
+                    // Filter logic for payment method types based on the below conditions
+                    // Case 1: If the payment method type support Zero Mandate flow, filter only payment method type that support it
+                    // Case 2: Whether the payment method type support Mandates or not, list all the payment method types
+                    if payment_attempt
+                        .and_then(|attempt| attempt.mandate_details.as_ref())
+                        .is_some()
+                        || (payment_intent
+                            .and_then(|intent| intent.setup_future_usage)
+                            .map(|future_usage| {
+                                future_usage == common_enums::FutureUsage::OffSession
+                            })
+                            .unwrap_or(false)
+                            && payment_attempt
+                                .and_then(|attempt| attempt.customer_acceptance.as_ref())
+                                .is_some())
                     {
                         payment_intent.map(|intent| intent.amount).map(|amount| {
                             if amount == MinorUnit::zero() {
@@ -4559,7 +4570,7 @@ pub async fn filter_payment_methods(
                                     .unwrap_or(false)
                                 {
                                     context_values.push(dir::DirValue::PaymentType(
-                                        euclid::enums::PaymentType::NewMandate,
+                                        euclid::enums::PaymentType::SetupMandate,
                                     ));
                                 }
                             } else if state
