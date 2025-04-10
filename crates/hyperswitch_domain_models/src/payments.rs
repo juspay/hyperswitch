@@ -653,9 +653,7 @@ impl PaymentIntent {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             processor_merchant_id: merchant_account.get_id().clone(),
-            created_by: Some(CreatedBy::Api {
-                merchant_id: merchant_account.get_id().get_string_repr().to_string(),
-            }),
+            created_by: None,
         })
     }
 
