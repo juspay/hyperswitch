@@ -2026,13 +2026,13 @@ fn build_payment_link_template(
         .sdk_url
         .host_str()
         .ok_or_else(|| {
-            crate::logger::error!("Host missing for payment link SDK URL");
+            logger::error!("Host missing for payment link SDK URL");
             report!(errors::ApiErrorResponse::InternalServerError)
         })
         .and_then(|host| {
             if host == "localhost" {
                 let port = payment_link_data.sdk_url.port().ok_or_else(|| {
-                    crate::logger::error!("Port missing for localhost in SDK URL");
+                    logger::error!("Port missing for localhost in SDK URL");
                     report!(errors::ApiErrorResponse::InternalServerError)
                 })?;
                 Ok(format!(
