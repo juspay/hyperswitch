@@ -56,8 +56,7 @@ use router_env::{instrument, tracing};
 
 use self::transformers as payone;
 use crate::{
-    constants::headers::{AUTHORIZATION, DATE},
-    get_formatted_date_time,
+    constants::headers::AUTHORIZATION,
     utils::{
         get_error_code_error_message_based_on_priority, ConnectorErrorType,
         ConnectorErrorTypeMapping,
@@ -65,6 +64,8 @@ use crate::{
 };
 #[cfg(feature = "payouts")]
 use crate::{types::ResponseRouterData, utils::convert_amount};
+#[cfg(feature = "payouts")]
+use crates::{constants::header::DATE, get_formatted_date_time};
 #[derive(Clone)]
 pub struct Payone {
     #[cfg(feature = "payouts")]
