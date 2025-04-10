@@ -554,6 +554,8 @@ impl RevenueRecoveryAttempt {
             transaction_created_at: self.0.transaction_created_at,
             processor_payment_method_token: self.0.processor_payment_method_token.clone(),
             connector_customer_id: self.0.connector_customer_id.clone(),
+            retry_count: self.0.retry_count,
+            invoice_next_billing_time: self.0.invoice_next_billing_time
         }
     }
 

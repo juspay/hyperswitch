@@ -371,6 +371,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             amount: item.data.object.amount,
             currency: item.data.object.currency,
             merchant_reference_id,
+            billing_address: None,
         })
     }
 }

@@ -823,6 +823,8 @@ pub struct RevenueRecoveryData {
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
     pub processor_payment_method_token: String,
     pub connector_customer_id: String,
+    pub retry_count: Option<u16>,
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -840,10 +842,13 @@ where
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
-                total_retry_count: revenue_recovery
-                    .as_ref()
-                    .map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallUnsuccessful.
+                total_retry_count: revenue_recovery.as_ref().map_or(
+                    self.revenue_recovery_data
+                        .retry_count
+                        .map_or_else(|| 1, |retry_count| retry_count),
+                    |data| (data.total_retry_count + 1),
+                ),
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
                 billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
@@ -867,6 +872,7 @@ where
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
+                invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,
