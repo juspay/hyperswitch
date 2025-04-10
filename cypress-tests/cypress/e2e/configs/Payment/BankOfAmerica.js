@@ -171,7 +171,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -189,7 +189,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
