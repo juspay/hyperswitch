@@ -45,7 +45,7 @@ const multiUseMandateData = {
   },
 };
 
-const payment_method_data_3ds = {
+const payment_method_data_3ds_response = {
   card: {
     last4: "0000",
     card_type: "CREDIT",
@@ -63,7 +63,7 @@ const payment_method_data_3ds = {
   billing: null,
 };
 
-const payment_method_data_no3ds = {
+const payment_method_data_no3ds_response = {
   card: {
     last4: "1111",
     card_type: "CREDIT",
@@ -142,6 +142,7 @@ export const connectorDetails = {
           amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -159,7 +160,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_data: payment_method_data_3ds,
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -178,7 +179,7 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -196,7 +197,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -214,7 +215,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -389,6 +390,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -405,6 +407,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -421,6 +424,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -437,6 +441,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -551,6 +556,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -568,6 +574,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -586,6 +593,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -602,6 +610,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -641,6 +650,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -658,6 +668,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -675,6 +686,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_response,
         },
       },
     },
@@ -693,6 +705,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
@@ -710,6 +723,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds_response,
         },
       },
     },
