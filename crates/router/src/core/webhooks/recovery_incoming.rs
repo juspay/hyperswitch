@@ -78,12 +78,19 @@ pub async fn recovery_incoming_webhook_flow(
         .await?;
 
     // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
-
+    let should_get_invoice_information_from_payment_sync_response = &state.conf
+        .billing_connector_with_invoice_data_in_payment_sync
+        .billing_connectors_which_have_invoice_data_in_payment_sync
+        .contains(&connector);
     let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
+        should_get_invoice_information_from_payment_sync_response.clone(),
         connector_enum,
         request_details,
         billing_connector_payment_details.as_ref(),
-    )?;
+    )?; 
+
+
+    println!("{:?}",invoice_details);
 
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
@@ -237,14 +244,32 @@ pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
 
 impl RevenueRecoveryInvoice {
     fn get_recovery_invoice_details(
+        should_get_invoice_information_from_payment_sync_response: bool,
         connector_enum: &connector_integration_interface::ConnectorEnum,
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
         billing_connector_payment_details: Option<
             &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
-        billing_connector_payment_details.map_or_else(
-            || {
+        // billing_connector_payment_details.map_or_else(
+        //     || {
+        //         interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
+        //             connector_enum,
+        //             request_details,
+        //         )
+        //         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
+        //         .attach_printable("Failed while getting revenue recovery invoice details")
+        //         .map(RevenueRecoveryInvoice)
+        //     },
+        //     |data| {
+        //         Ok(Self(revenue_recovery::RevenueRecoveryInvoiceData::from(
+        //             data,
+        //         )))
+        //     },
+        // )
+
+        match should_get_invoice_information_from_payment_sync_response {
+            true=> {
                 interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
                     connector_enum,
                     request_details,
@@ -253,12 +278,10 @@ impl RevenueRecoveryInvoice {
                 .attach_printable("Failed while getting revenue recovery invoice details")
                 .map(RevenueRecoveryInvoice)
             },
-            |data| {
-                Ok(Self(revenue_recovery::RevenueRecoveryInvoiceData::from(
-                    data,
-                )))
-            },
-        )
+            false => {
+                Ok(Self(billing_connector_payment_details.map(|data| revenue_recovery::RevenueRecoveryInvoiceData::from(data))))
+            }
+        }
     }
 
     async fn get_payment_intent(

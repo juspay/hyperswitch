@@ -970,3 +970,6 @@ background_color = "#FFFFFF"                                                    
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List of billing connectors which has payment sync api call
+
+[billing_connector_with_invoice_data_in_payment_sync]
+billing_connectors_which_have_invoice_data_in_payment_sync="recurly"

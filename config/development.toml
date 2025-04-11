@@ -811,6 +811,9 @@ connectors_with_delayed_session_response = "trustpay,payme"
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 
+[billing_connector_with_invoice_data_in_payment_sync]
+billing_connectors_which_have_invoice_data_in_payment_sync="recurly"
+
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
