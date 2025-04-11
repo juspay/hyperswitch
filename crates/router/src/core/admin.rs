@@ -3972,7 +3972,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
-            recovery_retry_algorithm_type: self.recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_type: None,
         }))
     }
 }
@@ -4396,7 +4396,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
-                recovery_retry_algorithm_type: self.recovery_retry_algorithm_type,
             },
         )))
     }

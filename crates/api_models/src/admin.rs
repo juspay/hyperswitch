@@ -2126,9 +2126,6 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
-    /// Recovery Algorithm in use
-    #[schema(value_type = Option<RecoveryAlgorithmType>, example = "Cascading")]
-    pub recovery_retry_algorithm_type: Option<api_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
@@ -2429,9 +2426,6 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
-    /// Recovery Algorithm in use
-    #[schema(value_type = Option<RecoveryAlgorithmType>, example = "Cascading")]
-    pub recovery_retry_algorithm_type: Option<api_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
@@ -2707,9 +2701,6 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
-    /// Recovery Algorithm in use
-    #[schema(value_type = Option<RecoveryAlgorithmType>, example = "Cascading")]
-    pub recovery_retry_algorithm_type: Option<api_enums::RecoveryAlgorithmType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

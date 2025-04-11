@@ -17,7 +17,7 @@ pub mod diesel_exports {
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
-        DbRecoveryAlgorithmType as RecoveryAlgorithmType, DbRefundStatus as RefundStatus,
+        DbRevenueRecoveryAlgorithmType as RevenueRecoveryAlgorithmType, DbRefundStatus as RefundStatus,
         DbRefundType as RefundType, DbRelayStatus as RelayStatus, DbRelayType as RelayType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
@@ -300,3 +300,13 @@ pub enum UserRoleVersion {
     V1,
     V2,
 }
+
+// #[derive(
+//     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
+// )]
+// #[diesel(sql_type = Jsonb)]
+// #[serde(rename_all = "snake_case")]
+// pub enum RevenueRecoveryAlgorithmData {
+//     TimeStamp(PrimitiveDateTime),
+// }
+// common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

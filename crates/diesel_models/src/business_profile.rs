@@ -364,7 +364,7 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
-    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
 }
 
 impl Profile {
@@ -433,7 +433,7 @@ pub struct ProfileNew {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
-    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v2")]
@@ -486,7 +486,6 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
-    pub recovery_retry_algorithm_type: Option<common_enums::RecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v2")]
@@ -536,7 +535,6 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
-            recovery_retry_algorithm_type,
         } = self;
         Profile {
             id: source.id,
@@ -617,7 +615,7 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
-            recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_type : source.revenue_recovery_retry_algorithm_type,
         }
     }
 }
