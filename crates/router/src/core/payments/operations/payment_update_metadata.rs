@@ -7,7 +7,6 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
-use serde_json::{Map, Value};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -74,11 +73,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             &[
                 storage_enums::IntentStatus::Succeeded,
                 storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::PartiallyCaptured,
+                storage_enums::IntentStatus::PartiallyCapturedAndCapturable,
+                storage_enums::IntentStatus::RequiresCapture,
             ],
             "update_metadata",
         )?;
-
-        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -105,25 +105,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let mut payment_intent_metadata = payment_intent
+        let request_metadata = request.metadata.clone().expose();
+        let payment_intent_metadata = payment_intent
             .metadata
             .take()
-            .unwrap_or(Value::Object(Map::new()));
-        let request_metadata = request.metadata.clone().map(|secret| secret.expose());
-
-        if let Some(req_meta) = request_metadata {
-            if let Value::Object(existing_map) = &mut payment_intent_metadata {
-                if let Value::Object(req_map) = req_meta {
-                    for (key, value) in req_map {
-                        existing_map.insert(key, value);
-                    }
-                }
-            } else {
-                payment_intent_metadata = req_meta;
-            }
-        }
-
-        payment_intent.metadata = Some(payment_intent_metadata);
+            .unwrap_or(request_metadata.clone());
+        let merged_metadata = merge_metadata(payment_intent_metadata, request_metadata);
+        payment_intent.metadata = Some(merged_metadata);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -179,6 +167,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
         };
 
         Ok(get_trackers_response)
+    }
+}
+
+fn merge_metadata(
+    mut payment_intent_metadata: serde_json::Value,
+    request_metadata: serde_json::Value,
+) -> serde_json::Value {
+    if let (serde_json::Value::Object(existing_map), serde_json::Value::Object(req_map)) =
+        (&mut payment_intent_metadata, request_metadata.clone())
+    {
+        for (key, value) in req_map {
+            existing_map.insert(key, value);
+        }
+        payment_intent_metadata
+    } else if !request_metadata.is_null() {
+        request_metadata
+    } else {
+        payment_intent_metadata
     }
 }
 

@@ -605,12 +605,12 @@ pub fn payments_post_session_tokens() {}
     path = "/payments/{payment_id}/update_metadata",
     request_body=PaymentsUpdateMetadataRequest,
     responses(
-        (status = 200, description = "Update Metadata is done", body = PaymentsUpdateMetadataResponse),
+        (status = 200, description = "Metadata updated successfully", body = PaymentsUpdateMetadataResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create Update Metadata for a Payment",
-    security(("publishable_key" = []))
+    operation_id = "Update Metadata for a Payment",
+    security(("api_key" = []))
 )]
 pub fn payments_update_metadata() {}
 

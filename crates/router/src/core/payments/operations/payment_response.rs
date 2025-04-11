@@ -894,7 +894,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
 
                     let payment_intent_update =
                             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
-                                metadata: payment_data.payment_intent.metadata.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.metadata not found")?,
+                                metadata: payment_data.payment_intent.metadata.clone()
+                                          .ok_or(errors::ApiErrorResponse::InternalServerError)
+                                          .attach_printable("payment_intent.metadata not found")?,
                                 updated_by:payment_data.payment_intent.updated_by.clone(), };
 
                     let updated_payment_intent = m_db
@@ -910,15 +912,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
 
                     payment_data.payment_intent = updated_payment_intent;
                 } else {
-                    router_data.response.map_err(|err| {
-                        errors::ApiErrorResponse::ExternalConnectorError {
-                            code: err.code,
-                            message: err.message,
-                            connector,
-                            status_code: err.status_code,
-                            reason: err.reason,
-                        }
-                    })?;
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unexpected response in Update Metadata flow")?;
                 }
             }
             Err(err) => {

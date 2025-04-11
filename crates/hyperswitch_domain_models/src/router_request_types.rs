@@ -96,7 +96,7 @@ pub struct PaymentsPostSessionTokensData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsUpdateMetadataData {
-    pub metadata: Option<Secret<serde_json::Value>>,
+    pub metadata: pii::SecretSerdeValue,
     pub connector_transaction_id: String,
 }
 

@@ -981,23 +981,9 @@ impl
             types::PaymentsUpdateMetadataData,
             types::PaymentsResponseData,
         >,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = stripe::StripeAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        Ok(vec![
-            (
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", auth.api_key.peek()).into_masked(),
-            ),
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsUpdateMetadataType::get_content_type(self)
-                    .to_string()
-                    .into(),
-            ),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {

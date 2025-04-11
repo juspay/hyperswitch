@@ -3732,7 +3732,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         Ok(Self {
-            metadata: payment_data.payment_intent.metadata.map(Secret::new),
+            metadata: payment_data
+                .payment_intent
+                .metadata
+                .map(Secret::new)
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "metadata",
+                })?,
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
