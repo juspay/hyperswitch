@@ -1,10 +1,7 @@
 use std::str::FromStr;
 
 use api_models::{enums::Connector, refunds::RefundErrorDetails};
-use common_utils::{
-    id_type,
-    types::{ConnectorTransactionId, MinorUnit},
-};
+use common_utils::{id_type, types as common_utils_types};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_data::{ErrorResponse, RouterData};
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
@@ -72,7 +69,7 @@ pub async fn refund_create_core(
     // Amount is not passed in request refer from payment intent.
     amount = req.amount.unwrap_or(captured_amount);
 
-    utils::when(amount <= MinorUnit::new(0), || {
+    utils::when(amount <= common_utils_types::MinorUnit::new(0), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
             expected_format: "positive integer".to_string()
@@ -342,7 +339,7 @@ pub fn get_refund_update_for_refund_response_data(
         Err(err) => {
             let connector_refund_id = err
                 .connector_transaction_id
-                .map(ConnectorTransactionId::from);
+                .map(common_utils_types::ConnectorTransactionId::from);
 
             metrics::INTEGRITY_CHECK_FAILED.add(
                 1,
@@ -369,8 +366,9 @@ pub fn get_refund_update_for_refund_response_data(
                 )
             }
 
-            let connector_refund_id =
-                ConnectorTransactionId::from(refund_response_data.connector_refund_id);
+            let connector_refund_id = common_utils_types::ConnectorTransactionId::from(
+                refund_response_data.connector_refund_id,
+            );
 
             storage::RefundUpdate::build_refund_update(
                 connector_refund_id,
@@ -456,7 +454,7 @@ pub async fn validate_and_create_refund(
     key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    refund_amount: MinorUnit,
+    refund_amount: common_utils_types::MinorUnit,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
 ) -> errors::RouterResult<refunds::RefundResponse> {
@@ -530,7 +528,7 @@ pub async fn validate_and_create_refund(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
     let (connector_transaction_id, processor_transaction_data) =
-        ConnectorTransactionId::form_id_and_data(connector_payment_id);
+        common_utils_types::ConnectorTransactionId::form_id_and_data(connector_payment_id);
     let refund_create_req = storage::RefundNew {
         id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),
