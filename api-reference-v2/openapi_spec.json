@@ -20453,7 +20453,7 @@
       },
       "RefundType": {
         "type": "string",
-        "description": "To indicate whether to refund needs to be instant or scheduled",
+        "description": "To indicate whether the refund needs to be instant or scheduled",
         "enum": [
           "scheduled",
           "instant"
