@@ -1523,6 +1523,7 @@ where
         _merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
+        let client_secret = payment_data.get_client_secret();
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
@@ -1531,7 +1532,7 @@ where
                 amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
                     payment_intent.amount_details.clone(),
                 ),
-                client_secret: payment_intent.client_secret.clone(),
+                client_secret: client_secret.clone(),
                 merchant_reference_id: payment_intent.merchant_reference_id.clone(),
                 routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
                 capture_method: payment_intent.capture_method,
@@ -1662,7 +1663,6 @@ where
             amount,
             customer_id: payment_intent.customer_id.clone(),
             connector: Some(connector),
-            client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
@@ -1760,7 +1760,6 @@ where
                 .cloned()
                 .map(From::from),
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
-            client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: self
