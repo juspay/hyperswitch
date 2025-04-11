@@ -1766,7 +1766,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 status: storage_model.status,
                 amount_details,
                 amount_captured: storage_model.amount_captured,
@@ -1830,14 +1830,10 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 processor_merchant_id: storage_model
                     .processor_merchant_id
-                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                    .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .map(|cb| cb.parse::<CreatedBy>())
-                    .transpose()
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                    .attach_printable("Failed to parse created_by")?,
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             })
         }
         .await
@@ -2031,7 +2027,7 @@ impl behaviour::Conversion for PaymentIntent {
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 status: storage_model.status,
                 amount: storage_model.amount,
                 currency: storage_model.currency,
@@ -2087,14 +2083,10 @@ impl behaviour::Conversion for PaymentIntent {
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
                 processor_merchant_id: storage_model
                     .processor_merchant_id
-                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                    .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .map(|cb| cb.parse::<CreatedBy>())
-                    .transpose()
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                    .attach_printable("Failed to parse created_by")?,
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
             })

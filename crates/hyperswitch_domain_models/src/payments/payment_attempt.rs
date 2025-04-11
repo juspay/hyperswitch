@@ -454,7 +454,9 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
 }
 
@@ -867,7 +869,9 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
 }
 
@@ -1118,7 +1122,9 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
 }
 
@@ -1885,7 +1891,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .cloned();
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 attempt_id: storage_model.attempt_id,
                 status: storage_model.status,
                 net_amount: NetAmount::new(
@@ -1957,14 +1963,10 @@ impl behaviour::Conversion for PaymentAttempt {
                 issuer_error_message: storage_model.issuer_error_message,
                 processor_merchant_id: storage_model
                     .processor_merchant_id
-                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                    .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .map(|cb| cb.parse::<CreatedBy>())
-                    .transpose()
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                    .attach_printable("Failed to parse created_by")?,
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             })
         }
         .await
@@ -2288,7 +2290,7 @@ impl behaviour::Conversion for PaymentAttempt {
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 id: storage_model.id,
                 status: storage_model.status,
                 amount_details,
@@ -2335,14 +2337,10 @@ impl behaviour::Conversion for PaymentAttempt {
                 feature_metadata: storage_model.feature_metadata.map(From::from),
                 processor_merchant_id: storage_model
                     .processor_merchant_id
-                    .ok_or(errors::api_error_response::ApiErrorResponse::MerchantAccountNotFound)
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
+                    .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .map(|cb| cb.parse::<CreatedBy>())
-                    .transpose()
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                    .attach_printable("Failed to parse created_by")?,
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             })
         }
         .await

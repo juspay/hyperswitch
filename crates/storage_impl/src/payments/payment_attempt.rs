@@ -1849,7 +1849,7 @@ impl DataModelExt for PaymentAttemptNew {
                 storage_model.tax_amount,
             ),
             payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
+            merchant_id: storage_model.merchant_id.clone(),
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             currency: storage_model.currency,
@@ -1911,7 +1911,9 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
-            processor_merchant_id: storage_model.processor_merchant_id.unwrap_or_default(),
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
