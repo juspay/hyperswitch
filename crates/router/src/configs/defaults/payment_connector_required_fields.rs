@@ -13213,6 +13213,24 @@ impl Default for settings::RequiredFields {
                                             common: HashMap::from(
                                                 [
                                                     (
+                                                        "billing.address.first_name".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.billing.address.first_name".to_string(),
+                                                            display_name: "card_holder_name".to_string(),
+                                                            field_type: enums::FieldType::UserFullName,
+                                                            value: None,
+                                                        }
+                                                    ),
+                                                    (
+                                                        "billing.address.last_name".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.billing.address.last_name".to_string(),
+                                                            display_name: "card_holder_name".to_string(),
+                                                            field_type: enums::FieldType::UserFullName,
+                                                            value: None,
+                                                        }
+                                                    )
+                                                    (
                                                         "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
                                                         RequiredFieldInfo {
                                                             required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
@@ -13229,6 +13247,19 @@ impl Default for settings::RequiredFields {
                                                             field_type: enums::FieldType::UserDestinationBankAccountId,
                                                             value: None,
                                                         }
+                                                    ),
+                                                    (
+                                                        "billing.address.country".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.billing.address.country".to_string(),
+                                                            display_name: "country".to_string(),
+                                                            field_type: enums::FieldType::UserAddressCountry {
+                                                                options: vec![
+                                                                    "BR".to_string(),
+                                                                ],
+                                                            },
+                                                            value: None,
+                                                        },
                                                     ),
                                                 ]
                                             ),

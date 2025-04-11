@@ -35,8 +35,8 @@ pub struct FacilitapayCardDetails {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct CardTransactionRequest {
-    pub currency: String,
-    pub exchange_currency: String,
+    pub currency:  api_models::enums::Currency,
+    pub exchange_currency: api_models::enums::Currency,
     pub value: StringMajorUnit,
     pub from_credit_card: FacilitapayCardDetails,
     pub to_bank_account_id: Secret<String>, // UUID
@@ -45,11 +45,11 @@ pub struct CardTransactionRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct PixTransactionRequest {
-    pub subject_id: String,                   // UUID
+    pub subject_id: Secret<String>,           // Customer ID (UUID)
     pub from_bank_account_id: Secret<String>, // UUID
     pub to_bank_account_id: Secret<String>,   // UUID
-    pub currency: String,
-    pub exchange_currency: String,
+    pub currency: api_models::enums::Currency,
+    pub exchange_currency: api_models::enums::Currency,
     pub value: StringMajorUnit,
     pub use_dynamic_pix: bool,
     #[serde(default, with = "common_utils::custom_serde::iso8601")]

@@ -253,7 +253,11 @@ fn extract_error_message(value: &serde_json::Value) -> String {
                 if let Some(errors) = error_val.as_array() {
                     errors
                         .iter()
-                        .filter_map(|e| e.as_str().map(|s| format!("{}: {}", field_name, s)))
+                        .filter_map(|error_value| {
+                            error_value
+                                .as_str()
+                                .map(|error_data| format!("{}: {}", field_name, error_data))
+                        })
                         .collect::<Vec<String>>()
                 } else if let Some(error) = error_val.as_str() {
                     vec![format!("{}: {}", field_name, error)]
@@ -264,7 +268,7 @@ fn extract_error_message(value: &serde_json::Value) -> String {
             .collect();
 
         if !error_messages.is_empty() {
-            error_messages.join(", ")
+            error_messages.join("; ")
         } else {
             serde_json::to_string(value).unwrap_or_else(|_| consts::NO_ERROR_MESSAGE.to_string())
         }
@@ -564,7 +568,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fac
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transactionn_id = req
+        let connector_transaction_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
@@ -573,7 +577,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fac
             "{}/{}/{}",
             self.base_url(connectors),
             "transactions",
-            connector_transactionn_id
+            connector_transaction_id
         ))
     }
 

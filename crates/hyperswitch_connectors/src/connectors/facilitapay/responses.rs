@@ -7,8 +7,8 @@ use super::requests::DocumentType;
 // Response body for POST /sign_in
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FacilitapayAuthResponse {
-    username: String,
-    name: String,
+    username: Secret<String>,
+    name: Secret<String>,
     pub jwt: Secret<String>,
 }
 
@@ -103,7 +103,8 @@ pub enum FacilitapayPaymentStatus {
     /// The exchanged value has been wired to its destination (a real bank account) - that is also a final state.
     Wired,
     /// When for any reason the transaction cannot be concluded or need to be reversed, it is canceled.
-    Canceled,
+    #[serde(rename = "canceled")]
+    Cancelled,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -113,7 +114,7 @@ pub struct FacilitapayPaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OwnerCompany {
-    pub social_name: Option<String>,
+    pub social_name: Option<Secret<String>>,
     pub id: Option<String>, // Subject ID
     pub document_type: DocumentType,
     pub document_number: Secret<String>,
@@ -140,7 +141,7 @@ pub struct BankAccountDetail {
     pub id: String, // Bank Account ID (UUID)
     pub iban: Option<String>,
     pub flow_type: Option<String>,
-    pub currency: String,
+    pub currency: api_models::enums::Currency,
     pub branch_number: Option<String>,
     pub branch_country: Option<String>,
     pub bank: Option<BankInfo>,
@@ -154,8 +155,8 @@ pub struct TransactionData {
     pub id: String, // Transaction ID (UUID)
     pub value: StringMajorUnit,
     pub status: FacilitapayPaymentStatus,
-    pub currency: String,
-    pub exchange_currency: Option<String>,
+    pub currency: api_models::enums::Currency,
+    pub exchange_currency: api_models::enums::Currency,
 
     // Details about the destination account (Required)
     pub to_bank_account: BankAccountDetail,
@@ -170,7 +171,7 @@ pub struct TransactionData {
     pub subject_is_receiver: Option<bool>,
 
     // Source identification (potentially redundant with subject or card/bank info)
-    pub source_name: String,
+    pub source_name: Secret<String>,
     pub source_document_type: DocumentType,
     pub source_document_number: Secret<String>,
 
@@ -194,25 +195,14 @@ pub struct TransactionData {
     pub cancelled_at: Option<String>,
 
     // Other fields
-    pub bank_transaction: Option<serde_json::Value>,
+    pub bank_transaction: Option<Secret<serde_json::Value>>,
     pub meta: Option<serde_json::Value>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-    #[serde(other)]
-    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
     pub id: String,
-    pub status: RefundStatus,
+    pub status: FacilitapayPaymentStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
