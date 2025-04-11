@@ -2786,7 +2786,7 @@ Cypress.Commands.add(
     confirm,
     capture_method,
     globalState,
-    is_connector_agnostic_mit_enabled
+    connector_agnostic_mit
   ) => {
     const {
       Configs: configs = {},
@@ -2869,7 +2869,7 @@ Cypress.Commands.add(
                 "payment_method_status for active status"
               ).to.equal("active");
 
-              if (!is_connector_agnostic_mit_enabled) {
+              if (!connector_agnostic_mit) {
                 expect(
                   response.body.connector_mandate_id,
                   "connector_mandate_id for active status"
