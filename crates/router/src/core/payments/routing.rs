@@ -1608,6 +1608,7 @@ pub async fn perform_dynamic_routing(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
 pub async fn perform_success_based_routing_with_open_router(
     state: &SessionState,
     mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
@@ -1629,6 +1630,7 @@ pub async fn perform_success_based_routing_with_open_router(
                 .iter()
                 .map(|gateway| gateway.connector)
                 .collect::<Vec<_>>(),
+            Some(or_types::RankingAlgorithm::SrBasedRouting),
         );
 
         let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
@@ -1698,21 +1700,68 @@ pub async fn perform_success_based_routing_with_open_router(
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn update_success_rate_score_with_open_router(
     state: &SessionState,
-    payment_connector: common_enums::connector_enums::RoutableConnectors,
+    payment_connector: common_enums::RoutableConnectors,
     profile_id: &common_utils::id_type::ProfileId,
     payment_id: &common_utils::id_type::PaymentId,
     payment_status: bool,
 ) -> RoutingResult<()> {
-    logger::debug!(
-        "performing success_based_routing with open_router for profile {}",
-        profile_id.get_string_repr()
-    );
+    let open_router_req_body = or_types::UpdateScorePayload {
+        merchant_id: profile_id.clone(),
+        gateway: payment_connector,
+        status: payment_status.into(),
+        payment_id: payment_id.clone(),
+    };
 
-    // API call to Open router
+    let url = format!("{}/{}", &state.conf.open_router.url, "update-gateway-score");
+    let mut request = request::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        state.tenant.tenant_id.get_string_repr().to_owned().into(),
+    );
+    request.set_body(request::RequestContent::Json(Box::new(
+        open_router_req_body,
+    )));
+
+    let response =
+        services::call_connector_api(state, request, "open_router_update_gateway_score_call")
+            .await
+            .change_context(errors::RoutingError::OpenRouterCallFailed {
+                algo: "success_rate".into(),
+            })?;
+
+    match response {
+        Ok(resp) => {
+            let update_score_resp = String::from_utf8(resp.response.to_vec()).change_context(
+                errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ),
+            )?;
+
+            logger::debug!(
+                "Open router update_gateway_score response: {:?}",
+                update_score_resp
+            );
+
+            Ok(())
+        }
+        Err(err) => {
+            let err_resp: or_types::ErrorResponse = err
+                .response
+                .parse_struct("ErrorResponse")
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ))?;
+            logger::error!("open_router_error_response: {:?}", err_resp);
+            Err(errors::RoutingError::OpenRouterError(
+                "Failed to update gateway score for success based routing in open router".into(),
+            ))
+        }
+    }?;
 
     Ok(())
 }

@@ -708,9 +708,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "unable to update success based routing window in dynamic routing service",
-                )?;
+                .attach_printable("failed to update gateway score in open router service")?;
 
                 return Ok(());
             }

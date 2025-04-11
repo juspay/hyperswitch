@@ -108,6 +108,7 @@ pub trait OpenRouterDecideGatewayRequestExt {
     fn construct_sr_request(
         attempt: PaymentAttempt,
         eligible_gateway_list: Vec<RoutableConnectors>,
+        ranking_algorithm: Option<RankingAlgorithm>,
     ) -> Self
     where
         Self: Sized;
@@ -117,10 +118,11 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
     fn construct_sr_request(
         attempt: PaymentAttempt,
         eligible_gateway_list: Vec<RoutableConnectors>,
+        ranking_algorithm: Option<RankingAlgorithm>,
     ) -> Self {
         Self {
             payment_info: PaymentInfo {
-                payment_id: attempt.payment_id.get_string_repr().into(),
+                payment_id: attempt.payment_id,
                 amount: attempt.net_amount.get_order_amount(),
                 currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
                 payment_type: "ORDER_PAYMENT".to_string(),
@@ -128,9 +130,9 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 payment_method_type: "UPI".into(),
                 payment_method: attempt.payment_method.unwrap(),
             },
-            merchant_id: attempt.merchant_id.get_string_repr().into(),
+            merchant_id: attempt.profile_id,
             eligible_gateway_list: Some(eligible_gateway_list),
-            ranking_algorithm: Some(RankingAlgorithm::SrBasedRouting),
+            ranking_algorithm,
             elimination_enabled: None,
         }
     }

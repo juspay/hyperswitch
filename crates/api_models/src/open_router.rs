@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -16,7 +16,7 @@ use crate::enums::{Currency, PaymentMethod, RoutableConnectors};
 #[serde(rename_all = "camelCase")]
 pub struct OpenRouterDecideGatewayRequest {
     pub payment_info: PaymentInfo,
-    pub merchant_id: String,
+    pub merchant_id: id_type::ProfileId,
     pub eligible_gateway_list: Option<Vec<RoutableConnectors>>,
     pub ranking_algorithm: Option<RankingAlgorithm>,
     pub elimination_enabled: Option<bool>,
@@ -32,7 +32,7 @@ pub enum RankingAlgorithm {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     pub amount: MinorUnit,
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
@@ -77,11 +77,12 @@ pub struct UnifiedError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateScorePayload {
-    pub merchant_id: String,
+    pub merchant_id: id_type::ProfileId,
     pub gateway: RoutableConnectors,
     pub status: TxnStatus,
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -114,8 +115,8 @@ pub enum TxnStatus {
 impl From<bool> for TxnStatus {
     fn from(value: bool) -> Self {
         match value {
-            true => TxnStatus::Charged,
-            _ => TxnStatus::Failure,
+            true => Self::Charged,
+            _ => Self::Failure,
         }
     }
 }
