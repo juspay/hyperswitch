@@ -21633,11 +21633,13 @@
       },
       "PaymentsUpdateMetadataRequest": {
         "type": "object",
+        "required": [
+          "metadata"
+        ],
         "properties": {
           "metadata": {
             "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
+            "description": "Metadata is useful for storing additional, unstructured information on an object."
           }
         },
         "additionalProperties": false
