@@ -17,7 +17,7 @@ use diesel::{
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
-    BoolExpressionMethods, Expression, ExpressionMethods, Insertable, QueryDsl, QuerySource, Table,
+    Expression, ExpressionMethods, Insertable, QueryDsl, QuerySource, Table,
 };
 use error_stack::{report, ResultExt};
 use router_env::logger;
@@ -409,10 +409,7 @@ pub(super) async fn generic_filter<T, P, O, R>(
     order: Option<O>,
 ) -> StorageResult<Vec<R>>
 where
-    T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + 'static,
-    T: GetPrimaryKey,
-    P: ExpressionMethods + BoolExpressionMethods,
-    P::SqlType: diesel::sql_types::SqlType,
+    T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + GetPrimaryKey + 'static,
     IntoBoxed<'static, T, Pg>: FilterDsl<P, Output = IntoBoxed<'static, T, Pg>>
         + FilterDsl<IsNotNull<T::PK>, Output = IntoBoxed<'static, T, Pg>>
         + LimitDsl<Output = IntoBoxed<'static, T, Pg>>
