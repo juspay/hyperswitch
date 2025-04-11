@@ -489,7 +489,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                     card_exp_year: card.card_exp_year.clone(),
                     card_isin: Some(card.card_number.get_card_isin().clone()),
                     name_on_card: card.card_holder_name.clone(),
-                    nick_name: card.nick_name.clone(),
+                    nick_name: card
+                        .nick_name
+                        .as_ref()
+                        .map(|nick_name| nick_name.clone().expose()),
                     card_brand: None,
                 },
                 requestor_card_reference: None,

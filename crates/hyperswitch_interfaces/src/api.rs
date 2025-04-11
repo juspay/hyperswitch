@@ -73,8 +73,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*};
 use crate::{
-    api::revenue_recovery::RevenueRecovery, connector_integration_v2::ConnectorIntegrationV2,
-    consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -95,7 +95,7 @@ pub trait Connector:
     + authentication::ExternalAuthentication
     + TaxCalculation
     + UnifiedAuthenticationService
-    + RevenueRecovery
+    + revenue_recovery::RevenueRecovery
 {
 }
 
@@ -116,7 +116,7 @@ impl<
             + authentication::ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + RevenueRecovery,
+            + revenue_recovery::RevenueRecovery,
     > Connector for T
 {
 }
@@ -264,8 +264,9 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 
@@ -354,8 +355,9 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

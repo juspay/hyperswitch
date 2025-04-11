@@ -339,8 +339,8 @@ pub async fn trigger_refund_to_gateway(
                 processor_refund_data: None,
                 unified_code: Some(unified_code),
                 unified_message: Some(unified_message),
-                issuer_error_code: err.issuer_error_code,
-                issuer_error_message: err.issuer_error_message,
+                issuer_error_code: err.network_decline_code,
+                issuer_error_message: err.network_error_message,
             }
         }
         Ok(response) => {
@@ -688,8 +688,8 @@ pub async fn sync_refund_with_gateway(
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
-                issuer_error_code: error_message.issuer_error_code,
-                issuer_error_message: error_message.issuer_error_message,
+                issuer_error_code: error_message.network_decline_code,
+                issuer_error_message: error_message.network_error_message,
             }
         }
         Ok(response) => match router_data_res.integrity_check.clone() {
