@@ -696,9 +696,9 @@ macro_rules! impl_enum_str {
 mod tests {
     #![allow(clippy::panic, clippy::expect_used)]
 
+    use serde_json::{json, Value as JsonValue};
+
     use crate::impl_enum_str;
-    use serde_json::json;
-    use serde_json::Value as JsonValue;
 
     impl_enum_str!(
         tag_delimeter = ":",
