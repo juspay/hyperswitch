@@ -364,8 +364,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
             common_enums::AttemptStatus::from(item.response.data.status.clone())
         };
 
-        let connector_metadata = get_qr_code_data(&item.response)?;
-
         Ok(Self {
             status,
             response: if is_payment_failure(status) {
@@ -385,7 +383,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     resource_id: ResponseId::ConnectorTransactionId(item.response.data.id.clone()),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
-                    connector_metadata,
+                    connector_metadata: get_qr_code_data(&item.response)?,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.id),
                     incremental_authorization_allowed: None,
@@ -422,7 +420,13 @@ fn get_qr_code_data(
         expires_at.unix_timestamp() * 1000
     };
 
-    let image_data = QrImage::new_from_data(response.data.dynamic_pix_code.clone())
+    let dynamic_pix_code = response.data.dynamic_pix_code.as_ref().ok_or_else(|| {
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "dynamic_pix_code",
+        }
+    })?;
+
+    let image_data = QrImage::new_from_data(dynamic_pix_code.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str())

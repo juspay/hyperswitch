@@ -182,7 +182,7 @@ pub struct TransactionData {
     pub cleared: Option<bool>,
 
     // PIX specific field
-    pub dynamic_pix_code: String, // QR code string for PIX
+    pub dynamic_pix_code: Option<String>, // QR code string for PIX
 
     // Exchange details
     pub exchanged_value: Option<StringMajorUnit>,
