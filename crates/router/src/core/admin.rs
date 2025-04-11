@@ -3947,7 +3947,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             default_fallback_routing: None,
-            should_collect_cvv_during_payment: false,
+            should_collect_cvv_during_payment: None,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,

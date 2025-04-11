@@ -233,7 +233,7 @@ diesel::table! {
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
-        should_collect_cvv_during_payment -> Bool,
+        should_collect_cvv_during_payment -> Nullable<Bool>,
     }
 }
 
@@ -882,7 +882,7 @@ diesel::table! {
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
-        payment_method_subtype -> Nullable<Varchar>,
+        payment_method_subtype -> Varchar,
         routing_result -> Nullable<Jsonb>,
         authentication_applied -> Nullable<AuthenticationType>,
         #[max_length = 128]
@@ -925,8 +925,6 @@ diesel::table! {
         modified_at -> Timestamp,
         last_synced -> Nullable<Timestamp>,
         setup_future_usage -> Nullable<FutureUsage>,
-        #[max_length = 128]
-        client_secret -> Varchar,
         #[max_length = 64]
         active_attempt_id -> Nullable<Varchar>,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,

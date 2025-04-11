@@ -2175,6 +2175,12 @@ impl User {
                 ),
         );
 
+        route = route.service(
+            web::resource("/data")
+                .route(web::get().to(user::get_multiple_dashboard_metadata))
+                .route(web::post().to(user::set_dashboard_metadata)),
+        );
+
         route
     }
 }
