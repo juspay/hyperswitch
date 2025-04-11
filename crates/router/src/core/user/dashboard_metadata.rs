@@ -3,11 +3,15 @@ use std::str::FromStr;
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 #[cfg(feature = "email")]
 use common_enums::EntityType;
-use common_utils::pii;
+use common_utils::{
+    pii,
+    request::{Method, RequestBuilder, RequestContent},
+};
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
+use http::header;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
@@ -17,7 +21,7 @@ use router_env::logger;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
-    services::{authentication::UserFromToken, ApplicationResponse},
+    services::{authentication::UserFromToken, send_request, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
@@ -501,7 +505,7 @@ async fn insert_metadata(
                     .await?;
                     let email_contents = email_types::BizEmailProd::new(
                         state,
-                        data,
+                        data.clone(),
                         theme.as_ref().map(|theme| theme.theme_id.clone()),
                         theme
                             .map(|theme| theme.email_config())
@@ -517,6 +521,51 @@ async fn insert_metadata(
                         .await;
                     logger::info!(prod_intent_email=?send_email_result);
                 }
+            }
+
+            if state.conf.user.hubspot.enabled {
+                let hubspotbody = api::HubspotRequest {
+                    use_hubspot: true,
+                    country: data.business_country_name.unwrap_or_default(),
+                    hubspot_form_id: state.conf.user.hubspot.form_id.to_string(),
+                    firstname: data.poc_name.unwrap_or_default(),
+                    lastname: "".to_string(),
+                    email: data
+                        .poc_email
+                        .clone()
+                        .unwrap_or_default()
+                        .peek()
+                        .to_string(),
+                    company_name: data.legal_business_name.unwrap_or_default(),
+                    lead_source: "Hyperswitch Dashboard".to_string(),
+                    website: data.business_website.unwrap_or_default(),
+                    phone: "".to_string(),
+                    role: "".to_string(),
+                    monthly_gmv: "".to_string(),
+                    bd_notes: "".to_string(),
+                    message: "".to_string(),
+                };
+
+                let base_url = email_types::get_base_url(&state);
+
+                let hubspot_request = RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(&state.conf.user.hubspot.base_url)
+                    .set_body(RequestContent::FormUrlEncoded(Box::new(hubspotbody)))
+                    .attach_default_headers()
+                    .headers(vec![(
+                        header::ORIGIN.to_string(),
+                        format!("{base_url}/dashboard").into(),
+                    )])
+                    .build();
+
+                send_request(&state, hubspot_request, None)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable(format!(
+                        "Failed to send data to hubspot for user_id {}",
+                        user.user_id.clone(),
+                    ))?;
             }
 
             metadata

@@ -105,6 +105,7 @@ pub struct ProdIntent {
     pub is_completed: bool,
     #[serde(default)]
     pub product_type: MerchantProductType,
+    pub business_country_name: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -178,4 +179,26 @@ pub enum GetMetaDataResponse {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct HubspotRequest {
+    #[serde(rename = "useHubspot")]
+    pub use_hubspot: bool,
+    pub country: String,
+    #[serde(rename = "hubspotFormId")]
+    pub hubspot_form_id: String,
+    pub firstname: String,
+    pub lastname: String,
+    pub email: String,
+    #[serde(rename = "companyName")]
+    pub company_name: String,
+    pub lead_source: String,
+    pub website: String,
+    pub phone: String,
+    pub role: String,
+    #[serde(rename = "monthlyGMV")]
+    pub monthly_gmv: String,
+    pub bd_notes: String,
+    pub message: String,
 }

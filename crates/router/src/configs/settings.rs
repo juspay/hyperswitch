@@ -685,6 +685,13 @@ pub struct FallbackMerchantIds {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+pub struct HubSpot {
+    pub enabled: bool,
+    pub base_url: String,
+    pub form_id: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
     pub two_factor_auth_expiry_in_secs: i64,
@@ -692,6 +699,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+    pub hubspot: HubSpot,
 }
 
 #[derive(Debug, Deserialize, Clone)]
