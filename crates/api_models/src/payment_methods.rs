@@ -116,8 +116,8 @@ pub struct PaymentMethodCreate {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
-    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    #[schema(value_type = PaymentMethodType,example = "google_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -2806,8 +2806,8 @@ pub struct PaymentMethodSessionConfirmRequest {
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType, example = "credit")]
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    #[schema(value_type = PaymentMethodType, example = "google_pay")]
+    pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment instrument data to be used for the payment
     #[schema(value_type = PaymentMethodDataRequest)]
