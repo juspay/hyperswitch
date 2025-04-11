@@ -35,7 +35,7 @@ pub struct FacilitapayCardDetails {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct CardTransactionRequest {
-    pub currency:  api_models::enums::Currency,
+    pub currency: api_models::enums::Currency,
     pub exchange_currency: api_models::enums::Currency,
     pub value: StringMajorUnit,
     pub from_credit_card: FacilitapayCardDetails,
