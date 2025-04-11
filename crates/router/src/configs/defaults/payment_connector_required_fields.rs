@@ -13229,7 +13229,7 @@ impl Default for settings::RequiredFields {
                                                             field_type: enums::FieldType::UserFullName,
                                                             value: None,
                                                         }
-                                                    )
+                                                    ),
                                                     (
                                                         "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
                                                         RequiredFieldInfo {

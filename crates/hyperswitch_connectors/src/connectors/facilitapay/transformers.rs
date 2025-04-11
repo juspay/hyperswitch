@@ -1,10 +1,6 @@
 use api_models::payments::QrCodeInformation;
 use common_enums::{enums, BrazilStatesAbbreviation, PaymentMethod};
-use common_utils::{
-    errors::{CustomResult, ParsingError},
-    ext_traits::Encode,
-    types::StringMajorUnit,
-};
+use common_utils::{errors::CustomResult, ext_traits::Encode, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
@@ -15,7 +11,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use time::PrimitiveDateTime;
 use url::Url;
 
@@ -214,7 +210,15 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for FacilitapayCustomerRequest
         let (document_type, document_number) = match item.request.payment_method_data.clone() {
             PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
                 BankTransferData::Pix { cpf, .. } => {
-                    let document_number = cpf.ok_or_else(missing_field_err("cpf"))?;
+                    // Extract only digits from the CPF string
+                    let document_number =
+                        cpf.ok_or_else(missing_field_err("cpf"))?.map(|cpf_number| {
+                            cpf_number
+                                .chars()
+                                .filter(|chars| chars.is_ascii_digit())
+                                .collect::<String>()
+                        });
+
                     let document_type = convert_to_document_type("cpf")?;
                     (document_type, document_number)
                 }
