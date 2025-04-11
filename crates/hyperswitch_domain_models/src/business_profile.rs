@@ -1243,7 +1243,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1292,7 +1292,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1341,7 +1341,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1390,7 +1390,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1439,7 +1439,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1488,7 +1488,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1537,7 +1537,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
-                revenue_recovery_retry_algorithm_data: None, 
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1588,10 +1588,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
             },
-            ProfileUpdate::RevenueRecoveryAlgorithmUpdate{
-              revenue_recovery_retry_algorithm_type,
-              revenue_recovery_retry_algorithm_data,
-            } => Self{
+            ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+                revenue_recovery_retry_algorithm_type,
+                revenue_recovery_retry_algorithm_data,
+            } => Self {
                 profile_name: None,
                 modified_at: now,
                 return_url: None,
@@ -1637,8 +1637,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type,
                 revenue_recovery_retry_algorithm_data,
-            }
-
+            },
         }
     }
 }
