@@ -615,7 +615,7 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
-            revenue_recovery_retry_algorithm_type : source.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_type: source.revenue_recovery_retry_algorithm_type,
         }
     }
 }
