@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use time::PrimitiveDateTime;
 use url::Url;
 
