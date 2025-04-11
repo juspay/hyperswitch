@@ -6439,7 +6439,7 @@ pub struct PaymentsUpdateMetadataRequest {
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// Metadata is useful for storing additional, unstructured information on an object.
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: pii::SecretSerdeValue,
 }
 
