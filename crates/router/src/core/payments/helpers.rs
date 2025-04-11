@@ -6340,6 +6340,7 @@ pub fn get_key_params_for_surcharge_details(
 pub fn validate_payment_link_request(
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
+    #[cfg(feature = "v1")]
     if request.confirm == Some(true) {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "cannot confirm a payment while creating a payment link".to_string(),
