@@ -2075,6 +2075,8 @@ where
 {
     use std::ops::Not;
 
+    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
     let payment_link_data = payment_data.get_payment_link_data();
@@ -2561,10 +2563,13 @@ where
             statement_descriptor_suffix: payment_intent.statement_descriptor_suffix,
             next_action: next_action_response,
             cancellation_reason: payment_attempt.cancellation_reason,
-            error_code: payment_attempt.error_code,
+            error_code: payment_attempt
+                .error_code
+                .filter(|code| code != NO_ERROR_CODE),
             error_message: payment_attempt
                 .error_reason
-                .or(payment_attempt.error_message),
+                .or(payment_attempt.error_message)
+                .filter(|message| message != NO_ERROR_MESSAGE),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             payment_experience: payment_attempt.payment_experience,
