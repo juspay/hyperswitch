@@ -282,7 +282,7 @@ impl
             VoucherData::PagoEfectivo => ZenPaymentChannels::PclBoacompraPagoefectivo,
             VoucherData::RedCompra => ZenPaymentChannels::PclBoacompraRedcompra,
             VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            VoucherData::Oxxo { .. }
+            VoucherData::Oxxo
             | VoucherData::Alfamart { .. }
             | VoucherData::Indomaret { .. }
             | VoucherData::SevenEleven { .. }
