@@ -6338,16 +6338,18 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    confirm: Option<bool>,
+    request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(cnf) = confirm {
-        if !cnf {
-            return Ok(());
-        } else {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "cannot confirm a payment while creating a payment link".to_string(),
-            });
-        }
+    if request.confirm == Some(true) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "cannot confirm a payment while creating a payment link".to_string(),
+        });
+    }
+
+    if request.return_url.is_none() {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "return_url must be sent while creating a payment link".to_string(),
+        });
     }
     Ok(())
 }
