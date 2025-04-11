@@ -353,8 +353,8 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                     | PaymentMethodData::BankDebit(_)
                     | PaymentMethodData::BankTransfer(_)
                     | PaymentMethodData::Crypto(_)
-                    | PaymentMethodData::MandatePayment {}
-                    | PaymentMethodData::Reward {}
+                    | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::Reward
                     | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::Upi(_)
