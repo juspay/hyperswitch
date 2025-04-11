@@ -21,7 +21,7 @@ use super::ConnectorIntegration;
 /// trait RevenueRecovery
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub trait RevenueRecovery:
-    ConnectorCommon + BillingConnectorPaymentsSyncIntegration + RevenueRecoveryRecordBack
+    ConnectorCommon + BillingConnectorPaymentsSyncIntegration + RevenueRecoveryRecordBack + BillingConnectorInvoiceSyncIntegration
 {
 }
 
