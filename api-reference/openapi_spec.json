@@ -956,7 +956,7 @@
           "Payments"
         ],
         "summary": "Payments - Update Metadata",
-        "operationId": "Create Update Metadata for a Payment",
+        "operationId": "Update Metadata for a Payment",
         "requestBody": {
           "content": {
             "application/json": {
@@ -969,7 +969,7 @@
         },
         "responses": {
           "200": {
-            "description": "Update Metadata is done",
+            "description": "Metadata updated successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -984,7 +984,7 @@
         },
         "security": [
           {
-            "publishable_key": []
+            "api_key": []
           }
         ]
       }
@@ -21654,7 +21654,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         }
