@@ -341,7 +341,7 @@ pub fn get_refund_update_for_refund_response_data(
         Err(err) => {
             let connector_refund_id = err
                 .connector_transaction_id
-                .map(ConnectorTransactionId::new);
+                .map(ConnectorTransactionId::from);
 
             metrics::INTEGRITY_CHECK_FAILED.add(
                 1,
@@ -369,7 +369,7 @@ pub fn get_refund_update_for_refund_response_data(
             }
 
             let connector_refund_id =
-                ConnectorTransactionId::new(refund_response_data.connector_refund_id);
+                ConnectorTransactionId::from(refund_response_data.connector_refund_id);
 
             storage::RefundUpdate::build_refund_update(
                 connector_refund_id,

@@ -171,7 +171,7 @@ pub enum RefundType {
 }
 
 #[cfg(feature = "v2")]
-/// To indicate whether to refund needs to be instant or scheduled
+/// To indicate whether the refund needs to be instant or scheduled
 #[derive(
     Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
 )]

@@ -1647,11 +1647,6 @@ impl ConnectorTransactionId {
         }
     }
 
-    /// Implementation for constructing ConnectorTransactionId from String.
-    pub fn new(src: String) -> Self {
-        Self::from(src.clone())
-    }
-
     /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and processor_transaction_data
     pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
         let txn_id = Self::from(src.clone());
