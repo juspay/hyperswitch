@@ -164,7 +164,7 @@ pub fn validate_for_valid_refunds(
                     (connector, payment_method_subtype),
                     (
                         api_models::enums::Connector::Braintree,
-                        Some(diesel_models::enums::PaymentMethodType::Paypal),
+                        diesel_models::enums::PaymentMethodType::Paypal,
                     )
                 ),
                 || {

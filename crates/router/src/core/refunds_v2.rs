@@ -200,6 +200,7 @@ pub async fn trigger_refund_to_gateway(
             })?,
         None => refund.to_owned(),
     };
+    // Implement outgoing webhooks here
     connector_response.to_refund_failed_response()?;
     Ok(response)
 }
