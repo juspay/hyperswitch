@@ -11,7 +11,7 @@ use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
-    open_router::{self, DecidedGateway, OpenRouterDecideGatewayRequest},
+    open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest},
     routing::ConnectorSelection,
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1679,7 +1679,7 @@ pub async fn perform_success_based_routing_with_open_router(
                 Ok(routable_connectors)
             }
             Err(err) => {
-                let err_resp: open_router::ErrorResponse = err
+                let err_resp: or_types::ErrorResponse = err
                     .response
                     .parse_struct("ErrorResponse")
                     .change_context(errors::RoutingError::OpenRouterError(
@@ -1696,6 +1696,25 @@ pub async fn perform_success_based_routing_with_open_router(
     } else {
         Ok(routable_connectors)
     }
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn update_success_rate_score_with_open_router(
+    state: &SessionState,
+    payment_connector: common_enums::connector_enums::RoutableConnectors,
+    profile_id: &common_utils::id_type::ProfileId,
+    payment_id: &common_utils::id_type::PaymentId,
+    payment_status: bool,
+) -> RoutingResult<()> {
+    logger::debug!(
+        "performing success_based_routing with open_router for profile {}",
+        profile_id.get_string_repr()
+    );
+
+    // API call to Open router
+
+    Ok(())
 }
 
 /// success based dynamic routing

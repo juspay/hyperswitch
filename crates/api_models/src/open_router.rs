@@ -75,3 +75,47 @@ pub struct UnifiedError {
     pub user_message: String,
     pub developer_message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UpdateScorePayload {
+    pub merchant_id: String,
+    pub gateway: RoutableConnectors,
+    pub status: TxnStatus,
+    pub payment_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TxnStatus {
+    Started,
+    AuthenticationFailed,
+    JuspayDeclined,
+    PendingVBV,
+    VBVSuccessful,
+    Authorized,
+    AuthorizationFailed,
+    Charged,
+    Authorizing,
+    CODInitiated,
+    Voided,
+    VoidInitiated,
+    Nop,
+    CaptureInitiated,
+    CaptureFailed,
+    VoidFailed,
+    AutoRefunded,
+    PartialCharged,
+    ToBeCharged,
+    Pending,
+    Failure,
+    Declined,
+}
+
+impl From<bool> for TxnStatus {
+    fn from(value: bool) -> Self {
+        match value {
+            true => TxnStatus::Charged,
+            _ => TxnStatus::Failure,
+        }
+    }
+}

@@ -38,15 +38,18 @@ use storage_impl::redis::cache::Cacheable;
 use crate::db::errors::StorageErrorExt;
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::{core::metrics as core_metrics, types::transformers::ForeignInto};
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        routing,
+    },
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
 };
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::{core::metrics as core_metrics, types::transformers::ForeignInto};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -688,6 +691,30 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 },
             )?;
 
+            let payment_status_attribute =
+                get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
+
+            let should_route_to_open_router = state.conf.open_router.enabled;
+
+            if should_route_to_open_router {
+                routing::payments_routing::update_success_rate_score_with_open_router(
+                    state,
+                    common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("unable to infer routable_connector from connector")?,
+                    profile_id,
+                    &payment_attempt.payment_id,
+                    payment_status_attribute == common_enums::AttemptStatus::Charged,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to update success based routing window in dynamic routing service",
+                )?;
+
+                return Ok(());
+            }
+
             let success_based_routing_configs = fetch_dynamic_routing_configs::<
                 routing_types::SuccessBasedRoutingConfig,
             >(
@@ -731,9 +758,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 .attach_printable(
                     "unable to calculate/fetch success rate from dynamic routing service",
                 )?;
-
-            let payment_status_attribute =
-                get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
             let first_merchant_success_based_connector = &success_based_connectors
                 .entity_scores_with_labels
@@ -932,6 +956,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 .attach_printable(
                     "unable to update success based routing window in dynamic routing service",
                 )?;
+
             Ok(())
         } else {
             Ok(())
