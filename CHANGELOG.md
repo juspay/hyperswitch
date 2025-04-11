@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.11.0
+
+### Features
+
+- Remove client_secret from payment_intent and update related code ([#7648](https://github.com/juspay/hyperswitch/pull/7648)) ([`5730ddf`](https://github.com/juspay/hyperswitch/commit/5730ddfc8893017f40a5f5a8c1b7f099cc0d22a9))
+
+**Full Changelog:** [`2025.04.10.1...2025.04.11.0`](https://github.com/juspay/hyperswitch/compare/2025.04.10.1...2025.04.11.0)
+
+
+- - -
+
 ## 2025.04.10.1
 
 ### Features
