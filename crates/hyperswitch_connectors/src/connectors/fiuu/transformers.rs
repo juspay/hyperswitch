@@ -1483,7 +1483,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         let error_response = if status == enums::AttemptStatus::Failure {
             let optional_message = capture_message_status
                 .get(status_code.as_str())
-                .cloned()
+                .copied()
                 .map(String::from);
             Some(ErrorResponse {
                 status_code: item.http_code,
@@ -1597,7 +1597,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
         let error_response = if status == enums::AttemptStatus::VoidFailed {
             let optional_message = void_message_status
                 .get(status_code.as_str())
-                .cloned()
+                .copied()
                 .map(String::from);
 
             Some(ErrorResponse {
