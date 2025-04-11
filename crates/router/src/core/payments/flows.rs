@@ -14,7 +14,7 @@ pub mod setup_mandate_flow;
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -2080,6 +2080,51 @@ impl<const T: u8>
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+macro_rules! default_imp_for_billing_connector_payment_sync {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::BillingConnectorInvoiceSyncIntegration for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                BillingConnectorInvoiceSync,
+                types::BillingConnectorInvoiceSyncRequest,
+                types::BillingConnectorInvoiceSyncResponse,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::BillingConnectorInvoiceSyncIntegration for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        BillingConnectorInvoiceSync,
+        types::BillingConnectorInvoiceSyncRequest,
+        types::BillingConnectorInvoiceSyncResponse,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+default_imp_for_billing_connector_payment_sync!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,

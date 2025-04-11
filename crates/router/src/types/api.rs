@@ -57,7 +57,8 @@ pub use hyperswitch_interfaces::{
         },
         fraud_check::FraudCheck,
         revenue_recovery::{
-            BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack,
+            BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+            RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
