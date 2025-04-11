@@ -9,6 +9,8 @@ use cards::CardNumber;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_types::primitive_wrappers;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::generate_id;
 use common_utils::id_type;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -123,7 +125,7 @@ impl VaultingInterface for VaultDelete {
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
     pub profile: domain::Profile,
-    pub collect_cvv_during_payment: bool,
+    pub collect_cvv_during_payment: Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub off_session_payment_flag: bool,
     pub is_connector_agnostic_mit_enabled: bool,
 }

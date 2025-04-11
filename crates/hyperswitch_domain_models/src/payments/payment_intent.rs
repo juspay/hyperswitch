@@ -360,7 +360,6 @@ pub enum PaymentIntentUpdate {
     RecordUpdate {
         status: common_enums::IntentStatus,
         feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
-        active_attempt_id: id_type::GlobalAttemptId,
         updated_by: String,
     },
     /// UpdateIntent
@@ -717,12 +716,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
             PaymentIntentUpdate::RecordUpdate {
                 status,
                 feature_metadata,
-                active_attempt_id,
                 updated_by,
             } => Ok(Self {
                 status: Some(status),
                 amount_captured: None,
-                active_attempt_id: Some(Some(active_attempt_id)),
+                active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
@@ -1575,7 +1573,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at,
             last_synced,
             setup_future_usage,
-            client_secret,
             active_attempt_id,
             order_details,
             allowed_payment_method_types,
@@ -1627,7 +1624,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at,
             last_synced,
             setup_future_usage: Some(setup_future_usage),
-            client_secret,
             active_attempt_id,
             order_details: order_details.map(|order_details| {
                 order_details
@@ -1778,7 +1774,6 @@ impl behaviour::Conversion for PaymentIntent {
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
-                client_secret: storage_model.client_secret,
                 active_attempt_id: storage_model.active_attempt_id,
                 order_details: storage_model.order_details.map(|order_details| {
                     order_details
@@ -1856,7 +1851,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at: self.modified_at,
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
-            client_secret: self.client_secret,
             active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self
