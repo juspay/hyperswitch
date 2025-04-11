@@ -251,25 +251,8 @@ impl RevenueRecoveryInvoice {
             &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
-        // billing_connector_payment_details.map_or_else(
-        //     || {
-        //         interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
-        //             connector_enum,
-        //             request_details,
-        //         )
-        //         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
-        //         .attach_printable("Failed while getting revenue recovery invoice details")
-        //         .map(RevenueRecoveryInvoice)
-        //     },
-        //     |data| {
-        //         Ok(Self(revenue_recovery::RevenueRecoveryInvoiceData::from(
-        //             data,
-        //         )))
-        //     },
-        // )
-
-        match should_get_invoice_information_from_payment_sync_response {
-            true=> {
+        billing_connector_payment_details.map_or_else(
+            || {
                 interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
                     connector_enum,
                     request_details,
@@ -278,10 +261,23 @@ impl RevenueRecoveryInvoice {
                 .attach_printable("Failed while getting revenue recovery invoice details")
                 .map(RevenueRecoveryInvoice)
             },
-            false => {
-                Ok(Self(billing_connector_payment_details.map(|data| revenue_recovery::RevenueRecoveryInvoiceData::from(data))))
-            }
-        }
+            |data| {
+                match should_get_invoice_information_from_payment_sync_response {
+                    true => interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
+                                    connector_enum,
+                                    request_details,
+                                )
+                                .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
+                                .attach_printable("Failed while getting revenue recovery invoice details")
+                                .map(RevenueRecoveryInvoice),
+                    false => Ok(Self(revenue_recovery::RevenueRecoveryInvoiceData::from(data)))
+                }
+                Ok(Self(revenue_recovery::RevenueRecoveryInvoiceData::from(
+                    data,
+                )))
+            },
+        )
+
     }
 
     async fn get_payment_intent(
