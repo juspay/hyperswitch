@@ -3973,6 +3973,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: None,
+            revenue_recovery_retry_algorithm_data: None,
         }))
     }
 }

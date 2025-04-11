@@ -300,13 +300,3 @@ pub enum UserRoleVersion {
     V1,
     V2,
 }
-
-// #[derive(
-//     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
-// )]
-// #[diesel(sql_type = Jsonb)]
-// #[serde(rename_all = "snake_case")]
-// pub enum RevenueRecoveryAlgorithmData {
-//     TimeStamp(PrimitiveDateTime),
-// }
-// common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
