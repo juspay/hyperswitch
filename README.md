@@ -77,7 +77,31 @@ Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
 ### 1. Local Setup
 
-You can run Hyperswitch on your system using Docker compose after cloning this repository. 
+#### One-Click Setup (Recommended)
+
+You can run Hyperswitch on your system with a single command using our one-click setup script:
+
+```shell
+git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
+cd hyperswitch
+./setup.sh
+```
+
+The script will:
+- Check for prerequisites (Docker, Docker Compose)
+- Set up necessary configurations
+- Let you select a deployment profile:
+  - **Minimal**: Core services only (Hyperswitch server, PostgreSQL, Redis)
+  - **Standard**: Minimal + Control Center + Web SDK
+  - **Full**: Standard + Monitoring + Scheduler
+  - **Development**: Build from source environment
+- Start the selected services
+- Check service health
+- Provide access information
+
+#### Manual Setup
+
+If you prefer to set up manually, you can use Docker compose directly:
 
 ```shell
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
@@ -85,7 +109,7 @@ cd hyperswitch
 docker compose up -d
 ```
 
-Check out the [local setup guide][local-setup-guide] for a more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
+Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
 ```shell
 [+] Running 2/2
 ✔ hyperswitch-control-center Pulled 2.9s
