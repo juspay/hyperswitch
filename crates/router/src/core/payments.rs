@@ -273,7 +273,12 @@ where
     F: Send + Clone + Sync,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + OperationSessionValidators<F>
+        + Send
+        + Sync
+        + Clone,
 
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -552,17 +557,30 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
+                    if payment_data.should_update_saved_payment_method() {
+                        operation
+                            .to_post_update_tracker()?
+                            .update_saved_payment_method(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                            )
+                            .await?;
+                    } else {
+                        operation
+                            .to_post_update_tracker()?
+                            .save_pm_and_mandate(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    }
 
                     let mut payment_data = operation
                         .to_post_update_tracker()?
@@ -707,18 +725,39 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            &merchant_account,
-                            &key_store,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
+                    let pmd = payment_data.get_payment_method_data();
+                    let customer_acceptance = payment_data.get_customer_acceptance();
+                    let cond1 = matches!(pmd, Some(domain::PaymentMethodData::NetworkToken(_)));
+                    let cond3 = payment_data
+                        .get_token_data()
+                        .map(|token_data| token_data.is_permanent_or_permanent_card())
+                        .unwrap_or(false);
+                    let cond2 = customer_acceptance.is_some();
 
+                    if cond1 && cond2 && cond3 {
+                        operation
+                            .to_post_update_tracker()?
+                            .update_saved_payment_method(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                            )
+                            .await?;
+                    } else {
+                        operation
+                            .to_post_update_tracker()?
+                            .save_pm_and_mandate(
+                                state,
+                                &router_data,
+                                &merchant_account,
+                                &key_store,
+                                &mut payment_data,
+                                &business_profile,
+                            )
+                            .await?;
+                    }
                     let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -1535,7 +1574,12 @@ where
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + OperationSessionValidators<F>
+        + Send
+        + Sync
+        + Clone,
     Res: transformers::ToResponse<F, D, Op>,
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -5357,7 +5401,6 @@ where
     pub vault_operation: Option<domain_payments::VaultOperation>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
 }
-
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {
     pub shipping_details: hyperswitch_domain_models::address::Address,
@@ -8045,6 +8088,7 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation>;
+    fn get_customer_acceptance(&self) -> Option<&CustomerAcceptance>;
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
@@ -8234,6 +8278,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.vault_operation.as_ref()
     }
 
+    fn get_customer_acceptance(&self) -> Option<&CustomerAcceptance> {
+        self.customer_acceptance.as_ref()
+    }
+
     // #[cfg(feature = "v2")]
     // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
     //     Some(self.payment_intent.capture_method)
@@ -8353,6 +8401,30 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {
         self.vault_operation = Some(vault_operation);
+    }
+}
+
+#[cfg(feature = "v1")]
+pub trait OperationSessionValidators<F> {
+    fn should_update_saved_payment_method(&self) -> bool;
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> OperationSessionValidators<F> for PaymentData<F> {
+    fn should_update_saved_payment_method(&self) -> bool {
+        let payment_method_data = self.get_payment_method_data();
+        let customer_acceptance = self.get_customer_acceptance();
+
+        let is_network_token = matches!(
+            payment_method_data,
+            Some(domain::PaymentMethodData::NetworkToken(_))
+        );
+        let is_permanent_token = self
+            .get_token_data()
+            .map(|token_data| token_data.is_permanent_or_permanent_card())
+            .unwrap_or(false);
+
+        is_network_token && customer_acceptance.is_some() && is_permanent_token
     }
 }
 
