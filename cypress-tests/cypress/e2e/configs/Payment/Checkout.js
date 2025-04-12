@@ -85,6 +85,7 @@ export const connectorDetails = {
           status: "processing",
           shipping_cost: 50,
           amount: 6000,
+          payment_method_data: payment_method_data_response,
         },
       },
     },
@@ -304,6 +305,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: payment_method_data_response,
         },
       },
     },
@@ -320,6 +322,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_response,
         },
       },
     },
