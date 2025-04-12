@@ -78,8 +78,8 @@ impl TryFrom<&CryptopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::MandatePayment {}
-            | PaymentMethodData::Reward {}
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::MobilePayment(_)
