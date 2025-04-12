@@ -174,17 +174,13 @@ fn merge_metadata(
     mut payment_intent_metadata: serde_json::Value,
     request_metadata: serde_json::Value,
 ) -> serde_json::Value {
-    if let (serde_json::Value::Object(existing_map), serde_json::Value::Object(req_map)) =
-        (&mut payment_intent_metadata, request_metadata.clone())
-    {
-        for (key, value) in req_map {
-            existing_map.insert(key, value);
+    match (&mut payment_intent_metadata, request_metadata.clone()) {
+        (serde_json::Value::Object(existing_map), serde_json::Value::Object(req_map)) => {
+            existing_map.extend(req_map);
+            payment_intent_metadata
         }
-        payment_intent_metadata
-    } else if !request_metadata.is_null() {
-        request_metadata
-    } else {
-        payment_intent_metadata
+        (_, req_meta) if !req_meta.is_null() => req_meta,
+        _ => payment_intent_metadata,
     }
 }
 

@@ -893,11 +893,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                     let key_manager_state: KeyManagerState = db.into();
 
                     let payment_intent_update =
-                            hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
-                                metadata: payment_data.payment_intent.metadata.clone()
-                                          .ok_or(errors::ApiErrorResponse::InternalServerError)
-                                          .attach_printable("payment_intent.metadata not found")?,
-                                updated_by:payment_data.payment_intent.updated_by.clone(), };
+                        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
+                            metadata: payment_data
+                                .payment_intent
+                                .metadata
+                                .clone()
+                                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("payment_intent.metadata not found")?,
+                            updated_by: payment_data.payment_intent.updated_by.clone(),
+                        };
 
                     let updated_payment_intent = m_db
                         .update_payment_intent(
