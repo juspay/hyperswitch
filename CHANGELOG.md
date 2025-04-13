@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.02.10.0-hotfix9
+
+### Bug Fixes
+
+- Script for one click docker setup ([#7806](https://github.com/juspay/hyperswitch/pull/7806)) ([`3f27ccb`](https://github.com/juspay/hyperswitch/commit/3f27ccbd0320a5c2478cb2ade77c6c8c36f4bd66))
+
+- - -
+
 ## 2025.02.10.0-hotfix8
 
 ### Features
