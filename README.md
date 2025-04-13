@@ -83,7 +83,6 @@ We recommend using Docker Desktop (Or Orbstack) for Windows and Mac OS. On Linux
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
 docker compose up -d
-chmod +x scripts/docker_output.sh 
 # This script verifies the setup and provides links to the individual components.
 scripts/docker_output.sh
 ```
