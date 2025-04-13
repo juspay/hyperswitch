@@ -78,18 +78,15 @@ Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 ### 1. Local Setup
 
 You can run Hyperswitch on your system using Docker compose after cloning this repository. 
-We recommend using Docker Desktop for Windows and Mac OS (Or Orbstack). On Linux, you can install Docker Engine directly.
-
+We recommend using Docker Desktop (Or Orbstack) for Windows and Mac OS. On Linux, you can install Docker Engine directly.
 ```shell
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
 docker compose up -d
-chmod +x scripts/docker_output.sh 
 # This script verifies the setup and provides links to the individual components.
 scripts/docker_output.sh
 ```
-
-The next step is to configure a connector with the Hyperswitch Control Center and try a payment.
+The next step is to [configure a connector][configure-a-connector] with the Hyperswitch Control Center and [try a payment][try-a-payment].
 
 Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
 
@@ -128,7 +125,8 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#running-additional-services
-
+[configure-a-connector]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor
+[try-a-payment]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment
 
 <a href="support-feature-requests">
   <h2 id="support-feature-requests">Support, Feature requests & Bugs</h2>
