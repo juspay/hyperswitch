@@ -6,7 +6,7 @@ HOST="localhost"
 PORT="8080"
 SERVICE_URL="http://${HOST}:${PORT}/health"
 
-MAX_RETRIES=50
+MAX_RETRIES=70
 RETRY_COUNT=0
 
 # Wait until the service is available or retries are exhausted
