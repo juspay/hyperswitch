@@ -84,7 +84,7 @@ We recommend using Docker Desktop for Windows and Mac OS (Or Orbstack). On Linux
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
 docker compose up -d
-./scripts/docker_output.sh
+scripts/docker_output.sh
 ```
 
 The next step is to configure a connector with the Hyperswitch Control Center and try a payment.
