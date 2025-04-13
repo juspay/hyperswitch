@@ -55,7 +55,7 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
       },
       body: organizationCreateBody,
       failOnStatusCode: false,
@@ -91,7 +91,7 @@ Cypress.Commands.add("organizationRetrieveCall", (globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -135,7 +135,7 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
       },
       body: organizationUpdateBody,
       failOnStatusCode: false,
@@ -185,7 +185,7 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
         "X-Organization-Id": organization_id,
       },
       body: merchantAccountCreateBody,
@@ -230,7 +230,7 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -274,7 +274,7 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
       },
       body: merchantAccountUpdateBody,
       failOnStatusCode: false,
@@ -310,7 +310,7 @@ Cypress.Commands.add(
   "businessProfileCreateCall",
   (businessProfileCreateBody, globalState) => {
     // Define the necessary variables and constants
-    const api_key = globalState.get("apiKey");
+    const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const merchant_id = globalState.get("merchantId");
     const url = `${base_url}/v2/profiles`;
@@ -324,7 +324,8 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
+        "x-merchant-id": merchant_id,
         ...customHeaders,
       },
       body: businessProfileCreateBody,
@@ -1172,7 +1173,7 @@ Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
     method: "GET",
     url: url,
     headers: {
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
