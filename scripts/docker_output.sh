@@ -14,7 +14,7 @@ while ! curl --silent --fail "${SERVICE_URL}" > /dev/null; do
     if (( RETRY_COUNT >= MAX_RETRIES )); then
         echo ""
         echo "Service failed to start. Kindly check the logs."
-        echo "You can view the logs using the command: docker-compose logs -f"
+        echo "You can view the logs using the command: docker-compose logs -f <service name>"
         exit 1
     fi
     printf "."
