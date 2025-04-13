@@ -86,7 +86,7 @@ docker compose up -d
 # This script verifies the setup and provides links to the individual components.
 scripts/docker_output.sh
 ```
-The next step is to configure a connector with the Hyperswitch Control Center and try a payment.
+The next step is to [configure a connector][configure-a-connector] with the Hyperswitch Control Center and [try a payment][try-a-payment].
 
 Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
 
@@ -126,6 +126,8 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#running-additional-services
+[configure-a-connector]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor
+[try-a-payment]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment
 
 
 <a href="support-feature-requests">
