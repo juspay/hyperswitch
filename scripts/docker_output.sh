@@ -6,13 +6,21 @@ HOST="localhost"
 PORT="8080"
 SERVICE_URL="http://${HOST}:${PORT}/health"
 
-# Wait until the service is available
+MAX_RETRIES=50
+RETRY_COUNT=0
+
+# Wait until the service is available or retries are exhausted
 while ! curl --silent --fail "${SERVICE_URL}" > /dev/null; do
+    if (( RETRY_COUNT >= MAX_RETRIES )); then
+        echo ""
+        echo "Service failed to start. Kindly check the logs."
+        echo "You can view the logs using the command: docker-compose logs -f"
+        exit 1
+    fi
     printf "."
     sleep 2
+    ((RETRY_COUNT++))
 done
-
-echo ""
 
 # Define ANSI 24-bit (true color) escape sequences for Light Sky Blue
 LIGHT_SKY_BLUE="\033[38;2;135;206;250m"
