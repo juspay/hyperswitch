@@ -3441,20 +3441,16 @@ pub struct UpdateMetadataRequest {
 impl TryFrom<&types::PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let metadata = format_metadata_for_request(Some(item.request.metadata.clone()));
+        let metadata = format_metadata_for_request(item.request.metadata.clone());
         Ok(Self { metadata })
     }
 }
 
-fn format_metadata_for_request(
-    merchant_metadata: Option<Secret<Value>>,
-) -> HashMap<String, String> {
+fn format_metadata_for_request(merchant_metadata: Secret<Value>) -> HashMap<String, String> {
     let mut formatted_metadata = HashMap::new();
-    if let Some(metadata) = merchant_metadata {
-        if let Value::Object(metadata_map) = metadata.expose() {
-            for (key, value) in metadata_map {
-                formatted_metadata.insert(format!("metadata[{}]", key), value.to_string());
-            }
+    if let Value::Object(metadata_map) = merchant_metadata.expose() {
+        for (key, value) in metadata_map {
+            formatted_metadata.insert(format!("metadata[{}]", key), value.to_string());
         }
     }
     formatted_metadata
