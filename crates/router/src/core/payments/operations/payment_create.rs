@@ -979,7 +979,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-                helpers::validate_payment_link_request(request.confirm)?;
+                helpers::validate_payment_link_request(request)?;
             }
         };
 
