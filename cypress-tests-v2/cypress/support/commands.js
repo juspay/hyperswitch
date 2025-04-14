@@ -354,7 +354,7 @@ Cypress.Commands.add(
 );
 Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
   // Define the necessary variables and constants
-  const api_key = globalState.get("apiKey");
+  const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
   const merchant_id = globalState.get("merchantId");
   const profile_id = globalState.get("profileId");
@@ -369,7 +369,7 @@ Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       ...customHeaders,
     },
     failOnStatusCode: false,
@@ -396,7 +396,7 @@ Cypress.Commands.add(
   "businessProfileUpdateCall",
   (businessProfileUpdateBody, globalState) => {
     // Define the necessary variables and constants
-    const api_key = globalState.get("apiKey");
+    const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const merchant_id = globalState.get("merchantId");
     const profile_id = globalState.get("profileId");
@@ -411,7 +411,7 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
         ...customHeaders,
       },
       body: businessProfileUpdateBody,
@@ -502,7 +502,7 @@ Cypress.Commands.add(
           url: url,
           headers: {
             "Content-Type": "application/json",
-            "api-key": api_key,
+            "Authorization": `admin-api-key=${api_key}`,
             ...customHeaders,
           },
           body: mcaCreateBody,
@@ -1215,7 +1215,7 @@ Cypress.Commands.add("businessProfilesListCall", (globalState) => {
     method: "GET",
     url: url,
     headers: {
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       "Content-Type": "application/json",
       ...customHeaders,
     },
