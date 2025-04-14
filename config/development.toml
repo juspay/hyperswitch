@@ -401,7 +401,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Dev"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
-force_cookies = true
+force_cookies = false
 
 [bank_config.eps]
 stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau" }
@@ -463,7 +463,7 @@ ach = { country = "US", currency = "USD" }
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }
 
 [pm_filters.noon]
-paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD,AED,SAR"}
+paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD,AED,SAR" }
 
 [pm_filters.razorpay]
 upi_collect = { country = "IN", currency = "INR" }
@@ -622,14 +622,14 @@ debit = { country = "CA, GB, US, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR,
 credit = { country = "CA, GB, US, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE", currency = "USD, EUR, GBP, AUD, NZD, SGD, CAD, JPY, HKD, KRW, TWD, MXN, BRL, DKK, NOK, ZAR, SEK, CHF, CZK, PLN, TRY, AFN, ALL, DZD, AOA, ARS, AMD, AWG, AZN, BSD, BDT, BBD, BYN, BZD, BMD, BOB, BAM, BWP, BND, BGN, BIF, BTN, XOF, XAF, XPF, KHR, CVE, KYD, CLP, CNY, COP, KMF, CDF, CRC, HRK, DJF, DOP, XCD, EGP, ETB, FKP, FJD, GMD, GEL, GHS, GIP, GTQ, GYD, HTG, HNL, HUF, ISK, INR, IDR, ILS, JMD, KZT, KES, LAK, LBP, LSL, LRD, MOP, MKD, MGA, MWK, MYR, MVR, MRU, MUR, MDL, MNT, MAD, MZN, MMK, NAD, NPR, ANG, PGK, NIO, NGN, PKR, PAB, PYG, PEN, PHP, QAR, RON, RWF, SHP, WST, STN, SAR, RSD, SCR, SLL, SBD, SOS, LKR, SRD, SZL, TJS, TZS, THB, TOP, TTD, UGX, UAH, AED, UYU, UZS, VUV, VND, YER, ZMW" }
 
 [pm_filters.bitpay]
-crypto_currency = { country = "US, CA, GB, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE", currency = "USD, AUD, CAD, GBP, MXN, NZD, CHF, EUR"}
+crypto_currency = { country = "US, CA, GB, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE", currency = "USD, AUD, CAD, GBP, MXN, NZD, CHF, EUR" }
 
 [pm_filters.paybox]
 debit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 credit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 
 [pm_filters.digitalvirgo]
-direct_carrier_billing = {country = "MA, CM, ZA, EG, SN, DZ, TN, ML, GN, GH, LY, GA, CG, MG, BW, SD, NG, ID, SG, AZ, TR, FR, ES, PL, GB, PT, DE, IT, BE, IE, SK, GR, NL, CH, BR, MX, AR, CL, AE, IQ, KW, BH, SA, QA, PS, JO, OM, RU" , currency = "MAD, XOF, XAF, ZAR, EGP, DZD, TND, GNF, GHS, LYD, XAF, CDF, MGA, BWP, SDG, NGN, IDR, SGD, RUB, AZN, TRY, EUR, PLN, GBP, CHF, BRL, MXN, ARS, CLP, AED, IQD, KWD, BHD, SAR, QAR, ILS, JOD, OMR" }
+direct_carrier_billing = { country = "MA, CM, ZA, EG, SN, DZ, TN, ML, GN, GH, LY, GA, CG, MG, BW, SD, NG, ID, SG, AZ, TR, FR, ES, PL, GB, PT, DE, IT, BE, IE, SK, GR, NL, CH, BR, MX, AR, CL, AE, IQ, KW, BH, SA, QA, PS, JO, OM, RU", currency = "MAD, XOF, XAF, ZAR, EGP, DZD, TND, GNF, GHS, LYD, XAF, CDF, MGA, BWP, SDG, NGN, IDR, SGD, RUB, AZN, TRY, EUR, PLN, GBP, CHF, BRL, MXN, ARS, CLP, AED, IQD, KWD, BHD, SAR, QAR, ILS, JOD, OMR" }
 
 [pm_filters.payu]
 debit = { country = "AE, AF, AL, AM, CW, AO, AR, AU, AW, AZ, BA, BB, BG, BH, BI, BM, BN, BO, BR, BS, BW, BY, BZ, CA, CD, LI, CL, CN, CO, CR, CV, CZ, DJ, DK, DO, DZ, EG, ET, AD, FJ, FK, GG, GE, GH, GI, GM, GN, GT, GY, HK, HN, HR, HT, HU, ID, IL, IQ, IS, JM, JO, JP, KG, KH, KM, KR, KW, KY, KZ, LA, LB, LR, LS, MA, MD, MG, MK, MN, MO, MR, MV, MW, MX, MY, MZ, NA, NG, NI, BV, CK, OM, PA, PE, PG, PL, PY, QA, RO, RS, RW, SA, SB, SC, SE, SG, SH, SO, SR, SV, SZ, TH, TJ, TM, TN, TO, TR, TT, TW, TZ, UG, AS, UY, UZ, VE, VN, VU, WS, CM, AI, BJ, PF, YE, ZA, ZM, ZW", currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BWP, BYN, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, IQD, ISK, JMD, JOD, JPY, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LRD, LSL, MAD, MDL, MGA, MKD, MNT, MOP, MRU, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NZD, OMR, PAB, PEN, PGK, PLN, PYG, QAR, RON, RSD, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SOS, SRD, SVC, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VES, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL" }
@@ -674,8 +674,8 @@ credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.redsys]
-credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
-debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
+credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country = "ES" }
+debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country = "ES" }
 
 [pm_filters.stax]
 credit = { currency = "USD" }
@@ -715,8 +715,8 @@ apple_pay = { country = "MY", currency = "MYR" }
 google_pay = { country = "MY", currency = "MYR" }
 
 [pm_filters.dlocal]
-credit = {country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW"}
-debit = {country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW"}
+credit = { country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW" }
+debit = { country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW" }
 
 
 [pm_filters.inespay]
@@ -917,7 +917,7 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 
 [events.kafka]
 brokers = ["localhost:9092"]
@@ -935,12 +935,12 @@ consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
-source = "sqlx"
+source = "clickhouse"
 forex_enabled = false
 
 [analytics.clickhouse]
 username = "default"
-# password = ""
+password = "Clickhouse@123"
 host = "http://localhost:8123"
 database_name = "default"
 
@@ -1026,11 +1026,11 @@ service = "dynamo"
 file_storage_backend = "file_system" # Theme storage backend to be used
 
 [theme.email_config]
-entity_name = "Hyperswitch"                                                      # Display name in emails
-entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png"  # Logo URL for emails
-foreground_color = "#111326"                                                     # Text color
-primary_color = "#006DF9"                                                        # Primary color
-background_color = "#FFFFFF"                                                     # Email background color
+entity_name = "Hyperswitch"                                                     # Display name in emails
+entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png" # Logo URL for emails
+foreground_color = "#111326"                                                    # Text color
+primary_color = "#006DF9"                                                       # Primary color
+background_color = "#FFFFFF"                                                    # Email background color
 
 [platform]
 enabled = true

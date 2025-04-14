@@ -62,7 +62,7 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: docker.juspay.io/juspaydotin/hyperswitch-router:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-router:nightly-standalone
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
@@ -322,7 +322,7 @@ services:
       - 9092:9092
       - 9093
       - 9997
-      - 29092
+      - 29092:29092
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
@@ -373,6 +373,8 @@ services:
       - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     environment:
       - TZ=Asia/Kolkata
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=Clickhouse@123
     profiles:
       - olap
     ulimits:
