@@ -2194,7 +2194,6 @@ impl behaviour::Conversion for PaymentAttempt {
             network_error_message: error
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
-            setup_future_usage: None,
         })
     }
 

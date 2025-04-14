@@ -89,7 +89,6 @@ pub struct PaymentAttempt {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,

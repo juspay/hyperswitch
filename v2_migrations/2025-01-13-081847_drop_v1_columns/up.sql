@@ -91,7 +91,8 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN connector_mandate_detail,
     DROP COLUMN charge_id,
     DROP COLUMN issuer_error_code,
-    DROP COLUMN issuer_error_message;
+    DROP COLUMN issuer_error_message,
+    DROP COLUMN setup_future_usage;
 
 
 ALTER TABLE payment_methods
