@@ -461,6 +461,7 @@ Cypress.Commands.add(
 
     const customHeaders = {
       "x-merchant-id": merchant_id,
+      "x-profile-id": profile_id,
     };
 
     // Update request body
@@ -537,10 +538,12 @@ Cypress.Commands.add("mcaRetrieveCall", (globalState) => {
   const connector_name = globalState.get("connectorId");
   const merchant_connector_id = globalState.get("merchantConnectorId");
   const merchant_id = globalState.get("merchantId");
+  const profile_id = globalState.get("profileId");
   const url = `${base_url}/v2/connector-accounts/${merchant_connector_id}`;
 
   const customHeaders = {
     "x-merchant-id": merchant_id,
+    "x-profile-id": profile_id,
   };
 
   cy.request({
@@ -548,7 +551,7 @@ Cypress.Commands.add("mcaRetrieveCall", (globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       ...customHeaders,
     },
     failOnStatusCode: false,
@@ -608,7 +611,7 @@ Cypress.Commands.add(
       url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "Authorization": `admin-api-key=${api_key}`,
         ...customHeaders,
       },
       body: mcaUpdateBody,
@@ -1251,13 +1254,14 @@ Cypress.Commands.add("mcaListCall", (globalState, service_type) => {
 
   const customHeaders = {
     "x-merchant-id": merchant_id,
+    "x-profile-id": profile_id,
   };
 
   cy.request({
     method: "GET",
     url: url,
     headers: {
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       "Content-Type": "application/json",
       ...customHeaders,
     },
