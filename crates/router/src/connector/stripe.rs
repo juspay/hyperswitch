@@ -1042,12 +1042,12 @@ impl
         router_env::logger::debug!("skipped parsing of the response");
         // If 200 status code, then metadata was updated successfully.
         let status = if res.status_code == 200 {
-            enums::SessionUpdateStatus::Success
+            enums::PaymentResourceUpdateStatus::Success
         } else {
-            enums::SessionUpdateStatus::Failure
+            enums::PaymentResourceUpdateStatus::Failure
         };
         Ok(types::PaymentsUpdateMetadataRouterData {
-            response: Ok(types::PaymentsResponseData::SessionUpdateResponse { status }),
+            response: Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { status }),
             ..data.clone()
         })
     }

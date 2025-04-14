@@ -3736,9 +3736,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .payment_intent
                 .metadata
                 .map(Secret::new)
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "metadata",
-                })?,
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("payment_intent.metadata not found")?,
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?

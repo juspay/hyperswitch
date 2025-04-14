@@ -105,12 +105,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let request_metadata = request.metadata.clone().expose();
-        let payment_intent_metadata = payment_intent
-            .metadata
-            .take()
-            .unwrap_or(request_metadata.clone());
-        let merged_metadata = merge_metadata(payment_intent_metadata, request_metadata);
+        let merged_metadata = payment_intent
+            .merge_metadata(request.metadata.clone().expose())
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Metadata should be an object and contain at least 1 key".to_owned(),
+            })?;
+
         payment_intent.metadata = Some(merged_metadata);
 
         let payment_data = PaymentData {
@@ -167,20 +167,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
         };
 
         Ok(get_trackers_response)
-    }
-}
-
-fn merge_metadata(
-    mut payment_intent_metadata: serde_json::Value,
-    request_metadata: serde_json::Value,
-) -> serde_json::Value {
-    match (&mut payment_intent_metadata, request_metadata.clone()) {
-        (serde_json::Value::Object(existing_map), serde_json::Value::Object(req_map)) => {
-            existing_map.extend(req_map);
-            payment_intent_metadata
-        }
-        (_, req_meta) if !req_meta.is_null() => req_meta,
-        _ => payment_intent_metadata,
     }
 }
 

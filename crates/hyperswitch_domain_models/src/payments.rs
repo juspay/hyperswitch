@@ -225,6 +225,33 @@ impl PaymentIntent {
             .map(|metadata| metadata.parse_value(type_name))
             .transpose()
     }
+
+    #[cfg(feature = "v1")]
+    pub fn merge_metadata(
+        &self,
+        request_metadata: Value,
+    ) -> Result<Value, common_utils::errors::ParsingError> {
+        if !request_metadata.is_null() {
+            match (&self.metadata, &request_metadata) {
+                (Some(Value::Object(existing_map)), Value::Object(req_map)) => {
+                    let mut merged = existing_map.clone();
+                    merged.extend(req_map.clone());
+                    Ok(Value::Object(merged))
+                }
+                (None, Value::Object(_)) => Ok(request_metadata),
+                _ => {
+                    router_env::logger::error!(
+                        "Expected metadata to be an object, got: {:?}",
+                        request_metadata
+                    );
+                    Err(common_utils::errors::ParsingError::UnknownError)
+                }
+            }
+        } else {
+            router_env::logger::error!("Metadata does not contain any key");
+            Err(common_utils::errors::ParsingError::UnknownError)
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

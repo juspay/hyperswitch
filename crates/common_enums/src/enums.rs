@@ -331,9 +331,15 @@ pub enum AuthorizationStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum SessionUpdateStatus {
+pub enum PaymentResourceUpdateStatus {
     Success,
     Failure,
+}
+
+impl PaymentResourceUpdateStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Success)
+    }
 }
 
 #[derive(

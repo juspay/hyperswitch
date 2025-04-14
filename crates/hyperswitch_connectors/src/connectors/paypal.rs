@@ -948,12 +948,12 @@ impl ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, Paymen
         // https://developer.paypal.com/docs/api/orders/v2/#orders_patch
         // If 204 status code, then the session was updated successfully.
         let status = if res.status_code == 204 {
-            enums::SessionUpdateStatus::Success
+            enums::PaymentResourceUpdateStatus::Success
         } else {
-            enums::SessionUpdateStatus::Failure
+            enums::PaymentResourceUpdateStatus::Failure
         };
         Ok(SdkSessionUpdateRouterData {
-            response: Ok(PaymentsResponseData::SessionUpdateResponse { status }),
+            response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
             ..data.clone()
         })
     }
