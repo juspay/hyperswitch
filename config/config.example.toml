@@ -884,6 +884,7 @@ region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [opensearch]
 host = "https://localhost:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"
