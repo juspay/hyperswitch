@@ -138,11 +138,11 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_opensearch(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
-        self.opensearch_client
-            .deep_health_check()
-            .await
-            .change_context(errors::HealthCheckDBError::OpensearchError)?;
-
+        if let Some(client) = self.opensearch_client.as_ref() {
+            client.deep_health_check()
+                .await
+                .change_context(errors::HealthCheckDBError::OpensearchError)?;
+        }
         Ok(HealthState::Running)
     }
 

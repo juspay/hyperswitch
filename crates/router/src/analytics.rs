@@ -2245,7 +2245,12 @@ pub mod routes {
                     .collect();
 
                 analytics::search::msearch_results(
-                    &state.opensearch_client,
+                    state
+                        .opensearch_client
+                        .as_ref()
+                        .ok_or_else(|| {
+                            error_stack::report!(OpenSearchError::NotEnabled)
+                        })?,
                     req,
                     search_params,
                     SEARCH_INDEXES.to_vec(),
@@ -2392,9 +2397,18 @@ pub mod routes {
                             })
                     })
                     .collect();
-                analytics::search::search_results(&state.opensearch_client, req, search_params)
-                    .await
-                    .map(ApplicationResponse::Json)
+                analytics::search::search_results(
+                    state
+                        .opensearch_client
+                        .as_ref()
+                        .ok_or_else(|| {
+                            error_stack::report!(OpenSearchError::NotEnabled)
+                        })?,
+                    req,
+                    search_params,
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
