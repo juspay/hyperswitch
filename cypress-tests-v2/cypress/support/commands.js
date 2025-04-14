@@ -671,7 +671,7 @@ Cypress.Commands.add("apiKeyCreateCall", (apiKeyCreateBody, globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       ...customHeaders,
     },
     body: apiKeyCreateBody,
@@ -718,7 +718,7 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       ...customHeaders,
     },
     failOnStatusCode: false,
@@ -768,7 +768,7 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
     url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       ...customHeaders,
     },
     body: apiKeyUpdateBody,
@@ -1323,7 +1323,7 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
     method: "GET",
     url: url,
     headers: {
-      "api-key": api_key,
+      "Authorization": `admin-api-key=${api_key}`,
       "Content-Type": "application/json",
       ...customHeaders,
     },
