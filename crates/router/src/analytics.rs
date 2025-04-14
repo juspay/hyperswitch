@@ -2248,9 +2248,7 @@ pub mod routes {
                     state
                         .opensearch_client
                         .as_ref()
-                        .ok_or_else(|| {
-                            error_stack::report!(OpenSearchError::NotEnabled)
-                        })?,
+                        .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
                     req,
                     search_params,
                     SEARCH_INDEXES.to_vec(),
@@ -2401,9 +2399,7 @@ pub mod routes {
                     state
                         .opensearch_client
                         .as_ref()
-                        .ok_or_else(|| {
-                            error_stack::report!(OpenSearchError::NotEnabled)
-                        })?,
+                        .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
                     req,
                     search_params,
                 )

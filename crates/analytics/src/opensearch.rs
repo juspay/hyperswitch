@@ -423,9 +423,11 @@ impl OpenSearchConfig {
         if !self.enabled {
             return Ok(None);
         }
-        Ok(Some(OpenSearchClient::create(self)
-            .await
-            .map_err(|_| StorageError::InitializationError)?))
+        Ok(Some(
+            OpenSearchClient::create(self)
+                .await
+                .map_err(|_| StorageError::InitializationError)?,
+        ))
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {

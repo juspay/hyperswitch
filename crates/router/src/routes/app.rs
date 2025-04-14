@@ -302,7 +302,7 @@ pub async fn create_email_client(
 }
 
 impl AppState {
-        /// # Panics
+    /// # Panics
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
