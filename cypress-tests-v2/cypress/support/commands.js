@@ -38,6 +38,85 @@ function logRequestId(xRequestId) {
   }
 }
 
+// Command to check the health status
+Cypress.Commands.add("healthCheck", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/health`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      Accept: "application/json",
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body).to.equal("health is good");
+      } else {
+        throw new Error(
+          `Health Check failed with status: \`${response.status}\` and body: \`${response.body}\``
+        );
+      }
+    });
+  });
+});
+
+// Command to set configurations
+Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
+  if (!key || !requestType) {
+    throw new Error("Key and requestType are required parameters");
+  }
+
+  const REQUEST_CONFIG = {
+    CREATE: { method: "POST", useKey: false },
+    UPDATE: { method: "POST", useKey: true },
+    FETCH: { method: "GET", useKey: true },
+    DELETE: { method: "DELETE", useKey: true },
+  };
+
+  const config = REQUEST_CONFIG[requestType];
+  if (!config) {
+    throw new Error(`Invalid requestType: ${requestType}`);
+  }
+
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/configs/${config.useKey ? key : ""}`;
+
+  const getRequestBody = {
+    CREATE: () => ({ key, value }),
+    UPDATE: () => ({ value }),
+  };
+  const body = getRequestBody[requestType]?.() || undefined;
+
+  cy.request({
+    method: config.method,
+    url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    ...(body && { body }),
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("key").to.equal(key);
+        expect(response.body).to.have.property("value").to.equal(value);
+      } else {
+        throw new Error(
+          `Failed to set configs with status ${response.status} and message ${response.body.error.message}`
+        );
+      }
+    });
+  });
+});
+
 // Organization API calls
 Cypress.Commands.add(
   "organizationCreateCall",
@@ -1354,65 +1433,66 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
 // Payment API calls
 // Update the below commands while following the conventions
 // Below is an example of how the payment intent create call should look like (update the below command as per the need)
-Cypress.Commands.add(
-  "paymentIntentCreateCall",
-  (
-    globalState,
-    paymentRequestBody,
-    paymentResponseBody
-    /* Add more variables based on the need*/
-  ) => {
-    // Define the necessary variables and constants at the top
-    // Also construct the URL here
-    const api_key = globalState.get("apiKey");
-    const base_url = globalState.get("baseUrl");
-    const profile_id = globalState.get("profileId");
-    const url = `${base_url}/v2/payments/create-intent`;
+// Cypress.Commands.add(
+//   "paymentIntentCreateCall",
+//   (
+//     globalState,
+//     paymentRequestBody,
+//     paymentResponseBody
+//     /* Add more variables based on the need*/
+//   ) => {
+//     // Define the necessary variables and constants at the top
+//     // Also construct the URL here
+//     console.log("globalState", globalState);
+//     const api_key = globalState.get("apiKey");
+//     const base_url = globalState.get("baseUrl");
+//     const profile_id = globalState.get("profileId");
+//     const url = `${base_url}/v2/payments/create-intent`;
 
-    // Update request body if needed
-    paymentRequestBody = {};
+//     // Update request body if needed
+//     paymentRequestBody = {};
 
-    // Pass Custom Headers
-    const customHeaders = {
-      "x-profile-id": profile_id,
-    };
+//     // Pass Custom Headers
+//     const customHeaders = {
+//       "x-profile-id": profile_id,
+//     };
 
-    cy.request({
-      method: "POST",
-      url: url,
-      headers: {
-        "api-key": api_key,
-        "Content-Type": "application/json",
-        ...customHeaders,
-      },
-      body: paymentRequestBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      // Logging x-request-id is mandatory
-      logRequestId(response.headers["x-request-id"]);
+//     cy.request({
+//       method: "POST",
+//       url: url,
+//       headers: {
+//         "Authorization": `api-key=${api_key}`,
+//         "Content-Type": "application/json",
+//         ...customHeaders,
+//       },
+//       body: paymentRequestBody,
+//       failOnStatusCode: false,
+//     }).then((response) => {
+//       // Logging x-request-id is mandatory
+//       logRequestId(response.headers["x-request-id"]);
 
-      if (response.status === 200) {
-        // Update the assertions based on the need
-        expect(response.body).to.deep.equal(paymentResponseBody);
-      } else if (response.status === 400) {
-        // Add 4xx validations here
-        expect(response.body).to.deep.equal(paymentResponseBody);
-      } else if (response.status === 500) {
-        // Add 5xx validations here
-        expect(response.body).to.deep.equal(paymentResponseBody);
-      } else {
-        // If status code is other than the ones mentioned above, default should be thrown
-        throw new Error(
-          `Payment intent create call failed with status ${response.status} and message: "${response.body.error.message}"`
-        );
-      }
-    });
-  }
-);
-Cypress.Commands.add("paymentIntentConfirmCall", (globalState) => {});
-Cypress.Commands.add("paymentIntentRetrieveCall", (globalState) => {});
+//       if (response.status === 200) {
+//         // Update the assertions based on the need
+//         expect(response.body).to.deep.equal(paymentResponseBody);
+//       } else if (response.status === 400) {
+//         // Add 4xx validations here
+//         expect(response.body).to.deep.equal(paymentResponseBody);
+//       } else if (response.status === 500) {
+//         // Add 5xx validations here
+//         expect(response.body).to.deep.equal(paymentResponseBody);
+//       } else {
+//         // If status code is other than the ones mentioned above, default should be thrown
+//         throw new Error(
+//           `Payment intent create call failed with status ${response.status} and message: "${response.body.error.message}"`
+//         );
+//       }
+//     });
+//   }
+// );
+// Cypress.Commands.add("paymentIntentConfirmCall", (globalState) => {});
+// Cypress.Commands.add("paymentIntentRetrieveCall", (globalState) => {});
 
-// templates for future use
-Cypress.Commands.add("", () => {
-  cy.request({}).then((response) => {});
-});
+// // templates for future use
+// Cypress.Commands.add("", () => {
+//   cy.request({}).then((response) => {});
+// });

@@ -72,6 +72,12 @@ To run test cases, follow these steps:
    npm run cypress:routing
    ```
 
+   To run miscellaneous tests in headless mode run the following command
+
+   ```shell
+   npm run cypress:misc
+   ```
+
 > [!NOTE]
 > To learn about how creds file should be structured, refer to the [example.creds.json](#example-credsjson) section below.
 
