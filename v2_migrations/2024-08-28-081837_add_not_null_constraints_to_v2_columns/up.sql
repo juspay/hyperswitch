@@ -4,9 +4,6 @@ ALTER TABLE customers
     ALTER COLUMN status SET NOT NULL,
     ALTER COLUMN status SET DEFAULT 'active';
 
----------------------business_profile---------------------
-ALTER TABLE business_profile ALTER COLUMN should_collect_cvv_during_payment SET NOT NULL;
-
 -- This migration is to make profile_id mandatory in mca table
 ALTER TABLE merchant_connector_account
     ALTER COLUMN profile_id SET NOT NULL;

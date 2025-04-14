@@ -8,6 +8,7 @@ pub struct PcrWorkflowTrackingData {
     pub profile_id: id_type::ProfileId,
     pub global_payment_id: id_type::GlobalPaymentId,
     pub payment_attempt_id: id_type::GlobalAttemptId,
+    pub billing_mca_id: id_type::MerchantConnectorAccountId,
 }
 
 #[derive(Debug, Clone)]

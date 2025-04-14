@@ -436,7 +436,7 @@ pub struct PaymentAttempt {
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -476,7 +476,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
         // TODO: check if we can fix this
-        self.payment_method_subtype
+        Some(self.payment_method_subtype)
     }
 
     #[cfg(feature = "v1")]
@@ -660,7 +660,8 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: None,
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data,
+            payment_method_subtype: payment_method_subtype_data
+                .unwrap_or(common_enums::PaymentMethodType::Credit),
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1009,7 +1010,7 @@ impl NetAmount {
 impl PaymentAttempt {
     #[track_caller]
     pub fn get_total_amount(&self) -> MinorUnit {
-        todo!();
+        self.amount_details.get_net_amount()
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {

@@ -116,6 +116,8 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -288,7 +290,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -403,8 +405,6 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
-    /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
-    pub client_secret: common_utils::types::ClientSecret,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     /// The order details for the payment.
@@ -470,6 +470,9 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<id_type::MerchantId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -526,22 +529,6 @@ impl PaymentIntent {
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
 
-    /// Check if the client secret is associated with the payment and if it has been expired
-    pub fn validate_client_secret(
-        &self,
-        client_secret: &common_utils::types::ClientSecret,
-    ) -> Result<(), errors::api_error_response::ApiErrorResponse> {
-        common_utils::fp_utils::when(self.client_secret != *client_secret, || {
-            Err(errors::api_error_response::ApiErrorResponse::ClientSecretInvalid)
-        })?;
-
-        common_utils::fp_utils::when(self.session_expiry < common_utils::date_time::now(), || {
-            Err(errors::api_error_response::ApiErrorResponse::ClientSecretExpired)
-        })?;
-
-        Ok(())
-    }
-
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
         merchant_account: &merchant_account::MerchantAccount,
@@ -566,13 +553,13 @@ impl PaymentIntent {
                         .unwrap_or(common_utils::consts::DEFAULT_SESSION_EXPIRY),
                 ),
             ));
-        let client_secret = payment_id.generate_client_secret();
         let order_details = request.order_details.map(|order_details| {
             order_details
                 .into_iter()
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -589,7 +576,6 @@ impl PaymentIntent {
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
-            client_secret,
             active_attempt_id: None,
             order_details,
             allowed_payment_method_types,
@@ -645,6 +631,8 @@ impl PaymentIntent {
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         })
     }
 
@@ -704,7 +692,6 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
-    pub client_secret: Option<common_utils::types::ClientSecret>,
 }
 
 impl HeaderPayload {
@@ -725,6 +712,7 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
+    pub client_secret: Option<Secret<String>>,
 }
 
 // TODO: Check if this can be merged with existing payment data
@@ -835,9 +823,9 @@ where
                 total_retry_count: revenue_recovery
                     .as_ref()
                     .map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallUnsuccessful.
                 payment_connector_transmission:
-                    common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                    common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
                 billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
                 active_attempt_payment_connector_id: self
                     .payment_attempt
