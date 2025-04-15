@@ -18,6 +18,10 @@ pub use payment_methods::migrate_payment_method;
 
 type PmMigrationResult<T> = errors::CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn migrate_payment_methods<R, Fut>(
     payment_methods: Vec<PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
