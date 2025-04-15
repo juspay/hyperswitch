@@ -2471,12 +2471,12 @@ impl WebhookEvents {
         web::scope("/events")
             .app_data(web::Data::new(config))
             .service(web::scope("/profile/list").service(web::resource("").route(
-                web::get().to(webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth),
+                web::post().to(webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth),
             )))
             .service(
                 web::scope("/{merchant_id}")
                     .service(web::resource("").route(
-                        web::get().to(webhook_events::list_initial_webhook_delivery_attempts),
+                        web::post().to(webhook_events::list_initial_webhook_delivery_attempts),
                     ))
                     .service(
                         web::scope("/{event_id}")
