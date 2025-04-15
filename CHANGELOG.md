@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.14.0-hotfix1
+
+### Features
+
+- **core:** Add support for updating metadata after payment has been authorized ([#7811](https://github.com/juspay/hyperswitch/pull/7811)) ([`2994978`](https://github.com/juspay/hyperswitch/commit/29949786d1fd896687511a4a35e4343c2911c931))
+
+**Full Changelog:** [`2025.04.14.0...2025.04.14.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.04.14.0...2025.04.14.0-hotfix1)
+
+
+- - -
+
 ## 2025.04.14.0
 
 ### Features
