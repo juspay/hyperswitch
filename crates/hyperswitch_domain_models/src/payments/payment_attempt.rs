@@ -454,10 +454,10 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     /// Whether to request for overcapture
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
-    /// Whether overcapture was applied
-    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// Whether overcapture was applied
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 impl PaymentAttempt {

@@ -471,13 +471,12 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Identifier for the platform merchant.
     pub platform_merchant_id: Option<id_type::MerchantId>,
-    /// Denotes whether to request for overcapture
-    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    /// Denotes whether to request for overcapture
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]

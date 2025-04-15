@@ -876,8 +876,6 @@ diesel::table! {
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
-        request_overcapture -> Nullable<Varchar>,
-        #[max_length = 32]
         overcapture_status -> Nullable<Varchar>,
         payment_method_type_v2 -> Varchar,
         #[max_length = 128]
