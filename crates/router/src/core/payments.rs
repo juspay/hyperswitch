@@ -40,7 +40,12 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
-use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
+
+use hyperswitch_domain_models::{
+    payments::{payment_intent::CustomerData, ClickToPayMetaData},
+    router_data::AccessToken,
+};
+
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentCaptureData, PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -3111,7 +3116,7 @@ where
         key_store,
         &merchant_connector_account,
         payment_data,
-        &router_data,
+        &router_data.access_token.clone(),
     )
     .await?;
 
@@ -4281,7 +4286,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     key_store: &domain::MerchantKeyStore,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
-    payment_router_data: &RouterData<F, Req, router_types::PaymentsResponseData>,
+    access_token: &Option<AccessToken>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -4357,7 +4362,7 @@ where
                     )
                     .await?;
 
-                customer_router_data.access_token = payment_router_data.access_token.clone();
+                customer_router_data.access_token = access_token.clone();
                 let connector_customer_id = customer_router_data
                     .create_connector_customer(state, &connector)
                     .await?;
