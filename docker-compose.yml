@@ -8,6 +8,15 @@ networks:
 
 services:
   ### Dependencies
+  prestart-hook:
+    image: curlimages/curl-base:latest
+    container_name: prestart-hook
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash && /bin/bash /prestart_hook.sh"]
+    volumes:
+      - ./scripts/prestart_hook.sh:/prestart_hook.sh
+    networks:
+      - router_net
+
   pg:
     image: postgres:latest
     ports:
@@ -86,6 +95,18 @@ services:
       start_period: 5s
       timeout: 5s
 
+  poststart-hook:
+    image: curlimages/curl-base:latest
+    container_name: poststart-hook
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy  # Ensures it only starts when `hyperswitch-server` is healthy
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh"]
+    volumes:
+      - ./scripts/poststart_hook.sh:/poststart_hook.sh
+    networks:
+      - router_net 
+      
   hyperswitch-producer:
     image: docker.juspay.io/juspaydotin/hyperswitch-producer:standalone
     pull_policy: always
