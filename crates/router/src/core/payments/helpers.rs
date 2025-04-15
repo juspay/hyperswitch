@@ -2652,7 +2652,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                         Some(business_profile),
                     )
                     .await?;
-    
+
                     payment_data.token = payment_token;
                 }
             };
