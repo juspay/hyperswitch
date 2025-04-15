@@ -6443,6 +6443,28 @@ pub struct PaymentsSessionRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsUpdateMetadataRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: pii::SecretSerdeValue,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsUpdateMetadataResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsPostSessionTokensRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
