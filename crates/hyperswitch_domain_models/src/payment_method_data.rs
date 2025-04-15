@@ -1504,9 +1504,8 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
-                    source_bank_account_id: source_bank_account_id.map(MaskedBankAccount::from),
-                    destination_bank_account_id: destination_bank_account_id
-                        .map(MaskedBankAccount::from),
+                    source_bank_account_id,
+                    destination_bank_account_id,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},

@@ -40,12 +40,6 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
-
-use hyperswitch_domain_models::{
-    payments::{payment_intent::CustomerData, ClickToPayMetaData},
-    router_data::AccessToken,
-};
-
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentCaptureData, PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -58,6 +52,10 @@ pub use hyperswitch_domain_models::{
     payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
+};
+use hyperswitch_domain_models::{
+    payments::{payment_intent::CustomerData, ClickToPayMetaData},
+    router_data::AccessToken,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
