@@ -41,4 +41,4 @@ v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1", "sch
 v2 = ["customer_v2", "payment_methods_v2", "common_utils/v2", "scheduler/v2", "common_types/v2"]
 payment_methods_v2 = [ "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
 dummy_connector = ["api_models/dummy_connector", "hyperswitch_interfaces/dummy_connector"]
-payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]
+payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts", "hyperswitch_interfaces/payouts"]
