@@ -131,8 +131,6 @@ enum RequiredField {
     BillingLastName(&'static str, FieldType),
     BillingEmail,
     Email,
-    // Payment Method Data Billing Phone Number
-    PMBillingPhone,
     BillingPhone,
     BillingPhoneCountryCode,
     BillingAddressLine1,
@@ -297,15 +295,6 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.billing.phone.number".to_string(),
                     display_name: "phone".to_string(),
-                    field_type: FieldType::UserPhoneNumber,
-                    value: None,
-                },
-            ),
-            Self::PMBillingPhone => (
-                "payment_method_data.billing.phone.number".to_string(),
-                RequiredFieldInfo {
-                    required_field: "payment_method_data.billing.phone.number".to_string(),
-                    display_name: "phone_number".to_string(),
                     field_type: FieldType::UserPhoneNumber,
                     value: None,
                 },
@@ -1478,7 +1467,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 [
                     card_basic(),
-                    vec![RequiredField::BillingEmail, RequiredField::PMBillingPhone],
+                    vec![RequiredField::BillingEmail, RequiredField::BillingPhone],
                 ]
                 .concat(),
             ),
@@ -2368,7 +2357,7 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                 fields(
                     vec![],
                     vec![
-                        RequiredField::PMBillingPhone,
+                        RequiredField::BillingPhone,
                         RequiredField::BillingPhoneCountryCode,
                     ],
                     vec![],
@@ -2647,7 +2636,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         RequiredField::BillingAddressState.to_tuple(),
                         RequiredField::BillingAddressZip.to_tuple(),
                         RequiredField::BillingAddressCountries(vec!["CA"]).to_tuple(),
-                        RequiredField::PMBillingPhone.to_tuple(),
+                        RequiredField::BillingPhone.to_tuple(),
                         RequiredField::BillingPhoneCountryCode.to_tuple(),
                         RequiredField::BillingEmail.to_tuple(),
                         RequiredField::BillingAddressLine1.to_tuple(),
@@ -2691,7 +2680,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         RequiredField::BillingAddressState.to_tuple(),
                         RequiredField::BillingAddressZip.to_tuple(),
                         RequiredField::BillingAddressCountries(vec!["FR"]).to_tuple(),
-                        RequiredField::PMBillingPhone.to_tuple(),
+                        RequiredField::BillingPhone.to_tuple(),
                         RequiredField::BillingPhoneCountryCode.to_tuple(),
                         RequiredField::BillingEmail.to_tuple(),
                         RequiredField::BillingAddressLine1.to_tuple(),
@@ -2714,7 +2703,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         RequiredField::BillingAddressState.to_tuple(),
                         RequiredField::BillingAddressZip.to_tuple(),
                         RequiredField::BillingAddressCountries(vec!["MY", "SG"]).to_tuple(),
-                        RequiredField::PMBillingPhone.to_tuple(),
+                        RequiredField::BillingPhone.to_tuple(),
                         RequiredField::BillingPhoneCountryCode.to_tuple(),
                         RequiredField::BillingEmail.to_tuple(),
                         RequiredField::BillingAddressLine1.to_tuple(),
@@ -3209,7 +3198,6 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
 
 #[test]
 fn test_required_fields_to_json() {
-    // use serde_json::Value;
 
     // Test billing fields
     let billing_fields = get_billing_required_fields();
@@ -3292,10 +3280,9 @@ fn test_required_fields_to_json() {
         }
         // print the result of default required fields as json in new file
         serde_json::to_writer_pretty(
-            std::fs::File::create("default_required_fields.json")?,
+            std::fs::File::create("default_required_fields.json").unwrap(),
             &default_fields,
-        )?;
+        ).unwrap();
     }
 
-    Ok(())
 }

@@ -128,11 +128,11 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 first_name: address
                                     .address
                                     .as_ref()
-                                    .and_then(|a| a.first_name.clone().map(From::from)),
+                                    .and_then(|a| a.first_name.clone()),
                                 last_name: address
                                     .address
                                     .as_ref()
-                                    .and_then(|a| a.last_name.clone().map(From::from)),
+                                    .and_then(|a| a.last_name.clone()),
                                 zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                                 phone_number: address
                                     .phone
@@ -341,14 +341,8 @@ pub async fn get_domain_address(
                         line2: address.address.as_ref().and_then(|a| a.line2.clone()),
                         line3: address.address.as_ref().and_then(|a| a.line3.clone()),
                         state: address.address.as_ref().and_then(|a| a.state.clone()),
-                        first_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|a| a.first_name.clone().map(From::from)),
-                        last_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|a| a.last_name.clone().map(From::from)),
+                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
+                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
                         zip: address.address.as_ref().and_then(|a| a.zip.clone()),
                         phone_number: address
                             .phone
@@ -1886,7 +1880,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
 
             if let Some(name) = name_on_card.clone() {
-                if !name.is_empty() {
+                if !name.peek().is_empty() {
                     is_card_updated = true;
                     updated_card.nick_name = name_on_card;
                 }
@@ -2278,7 +2272,7 @@ pub async fn fetch_card_details_from_locker(
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
     let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.is_empty() {
+        if name.clone().expose().is_empty() {
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
                 .or(Some(name))
@@ -2300,7 +2294,7 @@ pub async fn fetch_card_details_from_locker(
             .card_cvc
             .unwrap_or_default(),
         card_issuer: None,
-        nick_name: card.nick_name,
+        nick_name: card.nick_name.map(masking::Secret::new),
         card_network: card
             .card_brand
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
@@ -2358,7 +2352,7 @@ pub async fn fetch_network_token_details_from_locker(
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
-        nick_name: token_data.nick_name,
+        nick_name: token_data.nick_name.map(masking::Secret::new),
         card_issuer: None,
         card_network,
         card_type: None,
@@ -2405,7 +2399,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
-            nick_name: card_details_from_locker.nick_name,
+            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
             card_holder_name: card_details_from_locker.name_on_card.clone(),
         };
 
@@ -3593,30 +3587,6 @@ pub fn authenticate_client_secret(
     }
 }
 
-#[cfg(feature = "v2")]
-// A function to manually authenticate the client secret with intent fulfillment time
-pub fn authenticate_client_secret(
-    request_client_secret: Option<&common_utils::types::ClientSecret>,
-    payment_intent: &PaymentIntent,
-) -> Result<(), errors::ApiErrorResponse> {
-    match (request_client_secret, &payment_intent.client_secret) {
-        (Some(req_cs), pi_cs) => {
-            if req_cs != pi_cs {
-                Err(errors::ApiErrorResponse::ClientSecretInvalid)
-            } else {
-                let current_timestamp = common_utils::date_time::now();
-
-                let session_expiry = payment_intent.session_expiry;
-
-                fp_utils::when(current_timestamp > session_expiry, || {
-                    Err(errors::ApiErrorResponse::ClientSecretExpired)
-                })
-            }
-        }
-        _ => Ok(()),
-    }
-}
-
 pub(crate) fn validate_payment_status_against_allowed_statuses(
     intent_status: storage_enums::IntentStatus,
     allowed_statuses: &[storage_enums::IntentStatus],
@@ -3847,6 +3817,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3919,6 +3891,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3989,6 +3963,8 @@ mod tests {
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
             platform_merchant_id: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -6362,16 +6338,19 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    confirm: Option<bool>,
+    request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(cnf) = confirm {
-        if !cnf {
-            return Ok(());
-        } else {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "cannot confirm a payment while creating a payment link".to_string(),
-            });
-        }
+    #[cfg(feature = "v1")]
+    if request.confirm == Some(true) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "cannot confirm a payment while creating a payment link".to_string(),
+        });
+    }
+
+    if request.return_url.is_none() {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "return_url must be sent while creating a payment link".to_string(),
+        });
     }
     Ok(())
 }
@@ -6817,7 +6796,13 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    if *do_authorisation_confirmation {
+                    let should_do_uas_confirmation_call = payment_data
+                        .service_details
+                        .as_ref()
+                        .map(|details| details.is_network_confirmation_call_required())
+                        .unwrap_or(true);
+
+                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
                         Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
                     } else {
                         Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)

@@ -1,8 +1,12 @@
 pub mod transformers;
 pub mod types;
-use api_models::{payments::PaymentsRetrieveRequest, process_tracker::revenue_recovery};
+use api_models::{
+    payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest},
+    process_tracker::revenue_recovery,
+};
 use common_utils::{
     self,
+    errors::CustomResult,
     ext_traits::{OptionExt, ValueExt},
     id_type,
     types::keymanager::KeyManagerState,
@@ -11,6 +15,9 @@ use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
+    behaviour::ReverseConversion,
+    errors::api_error_response,
+    merchant_connector_account,
     payments::{PaymentIntent, PaymentStatusData},
     ApiModelToDieselModelConvertor,
 };
@@ -42,6 +49,7 @@ pub async fn perform_execute_payment(
     pcr_data: &pcr::PcrPaymentData,
     _key_manager_state: &KeyManagerState,
     payment_intent: &PaymentIntent,
+    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
@@ -55,7 +63,9 @@ pub async fn perform_execute_payment(
     let decision = pcr_types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
-        pcr_metadata.payment_connector_transmission,
+        pcr_metadata
+            .payment_connector_transmission
+            .unwrap_or_default(),
         payment_intent.active_attempt_id.clone(),
         pcr_data,
         &tracking_data.global_payment_id,
@@ -80,6 +90,7 @@ pub async fn perform_execute_payment(
                 execute_task_process,
                 pcr_data,
                 &mut pcr_metadata,
+                billing_mca,
             ))
             .await?;
         }
@@ -106,6 +117,7 @@ pub async fn perform_execute_payment(
                 None => {
                     // insert new psync task
                     insert_psync_pcr_task(
+                        billing_mca.get_id().clone(),
                         db,
                         pcr_data.merchant_account.get_id().clone(),
                         payment_intent.get_id().clone(),
@@ -138,6 +150,7 @@ pub async fn perform_execute_payment(
 }
 
 async fn insert_psync_pcr_task(
+    billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
     payment_id: id_type::GlobalPaymentId,
@@ -149,6 +162,7 @@ async fn insert_psync_pcr_task(
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
     let schedule_time = common_utils::date_time::now();
     let psync_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
+        billing_mca_id,
         global_payment_id: payment_id,
         merchant_id,
         profile_id,
@@ -263,7 +277,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .find_process_by_id(&process_tracker_id_for_psync)
         .await
         .map_err(|e| {
-            logger::error!("Error while retreiving psync task : {:?}", e);
+            logger::error!("Error while retrieving psync task : {:?}", e);
         })
         .ok()
         .flatten();

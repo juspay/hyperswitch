@@ -13,8 +13,7 @@ use common_utils::{
     },
 };
 use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal,
-    query::customers::CustomerListConstraints as DieselCustomerListConstraints,
+    customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
@@ -511,7 +510,7 @@ pub struct CustomerListConstraints {
     pub offset: Option<u32>,
 }
 
-impl From<CustomerListConstraints> for DieselCustomerListConstraints {
+impl From<CustomerListConstraints> for query::CustomerListConstraints {
     fn from(value: CustomerListConstraints) -> Self {
         Self {
             limit: i64::from(value.limit),

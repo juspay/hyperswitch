@@ -13,9 +13,9 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    ops::{Add, Deref, Mul, Sub},
+    ops::{Add, Mul, Sub},
     primitive::i64,
-    str::{FromStr, SplitWhitespace},
+    str::FromStr,
 };
 
 use common_enums::enums;
@@ -29,7 +29,6 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
 pub use primitive_wrappers::bool_wrappers::{
     AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
     RequestExtendedAuthorizationBool,
@@ -49,7 +48,6 @@ use crate::{
         self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
-    ext_traits::ConfigExt,
     fp_utils::when,
 };
 
@@ -127,7 +125,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            match value.split('.').last() {
+            match value.split('.').next_back() {
                 Some(decimal_part) => {
                     decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
                 }
@@ -688,261 +686,6 @@ where
     }
 }
 
-#[cfg(feature = "v2")]
-pub use client_secret_type::ClientSecret;
-#[cfg(feature = "v2")]
-mod client_secret_type {
-    use std::fmt;
-
-    use masking::PeekInterface;
-    use router_env::logger;
-
-    use super::*;
-    use crate::id_type;
-
-    /// A domain type that can be used to represent a client secret
-    /// Client secret is generated for a payment and is used to authenticate the client side api calls
-    #[derive(Debug, PartialEq, Clone, AsExpression)]
-    #[diesel(sql_type = sql_types::Text)]
-    pub struct ClientSecret {
-        /// The payment id of the payment
-        pub payment_id: id_type::GlobalPaymentId,
-        /// The secret string
-        pub secret: masking::Secret<String>,
-    }
-
-    impl ClientSecret {
-        pub(crate) fn get_string_repr(&self) -> String {
-            format!(
-                "{}_secret_{}",
-                self.payment_id.get_string_repr(),
-                self.secret.peek()
-            )
-        }
-
-        /// Create a new client secret
-        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
-            Self {
-                payment_id,
-                secret: masking::Secret::new(secret),
-            }
-        }
-    }
-
-    impl FromStr for ClientSecret {
-        type Err = ParsingError;
-
-        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
-            let (payment_id, secret) =
-                str_value
-                    .rsplit_once("_secret_")
-                    .ok_or(ParsingError::EncodeError(
-                        "Expected a string in the format '{payment_id}_secret_{secret}'",
-                    ))?;
-
-            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                .map_err(|err| {
-                    logger::error!(global_payment_id_error=?err);
-                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
-                })?;
-
-            Ok(Self {
-                payment_id,
-                secret: masking::Secret::new(secret.to_owned()),
-            })
-        }
-    }
-
-    impl<'de> Deserialize<'de> for ClientSecret {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            struct ClientSecretVisitor;
-
-            impl Visitor<'_> for ClientSecretVisitor {
-                type Value = ClientSecret;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
-                }
-
-                fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
-                where
-                    E: serde::de::Error,
-                {
-                    let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
-                        E::invalid_value(
-                            serde::de::Unexpected::Str(value),
-                            &"a string with '_secret_'",
-                        )
-                    })?;
-
-                    let payment_id =
-                        id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                            .map_err(serde::de::Error::custom)?;
-
-                    Ok(ClientSecret {
-                        payment_id,
-                        secret: masking::Secret::new(secret.to_owned()),
-                    })
-                }
-            }
-
-            deserializer.deserialize_str(ClientSecretVisitor)
-        }
-    }
-
-    impl Serialize for ClientSecret {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::ser::Serializer,
-        {
-            serializer.serialize_str(self.get_string_repr().as_str())
-        }
-    }
-
-    impl ToSql<sql_types::Text, diesel::pg::Pg> for ClientSecret
-    where
-        String: ToSql<sql_types::Text, diesel::pg::Pg>,
-    {
-        fn to_sql<'b>(
-            &'b self,
-            out: &mut Output<'b, '_, diesel::pg::Pg>,
-        ) -> diesel::serialize::Result {
-            let string_repr = self.get_string_repr();
-            <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(
-                &string_repr,
-                &mut out.reborrow(),
-            )
-        }
-    }
-
-    impl<DB> FromSql<sql_types::Text, DB> for ClientSecret
-    where
-        DB: Backend,
-        String: FromSql<sql_types::Text, DB>,
-    {
-        fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
-            let string_repr = String::from_sql(value)?;
-            let (payment_id, secret) =
-                string_repr
-                    .rsplit_once("_secret_")
-                    .ok_or(ParsingError::EncodeError(
-                        "Expected a string in the format '{payment_id}_secret_{secret}'",
-                    ))?;
-
-            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                .map_err(|err| {
-                    logger::error!(global_payment_id_error=?err);
-                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
-                })?;
-
-            Ok(Self {
-                payment_id,
-                secret: masking::Secret::new(secret.to_owned()),
-            })
-        }
-    }
-
-    impl<DB> Queryable<sql_types::Text, DB> for ClientSecret
-    where
-        DB: Backend,
-        Self: FromSql<sql_types::Text, DB>,
-    {
-        type Row = Self;
-
-        fn build(row: Self::Row) -> deserialize::Result<Self> {
-            Ok(row)
-        }
-    }
-    crate::impl_serializable_secret_id_type!(ClientSecret);
-    #[cfg(test)]
-    mod client_secret_tests {
-        #![allow(clippy::expect_used)]
-        #![allow(clippy::unwrap_used)]
-
-        use serde_json;
-
-        use super::*;
-        use crate::id_type::GlobalPaymentId;
-
-        #[test]
-        fn test_serialize_client_secret() {
-            let global_payment_id = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-            let secret = "fc34taHLw1ekPgNh92qr".to_string();
-
-            let expected_client_secret_string = format!("\"{global_payment_id}_secret_{secret}\"");
-
-            let client_secret1 = ClientSecret {
-                payment_id: GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id)).unwrap(),
-                secret: masking::Secret::new(secret),
-            };
-
-            let parsed_client_secret =
-                serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
-
-            assert_eq!(expected_client_secret_string, parsed_client_secret);
-        }
-
-        #[test]
-        fn test_deserialize_client_secret() {
-            // This is a valid global id
-            let global_payment_id_str = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-            let secret = "fc34taHLw1ekPgNh92qr".to_string();
-
-            let valid_payment_global_id =
-                GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id_str))
-                    .expect("Failed to create valid global payment id");
-
-            // This is an invalid global id because of the cell id being in invalid length
-            let invalid_global_payment_id = "123_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-
-            // Create a client secret string which is valid
-            let valid_client_secret = format!(r#""{global_payment_id_str}_secret_{secret}""#);
-
-            dbg!(&valid_client_secret);
-
-            // Create a client secret string which is invalid
-            let invalid_client_secret_because_of_invalid_payment_id =
-                format!(r#""{invalid_global_payment_id}_secret_{secret}""#);
-
-            // Create a client secret string which is invalid because of invalid secret
-            let invalid_client_secret_because_of_invalid_secret =
-                format!(r#""{invalid_global_payment_id}""#);
-
-            let valid_client_secret = serde_json::from_str::<ClientSecret>(&valid_client_secret)
-                .expect("Failed to deserialize client_secret_str1");
-
-            let invalid_deser1 = serde_json::from_str::<ClientSecret>(
-                &invalid_client_secret_because_of_invalid_payment_id,
-            );
-
-            dbg!(&invalid_deser1);
-
-            let invalid_deser2 = serde_json::from_str::<ClientSecret>(
-                &invalid_client_secret_because_of_invalid_secret,
-            );
-
-            dbg!(&invalid_deser2);
-
-            assert_eq!(valid_client_secret.payment_id, valid_payment_global_id);
-
-            assert_eq!(valid_client_secret.secret.peek(), &secret);
-
-            assert_eq!(
-                invalid_deser1.err().unwrap().to_string(),
-                "Incorrect value provided for field: payment_id at line 1 column 70"
-            );
-
-            assert_eq!(
-                invalid_deser2.err().unwrap().to_string(),
-                "invalid value: string \"123_pay_1a961ed9093c48b09781bf8ab17ba6bd\", expected a string with '_secret_' at line 1 column 42"
-            );
-        }
-    }
-}
-
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
 #[derive(
     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
@@ -1102,11 +845,6 @@ pub(crate) enum LengthStringError {
     MinLengthViolated(u16),
 }
 
-impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> masking::SerializableSecret
-    for LengthString<MAX_LENGTH, MIN_LENGTH>
-{
-}
-
 impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_LENGTH> {
     /// Generates new [MerchantReferenceId] from the given input string
     pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthStringError> {
@@ -1130,22 +868,6 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_
     }
 }
 
-impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Display
-    for LengthString<MAX_LENGTH, MIN_LENGTH>
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Default
-    for LengthString<MAX_LENGTH, MIN_LENGTH>
-{
-    fn default() -> Self {
-        Self(String::default())
-    }
-}
-
 impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 {
@@ -1155,13 +877,6 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     {
         let deserialized_string = String::deserialize(deserializer)?;
         Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
-    }
-}
-
-impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deref for LengthString<MAX_LENGTH, MIN_LENGTH> {
-    type Target = String;
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
@@ -1390,173 +1105,6 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
-    }
-}
-
-#[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
-/// NewType for validating Names
-pub struct NameType(masking::Secret<LengthString<256, 0>>);
-
-impl TryFrom<String> for NameType {
-    type Error = error_stack::Report<ValidationError>;
-    fn try_from(card_holder_name: String) -> Result<Self, Self::Error> {
-        for char in card_holder_name.chars() {
-            validate_character_in_card_holder_name(char)?;
-        }
-        let valid_length_name =
-            LengthString::<256, 0>::from(card_holder_name.into()).map_err(|_| {
-                report!(ValidationError::InvalidValue {
-                    message: "invalid length for name".to_string()
-                })
-            })?;
-        Ok(Self(masking::Secret::new(valid_length_name)))
-    }
-}
-
-impl TryFrom<masking::Secret<String>> for NameType {
-    type Error = error_stack::Report<ValidationError>;
-    fn try_from(masked_card_holder_name: masking::Secret<String>) -> Result<Self, Self::Error> {
-        Self::try_from(masked_card_holder_name.expose())
-    }
-}
-
-impl NameType {
-    /// This function is used to create NameType from a string without any validation
-    pub fn get_unchecked(card_holder_name: String) -> Self {
-        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
-            card_holder_name,
-        )))
-    }
-
-    /// This function is used to create NameType from a secret of string without any validation
-    pub fn get_unchecked_from_secret(card_holder_name: masking::Secret<String>) -> Self {
-        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
-            card_holder_name.expose(),
-        )))
-    }
-
-    /// Trim the name
-    pub fn trim(&self) -> Self {
-        let value = self.0.peek().trim().to_string();
-        Self(masking::Secret::new(LengthString::<256, 0>::new_unchecked(
-            value,
-        )))
-    }
-
-    /// Check if the string is empty
-    pub fn is_empty(&self) -> bool {
-        self.0.peek().is_empty()
-    }
-
-    /// Split the string by whitespace
-    pub fn split_whitespace(&self) -> SplitWhitespace<'_> {
-        self.0.peek().split_whitespace()
-    }
-
-    /// Split once at the first occurrence of the given character
-    pub fn split_once(&self, delimiter: char) -> Option<(&str, &str)> {
-        self.0.peek().split_once(delimiter)
-    }
-
-    /// Split once at the last occurrence of the given character
-    pub fn rsplit_once(&self, delimiter: char) -> Option<(&str, &str)> {
-        self.0.peek().rsplit_once(delimiter)
-    }
-}
-
-impl From<NameType> for String {
-    fn from(card_holder_name: NameType) -> Self {
-        (*(card_holder_name.0.peek())).to_string()
-    }
-}
-
-impl From<&NameType> for String {
-    fn from(card_holder_name: &NameType) -> Self {
-        (*(card_holder_name.0.peek())).to_string()
-    }
-}
-
-impl FromStr for NameType {
-    type Err = error_stack::Report<ValidationError>;
-
-    fn from_str(card_number: &str) -> Result<Self, Self::Err> {
-        Self::try_from(card_number.to_string())
-    }
-}
-
-impl From<NameType> for masking::Secret<String> {
-    fn from(card_holder_name: NameType) -> Self {
-        Self::new(card_holder_name.0.peek().to_string())
-    }
-}
-
-impl From<&NameType> for masking::Secret<String> {
-    fn from(card_holder_name: &NameType) -> Self {
-        Self::new(card_holder_name.0.peek().to_string())
-    }
-}
-
-fn validate_character_in_card_holder_name(
-    character: char,
-) -> Result<(), error_stack::Report<ValidationError>> {
-    if character.is_alphabetic()
-        || character == ' '
-        || character == '.'
-        || character == '-'
-        || character == '\''
-        || character == '~'
-        || character == '`'
-    {
-        Ok(())
-    } else {
-        Err(report!(ValidationError::InvalidValue {
-            message: format!("invalid character found in card holder name: {}", character)
-        }))
-    }
-}
-
-impl<'de> Deserialize<'de> for NameType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let card_holder_name = String::deserialize(deserializer)?;
-        card_holder_name
-            .try_into()
-            .map_err(serde::de::Error::custom)
-    }
-}
-
-impl ConfigExt for NameType {
-    fn is_empty_after_trim(&self) -> bool {
-        self.trim().is_empty()
-    }
-}
-
-#[cfg(test)]
-mod name_type_test {
-    #![allow(clippy::unwrap_used)]
-    use super::*;
-    #[test]
-    fn test_card_holder_name() {
-        let valid_name = "Sakil Mostak".to_string();
-        // no panic
-        let card_holder_name = NameType::try_from("Sakil Mostak".to_string()).unwrap();
-
-        // will panic on unwrap
-        let invalid_card_holder_name = NameType::try_from("$@k!l M*$t@k".to_string());
-
-        assert_eq!(String::from(card_holder_name.clone()), valid_name);
-        assert!(invalid_card_holder_name.is_err());
-
-        let serialized = serde_json::to_string(&card_holder_name).unwrap();
-        assert_eq!(&serialized, "\"Sakil Mostak\"");
-
-        let derialized = serde_json::from_str::<NameType>(&serialized).unwrap();
-        assert_eq!(String::from(derialized), valid_name);
-
-        let invalid_deserialization = serde_json::from_str::<NameType>("$@k!l M*$t@k");
-        assert!(invalid_deserialization.is_err());
     }
 }
 

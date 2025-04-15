@@ -1175,8 +1175,8 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.clone().map(From::from),
-                last_name: addr.last_name.clone().map(From::from),
+                first_name: addr.first_name.remove_new_line(),
+                last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
                 administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
@@ -1515,6 +1515,7 @@ impl
         let (first_name, last_name) = match paze_data.billing_address.name {
             Some(name) => {
                 let (first_name, last_name) = name
+                    .peek()
                     .split_once(' ')
                     .map(|(first, last)| (first.to_string(), last.to_string()))
                     .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -2628,6 +2629,15 @@ pub struct ClientProcessorInformation {
     network_transaction_id: Option<String>,
     avs: Option<Avs>,
     card_verification: Option<CardVerification>,
+    merchant_advice: Option<MerchantAdvice>,
+    response_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantAdvice {
+    code: Option<String>,
+    code_raw: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2674,6 +2684,7 @@ fn get_error_response_if_failure(
     if utils::is_payment_failure(status) {
         Some(get_error_response(
             &info_response.error_information,
+            &info_response.processor_information,
             &info_response.risk_information,
             Some(status),
             http_code,
@@ -2853,8 +2864,9 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3176,6 +3188,7 @@ impl<F>
                 if utils::is_payment_failure(status) {
                     let response = Err(get_error_response(
                         &info_response.error_information,
+                        &None,
                         &risk_info,
                         Some(status),
                         item.http_code,
@@ -3265,8 +3278,9 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -3540,6 +3554,7 @@ impl<F, T>
 pub struct CybersourceTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
+    processor_information: Option<ClientProcessorInformation>,
     client_reference_information: Option<ClientReferenceInformation>,
     error_information: Option<CybersourceErrorInformation>,
 }
@@ -3580,6 +3595,7 @@ impl<F>
                     Ok(Self {
                         response: Err(get_error_response(
                             &item.response.error_information,
+                            &item.response.processor_information,
                             &risk_info,
                             Some(status),
                             item.http_code,
@@ -3698,6 +3714,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CybersourceRefundResponse>>
             Err(get_error_response(
                 &item.response.error_information,
                 &None,
+                &None,
                 None,
                 item.http_code,
                 item.response.id.clone(),
@@ -3753,6 +3770,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CybersourceRsyncResponse>>
                                 details: None,
                             }),
                             &None,
+                            &None,
                             None,
                             item.http_code,
                             item.response.id.clone(),
@@ -3760,6 +3778,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CybersourceRsyncResponse>>
                     } else {
                         Err(get_error_response(
                             &item.response.error_information,
+                            &None,
                             &None,
                             None,
                             item.http_code,
@@ -4094,6 +4113,7 @@ pub struct AuthenticationErrorInformation {
 
 pub fn get_error_response(
     error_data: &Option<CybersourceErrorInformation>,
+    processor_information: &Option<ClientProcessorInformation>,
     risk_information: &Option<ClientRiskInformation>,
     attempt_status: Option<enums::AttemptStatus>,
     status_code: u16,
@@ -4125,6 +4145,14 @@ pub fn get_error_response(
                 .join(", ")
         })
     });
+    let network_decline_code = processor_information
+        .as_ref()
+        .and_then(|info| info.response_code.clone());
+    let network_advice_code = processor_information.as_ref().and_then(|info| {
+        info.merchant_advice
+            .as_ref()
+            .and_then(|merchant_advice| merchant_advice.code_raw.clone())
+    });
 
     let reason = get_error_reason(
         error_data
@@ -4148,8 +4176,9 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code,
+        network_decline_code,
+        network_error_message: None,
     }
 }
 

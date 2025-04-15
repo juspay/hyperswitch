@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
@@ -773,6 +773,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -784,6 +785,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                event_types,
                 is_delivered,
                 merchant_key_store,
             )
@@ -832,6 +834,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -843,6 +846,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                event_types,
                 is_delivered,
                 merchant_key_store,
             )
@@ -874,6 +878,7 @@ impl EventInterface for KafkaStore {
         profile_id: Option<id_type::ProfileId>,
         created_after: PrimitiveDateTime,
         created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -882,6 +887,7 @@ impl EventInterface for KafkaStore {
                 profile_id,
                 created_after,
                 created_before,
+                event_types,
                 is_delivered,
             )
             .await
