@@ -735,7 +735,7 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
-    pub timestamp: time::PrimitiveDateTime,
+    pub monitoring_configured_timestamp : time::PrimitiveDateTime,
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
