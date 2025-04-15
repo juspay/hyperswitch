@@ -1,6 +1,6 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -72,6 +72,24 @@ const payment_method_data_3ds = {
     card_issuer: "INTL HDQTRS-CENTER OWNED",
     card_issuing_country: "UNITEDSTATES",
     card_isin: "400000",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "50",
+    card_holder_name: "joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_no3ds_off_session = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
@@ -708,6 +726,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -730,6 +749,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -752,6 +772,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -775,6 +796,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -791,6 +813,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -807,6 +830,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -829,6 +853,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },

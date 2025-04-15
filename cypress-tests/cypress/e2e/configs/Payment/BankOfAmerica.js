@@ -36,6 +36,56 @@ const multiUseMandateData = {
     },
   },
 };
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "50",
+    card_holder_name: "joseph Doe",
+    payment_checks: {
+      approval_code: "831000",
+      cavv: null,
+      consumer_authentication_response: null,
+      eci: null,
+      eci_raw: null,
+      avs_response: {
+        code: "Y",
+        codeRaw: "Y",
+      },
+      card_verification: null,
+    },
+    authentication_data: {
+      acs_transaction_id: null,
+      retrieval_reference_number: null,
+      system_trace_audit_number: null,
+    },
+  },
+  billing: null,
+};
+
+const payment_method_data_no3ds_off_session = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "50",
+    card_holder_name: "joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
 
 export const connectorDetails = {
   card_pm: {
@@ -430,6 +480,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -447,6 +498,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -485,6 +537,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -496,6 +549,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -513,6 +567,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },

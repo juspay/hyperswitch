@@ -69,6 +69,7 @@ const payment_method_data_3ds = {
 
 const payment_method_data_no3ds = {
   card: {
+    authentication_data: null,
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
@@ -84,11 +85,27 @@ const payment_method_data_no3ds = {
       address_line1_check: "pass",
       address_postal_code_check: "pass",
     },
-    authentication_data: null,
   },
   billing: null,
 };
 
+const payment_method_data_no3ds_off_session = {
+  card: {
+    authentication_data: null,
+    last4: "0005",
+    card_type: "CREDIT",
+    card_network: "AmericanExpress",
+    card_issuer: "AmericanExpress",
+    card_issuing_country: "INDIA",
+    card_isin: "378282",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "50",
+    card_holder_name: "morino",
+    payment_checks: null,
+  },
+  billing: null,
+};
 const requiredFields = {
   payment_methods: [
     {
@@ -597,6 +614,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -614,6 +632,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -631,6 +650,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -654,6 +674,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -693,6 +714,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -710,6 +732,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -721,6 +744,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -733,6 +757,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_off_session,
         },
       },
     },
@@ -750,6 +775,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -768,6 +794,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -785,6 +812,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
