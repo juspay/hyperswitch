@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -25,34 +25,29 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(operations = "all", flow = "post_session_tokens")]
-pub struct PaymentPostSessionTokens;
+#[operation(operations = "all", flow = "update_metadata")]
+pub struct PaymentUpdateMetadata;
 
-type PaymentPostSessionTokensOperation<'b, F> =
-    BoxedOperation<'b, F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>;
+type PaymentUpdateMetadataOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
-    for PaymentPostSessionTokens
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMetadataRequest>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsPostSessionTokensRequest,
+        request: &api::PaymentsUpdateMetadataRequest,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
-        operations::GetTrackerResponse<
-            'a,
-            F,
-            api::PaymentsPostSessionTokensRequest,
-            PaymentData<F>,
-        >,
+        operations::GetTrackerResponse<'a, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>,
     > {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -62,7 +57,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
         let key_manager_state: &KeyManagerState = &state.into();
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
-        let payment_intent = db
+        let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
@@ -73,10 +68,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
-        helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
+        helpers::validate_payment_status_against_allowed_statuses(
+            payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::PartiallyCaptured,
+                storage_enums::IntentStatus::PartiallyCapturedAndCapturable,
+                storage_enums::IntentStatus::RequiresCapture,
+            ],
+            "update_metadata",
+        )?;
 
-        let mut payment_attempt = db
+        let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
@@ -100,27 +104,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
-        payment_attempt.payment_method = Some(request.payment_method);
-        payment_attempt.payment_method_type = Some(request.payment_method_type);
-        let shipping_address = helpers::get_address_by_id(
-            state,
-            payment_intent.shipping_address_id.clone(),
-            key_store,
-            &payment_intent.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await?;
 
-        let billing_address = helpers::get_address_by_id(
-            state,
-            payment_intent.billing_address_id.clone(),
-            key_store,
-            &payment_intent.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await?;
+        let merged_metadata = payment_intent
+            .merge_metadata(request.metadata.clone().expose())
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Metadata should be an object and contain at least 1 key".to_owned(),
+            })?;
+
+        payment_intent.metadata = Some(merged_metadata);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -135,12 +126,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             token: None,
             token_data: None,
             setup_mandate: None,
-            address: payments::PaymentAddress::new(
-                shipping_address.as_ref().map(From::from),
-                billing_address.as_ref().map(From::from),
-                None,
-                business_profile.use_billing_as_payment_method_billing,
-            ),
+            address: payments::PaymentAddress::new(None, None, None, None),
             confirm: None,
             payment_method_data: None,
             payment_method_info: None,
@@ -185,8 +171,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
-    for PaymentPostSessionTokens
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -198,7 +184,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (
-            PaymentPostSessionTokensOperation<'a, F>,
+            PaymentUpdateMetadataOperation<'a, F>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -217,7 +203,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
-        PaymentPostSessionTokensOperation<'a, F>,
+        PaymentUpdateMetadataOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -228,7 +214,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         &'a self,
         _merchant_account: &domain::MerchantAccount,
         state: &SessionState,
-        _request: &api::PaymentsPostSessionTokensRequest,
+        _request: &api::PaymentsUpdateMetadataRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -248,8 +234,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
 }
 
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionTokensRequest>
-    for PaymentPostSessionTokens
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetadataRequest>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -263,7 +249,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionT
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<(PaymentPostSessionTokensOperation<'b, F>, PaymentData<F>)>
+    ) -> RouterResult<(PaymentUpdateMetadataOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -271,17 +257,16 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionT
     }
 }
 
-impl<F: Send + Clone + Sync>
-    ValidateRequest<F, api::PaymentsPostSessionTokensRequest, PaymentData<F>>
-    for PaymentPostSessionTokens
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>
+    for PaymentUpdateMetadata
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsPostSessionTokensRequest,
+        request: &api::PaymentsUpdateMetadataRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        PaymentPostSessionTokensOperation<'b, F>,
+        PaymentUpdateMetadataOperation<'b, F>,
         operations::ValidateResult,
     )> {
         //payment id is already generated and should be sent in the request

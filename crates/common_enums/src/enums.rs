@@ -1,7 +1,10 @@
 mod accounts;
 mod payments;
 mod ui;
-use std::num::{ParseFloatError, TryFromIntError};
+use std::{
+    collections::HashSet,
+    num::{ParseFloatError, TryFromIntError},
+};
 
 pub use accounts::MerchantProductType;
 pub use payments::ProductType;
@@ -331,9 +334,15 @@ pub enum AuthorizationStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum SessionUpdateStatus {
+pub enum PaymentResourceUpdateStatus {
     Success,
     Failure,
+}
+
+impl PaymentResourceUpdateStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Success)
+    }
 }
 
 #[derive(
@@ -1358,6 +1367,7 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1378,10 +1388,49 @@ pub enum EventClass {
     Payouts,
 }
 
+impl EventClass {
+    #[inline]
+    pub fn event_types(self) -> HashSet<EventType> {
+        match self {
+            Self::Payments => HashSet::from([
+                EventType::PaymentSucceeded,
+                EventType::PaymentFailed,
+                EventType::PaymentProcessing,
+                EventType::PaymentCancelled,
+                EventType::PaymentAuthorized,
+                EventType::PaymentCaptured,
+                EventType::ActionRequired,
+            ]),
+            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Disputes => HashSet::from([
+                EventType::DisputeOpened,
+                EventType::DisputeExpired,
+                EventType::DisputeAccepted,
+                EventType::DisputeCancelled,
+                EventType::DisputeChallenged,
+                EventType::DisputeWon,
+                EventType::DisputeLost,
+            ]),
+            Self::Mandates => HashSet::from([EventType::MandateActive, EventType::MandateRevoked]),
+            #[cfg(feature = "payouts")]
+            Self::Payouts => HashSet::from([
+                EventType::PayoutSuccess,
+                EventType::PayoutFailed,
+                EventType::PayoutInitiated,
+                EventType::PayoutProcessing,
+                EventType::PayoutCancelled,
+                EventType::PayoutExpired,
+                EventType::PayoutReversed,
+            ]),
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1393,6 +1442,7 @@ pub enum EventClass {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+// Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
 pub enum EventType {
     /// Authorize + Capture success
     PaymentSucceeded,
@@ -1414,12 +1464,19 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    #[cfg(feature = "payouts")]
     PayoutSuccess,
+    #[cfg(feature = "payouts")]
     PayoutFailed,
+    #[cfg(feature = "payouts")]
     PayoutInitiated,
+    #[cfg(feature = "payouts")]
     PayoutProcessing,
+    #[cfg(feature = "payouts")]
     PayoutCancelled,
+    #[cfg(feature = "payouts")]
     PayoutExpired,
+    #[cfg(feature = "payouts")]
     PayoutReversed,
 }
 
@@ -7917,10 +7974,13 @@ pub enum AdyenSplitType {
     Vat,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, Default,
+)]
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
     /// Failed to call the payment connector
+    #[default]
     ConnectorCallUnsuccessful,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
