@@ -13,15 +13,14 @@ use common_utils::{
     },
 };
 use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal,
-    query::customers::CustomerListConstraints as DieselCustomerListConstraints,
+    customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-use crate::{merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -60,7 +59,7 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<diesel_models::ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -113,7 +112,7 @@ impl Customer {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -217,7 +216,7 @@ impl super::behaviour::Conversion for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -323,7 +322,7 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
-            version: crate::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             status: self.status,
         })
     }
@@ -338,7 +337,7 @@ pub struct CustomerGeneralUpdate {
     pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Box<Option<diesel_models::ConnectorCustomerMap>>,
+    pub connector_customer: Box<Option<common_types::customers::ConnectorCustomerMap>>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
@@ -350,7 +349,7 @@ pub struct CustomerGeneralUpdate {
 pub enum CustomerUpdate {
     Update(Box<CustomerGeneralUpdate>),
     ConnectorCustomer {
-        connector_customer: Option<diesel_models::ConnectorCustomerMap>,
+        connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     },
     UpdateDefaultPaymentMethod {
         default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
@@ -511,7 +510,7 @@ pub struct CustomerListConstraints {
     pub offset: Option<u32>,
 }
 
-impl From<CustomerListConstraints> for DieselCustomerListConstraints {
+impl From<CustomerListConstraints> for query::CustomerListConstraints {
     fn from(value: CustomerListConstraints) -> Self {
         Self {
             limit: i64::from(value.limit),
@@ -523,7 +522,7 @@ impl From<CustomerListConstraints> for DieselCustomerListConstraints {
 #[async_trait::async_trait]
 pub trait CustomerInterface
 where
-    Customer: super::behaviour::Conversion<
+    Customer: behaviour::Conversion<
         DstType = storage_types::Customer,
         NewDstType = storage_types::CustomerNew,
     >,

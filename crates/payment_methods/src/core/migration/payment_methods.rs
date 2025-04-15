@@ -587,7 +587,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: hyperswitch_domain_models::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,

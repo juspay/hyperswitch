@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -5,7 +7,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 /// The constraints to apply when filtering events.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct EventListConstraints {
     /// Filter events created after the specified time.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -28,6 +30,14 @@ pub struct EventListConstraints {
     /// Filter all events associated with the specified business profile ID.
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+
+    /// Filter events by their class.
+    pub event_classes: Option<HashSet<EventClass>>,
+
+    /// Filter events by their type.
+    pub event_types: Option<HashSet<EventType>>,
+    /// Filter all events by `is_overall_delivery_successful` field of the event.
+    pub is_delivered: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -37,6 +47,9 @@ pub enum EventListConstraintsInternal {
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_classes: Option<HashSet<EventClass>>,
+        event_types: Option<HashSet<EventType>>,
+        is_delivered: Option<bool>,
     },
     ObjectIdFilter {
         object_id: String,
@@ -68,8 +81,8 @@ pub struct EventListItemResponse {
     /// Specifies the class of event (the type of object: Payment, Refund, etc.)
     pub event_class: EventClass,
 
-    /// Indicates whether the webhook delivery attempt was successful.
-    pub is_delivery_successful: bool,
+    /// Indicates whether the webhook was ultimately delivered or not.
+    pub is_delivery_successful: Option<bool>,
 
     /// The identifier for the initial delivery attempt. This will be the same as `event_id` for
     /// the initial delivery attempt.
@@ -80,6 +93,32 @@ pub struct EventListItemResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
+}
+
+/// The response body of list initial delivery attempts api call.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TotalEventsResponse {
+    /// The list of events
+    pub events: Vec<EventListItemResponse>,
+    /// Count of total events
+    pub total_count: i64,
+}
+
+impl TotalEventsResponse {
+    pub fn new(total_count: i64, events: Vec<EventListItemResponse>) -> Self {
+        Self {
+            events,
+            total_count,
+        }
+    }
+}
+
+impl common_utils::events::ApiEventMetric for TotalEventsResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Events {
+            merchant_id: self.events.first().map(|event| event.merchant_id.clone())?,
+        })
+    }
 }
 
 /// The response body for retrieving an event.

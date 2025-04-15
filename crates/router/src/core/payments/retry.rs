@@ -485,6 +485,8 @@ where
                 encoded_data,
                 unified_code: None,
                 unified_message: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
@@ -537,8 +539,8 @@ where
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
                 payment_method_data: additional_payment_method_data,
                 authentication_type: auth_update,
-                issuer_error_code: error_response.issuer_error_code.clone(),
-                issuer_error_message: error_response.issuer_error_message.clone(),
+                issuer_error_code: error_response.network_decline_code.clone(),
+                issuer_error_message: error_response.network_error_message.clone(),
             };
 
             #[cfg(feature = "v1")]

@@ -6,6 +6,7 @@ pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
 pub mod cards_info;
+pub mod configs;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
@@ -31,6 +32,7 @@ pub mod router_data_v2;
 pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
+pub mod routing;
 pub mod type_encryption;
 pub mod types;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -268,7 +270,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             total_retry_count: from.total_retry_count,
-            payment_connector_transmission: from.payment_connector_transmission,
+            payment_connector_transmission: from.payment_connector_transmission.unwrap_or_default(),
             billing_connector_id: from.billing_connector_id,
             active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
             billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
@@ -283,7 +285,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
     fn convert_back(self) -> ApiRevenueRecoveryMetadata {
         ApiRevenueRecoveryMetadata {
             total_retry_count: self.total_retry_count,
-            payment_connector_transmission: self.payment_connector_transmission,
+            payment_connector_transmission: Some(self.payment_connector_transmission),
             billing_connector_id: self.billing_connector_id,
             active_attempt_payment_connector_id: self.active_attempt_payment_connector_id,
             billing_connector_payment_details: self
@@ -422,6 +424,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
             enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
+            payment_form_header_text: item.payment_form_header_text,
+            payment_form_label_type: item.payment_form_label_type,
+            show_card_terms: item.show_card_terms,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -446,6 +451,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules,
             payment_link_ui_rules,
             enable_button_only_on_form_ready,
+            payment_form_header_text,
+            payment_form_label_type,
+            show_card_terms,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -474,6 +482,9 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules,
             payment_link_ui_rules,
             enable_button_only_on_form_ready,
+            payment_form_header_text,
+            payment_form_label_type,
+            show_card_terms,
         }
     }
 }
@@ -623,6 +634,9 @@ impl From<&api_models::payments::RecordAttemptErrorDetails>
             reason: Some(error.message.clone()),
             unified_code: None,
             unified_message: None,
+            network_advice_code: error.network_advice_code.clone(),
+            network_decline_code: error.network_decline_code.clone(),
+            network_error_message: error.network_error_message.clone(),
         }
     }
 }

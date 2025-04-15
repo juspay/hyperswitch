@@ -7,6 +7,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
@@ -535,6 +537,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
+    single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -546,8 +549,7 @@ pub fn generate_payment_method_response(
             }
             _ => None,
         });
-
-    let connector_tokens = payment_method
+    let mut connector_tokens = payment_method
         .connector_mandate_details
         .as_ref()
         .and_then(|connector_token_details| connector_token_details.payments.clone())
@@ -557,7 +559,19 @@ pub fn generate_payment_method_response(
                 .into_iter()
                 .map(transformers::ForeignFrom::foreign_from)
                 .collect::<Vec<_>>()
-        });
+        })
+        .unwrap_or_default();
+
+    if let Some(token) = single_use_token {
+        let connector_token_single_use = transformers::ForeignFrom::foreign_from(token);
+        connector_tokens.push(connector_token_single_use);
+    }
+    let connector_tokens = if connector_tokens.is_empty() {
+        None
+    } else {
+        Some(connector_tokens)
+    };
+
     let network_token_pmd = payment_method
         .network_token_payment_method_data
         .clone()
@@ -972,6 +986,15 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
         // TODO: check how we can get this field
         let recurring_enabled = true;
 
+        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
+            details.payments.map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
+                })
+            })
+        });
+
         Ok(Self {
             id: item.id,
             customer_id: item.customer_id,
@@ -986,6 +1009,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
             is_default: false,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
+            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
         })
     }
 }
@@ -1087,6 +1111,24 @@ impl
             token: Secret::new(connector_token),
             // Token that is derived from payments mandate reference will always be multi use token
             token_type: common_enums::TokenizationType::MultiUse,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken>
+    for api_models::payment_methods::ConnectorTokenDetails
+{
+    fn foreign_from(token: &payment_method_data::SingleUsePaymentMethodToken) -> Self {
+        Self {
+            connector_id: token.clone().merchant_connector_id,
+            token_type: common_enums::TokenizationType::SingleUse,
+            status: api_enums::ConnectorTokenStatus::Active,
+            connector_token_request_reference_id: None,
+            original_payment_authorized_amount: None,
+            original_payment_authorized_currency: None,
+            metadata: None,
+            token: token.clone().token,
         }
     }
 }

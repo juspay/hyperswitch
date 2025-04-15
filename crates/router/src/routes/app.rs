@@ -777,6 +777,10 @@ impl Payments {
                 .service(
                 web::resource("{payment_id}/calculate_tax")
                     .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                )
+                .service(
+                    web::resource("{payment_id}/update_metadata")
+                        .route(web::post().to(payments::payments_update_metadata)),
                 );
         }
         route
@@ -1332,7 +1336,10 @@ impl PaymentMethodSession {
                     .service(
                         web::resource("")
                             .route(web::get().to(payment_methods::payment_methods_session_retrieve))
-                            .route(web::put().to(payment_methods::payment_methods_session_update)),
+                            .route(web::put().to(payment_methods::payment_methods_session_update))
+                            .route(web::delete().to(
+                                payment_methods::payment_method_session_delete_saved_payment_method,
+                            )),
                     )
                     .service(web::resource("/list-payment-methods").route(
                         web::get().to(payment_methods::payment_method_session_list_payment_methods),
@@ -2133,6 +2140,12 @@ impl User {
                 ),
         );
 
+        route = route.service(
+            web::resource("/data")
+                .route(web::get().to(user::get_multiple_dashboard_metadata))
+                .route(web::post().to(user::set_dashboard_metadata)),
+        );
+
         route
     }
 }
@@ -2459,21 +2472,24 @@ pub struct WebhookEvents;
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/events/{merchant_id}")
+        web::scope("/events")
             .app_data(web::Data::new(config))
+            .service(web::scope("/profile/list").service(web::resource("").route(
+                web::post().to(webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth),
+            )))
             .service(
-                web::resource("")
-                    .route(web::get().to(webhook_events::list_initial_webhook_delivery_attempts)),
-            )
-            .service(
-                web::scope("/{event_id}")
+                web::scope("/{merchant_id}")
+                    .service(web::resource("").route(
+                        web::post().to(webhook_events::list_initial_webhook_delivery_attempts),
+                    ))
                     .service(
-                        web::resource("attempts")
-                            .route(web::get().to(webhook_events::list_webhook_delivery_attempts)),
-                    )
-                    .service(
-                        web::resource("retry")
-                            .route(web::post().to(webhook_events::retry_webhook_delivery_attempt)),
+                        web::scope("/{event_id}")
+                            .service(web::resource("attempts").route(
+                                web::get().to(webhook_events::list_webhook_delivery_attempts),
+                            ))
+                            .service(web::resource("retry").route(
+                                web::post().to(webhook_events::retry_webhook_delivery_attempt),
+                            )),
                     ),
             )
     }
@@ -2488,5 +2504,21 @@ impl FeatureMatrix {
         web::scope("/feature_matrix")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct ProcessTracker;
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl ProcessTracker {
+    pub fn server(state: AppState) -> Scope {
+        use super::process_tracker::revenue_recovery;
+        web::scope("/v2/process_tracker/revenue_recovery_workflow")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("/{revenue_recovery_id}")
+                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+            )
     }
 }

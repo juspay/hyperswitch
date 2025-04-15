@@ -459,4 +459,10 @@ pub enum RevenueRecoveryError {
     ProcessTrackerCreationError,
     #[error("Failed to get the response from process tracker")]
     ProcessTrackerResponseError,
+    #[error("Billing connector psync call failed")]
+    BillingConnectorPaymentsSyncFailed,
+    #[error("Failed to get the retry count for payment intent")]
+    RetryCountFetchFailed,
+    #[error("Failed to get the billing threshold retry count")]
+    BillingThresholdRetryCountFetchFailed,
 }
