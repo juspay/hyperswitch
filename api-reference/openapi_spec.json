@@ -950,6 +950,45 @@
         ]
       }
     },
+    "/payments/{payment_id}/update_metadata": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Update Metadata",
+        "operationId": "Update Metadata for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsUpdateMetadataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Metadata updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsUpdateMetadataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -21641,6 +21680,36 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          }
+        }
+      },
+      "PaymentsUpdateMetadataRequest": {
+        "type": "object",
+        "required": [
+          "metadata"
+        ],
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentsUpdateMetadataResponse": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
           }
         }
       },
