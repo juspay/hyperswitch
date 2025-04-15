@@ -1,5 +1,8 @@
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
-pub use hyperswitch_domain_models::{api::ApplicationResponse, errors::api_error_response::{self,*}};
+pub use hyperswitch_domain_models::{
+    api::ApplicationResponse,
+    errors::api_error_response::{self, *},
+};
 
 pub type PmResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type PmResponse<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;

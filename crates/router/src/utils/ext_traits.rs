@@ -1,5 +1,6 @@
-use crate::core::errors::{self, CustomResult};
 pub use hyperswitch_domain_models::ext_traits::OptionExt;
+
+use crate::core::errors::{self, CustomResult};
 
 pub trait ValidateCall<T, F> {
     fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError>;
