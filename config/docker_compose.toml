@@ -763,6 +763,7 @@ keys = "accept-language,user-agent,x-profile-id"
 
 [opensearch]
 host = "https://opensearch:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"

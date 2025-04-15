@@ -346,8 +346,7 @@ impl AppState {
                 .opensearch
                 .get_opensearch_client()
                 .await
-                .ok()
-                .flatten()
+                .expect("Failed to initialize OpenSearch client.")
                 .map(Arc::new);
 
             #[allow(clippy::expect_used)]
