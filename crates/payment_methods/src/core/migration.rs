@@ -1,18 +1,19 @@
-use std::future::Future;
-
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use api_models::payment_methods::{
-    PaymentMethodMigrate, PaymentMethodMigrateResponse, PaymentMethodMigrationResponse,
-    PaymentMethodRecord,
+    PaymentMethodMigrate, PaymentMethodMigrationResponse, PaymentMethodRecord,
 };
 use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
+use hyperswitch_domain_models::merchant_account;
+use hyperswitch_domain_models::merchant_key_store;
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
+use crate::cards::PaymentMethodsController;
 use crate::core::errors;
+use crate::state::PaymentMethodsState;
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 
@@ -22,16 +23,15 @@ type PmMigrationResult<T> = errors::CustomResult<ApplicationResponse<T>, errors:
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
 ))]
-pub async fn migrate_payment_methods<R, Fut>(
+pub async fn migrate_payment_methods(
+    state: &PaymentMethodsState,
     payment_methods: Vec<PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
+    merchant_account: &merchant_account::MerchantAccount,
+    key_store: &merchant_key_store::MerchantKeyStore,
     mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    migrate_pm_fut: R,
-) -> PmMigrationResult<Vec<PaymentMethodMigrationResponse>>
-where
-    R: FnOnce(PaymentMethodMigrate) -> Fut + Clone,
-    Fut: Future<Output = PmMigrationResult<PaymentMethodMigrateResponse>>,
-{
+    controller: &dyn PaymentMethodsController,
+) -> PmMigrationResult<Vec<PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
     for record in payment_methods {
         let req =
@@ -40,11 +40,17 @@ where
                     message: format!("error: {:?}", err),
                 })
                 .attach_printable("record deserialization failed");
-
         let res = match req {
             Ok(migrate_request) => {
-                let fut = migrate_pm_fut.clone()(migrate_request);
-                let res = fut.await;
+                let res = migrate_payment_method(
+                    state,
+                    migrate_request,
+                    merchant_id,
+                    merchant_account,
+                    key_store,
+                    controller,
+                )
+                .await;
                 match res {
                     Ok(ApplicationResponse::Json(response)) => Ok(response),
                     Err(e) => Err(e.to_string()),

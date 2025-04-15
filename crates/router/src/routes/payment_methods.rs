@@ -270,7 +270,7 @@ pub async fn migrate_payment_method_api(
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
             Box::pin(migrate_payment_method(
-                (&state).into(),
+                &(&state).into(),
                 req,
                 &merchant_id,
                 &merchant_account,
@@ -351,25 +351,18 @@ pub async fn migrate_payment_methods(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let controller = cards::PmCards {
+                    state: &state,
+                    merchant_account: &merchant_account,
+                };
                 Box::pin(migration::migrate_payment_methods(
+                    &(&state).into(),
                     req,
                     &merchant_id,
+                    &merchant_account,
+                    &key_store,
                     merchant_connector_id,
-                    |pm| async {
-                        let controller = cards::PmCards {
-                            state: &state,
-                            merchant_account: &merchant_account,
-                        };
-                        migrate_payment_method(
-                            (&state).into(),
-                            pm,
-                            &merchant_id,
-                            &merchant_account,
-                            &key_store,
-                            &controller,
-                        )
-                        .await
-                    },
+                    &controller,
                 ))
                 .await
             }

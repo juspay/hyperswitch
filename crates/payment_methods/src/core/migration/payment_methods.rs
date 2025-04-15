@@ -39,7 +39,7 @@ use crate::{
     not(feature = "payment_methods_v2")
 ))]
 pub async fn migrate_payment_method(
-    state: PaymentMethodsState,
+    state: &PaymentMethodsState,
     req: PaymentMethodMigrate,
     merchant_id: &id_type::MerchantId,
     merchant_account: &MerchantAccount,
@@ -88,7 +88,7 @@ pub async fn migrate_payment_method(
 
             logger::debug!("Storing the card in locker and migrating the payment method");
             get_client_secret_or_add_payment_method_for_migration(
-                &state,
+                state,
                 payment_method_create_request,
                 merchant_account,
                 key_store,
@@ -100,7 +100,7 @@ pub async fn migrate_payment_method(
         Err(card_validation_error) => {
             logger::debug!("Card number to be migrated is invalid, skip saving in locker {card_validation_error}");
             skip_locker_call_and_migrate_payment_method(
-                &state,
+                state,
                 &req,
                 merchant_id.to_owned(),
                 key_store,
@@ -163,12 +163,13 @@ pub async fn migrate_payment_method(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn migrate_payment_method(
-    _state: PaymentMethodsState,
+    _state: &PaymentMethodsState,
     _req: PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
     _merchant_account: &MerchantAccount,
     _key_store: &MerchantKeyStore,
-) -> CustomResult<PaymentMethodMigrateResponse, errors::ApiErrorResponse> {
+    controller: &dyn PaymentMethodsController,
+) -> CustomResult<ApplicationResponse<PaymentMethodMigrateResponse>, errors::ApiErrorResponse> {
     todo!()
 }
 

@@ -125,7 +125,7 @@ impl MandateResponseExt for MandateResponse {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         todo!()
     }

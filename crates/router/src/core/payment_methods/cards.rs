@@ -365,12 +365,10 @@ impl PaymentMethodsController for PmCards<'_> {
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    #[instrument(skip_all)]
     async fn get_or_insert_payment_method(
         &self,
         _req: api::PaymentMethodCreate,
         _resp: &mut api::PaymentMethodResponse,
-        _merchant_account: &domain::MerchantAccount,
         _customer_id: &id_type::CustomerId,
         _key_store: &domain::MerchantKeyStore,
     ) -> errors::RouterResult<domain::PaymentMethod> {
@@ -561,7 +559,6 @@ impl PaymentMethodsController for PmCards<'_> {
         locker_id: Option<String>,
         connector_mandate_details: Option<serde_json::Value>,
         network_transaction_id: Option<String>,
-        storage_scheme: MerchantStorageScheme,
         payment_method_billing_address: Option<Encryption>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         todo!()
@@ -2228,7 +2225,7 @@ pub async fn update_payment_method_and_last_used(
 pub async fn update_payment_method_connector_mandate_details(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
-    db: &dyn StorageInterface,
+    db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,

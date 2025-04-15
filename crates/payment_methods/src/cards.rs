@@ -1,9 +1,11 @@
 use std::fmt::Debug;
 
-use api_models::{enums as api_enums, payment_methods as api};
 #[cfg(feature = "payouts")]
 use api_models::payouts;
+use api_models::{enums as api_enums, payment_methods as api};
 use common_enums::enums as common_enums;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::encryption;
 use common_utils::{
     crypto, ext_traits, id_type, type_name,
     types::keymanager::{Identifier, KeyManagerState},
@@ -84,6 +86,23 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn insert_payment_method(
+        &self,
+        resp: &api::PaymentMethodResponse,
+        req: &api::PaymentMethodCreate,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        pm_metadata: Option<serde_json::Value>,
+        customer_acceptance: Option<serde_json::Value>,
+        locker_id: Option<String>,
+        connector_mandate_details: Option<serde_json::Value>,
+        network_transaction_id: Option<String>,
+        payment_method_billing_address: Option<encryption::Encryption>,
+    ) -> errors::PmResult<payment_methods::PaymentMethod>;
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
@@ -150,6 +169,17 @@ pub trait PaymentMethodsController {
         key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn get_or_insert_payment_method(
+        &self,
+        req: api::PaymentMethodCreate,
+        resp: &mut api::PaymentMethodResponse,
+        customer_id: &id_type::CustomerId,
+        key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> errors::PmResult<payment_methods::PaymentMethod> {
+        todo!()
+    }
+
     #[cfg(all(
         any(feature = "v2", feature = "v1"),
         not(feature = "payment_methods_v2")
@@ -179,6 +209,14 @@ pub trait PaymentMethodsController {
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
     ))]
+    fn store_default_payment_method(
+        &self,
+        req: &api::PaymentMethodCreate,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> (api::PaymentMethodResponse, Option<DataDuplicationCheck>);
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     fn store_default_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
