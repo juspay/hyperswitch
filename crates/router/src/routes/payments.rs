@@ -723,7 +723,10 @@ pub async fn payments_update_metadata(
                 None,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: true,
+        }),
         locking_action,
     ))
     .await
