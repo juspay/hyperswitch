@@ -735,9 +735,6 @@ describe("Card - SaveCard payment flow test", () => {
             },
           },
         };
-
-        console.log(newData);
-
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           newData,

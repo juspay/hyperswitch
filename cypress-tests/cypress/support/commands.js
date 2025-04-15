@@ -2108,6 +2108,10 @@ Cypress.Commands.add(
       saveCardConfirmBody[key] = reqData[key];
     }
 
+    if (reqData.billing === null) {
+      saveCardConfirmBody.billing = null;
+    }
+
     cy.request({
       method: "POST",
       url: url,
@@ -2618,6 +2622,12 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.deep.equal(response.body[key]);
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
@@ -2641,6 +2651,12 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key]).to.deep.equal(response.body[key]);
+                if (setupFutureUsage === "off_session") {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
               }
             } else {
               throw new Error(
