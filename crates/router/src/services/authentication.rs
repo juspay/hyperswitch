@@ -670,7 +670,11 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let (auth_data, auth_type) = ApiKeyAuth
+        let api_auth = ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        };
+        let (auth_data, auth_type) = api_auth
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
