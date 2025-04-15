@@ -128,9 +128,9 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -324,6 +324,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -331,9 +332,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -455,6 +456,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -462,9 +464,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -611,6 +613,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -618,9 +621,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -784,6 +787,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -791,9 +795,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -952,6 +956,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -959,9 +964,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1082,6 +1087,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1089,9 +1095,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1245,6 +1251,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1252,9 +1259,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1417,6 +1424,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1424,9 +1432,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1554,6 +1562,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1561,9 +1570,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1711,6 +1720,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1718,9 +1728,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1827,6 +1837,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1834,9 +1845,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1961,6 +1972,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1968,9 +1980,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }

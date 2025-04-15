@@ -3154,6 +3154,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
       if (response.body.customer_payment_methods[order]?.payment_token) {
         const paymentToken =
           response.body.customer_payment_methods[order].payment_token;
+        const cardInfo = response.body.customer_payment_methods[order].card;
         const paymentMethodId =
           response.body.customer_payment_methods[order].payment_method_id;
         const lastUsedAt =
@@ -3161,6 +3162,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
 
         globalState.set("paymentMethodId", paymentMethodId);
         globalState.set("paymentToken", paymentToken);
+
+        if (cardInfo) {
+          expect(cardInfo.expiry_year, "expiry_year").to.not.be.null;
+          expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
+        }
 
         // Validate last_used_at timestamp
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
