@@ -1261,6 +1261,7 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     }
 }
 
+impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
