@@ -1524,6 +1524,7 @@ where
         _merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
+        let client_secret = payment_data.get_client_secret();
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
@@ -1532,7 +1533,7 @@ where
                 amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
                     payment_intent.amount_details.clone(),
                 ),
-                client_secret: payment_intent.client_secret.clone(),
+                client_secret: client_secret.clone(),
                 merchant_reference_id: payment_intent.merchant_reference_id.clone(),
                 routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
                 capture_method: payment_intent.capture_method,
@@ -1663,7 +1664,6 @@ where
             amount,
             customer_id: payment_intent.customer_id.clone(),
             connector: Some(connector),
-            client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
@@ -1761,7 +1761,6 @@ where
                 .cloned()
                 .map(From::from),
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
-            client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
             payment_method_data,
             payment_method_type: self
@@ -1892,6 +1891,38 @@ where
                 payment_id: payment_data.get_payment_intent().payment_id.clone(),
                 next_action,
                 status: payment_data.get_payment_intent().status,
+            },
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsUpdateMetadataResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                metadata: payment_data
+                    .get_payment_intent()
+                    .metadata
+                    .clone()
+                    .map(Secret::new),
             },
             vec![],
         )))
@@ -3716,6 +3747,42 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             shipping_cost: payment_data.payment_intent.shipping_cost,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             router_return_url,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMetadataData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMetadataData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data.clone();
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+        Ok(Self {
+            metadata: payment_data
+                .payment_intent
+                .metadata
+                .map(Secret::new)
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("payment_intent.metadata not found")?,
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
         })
     }
 }
