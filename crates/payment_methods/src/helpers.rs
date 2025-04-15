@@ -68,7 +68,7 @@ pub async fn populate_bin_details_for_payment_method_create(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn populate_bin_details_for_payment_method_create(
     _card_details: api_models::payment_methods::CardDetail,
-    _db: &dyn StorageInterface,
+    _db: &dyn PaymentMethodsStorageInterface,
 ) -> api_models::payment_methods::CardDetail {
     todo!()
 }

@@ -767,13 +767,13 @@ pub async fn payment_method_update_api(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_id.clone();
             async move {
-                cards::update_customer_payment_method(
+                Box::pin(cards::update_customer_payment_method(
                     state,
                     &auth.merchant_account,
                     req,
                     &value,
                     auth.key_store,
-                )
+                ))
                 .await
             }
         },

@@ -6,7 +6,6 @@ use api_models::payment_methods::{
     PaymentMethodRecord,
 };
 use crate::core::errors;
-use common_utils::errors::{CustomResult};
 use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
@@ -16,7 +15,8 @@ use router_env::{instrument, tracing};
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 
-type PmMigrationResult<T> = CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
+type PmMigrationResult<T> = errors::CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
+
 pub async fn migrate_payment_methods<R, Fut>(
     payment_methods: Vec<PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -101,7 +101,7 @@ pub fn get_payment_method_records(
 pub fn validate_card_expiry(
     card_exp_month: &masking::Secret<String>,
     card_exp_year: &masking::Secret<String>,
-) -> CustomResult<(),errors::ApiErrorResponse> {
+) -> errors::CustomResult<(),errors::ApiErrorResponse> {
     let exp_month = card_exp_month
         .peek()
         .to_string()

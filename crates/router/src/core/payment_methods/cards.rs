@@ -516,7 +516,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let key_manager_state = self.state.into();
         let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
             .clone()
-            .async_map(|pm_card| create_encrypted_data(&key_manager_state, &key_store, pm_card))
+            .async_map(|pm_card| create_encrypted_data(&key_manager_state, key_store, pm_card))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -531,7 +531,7 @@ impl PaymentMethodsController for PmCards<'_> {
             pm_metadata,
             customer_acceptance,
             pm_data_encrypted,
-            &key_store,
+            key_store,
             connector_mandate_details,
             None,
             network_transaction_id,
@@ -914,7 +914,7 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         add_payment_method_status_update_task(
             &*self.state.store,
-            &payment_method,
+            payment_method,
             prev_status,
             curr_status,
             merchant_id,
@@ -954,7 +954,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let pm = db
             .find_payment_method(
                 &self.state.into(),
-                &key_store,
+                key_store,
                 &pm.payment_method_id,
                 self.merchant_account.storage_scheme,
             )
@@ -964,7 +964,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let card = if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
             let card_detail = if self.state.conf.locker.locker_enabled {
                 let card = get_card_from_locker(
-                    &self.state,
+                    self.state,
                     &pm.customer_id,
                     &pm.merchant_id,
                     pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
@@ -1046,13 +1046,13 @@ impl PaymentMethodsController for PmCards<'_> {
             if let Some(network_token_ref_id) = key.network_token_requestor_reference_id {
                 let resp =
                     network_tokenization::delete_network_token_from_locker_and_token_service(
-                        &self.state,
+                        self.state,
                         &key.customer_id,
                         &key.merchant_id,
                         key.payment_method_id.clone(),
                         key.network_token_locker_id,
                         network_token_ref_id,
-                        &self.merchant_account,
+                        self.merchant_account,
                     )
                     .await?;
 
@@ -1145,7 +1145,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Add PaymentMethod Failed"),
-                _ => Ok(self.store_default_payment_method(&req, &customer_id, merchant_id)),
+                _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
             },
             api_enums::PaymentMethod::Card => match req.card.clone() {
                 Some(card) => {
@@ -1169,9 +1169,9 @@ impl PaymentMethodsController for PmCards<'_> {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Add Card Failed")
                 }
-                _ => Ok(self.store_default_payment_method(&req, &customer_id, merchant_id)),
+                _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
             },
-            _ => Ok(self.store_default_payment_method(&req, &customer_id, merchant_id)),
+            _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
         };
 
         let (mut resp, duplication_check) = response?;
@@ -1321,7 +1321,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 let pm = self
                     .insert_payment_method(
                         &resp,
-                        &req,
+                        req,
                         key_store,
                         merchant_id,
                         &customer_id,

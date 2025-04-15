@@ -31,6 +31,8 @@ use crate::{
     helpers::{ForeignFrom, ForeignTryFrom, StorageErrorExt},
     state::{PaymentMethodsState, PaymentMethodsStorageInterface},
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use api_models::enums as api_enums;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -163,7 +165,7 @@ pub async fn migrate_payment_method(
 pub async fn migrate_payment_method(
     _state: PaymentMethodsState,
     _req: PaymentMethodMigrate,
-    _merchant_id: &MerchantId,
+    _merchant_id: &id_type::MerchantId,
     _merchant_account: &MerchantAccount,
     _key_store: &MerchantKeyStore,
 ) -> CustomResult<PaymentMethodMigrateResponse, errors::ApiErrorResponse> {
@@ -292,7 +294,7 @@ impl
         Option<CardInfo>,
     )> for CardDetailFromLocker
 {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(
         (card_details, card_info): (
             &api_models::payment_methods::MigrateCardDetail,
