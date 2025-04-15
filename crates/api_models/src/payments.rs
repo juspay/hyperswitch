@@ -19,6 +19,7 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
+    new_type::MaskedBankAccount,
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
@@ -3416,11 +3417,11 @@ pub enum BankTransferData {
 
         /// Source bank account number
         #[schema(value_type = Option<Secret<String>>, example = "8b2812f0-d6c8-4073-97bb-9fa964d08bc5")]
-        source_bank_account_id: Option<Secret<String>>,
+        source_bank_account_id: Option<MaskedBankAccount>,
 
         /// Destination bank account number
         #[schema(value_type = Option<Secret<String>>, example = "9b95f84e-de61-460b-a14b-f23b4e71c97b")]
-        destination_bank_account_id: Option<Secret<String>>,
+        destination_bank_account_id: Option<MaskedBankAccount>,
     },
     Pse {},
     LocalBankTransfer {

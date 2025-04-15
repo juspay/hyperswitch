@@ -1,5 +1,5 @@
 use common_enums::CountryAlpha2;
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::{new_type::MaskedBankAccount, pii, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -45,9 +45,9 @@ pub struct CardTransactionRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct PixTransactionRequest {
-    pub subject_id: Secret<String>,           // Customer ID (UUID)
-    pub from_bank_account_id: Secret<String>, // UUID
-    pub to_bank_account_id: Secret<String>,   // UUID
+    pub subject_id: Secret<String>,              // Customer ID (UUID)
+    pub from_bank_account_id: MaskedBankAccount, // UUID
+    pub to_bank_account_id: MaskedBankAccount,   // UUID
     pub currency: api_models::enums::Currency,
     pub exchange_currency: api_models::enums::Currency,
     pub value: StringMajorUnit,

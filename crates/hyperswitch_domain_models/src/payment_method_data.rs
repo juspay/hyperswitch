@@ -614,9 +614,9 @@ pub enum BankTransferData {
         /// CNPJ is a Brazilian company tax identification number
         cnpj: Option<Secret<String>>,
         /// Source bank account UUID
-        source_bank_account_id: Option<Secret<String>>,
+        source_bank_account_id: Option<MaskedBankAccount>,
         /// Destination bank account UUID.
-        destination_bank_account_id: Option<Secret<String>>,
+        destination_bank_account_id: Option<MaskedBankAccount>,
     },
     Pse {},
     LocalBankTransfer {
