@@ -81,6 +81,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Riskified {
+    #[allow(dead_code)]
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
