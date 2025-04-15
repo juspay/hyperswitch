@@ -700,9 +700,9 @@ pub struct ResultsResponseData {
     /// - `U`: Authentication / Account verification could not be performed; technical or other problem.
     /// - `C`: A challenge is required to complete the authentication.
     /// - `R`: Authentication / Account verification Rejected. Issuer is rejecting authentication/verification
-    ///       and request that authorization not be attempted.
+    ///   and request that authorization not be attempted.
     /// - `A`: Attempts processing performed; Not authenticated / verified, but a proof of attempt
-    ///       authentication / verification is provided.
+    ///   authentication / verification is provided.
     /// - `D`: A challenge is required to complete the authentication. Decoupled Authentication confirmed.
     /// - `I`: Informational Only; 3DS Requestor challenge preference acknowledged.
     pub trans_status: Option<common_enums::TransactionStatus>,
