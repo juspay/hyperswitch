@@ -81,16 +81,9 @@ crates/diesel_models/src/payment_method.rs @juspay/hyperswitch-payment-methods
 crates/diesel_models/src/query/payment_method.rs @juspay/hyperswitch-payment-methods
 crates/storage_impl/src/payment_method.rs @juspay/hyperswitch-payment-methods
 crates/openapi/src/routes/payment_method.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/cards.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/utils.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/transformers.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/vault.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/migration.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/surcharge_decision_configs.rs @juspay/hyperswitch-payment-methods
 crates/router/src/workflows/payment_method_status_update.rs @juspay/hyperswitch-payment-methods
 crates/router/src/core/payments/tokenization.rs @juspay/hyperswitch-payment-methods
-crates/router/src/core/payment_methods/network_tokenization.rs @juspay/hyperswitch-payment-methods
-
+crates/router/src/core/payment_methods/ @juspay/hyperswitch-payment-methods
 crates/payment_methods/ @juspay/hyperswitch-payment-methods
 
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
