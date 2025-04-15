@@ -90,6 +90,8 @@ crates/router/src/core/payment_methods/surcharge_decision_configs.rs @juspay/hyp
 crates/router/src/workflows/payment_method_status_update.rs @juspay/hyperswitch-payment-methods
 crates/router/src/core/payments/tokenization.rs @juspay/hyperswitch-payment-methods
 
+crates/payment_methods/ @juspay/hyperswitch-payment-methods
+
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/user @juspay/hyperswitch-dashboard
 crates/api_models/src/user.rs @juspay/hyperswitch-dashboard
