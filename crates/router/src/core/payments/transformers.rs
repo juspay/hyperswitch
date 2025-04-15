@@ -307,7 +307,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_payment_method_data: None,
         merchant_account_id: None,
         merchant_config_currency: None,
-        request_overcapture: None,
+        overcapture_status: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt

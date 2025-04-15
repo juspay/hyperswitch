@@ -222,7 +222,7 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
-            request_overcapture: Default::default(),
+            overcapture_status: Default::default(),
         };
 
         let store = state
@@ -310,7 +310,7 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
-            request_overcapture: Default::default(),
+            overcapture_status: Default::default(),
         };
         let store = state
             .stores
@@ -411,7 +411,7 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
-            request_overcapture: Default::default(),
+            overcapture_status: Default::default(),
         };
         let store = state
             .stores

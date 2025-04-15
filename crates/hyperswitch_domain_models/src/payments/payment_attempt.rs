@@ -452,8 +452,6 @@ pub struct PaymentAttempt {
     pub card_discovery: Option<common_enums::CardDiscovery>,
     /// Split payment data
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
-    /// Whether to request for overcapture
-    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     /// Whether overcapture was applied
@@ -588,7 +586,6 @@ impl PaymentAttempt {
             card_discovery: None,
             feature_metadata: None,
             overcapture_status: None,
-            request_overcapture: None,
         })
     }
 
@@ -677,7 +674,6 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             overcapture_status: None,
-            request_overcapture: None,
         })
     }
 
@@ -776,7 +772,6 @@ impl PaymentAttempt {
             card_discovery: None,
             charges: None,
             overcapture_status: None,
-            request_overcapture: None,
         })
     }
 
@@ -2119,10 +2114,8 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
-            request_overcapture,
             overcapture_status,
         } = self;
-
         let AttemptAmountDetails {
             net_amount,
             tax_on_surcharge,
@@ -2214,7 +2207,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             overcapture_status,
-            request_overcapture,
         })
     }
 
@@ -2331,7 +2323,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
                 feature_metadata: storage_model.feature_metadata.map(From::from),
-                request_overcapture: storage_model.request_overcapture,
                 overcapture_status: storage_model.overcapture_status,
             })
         }
@@ -2389,7 +2380,6 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
-            request_overcapture,
             overcapture_status,
         } = self;
 
