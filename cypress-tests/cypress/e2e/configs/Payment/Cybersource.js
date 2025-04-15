@@ -785,8 +785,7 @@ export const connectorDetails = {
           value: "connector_1",
         },
       },
-      Request: {
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
