@@ -3,9 +3,8 @@ use std::str::FromStr;
 use api_models::{
     enums,
     payment_methods::{
-        CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreate,
-        PaymentMethodMigrate, PaymentMethodMigrateResponse, PaymentMethodResponse,
-        PaymentMethodsData,
+        CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreate, PaymentMethodMigrate,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodsData,
     },
 };
 use common_utils::{
@@ -19,7 +18,8 @@ use diesel_models::CardInfo;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response::ApiErrorResponse, ext_traits::OptionExt,
-    merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore, payment_methods as domain_pm,
+    merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore,
+    payment_methods as domain_pm,
 };
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};

@@ -1,21 +1,18 @@
+use std::fmt::Debug;
 
 use api_models::{enums as api_enums, payment_methods as api, payouts};
 use common_enums::enums as common_enums;
-use common_utils::{crypto, type_name, ext_traits, id_type};
-use hyperswitch_domain_models::{
-    merchant_key_store, payment_methods,
-    type_encryption,
+use common_utils::{
+    crypto, ext_traits, id_type, type_name,
+    types::keymanager::{Identifier, KeyManagerState},
 };
-use masking::PeekInterface;
 use diesel_models::payment_method;
 use error_stack::ResultExt;
-use std::fmt::Debug;
-use common_utils::types::keymanager::KeyManagerState;
-use masking::Secret;
-use common_utils::types::keymanager::Identifier;
-use storage_impl::errors as storage_errors;
+use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
+use masking::{PeekInterface, Secret};
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
+use storage_impl::errors as storage_errors;
 
 use crate::core::errors;
 
@@ -237,7 +234,10 @@ pub async fn create_encrypted_data<T>(
     key_manager_state: &KeyManagerState,
     key_store: &merchant_key_store::MerchantKeyStore,
     data: T,
-) -> Result<crypto::Encryptable<Secret<serde_json::Value>>, error_stack::Report<storage_errors::StorageError>>
+) -> Result<
+    crypto::Encryptable<Secret<serde_json::Value>>,
+    error_stack::Report<storage_errors::StorageError>,
+>
 where
     T: Debug + Serialize,
 {
