@@ -6611,59 +6611,85 @@ pub enum RomaniaStatesAbbreviation {
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
 pub enum BrazilStatesAbbreviation {
-    #[strum(serialize = "AC")]
+    #[strum(serialize = "Acre", serialize = "AC")]
     Acre,
-    #[strum(serialize = "AL")]
+
+    #[strum(serialize = "Alagoas", serialize = "AL")]
     Alagoas,
-    #[strum(serialize = "AP")]
+
+    #[strum(serialize = "Amapá", serialize = "AP")]
     Amapá,
-    #[strum(serialize = "AM")]
+
+    #[strum(serialize = "Amazonas", serialize = "AM")]
     Amazonas,
-    #[strum(serialize = "BA")]
+
+    #[strum(serialize = "Bahia", serialize = "BA")]
     Bahia,
-    #[strum(serialize = "CE")]
+
+    #[strum(serialize = "Ceará", serialize = "CE")]
     Ceará,
-    #[strum(serialize = "DF")]
+
+    #[strum(serialize = "Distrito Federal", serialize = "DF")]
     DistritoFederal,
-    #[strum(serialize = "ES")]
+
+    #[strum(serialize = "Espírito Santo", serialize = "ES")]
     EspíritoSanto,
-    #[strum(serialize = "GO")]
+
+    #[strum(serialize = "Goiás", serialize = "GO")]
     Goiás,
-    #[strum(serialize = "MA")]
+
+    #[strum(serialize = "Maranhão", serialize = "MA")]
     Maranhão,
-    #[strum(serialize = "MT")]
+
+    #[strum(serialize = "Mato Grosso", serialize = "MT")]
     MatoGrosso,
-    #[strum(serialize = "MS")]
+
+    #[strum(serialize = "Mato Grosso do Sul", serialize = "MS")]
     MatoGrossoDoSul,
-    #[strum(serialize = "MG")]
+
+    #[strum(serialize = "Minas Gerais", serialize = "MG")]
     MinasGerais,
-    #[strum(serialize = "PA")]
+
+    #[strum(serialize = "Pará", serialize = "PA")]
     Pará,
-    #[strum(serialize = "PB")]
+
+    #[strum(serialize = "Paraíba", serialize = "PB")]
     Paraíba,
-    #[strum(serialize = "PR")]
+
+    #[strum(serialize = "Paraná", serialize = "PR")]
     Paraná,
-    #[strum(serialize = "PE")]
+
+    #[strum(serialize = "Pernambuco", serialize = "PE")]
     Pernambuco,
-    #[strum(serialize = "PI")]
+
+    #[strum(serialize = "Piauí", serialize = "PI")]
     Piauí,
-    #[strum(serialize = "RJ")]
+
+    #[strum(serialize = "Rio de Janeiro", serialize = "RJ")]
     RioDeJaneiro,
-    #[strum(serialize = "RN")]
+
+    #[strum(serialize = "Rio Grande do Norte", serialize = "RN")]
     RioGrandeDoNorte,
-    #[strum(serialize = "RS")]
+
+    #[strum(serialize = "Rio Grande do Sul", serialize = "RS")]
     RioGrandeDoSul,
-    #[strum(serialize = "RO")]
+
+    #[strum(serialize = "Rondônia", serialize = "RO")]
     Rondônia,
-    #[strum(serialize = "RR")]
+
+    #[strum(serialize = "Roraima", serialize = "RR")]
     Roraima,
-    #[strum(serialize = "SC")]
+
+    #[strum(serialize = "Santa Catarina", serialize = "SC")]
     SantaCatarina,
-    #[strum(serialize = "SP")]
+
+    #[strum(serialize = "São Paulo", serialize = "SP")]
     SãoPaulo,
-    #[strum(serialize = "SE")]
+
+    #[strum(serialize = "Sergipe", serialize = "SE")]
     Sergipe,
-    #[strum(serialize = "TO")]
+
+    #[strum(serialize = "Tocantins", serialize = "TO")]
     Tocantins,
 }
 
