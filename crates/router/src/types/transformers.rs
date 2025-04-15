@@ -532,6 +532,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
                 Self::Card
             }
+            #[cfg(feature = "v2")]
+            api_enums::PaymentMethodType::Card => Self::Card,
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
             api_enums::PaymentMethodType::Boleto
@@ -1652,14 +1654,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
 
-        // TODO: combine publishable key and client secret when we unify the auth
-        let client_secret = get_header_value_by_key(X_CLIENT_SECRET.into(), headers)?
-            .map(common_utils::types::ClientSecret::from_str)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid data received in client_secret header".into(),
-            })?;
-
         Ok(Self {
             payment_confirm_source,
             // client_source,
@@ -1671,7 +1665,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
-            client_secret,
         })
     }
 }
@@ -1919,12 +1912,14 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
             && (item.created_after.is_some()
                 || item.created_before.is_some()
                 || item.limit.is_some()
-                || item.offset.is_some())
+                || item.offset.is_some()
+                || item.event_classes.is_some()
+                || item.event_types.is_some())
         {
             return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message:
                     "Either only `object_id` must be specified, or one or more of \
-                          `created_after`, `created_before`, `limit` and `offset` must be specified"
+                          `created_after`, `created_before`, `limit`, `offset`, `event_classes` and `event_types` must be specified"
                         .to_string()
             }));
         }
@@ -1936,6 +1931,8 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 created_before: item.created_before,
                 limit: item.limit.map(i64::from),
                 offset: item.offset.map(i64::from),
+                event_classes: item.event_classes,
+                event_types: item.event_types,
                 is_delivered: item.is_delivered,
             }),
         }
@@ -2186,6 +2183,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
             enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
+            payment_form_header_text: item.payment_form_header_text,
+            payment_form_label_type: item.payment_form_label_type,
+            show_card_terms: item.show_card_terms,
         }
     }
 }
@@ -2217,6 +2217,9 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
             enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
+            payment_form_header_text: item.payment_form_header_text,
+            payment_form_label_type: item.payment_form_label_type,
+            show_card_terms: item.show_card_terms,
         }
     }
 }
