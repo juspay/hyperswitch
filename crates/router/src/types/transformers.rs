@@ -245,6 +245,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Deutschebank => Self::Deutschebank,
             api_enums::Connector::Digitalvirgo => Self::Digitalvirgo,
             api_enums::Connector::Dlocal => Self::Dlocal,
+            api_enums::Connector::DummyBillingConnector => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "stripebilling_test is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
             // api_enums::Connector::Facilitapay => Self::Facilitapay,

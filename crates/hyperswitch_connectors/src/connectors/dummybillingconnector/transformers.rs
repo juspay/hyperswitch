@@ -1,16 +1,14 @@
-use std::collections::HashMap;
 use hyperswitch_interfaces::errors;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    types::{MinorUnit, StringMinorUnit},
+    types::StringMinorUnit,
 };
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use url::Url;
 
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,

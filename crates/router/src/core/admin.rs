@@ -1244,6 +1244,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 adyenplatform::transformers::AdyenplatformAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::DummyBillingConnector => {
+                dummyconnector::transformers::DummyConnectorAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1
