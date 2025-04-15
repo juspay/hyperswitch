@@ -3115,6 +3115,7 @@ where
     )
     .await?;
 
+    #[cfg(feature = "v1")]
     if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
         router_data.connector_customer = Some(connector_customer_id);
     }
@@ -8050,6 +8051,8 @@ pub trait OperationSessionGetters<F> {
     fn get_force_sync(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
+
+    #[cfg(feature = "v1")]
     fn get_connector_customer_id(&self) -> Option<String>;
 
     #[cfg(feature = "v1")]
@@ -8503,10 +8506,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         todo!();
-    }
-
-    fn get_connector_customer_id(&self) -> Option<String> {
-        todo!()
     }
 }
 
