@@ -5,7 +5,8 @@ use router_env::{
     tracing::{field::Empty, Instrument},
 };
 
-use crate::headers;
+use crate::{headers, routes::metrics};
+
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 
@@ -464,7 +465,7 @@ where
 
             let response_fut = svc.call(req);
 
-            crate::routes::metrics::REQUESTS_RECEIVED.add(1, &attributes);
+            metrics::REQUESTS_RECEIVED.add(1, &attributes);
 
             let (response_result, request_duration) =
                 common_utils::metrics::utils::time_future(response_fut).await;
@@ -475,8 +476,7 @@ where
                 i64::from(response.status().as_u16())
             )));
 
-            crate::routes::metrics::REQUEST_TIME
-                .record(request_duration.as_secs_f64(), &attributes);
+            metrics::REQUEST_TIME.record(request_duration.as_secs_f64(), &attributes);
 
             Ok(response)
         })
