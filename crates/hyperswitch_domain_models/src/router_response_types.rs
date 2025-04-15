@@ -72,8 +72,8 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
-    SessionUpdateResponse {
-        status: common_enums::SessionUpdateStatus,
+    PaymentResourceUpdateResponse {
+        status: common_enums::PaymentResourceUpdateStatus,
     },
 }
 
