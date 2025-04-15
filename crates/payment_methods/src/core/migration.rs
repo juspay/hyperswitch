@@ -4,16 +4,12 @@ use api_models::payment_methods::{
 };
 use csv::Reader;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::api::ApplicationResponse;
-use hyperswitch_domain_models::merchant_account;
-use hyperswitch_domain_models::merchant_key_store;
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_account, merchant_key_store};
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
-use crate::cards::PaymentMethodsController;
-use crate::core::errors;
-use crate::state::PaymentMethodsState;
+use crate::{cards::PaymentMethodsController, core::errors, state::PaymentMethodsState};
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 
