@@ -454,9 +454,10 @@ affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
-sofort = { country = "AT,BE,DE,IT,NL,ES", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 cashapp = { country = "US", currency = "USD" }
+multibanco = { country = "PT", currency = "EUR" }
+ach = { country = "US", currency = "USD" }
 
 [pm_filters.volt]
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }

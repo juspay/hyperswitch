@@ -3601,30 +3601,6 @@ pub fn authenticate_client_secret(
     }
 }
 
-#[cfg(feature = "v2")]
-// A function to manually authenticate the client secret with intent fulfillment time
-pub fn authenticate_client_secret(
-    request_client_secret: Option<&common_utils::types::ClientSecret>,
-    payment_intent: &PaymentIntent,
-) -> Result<(), errors::ApiErrorResponse> {
-    match (request_client_secret, &payment_intent.client_secret) {
-        (Some(req_cs), pi_cs) => {
-            if req_cs != pi_cs {
-                Err(errors::ApiErrorResponse::ClientSecretInvalid)
-            } else {
-                let current_timestamp = common_utils::date_time::now();
-
-                let session_expiry = payment_intent.session_expiry;
-
-                fp_utils::when(current_timestamp > session_expiry, || {
-                    Err(errors::ApiErrorResponse::ClientSecretExpired)
-                })
-            }
-        }
-        _ => Ok(()),
-    }
-}
-
 pub(crate) fn validate_payment_status_against_allowed_statuses(
     intent_status: storage_enums::IntentStatus,
     allowed_statuses: &[storage_enums::IntentStatus],
@@ -6376,16 +6352,19 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    confirm: Option<bool>,
+    request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(cnf) = confirm {
-        if !cnf {
-            return Ok(());
-        } else {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "cannot confirm a payment while creating a payment link".to_string(),
-            });
-        }
+    #[cfg(feature = "v1")]
+    if request.confirm == Some(true) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "cannot confirm a payment while creating a payment link".to_string(),
+        });
+    }
+
+    if request.return_url.is_none() {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "return_url must be sent while creating a payment link".to_string(),
+        });
     }
     Ok(())
 }
