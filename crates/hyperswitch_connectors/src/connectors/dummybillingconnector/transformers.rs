@@ -1,15 +1,6 @@
-use hyperswitch_interfaces::errors;
 use common_enums::enums;
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::ByteSliceExt,
-    types::StringMinorUnit,
-};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::StringMinorUnit};
 use error_stack::ResultExt;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
-
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -18,6 +9,10 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
+use hyperswitch_interfaces::errors;
+use masking::Secret;
+use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -130,9 +125,8 @@ pub struct DummyBillingPaymentsRequest {
     card: DummyBillingConnectorCard,
 }
 
-
 impl TryFrom<&DummyBillingConnectorRouterData<&PaymentsAuthorizeRouterData>>
-    for DummyBillingPaymentsRequest 
+    for DummyBillingPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -194,7 +188,9 @@ pub struct DummyBillingRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&DummyBillingConnectorRouterData<&RefundsRouterData<F>>> for DummyBillingRefundRequest {
+impl<F> TryFrom<&DummyBillingConnectorRouterData<&RefundsRouterData<F>>>
+    for DummyBillingRefundRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &DummyBillingConnectorRouterData<&RefundsRouterData<F>>,
@@ -232,9 +228,7 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
-    for RefundsRouterData<Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
@@ -249,9 +243,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>>
-    for RefundsRouterData<RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
@@ -437,15 +429,4 @@ pub enum DummyBillingChargeStatus {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DummyBillingRecordBackResponse {
     pub id: String,
-} 
-
-
-
-
-
-
-
-
-
-
-
+}

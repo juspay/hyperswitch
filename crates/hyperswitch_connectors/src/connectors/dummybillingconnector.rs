@@ -23,19 +23,16 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
-
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
-    webhooks,
+    errors, webhooks,
 };
 
 // use transformers as stripebilling;
-
 
 #[derive(Clone)]
 pub struct DummyBillingConnector {
@@ -50,10 +47,10 @@ impl DummyBillingConnector {
     }
 }
 
-impl api::Payment for DummyBillingConnector{}
+impl api::Payment for DummyBillingConnector {}
 impl api::PaymentSession for DummyBillingConnector {}
 impl api::ConnectorAccessToken for DummyBillingConnector {}
-impl api::MandateSetup for DummyBillingConnector{}
+impl api::MandateSetup for DummyBillingConnector {}
 impl api::PaymentAuthorize for DummyBillingConnector {}
 impl api::PaymentSync for DummyBillingConnector {}
 impl api::PaymentCapture for DummyBillingConnector {}
@@ -63,24 +60,18 @@ impl api::RefundExecute for DummyBillingConnector {}
 impl api::RefundSync for DummyBillingConnector {}
 impl api::PaymentToken for DummyBillingConnector {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for DummyBillingConnector
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for DummyBillingConnector
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
-    for DummyBillingConnector
-where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for DummyBillingConnector where
+    Self: ConnectorIntegration<Flow, Request, Response>
 {
 }
 
-impl ConnectorCommon for DummyBillingConnector{
+impl ConnectorCommon for DummyBillingConnector {
     fn id(&self) -> &'static str {
         "stripebillingtest"
     }
@@ -88,11 +79,9 @@ impl ConnectorCommon for DummyBillingConnector{
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.dummyconnector.base_url.as_ref()
     }
-
 }
 
-impl ConnectorValidation for DummyBillingConnector{
-}
+impl ConnectorValidation for DummyBillingConnector {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
     for DummyBillingConnector
@@ -115,10 +104,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 {
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for DummyBillingConnector
-{
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for DummyBillingConnector {}
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     for DummyBillingConnector
@@ -130,15 +116,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
 {
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for DummyBillingConnector
-    {
-}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for DummyBillingConnector {}
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
-    for DummyBillingConnector
-{
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for DummyBillingConnector {}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for DummyBillingConnector {
@@ -246,13 +226,11 @@ impl webhooks::IncomingWebhook for DummyBillingConnector {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook = transformers::DummyBillingInvoiceBody::get_invoice_webhook_data_from_body(
-            request.body,
-        )
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let webhook =
+            transformers::DummyBillingInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(webhook))
     }
-
 }
 
 fn get_signature_elements_from_header(
@@ -278,5 +256,3 @@ fn get_signature_elements_from_header(
 }
 
 impl ConnectorSpecifications for DummyBillingConnector {}
-
-
