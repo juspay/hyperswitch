@@ -17,7 +17,7 @@ use common_utils::{
 use diesel_models::CardInfo;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response::ApiErrorResponse, ext_traits::OptionExt,
+    api::ApplicationResponse, errors::api_error_response as errors, ext_traits::OptionExt,
     merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore,
     payment_methods as domain_pm,
 };
@@ -43,7 +43,7 @@ pub async fn migrate_payment_method(
     merchant_account: &MerchantAccount,
     key_store: &MerchantKeyStore,
     controller: &dyn PaymentMethodsController,
-) -> CustomResult<ApplicationResponse<PaymentMethodMigrateResponse>, ApiErrorResponse> {
+) -> CustomResult<ApplicationResponse<PaymentMethodMigrateResponse>, errors::ApiErrorResponse> {
     let mut req = req;
     let card_details = &req.card.get_required_value("card")?;
 
@@ -113,7 +113,7 @@ pub async fn migrate_payment_method(
     };
     let payment_method_response = match resp {
         ApplicationResponse::Json(response) => response,
-        _ => Err(ApiErrorResponse::InternalServerError)
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the payment method response")?,
     };
 
@@ -166,7 +166,7 @@ pub async fn migrate_payment_method(
     _merchant_id: &MerchantId,
     _merchant_account: &MerchantAccount,
     _key_store: &MerchantKeyStore,
-) -> CustomResult<PaymentMethodMigrateResponse, ApiErrorResponse> {
+) -> CustomResult<PaymentMethodMigrateResponse, errors::ApiErrorResponse> {
     todo!()
 }
 
@@ -177,14 +177,14 @@ pub async fn migrate_payment_method(
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn PaymentMethodsStorageInterface,
-) -> CustomResult<CardDetailFromLocker, ApiErrorResponse> {
+) -> CustomResult<CardDetailFromLocker, errors::ApiErrorResponse> {
     migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
         card_number.peek(),
     )
-    .change_context(ApiErrorResponse::InvalidRequestData {
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
         message: "Invalid card number".to_string(),
     })?;
 
@@ -217,7 +217,7 @@ impl
         Option<CardInfo>,
     )> for CardDetailFromLocker
 {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(
         (card_details, card_info): (
             &api_models::payment_methods::MigrateCardDetail,
@@ -226,7 +226,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
-                .change_context(ApiErrorResponse::InvalidRequestData {
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
@@ -301,7 +301,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
-                .change_context(ApiErrorResponse::InvalidRequestData {
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
@@ -377,7 +377,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
     key_store: &MerchantKeyStore,
     migration_status: &mut RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
-) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, ApiErrorResponse> {
+) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, errors::ApiErrorResponse> {
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -393,7 +393,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         .async_map(|billing| create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt Payment method billing address")?;
 
     let connector_mandate_details = req
@@ -401,7 +401,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         .clone()
         .map(serde_json::to_value)
         .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if condition {
         Box::pin(save_migration_payment_method(
@@ -457,7 +457,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                     merchant_id,
                 )
                 .await
-                .change_context(ApiErrorResponse::InternalServerError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to add payment method status update task in process tracker",
                 )?;
@@ -484,7 +484,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     should_require_connector_mandate_details: bool,
     migration_status: &mut RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
-) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, ApiErrorResponse> {
+) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, errors::ApiErrorResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -499,7 +499,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
         Some(
             serde_json::to_value(&connector_mandate_details_req)
-                .change_context(ApiErrorResponse::InternalServerError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse connector mandate details")?,
         )
     } else {
@@ -507,7 +507,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             .clone()
             .map(|connector_mandate_details_req| {
                 serde_json::to_value(&connector_mandate_details_req)
-                    .change_context(ApiErrorResponse::InternalServerError)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse connector mandate details")
             })
             .transpose()?
@@ -519,7 +519,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .async_map(|billing| create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt Payment method billing address")?;
 
     let customer = db
@@ -531,7 +531,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(ApiErrorResponse::CustomerNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let payment_method_card_details =
         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()));
@@ -539,7 +539,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
         create_encrypted_data(&state.into(), key_store, payment_method_card_details)
             .await
-            .change_context(ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt Payment method card details")?,
     );
 
@@ -595,7 +595,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in db")?;
 
     logger::debug!("Payment method inserted in db");
@@ -645,7 +645,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     _key_store: &MerchantKeyStore,
     _merchant_account: &MerchantAccount,
     _card: CardDetailFromLocker,
-) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, ApiErrorResponse> {
+) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, errors::ApiErrorResponse> {
     todo!()
 }
 pub fn get_card_bin_and_last4_digits_for_masked_card(
@@ -677,13 +677,13 @@ pub async fn save_migration_payment_method(
     key_store: &MerchantKeyStore,
     migration_status: &mut RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
-) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, ApiErrorResponse> {
+) -> CustomResult<ApplicationResponse<PaymentMethodResponse>, errors::ApiErrorResponse> {
     let connector_mandate_details = req
         .connector_mandate_details
         .clone()
         .map(serde_json::to_value)
         .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let network_transaction_id = req.network_transaction_id.clone();
 

@@ -143,7 +143,7 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Ach
-                | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::SepaBankTransfer
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Multibanco
                 | api_enums::PaymentMethodType::Pix
@@ -156,6 +156,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::DanamonVa
                 | api_enums::PaymentMethodType::MandiriVa
                 | api_enums::PaymentMethodType::LocalBankTransfer
+                | api_enums::PaymentMethodType::InstantBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
