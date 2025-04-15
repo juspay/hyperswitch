@@ -339,3 +339,11 @@ pub async fn validate_email_domain_auth_type_using_db(
     .then_some(())
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
 }
+
+pub fn get_base_url(state: &SessionState) -> &str {
+    if !state.conf.multitenancy.enabled {
+        &state.conf.user.base_url
+    } else {
+        &state.tenant.user.control_center_url
+    }
+}

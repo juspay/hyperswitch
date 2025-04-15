@@ -23,7 +23,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, send_request, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
-    utils::user::dashboard_metadata as utils,
+    utils::user::{dashboard_metadata as utils, get_base_url},
 };
 #[cfg(feature = "email")]
 use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
@@ -514,7 +514,7 @@ async fn insert_metadata(
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
-                            email_types::get_base_url(state),
+                            get_base_url(state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )
@@ -546,7 +546,7 @@ async fn insert_metadata(
                     message: "".to_string(),
                 };
 
-                let base_url = email_types::get_base_url(&state);
+                let base_url = get_base_url(state);
 
                 let hubspot_request = RequestBuilder::new()
                     .method(Method::Post)
@@ -559,7 +559,7 @@ async fn insert_metadata(
                     )])
                     .build();
 
-                send_request(&state, hubspot_request, None)
+                send_request(state, hubspot_request, None)
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable(format!(
