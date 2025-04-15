@@ -107,6 +107,8 @@ impl api::PaymentToken for Recurly {}
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::BillingConnectorPaymentsSyncIntegration for Recurly {}
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// impl api::revenue_recovery::BillingConnectorInvoiceSyncIntegration for Recurly {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Recurly
@@ -773,6 +775,91 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// impl
+//     ConnectorIntegration<
+//         recovery_router_flows::BillingConnectorInvoiceSync,
+//         recovery_request_types::BillingConnectorInvoiceSyncRequest,
+//         recovery_response_types::BillingConnectorInvoiceSyncResponse,
+//     > for Recurly
+// {
+//     fn get_headers(
+//         &self,
+//         req: &recovery_router_data_types::BillingConnectorInvoiceSyncRouterData,
+//         connectors: &Connectors,
+//     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+//         self.build_headers(req, connectors)
+//     }
+
+//     fn get_content_type(&self) -> &'static str {
+//         self.common_get_content_type()
+//     }
+
+//     fn get_url(
+//         &self,
+//         req: &recovery_router_data_types::BillingConnectorInvoiceSyncRouterData,
+//         connectors: &Connectors,
+//     ) -> CustomResult<String, errors::ConnectorError> {
+//         let invoice_id = &req.request.billing_connector_invoice_id;
+//         Ok(format!(
+//             "{}/invoices/{invoice_id}",
+//             self.base_url(connectors),
+//         ))
+//     }
+
+//     fn build_request(
+//         &self,
+//         req: &recovery_router_data_types::BillingConnectorInvoiceSyncRouterData,
+//         connectors: &Connectors,
+//     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+//         let request = RequestBuilder::new()
+//             .method(Method::Get)
+//             .url(&types::BillingConnectorInvoiceSyncType::get_url(
+//                 self, req, connectors,
+//             )?)
+//             .attach_default_headers()
+//             .headers(types::BillingConnectorInvoiceSyncType::get_headers(
+//                 self, req, connectors,
+//             )?)
+//             .build();
+//         Ok(Some(request))
+//     }
+
+//     fn handle_response(
+//         &self,
+//         data: &recovery_router_data_types::BillingConnectorInvoiceSyncRouterData,
+//         event_builder: Option<&mut ConnectorEvent>,
+//         res: Response,
+//     ) -> CustomResult<
+//         recovery_router_data_types::BillingConnectorInvoiceSyncRouterData,
+//         errors::ConnectorError,
+//     > {
+//         let response: RecurlyRecoveryDetailsData = res
+//             .response
+//             .parse_struct::<RecurlyRecoveryDetailsData>("RecurlyRecoveryDetailsData")
+//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+//         event_builder.map(|i| i.set_response_body(&response));
+//         router_env::logger::info!(connector_response=?response);
+
+//         recovery_router_data_types::BillingConnectorInvoiceSyncRouterData::try_from(
+//             ResponseRouterData {
+//                 response,
+//                 data: data.clone(),
+//                 http_code: res.status_code,
+//             },
+//         )
+//     }
+
+//     fn get_error_response(
+//         &self,
+//         res: Response,
+//         event_builder: Option<&mut ConnectorEvent>,
+//     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+//         self.build_error_response(res, event_builder)
+//     }
+// }
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Recurly {
