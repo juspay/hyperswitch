@@ -160,7 +160,7 @@ pub struct RefundUpdateRequest {
         max_length = 64,
         min_length = 1,
         example = "ref_mbabizu24mvu3mela5njyhpit4",
-        value_type = String,
+        value_type = Option<String>,
     )]
     pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
 }
