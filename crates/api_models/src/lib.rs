@@ -43,6 +43,7 @@ pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
+pub mod proxy;
 
 pub trait ValidateFieldAndGet<Request> {
     fn validate_field_and_get(

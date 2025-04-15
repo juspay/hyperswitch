@@ -580,6 +580,8 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    ///Proxy Flow
+    Proxy,
 }
 
 /// Trait for providing generic behaviour to flow metric

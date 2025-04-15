@@ -56,7 +56,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    relay, user, user_role,
+    relay, user, user_role, proxy,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -651,6 +651,17 @@ impl Relay {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
+    }
+}
+
+pub struct Proxy;
+
+#[cfg(feature = "oltp")]
+impl Proxy{
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/proxy")
+           .app_data(web::Data::new(state))
+           .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
 }
 

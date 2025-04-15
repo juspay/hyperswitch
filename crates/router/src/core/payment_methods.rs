@@ -1956,8 +1956,16 @@ pub async fn update_payment_method_core(
         },
     )?;
 
+    let vault_id = payment_method
+        .locker_id
+        .clone()
+        .ok_or(errors::VaultError::MissingRequiredField {
+            field_name: "locker_id",
+        }).change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
+
     let pmd: domain::PaymentMethodVaultingData =
-        vault::retrieve_payment_method_from_vault(state, merchant_account, &payment_method)
+        vault::retrieve_payment_method_from_vault(state, merchant_account, &vault_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to retrieve payment method from vault")?

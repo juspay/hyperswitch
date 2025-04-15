@@ -67,6 +67,7 @@ pub mod relay;
 
 #[cfg(feature = "olap")]
 pub mod process_tracker;
+pub mod proxy;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;

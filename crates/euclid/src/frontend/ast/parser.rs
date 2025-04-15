@@ -4,7 +4,7 @@ use nom::{
 };
 
 use crate::{frontend::ast, types::DummyOutput};
-pub type ParseResult<T, U> = nom::IResult<T, U, error::VerboseError<T>>;
+pub type ParseResult<T, U> = nom::IResult<T, U, error::VerboseError<T>>; //
 
 pub enum EuclidError {
     InvalidPercentage(String),
@@ -19,7 +19,7 @@ pub trait EuclidParsable: Sized {
 
 impl EuclidParsable for DummyOutput {
     fn parse_output(input: &str) -> ParseResult<&str, Self> {
-        let string_w = sequence::delimited(
+        let string_w = sequence::delimited( //
             skip_ws(complete::tag("\"")),
             complete::take_while(|c| c != '"'),
             skip_ws(complete::tag("\"")),

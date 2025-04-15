@@ -244,7 +244,7 @@ impl Cache {
         }
     }
 
-    pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
+    pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) { //
         self.inner.insert(key.into(), Arc::new(val)).await;
     }
 
