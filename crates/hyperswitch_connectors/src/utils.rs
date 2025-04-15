@@ -6083,14 +6083,11 @@ where
 {
     let string_data: Option<String> = Option::deserialize(deserializer)?;
     match string_data {
-        Some(ref value) if !value.is_empty() => {
-            // Attempt to parse the non-empty string into Currency enum
-            value
-                .clone()
-                .parse_enum("Currency")
-                .map(Some)
-                .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value)))
-        }
-        _ => Ok(None), // Treat empty string or None as Ok(None)
+        Some(ref value) if !value.is_empty() => value
+            .clone()
+            .parse_enum("Currency")
+            .map(Some)
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
+        _ => Ok(None),
     }
 }
