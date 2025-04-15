@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use api_models::{enums as api_enums, payment_methods as api};
 #[cfg(feature = "payouts")]
 use api_models::payouts;
+use api_models::{enums as api_enums, payment_methods as api};
 use common_enums::enums as common_enums;
 use common_utils::{
     crypto, ext_traits, id_type, type_name,
