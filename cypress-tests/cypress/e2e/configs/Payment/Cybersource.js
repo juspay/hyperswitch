@@ -104,7 +104,6 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        amount: 6000,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -785,7 +784,9 @@ export const connectorDetails = {
           value: "connector_1",
         },
       },
-      Request: {},
+      Request: {
+        setup_future_usage: "off_session",
+      },
       Response: {
         status: 200,
         body: {

@@ -346,7 +346,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
-                ) || self.request.setup_future_usage == Some(diesel_models::enums::FutureUsage::OffSession) {
+                ) {
                     // Check if the connector supports mandate payment
                     // check either through implementation or config
                     // if the payment_method_type does not support mandate for the given connector, downgrade the setup future usage to on session
