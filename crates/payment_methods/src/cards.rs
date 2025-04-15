@@ -1,22 +1,23 @@
-use std::{
-    fmt::Debug,
-    sync::{Arc, Mutex},
-};
 
 use api_models::{enums as api_enums, payment_methods as api, payouts};
 use common_enums::enums as common_enums;
-use common_utils::{crypto, ext_traits::OptionExt, id_type, types::keymanager};
+use common_utils::{crypto, type_name, ext_traits, id_type};
 use hyperswitch_domain_models::{
-    errors::api_error_response, merchant_account, merchant_key_store, payment_methods,
+    merchant_key_store, payment_methods,
+    type_encryption,
 };
+use masking::PeekInterface;
+use diesel_models::payment_method;
+use error_stack::ResultExt;
+use std::fmt::Debug;
+use common_utils::types::keymanager::KeyManagerState;
+use masking::Secret;
+use common_utils::types::keymanager::Identifier;
+use storage_impl::errors as storage_errors;
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
-use storage_impl::errors::StorageError;
 
-use crate::{
-    core::{errors, migration::PaymentMethodsMigrateForm},
-    state::PaymentMethodsStorageInterface,
-};
+use crate::core::errors;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DeleteCardResp {
@@ -54,13 +55,13 @@ pub trait PaymentMethodsController {
         connector_mandate_details: Option<serde_json::Value>,
         status: Option<common_enums::PaymentMethodStatus>,
         network_transaction_id: Option<String>,
-        storage_scheme: common_enums::MerchantStorageScheme,
         payment_method_billing_address: crypto::OptionalEncryptableValue,
         card_scheme: Option<String>,
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
@@ -78,12 +79,21 @@ pub trait PaymentMethodsController {
         locker_id: Option<String>,
         connector_mandate_details: Option<serde_json::Value>,
         network_transaction_id: Option<String>,
-        storage_scheme: common_enums::MerchantStorageScheme,
         payment_method_billing_address: crypto::OptionalEncryptableValue,
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn add_payment_method(
+        &self,
+        req: &api::PaymentMethodCreate,
+        key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
     #[cfg(all(
         any(feature = "v2", feature = "v1"),
@@ -93,13 +103,11 @@ pub trait PaymentMethodsController {
         &self,
         pm: api::PaymentMethodId,
         key_store: &merchant_key_store::MerchantKeyStore,
-        merchant_account: merchant_account::MerchantAccount,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn delete_payment_method(
         &self,
-        merchant_account: merchant_account::MerchantAccount,
         pm_id: api::PaymentMethodId,
         key_store: merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
@@ -109,7 +117,6 @@ pub trait PaymentMethodsController {
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
-        merchant_account: &merchant_account::MerchantAccount,
         locker_choice: api_enums::LockerChoice,
         card_reference: Option<&str>,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
@@ -120,7 +127,6 @@ pub trait PaymentMethodsController {
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
-        merchant_account: &merchant_account::MerchantAccount,
         card_reference: Option<&str>,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 
@@ -128,7 +134,6 @@ pub trait PaymentMethodsController {
     async fn add_bank_to_locker(
         &self,
         req: api::PaymentMethodCreate,
-        merchant_account: &merchant_account::MerchantAccount,
         key_store: &merchant_key_store::MerchantKeyStore,
         bank: &payouts::Bank,
         customer_id: &id_type::CustomerId,
@@ -142,7 +147,6 @@ pub trait PaymentMethodsController {
         &self,
         req: api::PaymentMethodCreate,
         resp: &mut api::PaymentMethodResponse,
-        merchant_account: &merchant_account::MerchantAccount,
         customer_id: &id_type::CustomerId,
         key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
@@ -193,11 +197,11 @@ pub trait PaymentMethodsController {
         &self,
         req: &api::PaymentMethodMigrate,
         key_store: &merchant_key_store::MerchantKeyStore,
-        merchant_account: &merchant_account::MerchantAccount,
         network_token_data: &api_models::payment_methods::MigrateNetworkTokenData,
         network_token_requestor_ref_id: String,
         pm_id: String,
     ) -> errors::PmResult<bool>;
+
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn set_default_payment_method(
         &self,
@@ -205,7 +209,6 @@ pub trait PaymentMethodsController {
         key_store: merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         payment_method_id: String,
-        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 
     #[cfg(all(
@@ -231,14 +234,33 @@ pub trait PaymentMethodsController {
 }
 
 pub async fn create_encrypted_data<T>(
+    key_manager_state: &KeyManagerState,
+    key_store: &merchant_key_store::MerchantKeyStore,
     data: T,
-) -> Result<
-    crypto::Encryptable<masking::Secret<serde_json::Value>>,
-    error_stack::Report<StorageError>,
->
+) -> Result<crypto::Encryptable<Secret<serde_json::Value>>, error_stack::Report<storage_errors::StorageError>>
 where
-    T: Debug + serde::Serialize,
+    T: Debug + Serialize,
 {
-    // Implementation here
-    unimplemented!()
+    let key = key_store.key.get_inner().peek();
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+
+    let encoded_data = ext_traits::Encode::encode_to_value(&data)
+        .change_context(storage_errors::StorageError::SerializationFailed)
+        .attach_printable("Unable to encode data")?;
+
+    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+
+    let encrypted_data = type_encryption::crypto_operation(
+        key_manager_state,
+        type_name!(payment_method::PaymentMethod),
+        type_encryption::CryptoOperation::Encrypt(secret_data),
+        identifier.clone(),
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(storage_errors::StorageError::EncryptionError)
+    .attach_printable("Unable to encrypt data")?;
+
+    Ok(encrypted_data)
 }

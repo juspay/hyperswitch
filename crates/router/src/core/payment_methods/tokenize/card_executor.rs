@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 use ::payment_methods::{cards::PaymentMethodsController, core::migration};
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
@@ -564,27 +564,29 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
-        PmCards { state: self.state }
-            .create_payment_method(
-                &payment_method_create,
-                customer_id,
-                &payment_method_id,
-                Some(stored_locker_resp.store_card_resp.card_reference.clone()),
-                self.merchant_account.get_id(),
-                None,
-                None,
-                Some(enc_pm_data),
-                self.key_store,
-                None,
-                None,
-                None,
-                self.merchant_account.storage_scheme,
-                None,
-                None,
-                network_token_details.1.clone(),
-                Some(stored_locker_resp.store_token_resp.card_reference.clone()),
-                Some(enc_token_data),
-            )
-            .await
+        PmCards {
+            state: self.state,
+            merchant_account: self.merchant_account,
+        }
+        .create_payment_method(
+            &payment_method_create,
+            customer_id,
+            &payment_method_id,
+            Some(stored_locker_resp.store_card_resp.card_reference.clone()),
+            self.merchant_account.get_id(),
+            None,
+            None,
+            Some(enc_pm_data),
+            self.key_store,
+            None,
+            None,
+            None,
+            None,
+            None,
+            network_token_details.1.clone(),
+            Some(stored_locker_resp.store_token_resp.card_reference.clone()),
+            Some(enc_token_data),
+        )
+        .await
     }
 }

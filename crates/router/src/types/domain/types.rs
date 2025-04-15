@@ -25,7 +25,6 @@ impl From<&crate::SessionState> for KeyManagerState {
 
 impl From<&crate::SessionState> for PaymentMethodsState {
     fn from(state: &crate::SessionState) -> Self {
-        let conf = state.conf.key_manager.get_inner();
         Self {
             store: state.store.get_payment_methods_store(),
             key_store: None,

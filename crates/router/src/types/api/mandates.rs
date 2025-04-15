@@ -29,7 +29,7 @@ pub(crate) trait MandateResponseExt: Sized {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self>;
 }
 
@@ -43,7 +43,7 @@ impl MandateResponseExt for MandateResponse {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
@@ -51,7 +51,7 @@ impl MandateResponseExt for MandateResponse {
                 &(state.into()),
                 &key_store,
                 &mandate.payment_method_id,
-                storage_scheme,
+                merchant_account.storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -80,9 +80,12 @@ impl MandateResponseExt for MandateResponse {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while getting card details")?
             } else {
-                payment_methods::cards::PmCards { state }
-                    .get_card_details_without_locker_fallback(&payment_method)
-                    .await?
+                payment_methods::cards::PmCards {
+                    state,
+                    merchant_account,
+                }
+                .get_card_details_without_locker_fallback(&payment_method)
+                .await?
             };
 
             Some(MandateCardDetails::from(card_details).into_inner())

@@ -34,9 +34,10 @@ hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces"
 workspace = true
 
 [features]
+customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
 default = ["v1", "dummy_connector", "payouts"]
 v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1", "scheduler/v1"]
-v2 = [ "payment_methods_v2", "scheduler/v2"]
+v2 = ["customer_v2", "payment_methods_v2", "common_utils/v2", "scheduler/v2"]
 payment_methods_v2 = [ "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
 dummy_connector = ["api_models/dummy_connector", "hyperswitch_interfaces/dummy_connector"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]

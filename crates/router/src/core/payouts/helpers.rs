@@ -548,28 +548,30 @@ pub async fn save_payout_data_to_locker(
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         payout_data.payment_method = Some(
-            cards::PmCards { state }
-                .create_payment_method(
-                    &new_payment_method,
-                    customer_id,
-                    &payment_method_id,
-                    Some(stored_resp.card_reference.clone()),
-                    merchant_account.get_id(),
-                    None,
-                    None,
-                    card_details_encrypted.clone(),
-                    key_store,
-                    connector_mandate_details,
-                    None,
-                    None,
-                    merchant_account.storage_scheme,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-                .await?,
+            cards::PmCards {
+                state,
+                merchant_account,
+            }
+            .create_payment_method(
+                &new_payment_method,
+                customer_id,
+                &payment_method_id,
+                Some(stored_resp.card_reference.clone()),
+                merchant_account.get_id(),
+                None,
+                None,
+                card_details_encrypted.clone(),
+                key_store,
+                connector_mandate_details,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await?,
         );
     }
 

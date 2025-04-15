@@ -1,23 +1,16 @@
-use common_utils::{id_type, pii::REDACTED};
-use diesel_models::{kv, CardInfo, UpdateCardInfo};
-use error_stack::{report, ResultExt};
-use futures::future::try_join_all;
+use diesel_models::{CardInfo, UpdateCardInfo};
+use error_stack::report;
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     cards_info::CardsInfoInterface,
-    merchant_key_store::MerchantKeyStore,
 };
-use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
-    diesel_error_to_data_error,
     errors::StorageError,
-    kv_router_store::{FindResourceBy, InsertResourceParams, KVRouterStore, UpdateResourceParams},
-    redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
-    store::enums::MerchantStorageScheme,
+    kv_router_store::KVRouterStore,
+    redis::kv_store::KvStorePartition,
     utils::{pg_connection_read, pg_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
+    CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 
 impl KvStorePartition for CardInfo {}

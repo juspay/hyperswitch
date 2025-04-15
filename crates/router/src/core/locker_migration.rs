@@ -195,11 +195,11 @@ pub async fn call_to_locker(
 
         let add_card_result = cards::PmCards{
             state,
+            merchant_account,
         }.add_card_hs(
                 pm_create,
                 &card_details,
                 customer_id,
-                merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
 

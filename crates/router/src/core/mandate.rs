@@ -47,13 +47,8 @@ pub async fn get_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(
-            &state,
-            key_store,
-            mandate,
-            merchant_account.storage_scheme,
-        )
-        .await?,
+        mandates::MandateResponse::from_db_mandate(&state, key_store, mandate, &merchant_account)
+            .await?,
     ))
 }
 
@@ -255,7 +250,7 @@ pub async fn get_customer_mandates(
                     &state,
                     key_store.clone(),
                     mandate,
-                    merchant_account.storage_scheme,
+                    &merchant_account,
                 )
                 .await?,
             );
@@ -417,7 +412,7 @@ pub async fn retrieve_mandates_list(
             &state,
             key_store.clone(),
             mandate,
-            merchant_account.storage_scheme,
+            &merchant_account,
         )
     }))
     .await?;

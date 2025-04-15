@@ -1,7 +1,5 @@
 use common_utils::errors::CustomResult;
 use diesel_models::cards_info::{CardInfo, UpdateCardInfo};
-use error_stack::report;
-use router_env::{instrument, tracing};
 
 #[async_trait::async_trait]
 pub trait CardsInfoInterface {

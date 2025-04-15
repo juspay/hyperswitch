@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ::payment_methods::{
     cards::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -277,7 +275,10 @@ pub async fn migrate_payment_method_api(
                 &merchant_id,
                 &merchant_account,
                 &key_store,
-                &cards::PmCards { state: &state },
+                &cards::PmCards {
+                    state: &state,
+                    merchant_account: &merchant_account,
+                },
             ))
             .await
         },
@@ -355,8 +356,11 @@ pub async fn migrate_payment_methods(
                     &merchant_id,
                     merchant_connector_id,
                     |pm| async {
-                        let controller = cards::PmCards { state: &state };
-                        migration::migrate_payment_method(
+                        let controller = cards::PmCards {
+                            state: &state,
+                            merchant_account: &merchant_account,
+                        };
+                        migrate_payment_method(
                             (&state).into(),
                             pm,
                             &merchant_id,
@@ -723,10 +727,11 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| async move {
-            let cards = cards::PmCards { state: &state };
-            cards
-                .retrieve_payment_method(pm, &auth.key_store, auth.merchant_account)
-                .await
+            let cards = cards::PmCards {
+                state: &state,
+                merchant_account: &auth.merchant_account,
+            };
+            cards.retrieve_payment_method(pm, &auth.key_store).await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -760,13 +765,17 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            cards::update_customer_payment_method(
-                state,
-                auth.merchant_account,
-                req,
-                &payment_method_id,
-                auth.key_store,
-            )
+            let value = payment_method_id.clone();
+            async move {
+                cards::update_customer_payment_method(
+                    state,
+                    &auth.merchant_account,
+                    req,
+                    &value,
+                    auth.key_store,
+                )
+                .await
+            }
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -799,9 +808,12 @@ pub async fn payment_method_delete_api(
         &req,
         pm,
         |state, auth: auth::AuthenticationData, req, _| async move {
-            cards::PmCards { state: &state }
-                .delete_payment_method(auth.merchant_account, req, auth.key_store)
-                .await
+            cards::PmCards {
+                state: &state,
+                merchant_account: &auth.merchant_account,
+            }
+            .delete_payment_method(req, auth.key_store)
+            .await
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
@@ -869,15 +881,17 @@ pub async fn default_payment_method_set_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            cards::PmCards { state: &state }
-                .set_default_payment_method(
-                    auth.merchant_account.get_id(),
-                    auth.key_store,
-                    customer_id,
-                    default_payment_method.payment_method_id,
-                    auth.merchant_account.storage_scheme,
-                )
-                .await
+            cards::PmCards {
+                state: &state,
+                merchant_account: &auth.merchant_account,
+            }
+            .set_default_payment_method(
+                auth.merchant_account.get_id(),
+                auth.key_store,
+                customer_id,
+                default_payment_method.payment_method_id,
+            )
+            .await
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,

@@ -1,17 +1,16 @@
 use api_models::{enums as api_enums, payment_methods as api};
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain};
-use router_env::{instrument, logger, tracing};
+use router_env::logger;
 
-use crate::{core::errors, state::PaymentMethodsStorageInterface};
+use crate::state::PaymentMethodsStorageInterface;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
-    db: &dyn PaymentMethodsStorageInterface,
+    db: Box<dyn PaymentMethodsStorageInterface>,
 ) -> api_models::payment_methods::CardDetail {
     let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
     if card_details.card_issuer.is_some()
@@ -72,69 +71,6 @@ pub async fn populate_bin_details_for_payment_method_create(
     _db: &dyn StorageInterface,
 ) -> api_models::payment_methods::CardDetail {
     todo!()
-}
-
-pub(crate) trait PaymentMethodCreateExt {
-    fn validate(&self) -> errors::PmResult<()>;
-}
-
-// convert self.payment_method_type to payment_method and compare it against self.payment_method
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
-impl PaymentMethodCreateExt for api::PaymentMethodCreate {
-    fn validate(&self) -> errors::PmResult<()> {
-        if let Some(pm) = self.payment_method {
-            if let Some(payment_method_type) = self.payment_method_type {
-                if !validate_payment_method_type_against_payment_method(pm, payment_method_type) {
-                    return Err(report!(
-                        api_error_response::ApiErrorResponse::InvalidRequestData {
-                            message: "Invalid 'payment_method_type' provided".to_string()
-                        }
-                    )
-                    .attach_printable("Invalid payment method type"));
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl PaymentMethodCreateExt for PaymentMethodCreate {
-    fn validate(&self) -> RouterResult<()> {
-        utils::when(
-            !validate_payment_method_type_against_payment_method(
-                self.payment_method_type,
-                self.payment_method_subtype,
-            ),
-            || {
-                Err(
-                    report!(api_error_response::ApiErrorResponse::InvalidRequestData {
-                        message: "Invalid 'payment_method_type' provided".to_string()
-                    })
-                    .attach_printable("Invalid payment method type"),
-                )
-            },
-        )?;
-
-        utils::when(
-            !Self::validate_payment_method_data_against_payment_method(
-                self.payment_method_type,
-                self.payment_method_data.clone(),
-            ),
-            || {
-                Err(
-                    report!(api_error_response::ApiErrorResponse::InvalidRequestData {
-                        message: "Invalid 'payment_method_data' provided".to_string()
-                    })
-                    .attach_printable("Invalid payment method data"),
-                )
-            },
-        )?;
-        Ok(())
-    }
 }
 
 pub fn validate_payment_method_type_against_payment_method(
