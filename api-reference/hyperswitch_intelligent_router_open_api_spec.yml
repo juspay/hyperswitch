@@ -485,104 +485,133 @@ paths:
         "500":
           description: Internal server error
 
-  /routing/create:
+  /euclid.EuclidService/Create:
     post:
-      summary: Create a routing rule
-      description: Creates a new routing rule with the specified parameters
-      operationId: createRoutingRule
+      operationId: CreateRule
       tags:
         - Static Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
       requestBody:
-        description: The routing rule to create
-        required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/RoutingRule"
             example:
-              name: "Priority Based Config"
+              name: "Test Routing Rule"
               algorithm:
                 globals: {}
-                defaultSelection:
+                default_selection:
                   priority:
-                    - "stripe"
-                    - "adyen"
-                    - "checkout"
+                    connectors: ["stripe", "adyen", "checkout"]
                 rules:
                   - name: "Card Rule"
-                    routingType: "priority"
+                    routing_type: "priority"
                     output:
                       priority:
-                        - "stripe"
-                        - "adyen"
+                        connectors: ["stripe", "adyen"]
                     statements:
                       - condition:
                           - lhs: "payment_method"
                             comparison: "equal"
                             value:
-                              type: "enum_variant"
-                              value: "card"
+                              enum_variant: "card"
                             metadata: {}
                           - lhs: "amount"
                             comparison: "greater_than"
                             value:
-                              type: "number"
-                              value: 1000
+                              number: 1000
                             metadata: {}
                 metadata: {}
       responses:
-        201:
-          description: Routing rule created successfully
+        "200":
+          description: Successful creation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RoutingApiResponse"
-        400:
-          description: Bad request due to invalid input or configuration
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RoutingApiResponse"
-        500:
+                $ref: "#/components/schemas/CreateResponse"
+              example:
+                algorithm_id: "routing_ec1ac351-7944-440f-bdc7-6a500df1116f"
+                name: "Test Routing Rule"
+                created_at: "2025-04-09 8:03:44.85588"
+                modified_at: "2025-04-09 8:03:44.85588"
+        "400":
+          description: Invalid request parameters
+        "500":
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RoutingApiResponse"
 
-  /routing/evaluate:
+  /euclid.EuclidService/Evaluate:
     post:
-      summary: Evaluate an existing routing rule
-      description: This endpoint evaluates routing based on the given parameters and routing ID
-      operationId: evaluateRouting
+      operationId: EvaluateRule
       tags:
         - Static Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
       requestBody:
-        description: The routing request containing the routing ID and parameters
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RoutingRequest"
+              $ref: "#/components/schemas/EvaluateRequest"
+            example:
+              algorithm_id: "routing_ec1ac351-7944-440f-bdc7-6a500df1116f"
+              parameters:
+                payment_method:
+                  enum_variant: "card"
+                amount:
+                  number: 2000
       responses:
-        200:
-          description: Successfully evaluated routing request
+        "200":
+          description: Evaluation result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EvaluatedRoutingResponse"
-        400:
-          description: Bad request, invalid routing ID or parameters
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EvaluatedRoutingResponse"
-        500:
+                $ref: "#/components/schemas/EvaluateResponse"
+              example:
+                status: "success"
+                output:
+                  priority:
+                    connectors: ["stripe", "adyen"]
+                evaluated_output:
+                  - "stripe"
+                eligible_connectors: []
+        "400":
+          description: Invalid request parameters
+        "500":
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EvaluatedRoutingResponse"
 
 components:
   schemas:
@@ -1066,237 +1095,190 @@ components:
       properties:
         name:
           type: string
-          description: The name of the routing rule
         algorithm:
           $ref: "#/components/schemas/Program"
+
+    CreateResponse:
+      type: object
+      properties:
+        algorithm_id:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+        modified_at:
+          type: string
+
+    EvaluateRequest:
+      type: object
+      properties:
+        algorithm_id:
+          type: string
+        parameters:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ValueType"
+
+    EvaluateResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        output:
+          $ref: "#/components/schemas/Output"
+        evaluated_output:
+          type: array
+          items:
+            type: string
+        eligible_connectors:
+          type: array
+          items:
+            type: string
 
     Program:
       type: object
       properties:
         globals:
-          $ref: "#/components/schemas/Globals"
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ValueTypeList"
         default_selection:
-          oneOf:
-            - $ref: "#/components/schemas/OutputPriority"
-            - $ref: "#/components/schemas/OutputVolumeSplit"
-            - $ref: "#/components/schemas/OutputVolumeSplitPriority"
+          $ref: "#/components/schemas/Output"
         rules:
           type: array
           items:
-            type: object
-            description: The list of rules for the algorithm
+            $ref: "#/components/schemas/Rule"
         metadata:
           type: object
           additionalProperties:
-            type: object
-            description: Arbitrary metadata associated with the rule
+            $ref: "#/components/schemas/MetadataValue"
 
-    Globals:
-      type: object
-      additionalProperties:
-        type: array
-        items:
-          type: string
-          description: The type of the value in the set
-
-    OutputPriority:
+    Rule:
       type: object
       properties:
-        priority:
+        name:
+          type: string
+        routing_type:
+          $ref: "#/components/schemas/RoutingType"
+        output:
+          $ref: "#/components/schemas/Output"
+        statements:
+          type: array
+          items:
+            $ref: "#/components/schemas/IfStatement"
+
+    RoutingType:
+      type: string
+      enum: [priority, volume_split, volume_split_priority]
+
+    Output:
+      type: object
+      oneOf:
+        - $ref: "#/components/schemas/PriorityOutput"
+        - $ref: "#/components/schemas/VolumeSplitOutput"
+        - $ref: "#/components/schemas/VolumeSplitPriorityOutput"
+
+    PriorityOutput:
+      type: object
+      properties:
+        connectors:
           type: array
           items:
             type: string
-            description: List of priority strings
-            example: "Priority1"
 
-    OutputVolumeSplit:
+    VolumeSplitOutput:
       type: object
       properties:
-        volume_split:
+        connectors:
           type: array
           items:
-            $ref: "#/components/schemas/VolumeSplitString"
+            $ref: "#/components/schemas/VolumeSplit"
 
-    OutputVolumeSplitPriority:
+    VolumeSplitPriorityOutput:
       type: object
       properties:
-        volume_split_priority:
+        groups:
           type: array
           items:
-            $ref: "#/components/schemas/VolumeSplitArray"
+            $ref: "#/components/schemas/VolumeSplitGroup"
 
-    VolumeSplitString:
+    VolumeSplit:
       type: object
       properties:
         split:
           type: integer
-          description: The split percentage or value
         output:
           type: string
-          description: The output of the volume split
 
-    VolumeSplitArray:
+    VolumeSplitGroup:
       type: object
       properties:
         split:
           type: integer
-          description: The split percentage or value
         output:
           type: array
           items:
             type: string
-            description: List of output strings
 
-    Metadata:
-      type: object
-      additionalProperties:
-        type: object
-        description: Arbitrary metadata associated with the rule
-
-    RoutingApiResponse:
+    IfStatement:
       type: object
       properties:
-        status:
-          type: string
-          description: The status of the response, e.g., "success" or "error"
-          example: "success"
-        message:
-          type: string
-          description: A message describing the response
-          example: "Routing rule created successfully"
-        rule_id:
-          type: string
-          description: The unique identifier for the routing rule (only present in success)
-          example: "routing_123"
-        rule_count:
-          type: integer
-          description: The count of rules in the algorithm (only present in success)
-          example: 3
-        default_selection:
-          oneOf:
-            - $ref: "#/components/schemas/OutputPriority"
-            - $ref: "#/components/schemas/OutputVolumeSplit"
-            - $ref: "#/components/schemas/OutputVolumeSplitPriority"
-          description: The default selection for the routing rule (only present in success)
-        config_name:
-          type: string
-          description: The name of the config that caused an error (only present in error)
-        validation_errors:
+        condition:
           type: array
           items:
-            type: string
-          description: List of validation errors (only present in error)
+            $ref: "#/components/schemas/Comparison"
+        nested:
+          type: array
+          items:
+            $ref: "#/components/schemas/IfStatement"
 
-    RoutingRequest:
+    Comparison:
       type: object
       properties:
-        routing_id:
+        lhs:
           type: string
-          description: The ID of the routing rule to evaluate
-        parameters:
+        comparison:
+          $ref: "#/components/schemas/ComparisonType"
+        value:
+          $ref: "#/components/schemas/ValueType"
+        metadata:
           type: object
           additionalProperties:
-            oneOf:
-              - $ref: "#/components/schemas/ValueType"
-          description: A dictionary of parameters used for evaluation
+            $ref: "#/components/schemas/MetadataValue"
+
+    ComparisonType:
+      type: string
+      enum:
+        [
+          equal,
+          not_equal,
+          less_than,
+          less_than_equal,
+          greater_than,
+          greater_than_equal,
+        ]
+
+    ValueTypeList:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueType"
 
     ValueType:
       type: object
       oneOf:
-        - $ref: "#/components/schemas/ValueTypeNumber"
-        - $ref: "#/components/schemas/ValueTypeEnumVariant"
-        - $ref: "#/components/schemas/ValueTypeMetadataVariant"
-        - $ref: "#/components/schemas/ValueTypeStrValue"
-        - $ref: "#/components/schemas/ValueTypeGlobalRef"
-
-    ValueTypeNumber:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-            - number
-        value:
-          type: integer
-          description: A numeric value (u64)
-
-    ValueTypeEnumVariant:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-            - enum_variant
-        value:
-          type: string
-          description: The enum variant as a string
-
-    ValueTypeMetadataVariant:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-            - metadata_variant
-        value:
-          $ref: "#/components/schemas/MetadataValue"
-
-    ValueTypeStrValue:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-            - str_value
-        value:
-          type: string
-          description: A string value
-
-    ValueTypeGlobalRef:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-            - global_ref
-        value:
-          type: string
-          description: A reference to a global value
+        - type: integer
+          format: uint64
+        - type: string
+        - $ref: "#/components/schemas/MetadataValue"
 
     MetadataValue:
       type: object
       properties:
         key:
           type: string
-          description: The key associated with the metadata
         value:
           type: string
-          description: The value associated with the metadata
-
-    EvaluatedRoutingResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-            - success
-            - error
-          description: The status of the response, either "success" or "error"
-        message:
-          type: string
-          description: A message describing the status or error
-        output:
-          type: object
-          additionalProperties:
-            type: string
-          description: The output JSON (only in success)
-        evaluated_output:
-          type: array
-          items:
-            type: string
-          description: A list of evaluated outputs (only in success)
-        eligible_connectors:
-          type: array
-          items:
-            type: string
-          description: A list of eligible connectors (only in success)
