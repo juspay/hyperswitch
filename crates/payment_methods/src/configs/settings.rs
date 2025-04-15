@@ -30,7 +30,7 @@ pub struct RequiredFieldFinal {
     pub common: HashMap<String, RequiredFieldInfo>,
 }
 #[cfg(feature = "v2")]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RequiredFieldFinal {
     pub mandate: Option<Vec<RequiredFieldInfo>>,
     pub non_mandate: Option<Vec<RequiredFieldInfo>>,

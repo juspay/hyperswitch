@@ -893,6 +893,7 @@ fn billing_address() -> Vec<RequiredField> {
 
 /// Define the mandate, non-mandate, and common required fields for a connector
 /// Eg: fields(vec![RequiredField::CardNumber], vec![RequiredField::BillingEmail], vec![RequiredField::BillingAddressCity])
+#[cfg(feature = "v1")]
 fn fields(
     mandate: Vec<RequiredField>,
     non_mandate: Vec<RequiredField>,
@@ -1138,6 +1139,7 @@ impl Default for RequiredFields {
     }
 }
 
+#[cfg(feature = "v1")]
 fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
@@ -1488,6 +1490,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     ])
 }
 
+#[cfg(feature = "v1")]
 fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
@@ -2073,6 +2076,7 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
     ])
 }
 
+#[cfg(feature = "v1")]
 fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
@@ -2478,6 +2482,7 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
     ])
 }
 
+#[cfg(feature = "v1")]
 fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
@@ -2716,6 +2721,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
     ])
 }
 
+#[cfg(feature = "v1")]
 fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
@@ -2805,6 +2811,7 @@ fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorF
     ])
 }
 
+#[cfg(feature = "v1")]
 fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
@@ -3020,6 +3027,8 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
         ),
     ])
 }
+
+#[cfg(feature = "v1")]
 fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
@@ -3198,6 +3207,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
 
 #[test]
 fn test_required_fields_to_json() {
+    #![allow(clippy::unwrap_used)]
 
     // Test billing fields
     let billing_fields = get_billing_required_fields();

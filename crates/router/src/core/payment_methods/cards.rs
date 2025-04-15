@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use ::payment_methods::configs::default::{
+use ::payment_methods::configs::payment_connector_required_fields::{
     get_billing_required_fields, get_shipping_required_fields,
 };
 #[cfg(all(
