@@ -8503,6 +8503,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         todo!();
     }
+
+    fn get_connector_customer_id(&self) -> Option<String> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
