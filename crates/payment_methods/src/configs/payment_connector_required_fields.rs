@@ -3292,7 +3292,7 @@ fn test_required_fields_to_json() {
         serde_json::to_writer_pretty(
             std::fs::File::create("default_required_fields.json").unwrap(),
             &default_fields,
-        ).unwrap();
+        )
+        .unwrap();
     }
-
 }
