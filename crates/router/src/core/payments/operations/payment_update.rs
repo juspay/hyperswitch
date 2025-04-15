@@ -112,7 +112,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             ],
             "update",
         )?;
-
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         payment_intent.order_details = request
@@ -445,6 +444,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
+
+        payment_intent.force_3ds_challenge = request
+            .force_3ds_challenge
+            .or(payment_intent.force_3ds_challenge);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -933,6 +936,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_details,
                     is_payment_processor_token_flow: None,
                     tax_details: None,
+                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
                 })),
                 key_store,
                 storage_scheme,
