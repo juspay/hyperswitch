@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix2
+
+### Features
+
+- **configs:** [Trustpay] add support for AT,DE,IT country for instant_banktransfer ([#7816](https://github.com/juspay/hyperswitch/pull/7816)) ([`1b628c3`](https://github.com/juspay/hyperswitch/commit/1b628c32e63a02a607207df6ec55551aaf6d72af))
+
+**Full Changelog:** [`2025.04.09.0-hotfix1...2025.04.09.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix1...2025.04.09.0-hotfix2)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix1
 
 ### Features
