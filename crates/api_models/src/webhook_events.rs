@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -29,6 +31,11 @@ pub struct EventListConstraints {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 
+    /// Filter events by their class.
+    pub event_classes: Option<HashSet<EventClass>>,
+
+    /// Filter events by their type.
+    pub event_types: Option<HashSet<EventType>>,
     /// Filter all events by `is_overall_delivery_successful` field of the event.
     pub is_delivered: Option<bool>,
 }
@@ -40,6 +47,8 @@ pub enum EventListConstraintsInternal {
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_classes: Option<HashSet<EventClass>>,
+        event_types: Option<HashSet<EventType>>,
         is_delivered: Option<bool>,
     },
     ObjectIdFilter {
