@@ -42,9 +42,9 @@ pub use hyperswitch_connectors::connectors::{
     shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, stripebilling,
     stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, trustpay,
     trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
-    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
+    wellsfargo, wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay,
+    worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
