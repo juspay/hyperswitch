@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use api_models::enums as api_enums;
 use api_models::{
     enums,
     payment_methods::{
@@ -31,8 +33,6 @@ use crate::{
     helpers::{ForeignFrom, ForeignTryFrom, StorageErrorExt},
     state::{PaymentMethodsState, PaymentMethodsStorageInterface},
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use api_models::enums as api_enums;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
