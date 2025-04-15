@@ -437,7 +437,7 @@ describe("Card - SaveCard payment flow test", () => {
       it("create-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntentOffSession"];
+        ]["PaymentIntent"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,

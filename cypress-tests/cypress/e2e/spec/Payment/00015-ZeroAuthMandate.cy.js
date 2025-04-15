@@ -213,7 +213,7 @@ describe("Card - SingleUse Mandates flow test", () => {
     it("Create Recurring Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["PaymentIntentOffSession"];
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
