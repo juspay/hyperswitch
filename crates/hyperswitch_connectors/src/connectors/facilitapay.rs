@@ -146,96 +146,96 @@ impl ConnectorCommon for Facilitapay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let status_code = res.status_code;
-        // Keep the raw bytes in case the first parse fails
-        let response_body_bytes = res.response.clone();
+        parse_facilitapay_error_response(res, event_builder)
+    }
+}
 
-        // First attempt to parse as FacilitapayErrorResponse (tries multiple formats)
-        match response_body_bytes
-            .parse_struct::<FacilitapayErrorResponse>("FacilitapayErrorResponse")
-        {
-            Ok(error_response) => {
-                event_builder.map(|i| i.set_response_body(&error_response));
-                router_env::info!(connector_response = ?error_response);
+fn parse_facilitapay_error_response(
+    res: Response,
+    event_builder: Option<&mut ConnectorEvent>,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    let status_code = res.status_code;
+    let response_body_bytes = res.response.clone();
 
-                let (code, message, reason) = match &error_response {
-                    FacilitapayErrorResponse::Simple(simple) => (
+    // Try to parse as FacilitapayErrorResponse (tries multiple formats)
+    match response_body_bytes.parse_struct::<FacilitapayErrorResponse>("FacilitapayErrorResponse") {
+        Ok(error_response) => {
+            event_builder.map(|i| i.set_response_body(&error_response));
+            router_env::info!(connector_response = ?error_response);
+
+            let (code, message, reason) = match &error_response {
+                FacilitapayErrorResponse::Simple(simple) => (
+                    consts::NO_ERROR_CODE.to_string(),
+                    simple.error.clone(),
+                    Some(simple.error.clone()),
+                ),
+                FacilitapayErrorResponse::Structured(field_errors) => {
+                    let error_message = extract_error_message(&field_errors.errors);
+                    (
                         consts::NO_ERROR_CODE.to_string(),
-                        simple.error.clone(),
-                        Some(simple.error.clone()),
-                    ),
-                    FacilitapayErrorResponse::Structured(field_errors) => {
-                        let error_message = extract_error_message(&field_errors.errors);
-                        (
-                            consts::NO_ERROR_CODE.to_string(),
-                            error_message.clone(),
-                            Some(
-                                serde_json::to_string(&field_errors.errors)
-                                    .unwrap_or(error_message),
-                            ),
-                        )
-                    }
-                    FacilitapayErrorResponse::GenericObject(obj) => {
-                        let error_message = extract_error_message(&obj.0);
-                        (
-                            consts::NO_ERROR_CODE.to_string(),
-                            error_message.clone(),
-                            Some(serde_json::to_string(&obj.0).unwrap_or(error_message)),
-                        )
-                    }
-                    FacilitapayErrorResponse::PlainText(text) => (
+                        error_message.clone(),
+                        Some(serde_json::to_string(&field_errors.errors).unwrap_or(error_message)),
+                    )
+                }
+                FacilitapayErrorResponse::GenericObject(obj) => {
+                    let error_message = extract_error_message(&obj.0);
+                    (
                         consts::NO_ERROR_CODE.to_string(),
-                        text.clone(),
-                        Some(text.clone()),
-                    ),
-                };
+                        error_message.clone(),
+                        Some(serde_json::to_string(&obj.0).unwrap_or(error_message)),
+                    )
+                }
+                FacilitapayErrorResponse::PlainText(text) => (
+                    consts::NO_ERROR_CODE.to_string(),
+                    text.clone(),
+                    Some(text.clone()),
+                ),
+            };
 
-                Ok(ErrorResponse {
-                    status_code,
-                    code,
-                    message,
-                    reason,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                })
-            }
-            // If structured parsing fails, try as a plain string
-            Err(json_error) => {
-                router_env::warn!(
-                    initial_parse_error = ?json_error,
-                    "Failed to parse Facilitapay error as JSON object, attempting to parse as String"
-                );
+            Ok(ErrorResponse {
+                status_code,
+                code,
+                message,
+                reason,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        }
+        Err(json_error) => {
+            router_env::warn!(
+                initial_parse_error = ?json_error,
+                "Failed to parse Facilitapay error as JSON object, attempting to parse as String"
+            );
 
-                match response_body_bytes.parse_struct::<String>("PlainTextError") {
-                    Ok(error_string) => {
-                        event_builder.map(|i| i.set_response_body(&error_string));
-                        router_env::info!(connector_response = ?error_string);
+            match response_body_bytes.parse_struct::<String>("PlainTextError") {
+                Ok(error_string) => {
+                    event_builder.map(|i| i.set_response_body(&error_string));
+                    router_env::info!(connector_response = ?error_string);
 
-                        Ok(ErrorResponse {
-                            status_code,
-                            code: consts::NO_ERROR_CODE.to_string(),
-                            message: error_string.clone(),
-                            reason: Some(error_string),
-                            attempt_status: None,
-                            connector_transaction_id: None,
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                        })
-                    }
-                    Err(string_error) => {
-                        router_env::error!(
-                            string_parse_error = ?string_error,
-                            original_json_error = ?json_error,
-                            "Failed to parse Facilitapay error response as JSON structure or simple String"
-                        );
+                    Ok(ErrorResponse {
+                        status_code,
+                        code: consts::NO_ERROR_CODE.to_string(),
+                        message: error_string.clone(),
+                        reason: Some(error_string),
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                }
+                Err(string_error) => {
+                    router_env::error!(
+                        string_parse_error = ?string_error,
+                        original_json_error = ?json_error,
+                        "Failed to parse Facilitapay error response as JSON structure or simple String"
+                    );
 
-                        Err(json_error)
-                            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                    }
+                    Err(json_error)
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                 }
             }
         }
