@@ -5,14 +5,15 @@ use api_models::payment_methods::{
     PaymentMethodMigrate, PaymentMethodMigrateResponse, PaymentMethodMigrationResponse,
     PaymentMethodRecord,
 };
-use crate::core::errors;
-use common_utils::errors::{CustomResult};
+use common_utils::errors::CustomResult;
 use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
+
+use crate::core::errors;
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 
@@ -101,7 +102,7 @@ pub fn get_payment_method_records(
 pub fn validate_card_expiry(
     card_exp_month: &masking::Secret<String>,
     card_exp_year: &masking::Secret<String>,
-) -> CustomResult<(),errors::ApiErrorResponse> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     let exp_month = card_exp_month
         .peek()
         .to_string()
@@ -117,9 +118,11 @@ pub fn validate_card_expiry(
 
     let year_str = card_exp_year.peek().to_string();
 
-    validate_card_exp_year(year_str).change_context(errors::ApiErrorResponse::PreconditionFailed {
-        message: "Invalid Expiry Year".to_string(),
-    })?;
+    validate_card_exp_year(year_str).change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid Expiry Year".to_string(),
+        },
+    )?;
 
     Ok(())
 }
