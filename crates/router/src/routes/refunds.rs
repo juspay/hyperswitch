@@ -298,27 +298,9 @@ pub async fn refunds_update(
     ))
     .await
 }
+
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
-/// Refunds - Update
-///
-/// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields or updating merchant reference id.
-#[utoipa::path(
-    post,
-    path = "/refunds/{refund_id}",
-    params(
-        ("refund_id" = String, Path, description = "The identifier for refund")
-    ),
-    request_body=RefundUpdateRequest,
-    responses(
-        (status = 200, description = "Refund updated", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Refunds",
-    operation_id = "Update a Refund",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
-// #[post("/{id}")]
 pub async fn refunds_update(
     state: web::Data<AppState>,
     req: HttpRequest,

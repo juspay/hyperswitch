@@ -111,6 +111,7 @@ pub async fn refunds_retrieve_with_body() {}
     operation_id = "Update a Refund",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn refunds_update() {}
 
 /// Refunds - List
@@ -212,3 +213,42 @@ pub async fn refunds_filter_list() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn refunds_create() {}
+
+/// Refunds - Update
+///
+/// Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields
+#[utoipa::path(
+    post,
+    path = "/v2/refunds/{id}",
+    params(
+        ("id" = String, Path, description = "The identifier for refund")
+    ),
+    request_body(
+        content = RefundUpdateRequest,
+        examples(
+            (
+                "Update refund reason" = (
+                    value = json!({
+                        "reason": "Paid by mistake"
+                      })
+                )
+            ),
+            (
+                "Update merchant reference id of a refund" = (
+                    value = json!({
+                        "merchant_reference_id": "ref_123"
+                      })
+                )
+            ),
+        )
+    ),
+    responses(
+        (status = 200, description = "Refund updated", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Refunds",
+    operation_id = "Update a Refund",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn refunds_update() {}
