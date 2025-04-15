@@ -365,7 +365,7 @@ pub struct Profile {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-    pub revenue_recovery_retry_algorithm_data: Option<serde_json::Value>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 impl Profile {
@@ -435,7 +435,7 @@ pub struct ProfileNew {
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-    pub revenue_recovery_retry_algorithm_data: Option<serde_json::Value>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -489,7 +489,7 @@ pub struct ProfileUpdateInternal {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-    pub revenue_recovery_retry_algorithm_data: Option<serde_json::Value>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -731,3 +731,12 @@ pub struct BusinessGenericLinkConfig {
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
+
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct RevenueRecoveryAlgorithmData{
+    pub timestamp : time::PrimitiveDateTime, 
+}
+
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

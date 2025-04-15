@@ -9,9 +9,10 @@ use common_utils::{
     types::keymanager,
 };
 use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
+    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig, CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails
 };
+#[cfg(feature= "v2")]
+use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -902,7 +903,7 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-    pub revenue_recovery_retry_algorithm_data: Option<serde_json::Value>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -954,7 +955,7 @@ pub struct ProfileSetter {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-    pub revenue_recovery_retry_algorithm_data: Option<serde_json::Value>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -1103,7 +1104,7 @@ pub enum ProfileUpdate {
     },
     RevenueRecoveryAlgorithmUpdate {
         revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-        revenue_recovery_retry_algorithm_data: Option<serde_json::Value>,
+        revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     },
 }
 
