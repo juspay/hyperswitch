@@ -2641,20 +2641,20 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 if let Some(vault_operation) = updated_vault_operation {
                     payment_data.set_vault_operation(vault_operation);
                 }
-            };
 
-            if let Some(ref payment_method_data) = payment_method_details.payment_method_data {
-                let (_, payment_token) = payment_methods::retrieve_payment_method_core(
-                    &Some(payment_method_data.clone()),
-                    state,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
-                    merchant_key_store,
-                    Some(business_profile),
-                )
-                .await?;
-
-                payment_data.token = payment_token;
+                if let None = payment_data.token {
+                    let (_, payment_token) = payment_methods::retrieve_payment_method_core(
+                        &Some(payment_method_data.clone()),
+                        state,
+                        &payment_data.payment_intent,
+                        &payment_data.payment_attempt,
+                        merchant_key_store,
+                        Some(business_profile),
+                    )
+                    .await?;
+    
+                    payment_data.token = payment_token;
+                }
             };
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
