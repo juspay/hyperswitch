@@ -24,8 +24,8 @@ use crate::enums::{Currency, RefundStatus};
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundType {
-    InstantRefund,
     #[default]
+    InstantRefund,
     RegularRefund,
     RetryRefund,
 }

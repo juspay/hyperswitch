@@ -95,8 +95,8 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
-    InstantRefund,
     #[default]
+    InstantRefund,
     RegularRefund,
     RetryRefund,
 }
