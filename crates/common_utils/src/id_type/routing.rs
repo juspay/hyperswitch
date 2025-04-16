@@ -38,7 +38,19 @@ impl ApiEventMetric for RoutingId {
 #[diesel(sql_type = diesel::sql_types::Text,)]
 #[schema(value_type = String)]
 /// A wrapper type for `RoutingId` that can be used for surcharge routing ids
-pub struct SurchargeRoutingId(pub RoutingId);
+pub struct SurchargeRoutingId(RoutingId);
+
+impl SurchargeRoutingId {
+    /// Creates a new `SurchargeRoutingId` from a `RoutingId`
+    pub fn new(routing_id: RoutingId) -> Self {
+        Self(routing_id)
+    }
+
+    /// Returns the inner `RoutingId`
+    pub fn inner(&self) -> &RoutingId {
+        &self.0
+    }
+}
 
 impl Deref for SurchargeRoutingId {
     type Target = RoutingId;

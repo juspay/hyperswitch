@@ -365,11 +365,11 @@ pub async fn retrieve_surcharge_config(
     })?;
 
     if let Some(active_surcharge_algorithm_id) = business_profile.active_surcharge_algorithm_id {
-        let active_algorithm_id = active_surcharge_algorithm_id.0;
+        let active_algorithm_id = active_surcharge_algorithm_id.inner();
         let record = db
             .find_routing_algorithm_by_profile_id_algorithm_id(
                 &query.profile_id,
-                &active_algorithm_id,
+                active_algorithm_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
@@ -391,7 +391,7 @@ pub async fn link_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     auth_profile_id: Option<id_type::ProfileId>,
-    algorithm_id: SurchargeRoutingId,
+    surcharge_algorithm_id: SurchargeRoutingId,
 ) -> RouterResponse<SurchargeConfigResponse> {
     let profile_id =
         auth_profile_id.ok_or_else(|| errors::ApiErrorResponse::MissingRequiredField {
@@ -415,12 +415,12 @@ pub async fn link_surcharge_decision_config(
     })?;
 
     let record = db
-        .find_surcharge_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
+        .find_surcharge_algorithm_by_profile_id_algorithm_id(&profile_id, &surcharge_algorithm_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     let profile_update = ProfileUpdate::ActiveSurchargeIdUpdate {
-        active_surcharge_algorithm_id: Some(algorithm_id),
+        active_surcharge_algorithm_id: Some(surcharge_algorithm_id),
     };
 
     let updated_profile = db
@@ -462,7 +462,7 @@ impl ForeignTryFrom<diesel_models::routing_algorithm::RoutingAlgorithm> for Surc
 
         Ok(Self {
             name: record.name,
-            algorithm_id: SurchargeRoutingId(record.algorithm_id),
+            algorithm_id: SurchargeRoutingId::new(record.algorithm_id),
             merchant_surcharge_configs: algorithm_data.merchant_surcharge_configs,
             algorithm: algorithm_data.algorithm,
             description: record.description,

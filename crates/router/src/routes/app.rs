@@ -895,7 +895,7 @@ impl Routing {
                     .route(web::delete().to(routing::delete_surcharge_decision_manager_config)),
             )
             .service(
-                web::resource("/decision/surcharge_list").route(web::get().to(
+                web::resource("/decision/surcharge/list").route(web::get().to(
                     |state, req, query: web::Query<SurchargeRetrieveQuery>| {
                         routing::list_surcharge_decision_manager_configs(
                             state,
@@ -914,7 +914,7 @@ impl Routing {
                 )),
             )
             .service(
-                web::resource("/decision/surcharge_create").route(web::post().to(
+                web::resource("/decision/surcharge/create").route(web::post().to(
                     |state, req, payload| {
                         routing::add_surcharge_decision_manager_config(
                             state,
