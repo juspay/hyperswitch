@@ -92,7 +92,7 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN charge_id,
     DROP COLUMN issuer_error_code,
     DROP COLUMN issuer_error_message,
-    DROP COLUMN setup_future_usage;
+    DROP COLUMN setup_future_usage_applied;
 
 
 ALTER TABLE payment_methods

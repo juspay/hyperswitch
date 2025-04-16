@@ -933,7 +933,7 @@ diesel::table! {
         #[max_length = 64]
         issuer_error_code -> Nullable<Varchar>,
         issuer_error_message -> Nullable<Text>,
-        setup_future_usage -> Nullable<FutureUsage>,
+        setup_future_usage_applied -> Nullable<FutureUsage>,
     }
 }
 

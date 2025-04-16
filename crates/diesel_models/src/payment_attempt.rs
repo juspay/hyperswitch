@@ -197,7 +197,7 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -411,7 +411,7 @@ pub struct PaymentAttemptNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -535,7 +535,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
-        setup_future_usage: Option<storage_enums::FutureUsage>,
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -925,7 +925,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -1114,7 +1114,7 @@ impl PaymentAttemptUpdate {
             charges,
             issuer_error_code,
             issuer_error_message,
-            setup_future_usage,
+            setup_future_usage_applied,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1179,7 +1179,8 @@ impl PaymentAttemptUpdate {
             charges: charges.or(source.charges),
             issuer_error_code: issuer_error_code.or(source.issuer_error_code),
             issuer_error_message: issuer_error_message.or(source.issuer_error_message),
-            setup_future_usage: setup_future_usage.or(source.setup_future_usage),
+            setup_future_usage_applied: setup_future_usage_applied
+                .or(source.setup_future_usage_applied),
             ..source
         }
     }
@@ -2237,7 +2238,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2299,7 +2300,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2393,7 +2394,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2456,7 +2457,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2520,7 +2521,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2584,7 +2585,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -2646,7 +2647,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2708,7 +2709,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2734,7 +2735,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
-                setup_future_usage,
+                setup_future_usage_applied,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -2798,7 +2799,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_discovery: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    setup_future_usage,
+                    setup_future_usage_applied,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2879,7 +2880,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_mandate_detail: None,
                     card_discovery: None,
                     charges: None,
-                    setup_future_usage: None,
+                    setup_future_usage_applied: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -2939,7 +2940,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3007,7 +3008,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3082,7 +3083,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    setup_future_usage: None,
+                    setup_future_usage_applied: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3156,7 +3157,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    setup_future_usage: None,
+                    setup_future_usage_applied: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3220,7 +3221,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3283,7 +3284,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3355,7 +3356,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_discovery: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    setup_future_usage: None,
+                    setup_future_usage_applied: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3418,7 +3419,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3483,7 +3484,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3557,7 +3558,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
-                    setup_future_usage: None,
+                    setup_future_usage_applied: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -3620,7 +3621,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage: None,
+                setup_future_usage_applied: None,
             },
         }
     }

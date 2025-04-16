@@ -52,6 +52,7 @@ use hyperswitch_domain_models::mandates::CommonMandateReference;
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
+use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -3384,7 +3385,6 @@ pub async fn list_payment_methods(
                 None => continue,
             };
             filter_payment_methods(
-                &state,
                 &graph,
                 mca.get_id(),
                 payment_methods,
@@ -3394,7 +3394,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -3440,7 +3440,6 @@ pub async fn list_payment_methods(
                 None => continue,
             };
             filter_payment_methods(
-                &state,
                 &graph,
                 mca.get_id().clone(),
                 payment_methods,
@@ -3450,7 +3449,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -4441,7 +4440,6 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 ))]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
-    state: &routes::SessionState,
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
     mca_id: id_type::MerchantConnectorAccountId,
     payment_methods: &[Secret<serde_json::Value>],
@@ -4451,7 +4449,7 @@ pub async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&domain::Address>,
     connector: String,
-    saved_payment_methods: &settings::EligiblePaymentMethods,
+    configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -4548,8 +4546,7 @@ pub async fn filter_payment_methods(
                     {
                         payment_intent.map(|intent| intent.amount).map(|amount| {
                             if amount == MinorUnit::zero() {
-                                if state
-                                    .conf
+                                if configs
                                     .zero_mandates
                                     .supported_payment_methods
                                     .0
@@ -4570,8 +4567,7 @@ pub async fn filter_payment_methods(
                                         euclid::enums::PaymentType::SetupMandate,
                                     ));
                                 }
-                            } else if state
-                                .conf
+                            } else if configs
                                 .mandates
                                 .supported_payment_methods
                                 .0
@@ -4630,7 +4626,8 @@ pub async fn filter_payment_methods(
                         .as_ref()
                         .map(|cs| {
                             if cs.starts_with("pm_") {
-                                saved_payment_methods
+                                configs
+                                    .saved_payment_methods
                                     .sdk_eligible_payment_methods
                                     .contains(payment_method.to_string().as_str())
                             } else {
@@ -4683,7 +4680,6 @@ pub async fn filter_payment_methods(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
-    _state: &routes::SessionState,
     _graph: &cgraph::ConstraintGraph<dir::DirValue>,
     _mca_id: String,
     _payment_methods: &[Secret<serde_json::Value>],
@@ -4693,7 +4689,7 @@ pub async fn filter_payment_methods(
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
     _connector: String,
-    _saved_payment_methods: &settings::EligiblePaymentMethods,
+    _configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }

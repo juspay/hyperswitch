@@ -99,7 +99,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .or_else(|| router_data.request.mandate_id.clone());
 
         // update setup_future_usage incase it is downgraded to on-session
-        payment_data.payment_attempt.setup_future_usage = router_data.request.setup_future_usage;
+        payment_data.payment_attempt.setup_future_usage_applied =
+            router_data.request.setup_future_usage;
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
@@ -1844,9 +1845,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .connector_mandate_detail
                                             .clone(),
                                         charges,
-                                        setup_future_usage: payment_data
+                                        setup_future_usage_applied: payment_data
                                             .payment_attempt
-                                            .setup_future_usage,
+                                            .setup_future_usage_applied,
                                     }),
                                 ),
                             };
