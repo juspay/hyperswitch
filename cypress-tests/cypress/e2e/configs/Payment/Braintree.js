@@ -210,37 +210,25 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
       },
-      Response: {
-        status: 200,
-        body: unsettledTransactionRefundResponse,
-      },
+      Response: unsettledTransactionRefundResponse,
     },
     PartialRefund: {
       Request: {
         amount: 2000,
       },
-      Response: {
-        status: 200,
-        body: unsettledTransactionRefundResponse,
-      },
+      Response: unsettledTransactionRefundResponse,
     },
     manualPaymentRefund: {
       Request: {
         amount: 6000,
       },
-      Response: {
-        status: 200,
-        body: unsettledTransactionRefundResponse,
-      },
+      Response: unsettledTransactionRefundResponse,
     },
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
       },
-      Response: {
-        status: 200,
-        body: unsettledTransactionRefundResponse,
-      },
+      Response: unsettledTransactionRefundResponse,
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
