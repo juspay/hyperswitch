@@ -523,11 +523,11 @@ async fn insert_metadata(
                 }
             }
 
-            if state.conf.user.hubspot.enabled {
+            if state.conf.hubspot.enabled {
                 let hubspotbody = api::HubspotRequest {
                     use_hubspot: true,
                     country: data.business_country_name.unwrap_or_default(),
-                    hubspot_form_id: state.conf.user.hubspot.form_id.to_string(),
+                    hubspot_form_id: state.conf.hubspot.form_id.to_string(),
                     firstname: data.poc_name.unwrap_or_default(),
                     lastname: "".to_string(),
                     email: data
@@ -550,7 +550,7 @@ async fn insert_metadata(
 
                 let hubspot_request = RequestBuilder::new()
                     .method(Method::Post)
-                    .url(&state.conf.user.hubspot.base_url)
+                    .url(&state.conf.hubspot.base_url)
                     .set_body(RequestContent::FormUrlEncoded(Box::new(hubspotbody)))
                     .attach_default_headers()
                     .headers(vec![(

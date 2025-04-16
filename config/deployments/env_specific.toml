@@ -319,6 +319,11 @@ control_center_url =  "http://localhost:9000"
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
 
+[hubspot]
+enabled = false
+base_url = ""
+form_id=""
+
 [cell_information]
 id = "12345" # Default CellID for Global Cell Information
 

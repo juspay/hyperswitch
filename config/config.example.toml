@@ -424,6 +424,11 @@ base_url = ""                        # Base url used for user specific redirects
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
 
+[hubspot]
+enabled = false  # Whether to enable hubspot tracking
+base_url = ""    # Base url for hubspot tracking
+form_id=""       # HubSpot-specific form ID
+
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }

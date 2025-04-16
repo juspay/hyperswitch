@@ -403,7 +403,7 @@ base_url = "http://localhost:8080"
 force_two_factor_auth = false
 force_cookies = true
 
-[user.hubspot]
+[hubspot]
 enabled = false
 base_url = ""
 form_id=""

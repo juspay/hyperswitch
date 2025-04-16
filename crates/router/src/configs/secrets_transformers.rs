@@ -501,6 +501,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "email")]
         email: conf.email,
         user: conf.user,
+        hubspot: conf.hubspot,
         mandates: conf.mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,

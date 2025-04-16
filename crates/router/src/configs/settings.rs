@@ -91,6 +91,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub hubspot: HubSpotSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
@@ -685,7 +686,7 @@ pub struct FallbackMerchantIds {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct HubSpot {
+pub struct HubSpotSettings {
     pub enabled: bool,
     pub base_url: String,
     pub form_id: String,
@@ -699,7 +700,6 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
-    pub hubspot: HubSpot,
 }
 
 #[derive(Debug, Deserialize, Clone)]
