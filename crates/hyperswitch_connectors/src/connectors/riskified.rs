@@ -72,6 +72,7 @@ use transformers as riskified;
 
 #[cfg(feature = "frm")]
 use crate::constants::headers;
+use crate::utils::convert_amount;
 #[cfg(feature = "frm")]
 use crate::{
     types::{
@@ -81,7 +82,6 @@ use crate::{
     utils::FrmTransactionRouterDataRequest,
 };
 
-use crate::utils::convert_amount;
 #[derive(Clone)]
 pub struct Riskified {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
