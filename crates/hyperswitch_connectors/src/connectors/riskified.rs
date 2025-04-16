@@ -78,9 +78,10 @@ use crate::{
         FrmCheckoutRouterData, FrmCheckoutType, FrmFulfillmentRouterData, FrmFulfillmentType,
         FrmTransactionRouterData, FrmTransactionType, ResponseRouterData,
     },
-    utils::{convert_amount, FrmTransactionRouterDataRequest},
+    utils::FrmTransactionRouterDataRequest,
 };
 
+use crate::utils::convert_amount;
 #[derive(Clone)]
 pub struct Riskified {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
