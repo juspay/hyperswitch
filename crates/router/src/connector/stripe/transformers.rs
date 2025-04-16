@@ -3385,6 +3385,30 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct UpdateMetadataRequest {
+    #[serde(flatten)]
+    pub metadata: HashMap<String, String>,
+}
+
+impl TryFrom<&types::PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
+        let metadata = format_metadata_for_request(item.request.metadata.clone());
+        Ok(Self { metadata })
+    }
+}
+
+fn format_metadata_for_request(merchant_metadata: Secret<Value>) -> HashMap<String, String> {
+    let mut formatted_metadata = HashMap::new();
+    if let Value::Object(metadata_map) = merchant_metadata.expose() {
+        for (key, value) in metadata_map {
+            formatted_metadata.insert(format!("metadata[{}]", key), value.to_string());
+        }
+    }
+    formatted_metadata
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 #[serde(rename_all = "snake_case")]
