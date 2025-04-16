@@ -1035,5 +1035,5 @@ background_color = "#FFFFFF"                                                    
 enabled = true
 
 [open_router]
-enabled = true
+enabled = false
 url = "http://localhost:8080"
