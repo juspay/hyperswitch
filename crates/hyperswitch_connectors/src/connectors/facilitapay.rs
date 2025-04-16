@@ -52,8 +52,8 @@ use requests::{
     FacilitapayRefundRequest, FacilitapayRouterData,
 };
 use responses::{
-    FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayErrorResponse,
-    FacilitapayPaymentsResponse, FacilitapayRefundResponse,
+    FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentsResponse,
+    FacilitapayRefundResponse,
 };
 
 use crate::{
@@ -157,124 +157,68 @@ fn parse_facilitapay_error_response(
     let status_code = res.status_code;
     let response_body_bytes = res.response.clone();
 
-    // Try to parse as FacilitapayErrorResponse (tries multiple formats)
-    match response_body_bytes.parse_struct::<FacilitapayErrorResponse>("FacilitapayErrorResponse") {
-        Ok(error_response) => {
-            event_builder.map(|i| i.set_response_body(&error_response));
-            router_env::info!(connector_response = ?error_response);
+    let (message, raw_error) =
+        match response_body_bytes.parse_struct::<serde_json::Value>("FacilitapayErrorResponse") {
+            Ok(json_value) => {
+                event_builder.map(|i| i.set_response_body(&json_value));
 
-            let (code, message, reason) = match &error_response {
-                FacilitapayErrorResponse::Simple(simple) => (
-                    consts::NO_ERROR_CODE.to_string(),
-                    simple.error.clone(),
-                    Some(simple.error.clone()),
-                ),
-                FacilitapayErrorResponse::Structured(field_errors) => {
-                    let error_message = extract_error_message(&field_errors.errors);
-                    (
-                        consts::NO_ERROR_CODE.to_string(),
-                        error_message.clone(),
-                        Some(serde_json::to_string(&field_errors.errors).unwrap_or(error_message)),
-                    )
-                }
-                FacilitapayErrorResponse::GenericObject(obj) => {
-                    let error_message = extract_error_message(&obj.0);
-                    (
-                        consts::NO_ERROR_CODE.to_string(),
-                        error_message.clone(),
-                        Some(serde_json::to_string(&obj.0).unwrap_or(error_message)),
-                    )
-                }
-                FacilitapayErrorResponse::PlainText(text) => (
-                    consts::NO_ERROR_CODE.to_string(),
-                    text.clone(),
-                    Some(text.clone()),
-                ),
-            };
-
-            Ok(ErrorResponse {
-                status_code,
-                code,
-                message,
-                reason,
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-            })
-        }
-        Err(json_error) => {
-            router_env::warn!(
-                initial_parse_error = ?json_error,
-                "Failed to parse Facilitapay error as JSON object, attempting to parse as String"
-            );
-
-            match response_body_bytes.parse_struct::<String>("PlainTextError") {
-                Ok(error_string) => {
-                    event_builder.map(|i| i.set_response_body(&error_string));
-                    router_env::info!(connector_response = ?error_string);
-
-                    Ok(ErrorResponse {
-                        status_code,
-                        code: consts::NO_ERROR_CODE.to_string(),
-                        message: error_string.clone(),
-                        reason: Some(error_string),
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                    })
-                }
-                Err(string_error) => {
-                    router_env::error!(
-                        string_parse_error = ?string_error,
-                        original_json_error = ?json_error,
-                        "Failed to parse Facilitapay error response as JSON structure or simple String"
-                    );
-
-                    Err(json_error)
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                }
+                let message = extract_message_from_json(&json_value);
+                (
+                    message,
+                    serde_json::to_string(&json_value).unwrap_or_default(),
+                )
             }
-        }
-    }
+            Err(_) => match String::from_utf8(response_body_bytes.to_vec()) {
+                Ok(text) => {
+                    event_builder.map(|i| i.set_response_body(&text));
+                    (text.clone(), text)
+                }
+                Err(_) => (
+                    "Invalid response format received".to_string(),
+                    format!(
+                        "Unable to parse response as JSON or UTF-8 string. Status code: {}",
+                        status_code
+                    ),
+                ),
+            },
+        };
+
+    Ok(ErrorResponse {
+        status_code,
+        code: consts::NO_ERROR_CODE.to_string(),
+        message,
+        reason: Some(raw_error),
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
+    })
 }
 
-// Helper function to extract error messages from JSON values
-fn extract_error_message(value: &serde_json::Value) -> String {
-    if let Some(obj) = value.as_object() {
-        let error_messages: Vec<String> = obj
-            .iter()
-            .flat_map(|(field, error_val)| {
-                let field_name = field.clone();
-
-                if let Some(errors) = error_val.as_array() {
-                    errors
-                        .iter()
-                        .filter_map(|error_value| {
-                            error_value
-                                .as_str()
-                                .map(|error_data| format!("{}: {}", field_name, error_data))
-                        })
-                        .collect::<Vec<String>>()
-                } else if let Some(error) = error_val.as_str() {
-                    vec![format!("{}: {}", field_name, error)]
-                } else {
-                    vec![format!("{}: {}", field_name, error_val)]
-                }
-            })
-            .collect();
-
-        if !error_messages.is_empty() {
-            error_messages.join("; ")
-        } else {
-            serde_json::to_string(value).unwrap_or_else(|_| consts::NO_ERROR_MESSAGE.to_string())
+// Helper function to extract a readable message from JSON error
+fn extract_message_from_json(json: &serde_json::Value) -> String {
+    if let Some(obj) = json.as_object() {
+        if let Some(error) = obj.get("error").and_then(|e| e.as_str()) {
+            return error.to_string();
         }
-    } else {
-        serde_json::to_string(value).unwrap_or_else(|_| consts::NO_ERROR_MESSAGE.to_string())
+
+        if obj.contains_key("errors") {
+            return "Validation error occurred".to_string();
+        }
+
+        if !obj.is_empty() {
+            return obj
+                .iter()
+                .next()
+                .map(|(k, v)| format!("{}: {}", k, v))
+                .unwrap_or_else(|| "Unknown error".to_string());
+        }
+    } else if let Some(s) = json.as_str() {
+        return s.to_string();
     }
+
+    "Unknown error format".to_string()
 }
 
 impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>

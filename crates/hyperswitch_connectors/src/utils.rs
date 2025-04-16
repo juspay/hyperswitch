@@ -13,10 +13,10 @@ use common_enums::{
     enums::{
         AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
         AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
-        BosniaAndHerzegovinaStatesAbbreviation, BrazilStatesAbbreviation,
-        BulgariaStatesAbbreviation, CanadaStatesAbbreviation, CroatiaStatesAbbreviation,
-        CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation, FinlandStatesAbbreviation,
-        FranceStatesAbbreviation, FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
+        BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
+        CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
+        DenmarkStatesAbbreviation, FinlandStatesAbbreviation, FranceStatesAbbreviation,
+        FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
         HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
         ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
         LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
@@ -5115,19 +5115,6 @@ impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
                 .into()),
             },
         }
-    }
-}
-
-impl ForeignTryFrom<String> for BrazilStatesAbbreviation {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        Self::from_str(&value).map_err(|_| {
-            errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
-            }
-            .into()
-        })
     }
 }
 

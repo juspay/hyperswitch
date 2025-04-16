@@ -209,33 +209,3 @@ pub struct RefundData {
 pub struct FacilitapayRefundResponse {
     pub data: RefundData,
 }
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct SimpleError {
-    pub error: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct FieldErrors {
-    pub errors: serde_json::Value,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(transparent)]
-pub struct GenericFieldErrors(pub serde_json::Value);
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(untagged)] // Try to deserialize into variants in order
-pub enum FacilitapayErrorResponse {
-    /// Matches structures like `{"errors": {"field": ["message"]}}`
-    Structured(FieldErrors),
-
-    /// Matches structures like `{"error": "invalid_token"}`
-    Simple(SimpleError),
-
-    /// Matches structures like `{"field_name": "error_message"}` or `{"field_name": ["message"]}` or any other JSON object
-    GenericObject(GenericFieldErrors),
-
-    /// Matches plain text errors like `"Internal Server Error"`
-    PlainText(String),
-}
