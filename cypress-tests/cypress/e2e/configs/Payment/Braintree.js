@@ -69,11 +69,14 @@ const paymentMethodData3DSResponse = {
   billing: null,
 };
 
-const unsettledTransactionRefundBody = {
-  status: "failed",
-  error_message:
-    "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
-};
+const unsettledTransactionRefundResponse = {
+  status: 200,
+  body: {
+    status: "failed",
+    error_message:
+      "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+  },
+}
 
 export const connectorDetails = {
   card_pm: {
@@ -209,7 +212,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: unsettledTransactionRefundBody,
+        body: unsettledTransactionRefundResponse,
       },
     },
     PartialRefund: {
@@ -218,7 +221,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: unsettledTransactionRefundBody,
+        body: unsettledTransactionRefundResponse,
       },
     },
     manualPaymentRefund: {
@@ -227,7 +230,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: unsettledTransactionRefundBody,
+        body: unsettledTransactionRefundResponse,
       },
     },
     manualPaymentPartialRefund: {
@@ -236,7 +239,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: unsettledTransactionRefundBody,
+        body: unsettledTransactionRefundResponse,
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
