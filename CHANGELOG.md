@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.16.0
+
+### Features
+
+- **configs:** [Trustpay] add support for AT,DE,IT country for instant_banktransfer ([#7815](https://github.com/juspay/hyperswitch/pull/7815)) ([`6d961a3`](https://github.com/juspay/hyperswitch/commit/6d961a3f763d084b777d8b364393de7846b07cca))
+- **core:** Add support for updating metadata after payment has been authorized ([#7776](https://github.com/juspay/hyperswitch/pull/7776)) ([`92f6821`](https://github.com/juspay/hyperswitch/commit/92f68213162df099ecabc10e7d10173e322db27a))
+- **docker:** Add webhook notifiers for installation tracking ([#7653](https://github.com/juspay/hyperswitch/pull/7653)) ([`3446c5e`](https://github.com/juspay/hyperswitch/commit/3446c5e6048bad7a9bd38ae64714447de5ef25ef))
+
+### Refactors
+
+- **customer:** Refactor customer db with storage utils and move trait to domain_models and impl to storage_model ([#7538](https://github.com/juspay/hyperswitch/pull/7538)) ([`e8e0b5d`](https://github.com/juspay/hyperswitch/commit/e8e0b5df0e2d8e5d24fb8c1e98ce5b1049cc2f66))
+
+**Full Changelog:** [`2025.04.14.0...2025.04.16.0`](https://github.com/juspay/hyperswitch/compare/2025.04.14.0...2025.04.16.0)
+
+
+- - -
+
 ## 2025.04.14.0
 
 ### Features
