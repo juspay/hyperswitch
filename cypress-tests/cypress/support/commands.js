@@ -2869,7 +2869,12 @@ Cypress.Commands.add(
                 "payment_method_status for active status"
               ).to.equal("active");
 
-              if (!connector_agnostic_mit) {
+              if (connector_agnostic_mit) {
+                expect(
+                  response.body.connector_mandate_id,
+                  "connector_mandate_id for active status"
+                ).to.be.null;
+              } else {
                 expect(
                   response.body.connector_mandate_id,
                   "connector_mandate_id for active status"

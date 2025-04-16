@@ -576,7 +576,7 @@ describe("Connector Agnostic Tests", () => {
           true /* confirm */,
           "automatic",
           globalState,
-          true /* is_connector_agnostic_mit_enabled */
+          true /* connector_agnostic_mit */
         );
       });
 
@@ -749,7 +749,7 @@ describe("Connector Agnostic Tests", () => {
         true,
         "automatic",
         globalState,
-        true /* is_connector_agnostic_mit_enabled */
+        true /* connector_agnostic_mit */
       );
     });
 
