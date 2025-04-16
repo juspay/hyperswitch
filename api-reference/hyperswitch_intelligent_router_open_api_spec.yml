@@ -488,6 +488,7 @@ paths:
   /euclid.EuclidService/Create:
     post:
       operationId: CreateRule
+      description: Creates a routing rule with the given parameters
       tags:
         - Static Routing
       parameters:
@@ -560,6 +561,7 @@ paths:
   /euclid.EuclidService/Evaluate:
     post:
       operationId: EvaluateRule
+      description: Evaluates a given routing rule
       tags:
         - Static Routing
       parameters:
@@ -648,7 +650,7 @@ components:
           type: number
           format: boolean
           example: true
-          description: Labels terminal status
+          description: Label status
         label:
           type: string
           example: stripe
@@ -667,17 +669,30 @@ components:
         - status: true
           label: adyen
 
+    EliminationLabelWithStatus:
+      type: object
+      properties:
+        label:
+          type: string
+          example: stripe
+        elimination_information:
+          items:
+            $ref: "#/components/schemas/EliminationInformation"
+
     CalSuccessRateRequest:
       type: object
       properties:
         id:
           type: string
+          example: merchant1
           description: Entity identifier
         params:
           type: string
+          example: card
           description: Parameters on which success rate scores has to be maintained
         labels:
           type: array
+          example: ["stripe", "adyen"]
           items:
             type: string
           description: Labels for which to calculate success rates
@@ -799,12 +814,15 @@ components:
       properties:
         id:
           type: string
+          example: merchant1
           description: Entity identifier
         params:
           type: string
-          description: AAdditional parameters for elimination analysis
+          example: card
+          description: Additional parameters for elimination analysis
         labels:
           type: array
+          example: ["stripe", "adyen"]
           items:
             type: string
           description: Labels (processors) to check for elimination
@@ -821,10 +839,12 @@ components:
         bucket_size:
           type: integer
           format: uint64
+          example: 5
           description: Maximum failures allowed before elimination
         bucket_leak_interval_in_secs:
           type: number
           format: uint64
+          example: 300
           description: Time interval after which failures are "forgotten"
       required:
         - bucket_size
@@ -833,11 +853,23 @@ components:
     EliminationResponse:
       type: object
       properties:
-        labels_with_score:
+        labels_with_status:
           type: array
           items:
-            $ref: "#/components/schemas/LabelWithStatus"
+            $ref: "#/components/schemas/EliminationLabelWithStatus"
           description: Elimination status for each label
+      example:
+        labelsWithStatus:
+          - label: "stripe"
+            eliminationInformation:
+              entity:
+                isEliminated: true
+                bucketName:
+                  - "processor_decline"
+              global:
+                isEliminated: true
+                bucketName:
+                  - "processor_decline"
 
     EliminationInformation:
       type: object
@@ -866,20 +898,16 @@ components:
         id:
           type: string
           description: "Entity identifier"
+          example: merchant1
         params:
           type: string
           description: "Additional parameters"
+          example: card
         labels_with_bucket_name:
           type: array
           items:
-            type: object
-            properties:
-              label:
-                type: string
-                description: "Processor identifier"
-              bucket_name:
-                type: string
-                description: "Bucket to update (failure type)"
+            $ref: "#/components/schemas/LabelWithBucketName"
+          example: [{ "label": "stripe", "bucket_name": "processor_decline" }]
         config:
           $ref: "#/components/schemas/EliminationBucketConfig"
       required:
@@ -940,14 +968,17 @@ components:
         id:
           type: string
           description: Entity identifier
+          example: merchant1
         params:
           type: string
           description: Additional parameters for contract calculation
+          example: card
         labels:
           type: array
           items:
             type: string
           description: Labels (processors) to calculate scores for
+          example: ["stripe", "adyen"]
         config:
           $ref: "#/components/schemas/CalContractScoreConfig"
           description: Configuration for calculation
@@ -966,6 +997,7 @@ components:
             type: number
             format: double
           description: Constants used in score calculation algorithm
+          example: [0.7, 0.3]
         time_scale:
           $ref: "#/components/schemas/TimeScale"
           description: Time scale for contract calculation
@@ -1003,7 +1035,7 @@ components:
         label:
           type: string
           description: Label (processor) identifier
-          example: "stripe"
+          example: stripe
         current_count:
           type: integer
           format: uint64
@@ -1020,14 +1052,25 @@ components:
         id:
           type: string
           description: Entity identifier
+          example: merchant1
         params:
           type: string
           description: Additional parameters
+          example: card
         labels_information:
           type: array
           items:
             $ref: "#/components/schemas/LabelInformation"
           description: Contract information for processors
+          example:
+            - label: stripe
+              target_count: 1000
+              target_time: 86400
+              current_count: 500
+            - label: adyen
+              target_count: 1500
+              target_time: 86400
+              current_count: 750
       required:
         - id
         - params
@@ -1039,18 +1082,22 @@ components:
         label:
           type: string
           description: Processor identifier
+          example: stripe
         target_count:
           type: integer
           format: uint64
           description: Target transaction count in contract
+          example: 10000
         target_time:
           type: integer
           format: uint64
           description: Time period for the target (in seconds)
+          example: 1744803903
         current_count:
           type: integer
           format: uint64
           description: Current transaction count
+          example: 500
       required:
         - label
         - target_count
@@ -1075,6 +1122,7 @@ components:
         id:
           type: string
           description: Entity identifier to invalidate
+          example: merchant1
       required:
         - id
 
@@ -1092,9 +1140,35 @@ components:
 
     RoutingRule:
       type: object
+      example:
+        algorithm:
+          globals: {}
+          default_selection:
+            priority:
+              connectors: ["stripe", "adyen", "checkout"]
+          rules:
+            - name: "Card Rule"
+              routing_type: "priority"
+              output:
+                priority:
+                  connectors: ["stripe", "adyen"]
+              statements:
+                - condition:
+                    - lhs: "payment_method"
+                      comparison: "equal"
+                      value:
+                        enum_variant: "card"
+                      metadata: {}
+                    - lhs: "amount"
+                      comparison: "greater_than"
+                      value:
+                        number: 1000
+                      metadata: {}
+          metadata: {}
       properties:
         name:
           type: string
+          example: Test Routing Rule
         algorithm:
           $ref: "#/components/schemas/Program"
 
@@ -1103,12 +1177,20 @@ components:
       properties:
         algorithm_id:
           type: string
+          description: Algorithm Id for the routing rule
+          example: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
         name:
           type: string
+          description: name of the routing rule
+          example: test routing rule
         created_at:
           type: string
+          description: Timestamp for creation of routing rule
+          example: "2025-04-09 8:03:44.85588"
         modified_at:
           type: string
+          description: Timestamp for modification of routing rule
+          example: "2025-04-09 8:03:44.85588"
 
     EvaluateRequest:
       type: object
