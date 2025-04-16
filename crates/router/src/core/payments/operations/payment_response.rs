@@ -1411,6 +1411,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
+
+    // TODO: refactor of gsm_error_category with respective feature flag
+    #[allow(unused_variables)]
     let (capture_update, mut payment_attempt_update, gsm_error_category) = match router_data
         .response
         .clone()
