@@ -1,6 +1,7 @@
 mod requests;
 mod response;
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -26,7 +27,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData, SyncRequestType,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
@@ -1034,4 +1038,150 @@ impl ConnectorRedirectResponse for Globalpay {
     }
 }
 
-impl ConnectorSpecifications for Globalpay {}
+static GLOBALPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::Interac,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::UnionPay,
+        ];
+
+        let mut globalpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Ideal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Giropay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Sofort,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Eps,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        globalpay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        globalpay_supported_payment_methods
+    });
+
+static GLOBALPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Globepay",
+        description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Globalpay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&GLOBALPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*GLOBALPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

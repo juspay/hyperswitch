@@ -1,9 +1,8 @@
 pub mod transformers;
-
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums::{CallConnectorAction, PaymentAction};
+use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
     crypto,
     errors::CustomResult,
@@ -25,7 +24,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
         RefundsRouterData,
@@ -158,7 +160,7 @@ impl ConnectorValidation for Zen {
         &self,
         _data: &PaymentsSyncData,
         _is_three_ds: bool,
-        _status: common_enums::enums::AttemptStatus,
+        _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
@@ -699,4 +701,185 @@ impl ConnectorRedirectResponse for Zen {
     }
 }
 
-impl ConnectorSpecifications for Zen {}
+static ZEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut zen_supported_payment_methods = SupportedPaymentMethods::new();
+
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        enums::PaymentMethodType::Boleto,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        enums::PaymentMethodType::Efecty,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        enums::PaymentMethodType::PagoEfectivo,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        enums::PaymentMethodType::RedCompra,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        enums::PaymentMethodType::RedPagos,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        enums::PaymentMethodType::Multibanco,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        enums::PaymentMethodType::Pix,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        enums::PaymentMethodType::Pse,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    zen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    zen_supported_payment_methods
+});
+
+static ZEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Zen",
+        description: "Zen Payment Gateway is a secure and scalable payment solution that enables businesses to accept online payments globally with various methods and currencies.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static ZEN_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+impl ConnectorSpecifications for Zen {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&ZEN_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*ZEN_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&ZEN_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

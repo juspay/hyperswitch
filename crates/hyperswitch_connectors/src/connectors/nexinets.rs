@@ -1,4 +1,5 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
@@ -23,7 +24,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -750,7 +754,151 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     // Not Implemented (R)
 }
 
-impl ConnectorSpecifications for Nexinets {}
+static NEXINETS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::Interac,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::UnionPay,
+        ];
+
+        let mut nexinets_supported_payment_methods = SupportedPaymentMethods::new();
+
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Ideal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Giropay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Sofort,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Eps,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+        nexinets_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        nexinets_supported_payment_methods
+    });
+
+static NEXINETS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Nexinets",
+        description: "Itau Bank is a leading Brazilian financial institution offering a wide range of banking services, including retail banking, loans, and investment solutions.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static NEXINETS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Nexinets {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NEXINETS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*NEXINETS_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&NEXINETS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
 
 impl ConnectorTransactionId for Nexinets {
     #[cfg(feature = "v1")]
