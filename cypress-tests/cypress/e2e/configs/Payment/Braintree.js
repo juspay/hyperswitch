@@ -9,11 +9,8 @@ const successfulNo3DSCardDetails = {
 };
 
 const successful3DSCardDetails = {
+  ...successfulNo3DSCardDetails,
   card_number: "4012000077777777",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Juspay Hyperswitch",
-  card_cvc: "737",
 };
 
 const singleUseMandateData = {
@@ -71,6 +68,12 @@ const paymentMethodData3DSResponse = {
   },
   billing: null,
 };
+
+const unsettledTransactionRefundBody = {
+  status: "failed",
+  error_message:
+    "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
+}
 
 export const connectorDetails = {
   card_pm: {
@@ -206,11 +209,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message:
-            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
-        },
+        body: unsettledTransactionRefundBody,
       },
     },
     PartialRefund: {
@@ -219,11 +218,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message:
-            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
-        },
+        body: unsettledTransactionRefundBody,
       },
     },
     manualPaymentRefund: {
@@ -232,11 +227,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message:
-            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
-        },
+        body: unsettledTransactionRefundBody,
       },
     },
     manualPaymentPartialRefund: {
@@ -245,11 +236,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message:
-            "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
-        },
+        body: unsettledTransactionRefundBody,
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
