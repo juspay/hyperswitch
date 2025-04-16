@@ -426,7 +426,7 @@ impl OpenSearchConfig {
         Ok(Some(
             OpenSearchClient::create(self)
                 .await
-                .map_err(|_| StorageError::InitializationError)?,
+                .change_context(StorageError::InitializationError)?,
         ))
     }
 

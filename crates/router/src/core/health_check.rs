@@ -143,8 +143,10 @@ impl HealthCheckInterface for app::SessionState {
                 .deep_health_check()
                 .await
                 .change_context(errors::HealthCheckDBError::OpensearchError)?;
+            Ok(HealthState::Running)
+        } else {
+            Ok(HealthState::NotApplicable)
         }
-        Ok(HealthState::Running)
     }
 
     async fn health_check_outgoing(
