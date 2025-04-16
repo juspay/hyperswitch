@@ -1,8 +1,4 @@
 pub mod cards;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 #[cfg(all(
