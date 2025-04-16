@@ -7268,6 +7268,7 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
     let connectors = routing::perform_eligibility_analysis_with_fallback(

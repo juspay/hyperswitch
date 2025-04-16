@@ -6,17 +6,21 @@ use std::collections::hash_map;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
-    open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest},
     routing::ConnectorSelection,
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::AsyncExt;
-use common_utils::{ext_traits::BytesExt, request};
+use api_models::{
+    open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest},
+    routing as api_routing,
+};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::{
+    ext_traits::{AsyncExt, BytesExt},
+    request,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -50,15 +54,11 @@ use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 use crate::core::admin;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::{core::routing::transformers::OpenRouterDecideGatewayRequestExt, headers, services};
 use crate::{
-    core::{
-        errors, errors as oss_errors,
-        routing::{
-            transformers::OpenRouterDecideGatewayRequestExt,
-            {self},
-        },
-    },
-    headers, logger, services,
+    core::{errors, errors as oss_errors, routing},
+    logger,
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,

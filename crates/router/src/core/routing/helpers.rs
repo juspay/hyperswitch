@@ -38,17 +38,17 @@ use storage_impl::redis::cache::Cacheable;
 use crate::db::errors::StorageErrorExt;
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use crate::{core::metrics as core_metrics, types::transformers::ForeignInto};
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        routing,
-    },
+    core::errors::{self, RouterResult},
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
+};
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::{
+    core::{metrics as core_metrics, routing},
+    types::transformers::ForeignInto,
 };
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";

@@ -1,16 +1,17 @@
-use api_models::{
-    open_router::{OpenRouterDecideGatewayRequest, PaymentInfo, RankingAlgorithm},
-    routing::{
-        MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
-        RoutingDictionaryRecord,
-    },
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::open_router::{OpenRouterDecideGatewayRequest, PaymentInfo, RankingAlgorithm};
+use api_models::routing::{
+    MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
+    RoutingDictionaryRecord,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_enums::RoutableConnectors;
 use common_utils::ext_traits::ValueExt;
 use diesel_models::{
     enums as storage_enums,
     routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 
 use crate::{
@@ -104,6 +105,7 @@ impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
     }
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub trait OpenRouterDecideGatewayRequestExt {
     fn construct_sr_request(
         attempt: PaymentAttempt,
@@ -114,6 +116,7 @@ pub trait OpenRouterDecideGatewayRequestExt {
         Self: Sized;
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
     fn construct_sr_request(
         attempt: PaymentAttempt,
@@ -127,8 +130,8 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
                 payment_type: "ORDER_PAYMENT".to_string(),
                 // payment_method_type: attempt.payment_method_type.clone().unwrap(),
-                payment_method_type: "UPI".into(),
-                payment_method: attempt.payment_method.unwrap(),
+                payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
+                payment_method: attempt.payment_method.unwrap_or_default(),
             },
             merchant_id: attempt.profile_id,
             eligible_gateway_list: Some(eligible_gateway_list),
