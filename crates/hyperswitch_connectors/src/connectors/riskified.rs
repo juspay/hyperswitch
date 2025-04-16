@@ -64,12 +64,14 @@ use hyperswitch_interfaces::{
 #[cfg(feature = "frm")]
 use masking::Maskable;
 #[cfg(feature = "frm")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
 use transformers as riskified;
 
+#[cfg(feature = "frm")]
+use crate::constants::headers;
 #[cfg(feature = "frm")]
 use crate::{
     types::{
@@ -81,7 +83,6 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Riskified {
-    #[allow(dead_code)]
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
@@ -121,11 +122,6 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        use hyperswitch_interfaces::errors::ConnectorError;
-        use masking::Mask;
-
-        use crate::constants::headers;
-
         let auth: riskified::RiskifiedAuthType =
             riskified::RiskifiedAuthType::try_from(&req.connector_auth_type)?;
 
