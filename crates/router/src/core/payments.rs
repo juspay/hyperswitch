@@ -3114,7 +3114,7 @@ where
         key_store,
         &merchant_connector_account,
         payment_data,
-        &router_data.access_token.clone(),
+        router_data.access_token.as_ref(),
     )
     .await?;
 
@@ -4284,7 +4284,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     key_store: &domain::MerchantKeyStore,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
-    access_token: &Option<AccessToken>,
+    access_token: Option<&AccessToken>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -4360,7 +4360,8 @@ where
                     )
                     .await?;
 
-                customer_router_data.access_token = access_token.clone();
+                customer_router_data.access_token = access_token.cloned();
+
                 let connector_customer_id = customer_router_data
                     .create_connector_customer(state, &connector)
                     .await?;
