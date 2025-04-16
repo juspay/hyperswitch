@@ -812,3 +812,9 @@ pub struct GlobalpayCaptureRequest {
 pub struct GlobalpayCancelRequest {
     pub amount: Option<StringMinorUnit>,
 }
+
+#[derive(Debug, Serialize)]
+pub struct GlobalpayIncrementalAuthRequest {
+    pub amount: Option<StringMinorUnit>,
+    pub lodging: Option<Lodging>,
+}

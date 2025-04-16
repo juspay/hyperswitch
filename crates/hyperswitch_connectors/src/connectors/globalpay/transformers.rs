@@ -16,7 +16,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundExecuteRouterData, RefundsRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundExecuteRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
@@ -28,8 +29,8 @@ use url::Url;
 use super::{
     requests::{
         self, ApmProvider, GlobalPayRouterData, GlobalpayCancelRouterData,
-        GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator, PaymentMethodData,
-        Sequence, StoredCredential,
+        GlobalpayIncrementalAuthRequest, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest,
+        Initiator, PaymentMethodData, Sequence, StoredCredential,
     },
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
@@ -138,6 +139,20 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
             total_capture_count: None,
             globalpay_payments_request_type: None,
             user_reference: None,
+        })
+    }
+}
+
+impl TryFrom<&GlobalPayRouterData<&PaymentsIncrementalAuthorizationRouterData>>
+    for GlobalpayIncrementalAuthRequest
+{
+    type Error = Error;
+    fn try_from(
+        item: &GlobalPayRouterData<&PaymentsIncrementalAuthorizationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(item.amount.to_owned()),
+            lodging: None,
         })
     }
 }

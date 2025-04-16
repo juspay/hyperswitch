@@ -9,7 +9,7 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -17,40 +17,46 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, IncrementalAuthorization, PSync, PaymentMethodToken, Session,
+            SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
         CompleteAuthorize,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData, SyncRequestType,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
         self, CaptureSyncMethod, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorRedirectResponse, ConnectorSpecifications, ConnectorValidation,
-        PaymentsCompleteAuthorize,
+        PaymentIncrementalAuthorization, PaymentsCompleteAuthorize,
     },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
-        Response,
+        IncrementalAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
-use requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest};
+use requests::{
+    GlobalpayIncrementalAuthRequest, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest,
+};
 use response::{
     GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse, GlobalpayRefreshTokenResponse,
 };
@@ -274,6 +280,114 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl PaymentIncrementalAuthorization for Globalpay {}
+
+impl
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for Globalpay
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}transactions/{}/incremental",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_additional_amount = MinorUnit::new(req.request.additional_amount);
+        let additional_amount = convert_amount(
+            self.amount_converter,
+            minor_additional_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = requests::GlobalPayRouterData::from((additional_amount, req));
+        let connector_req = GlobalpayIncrementalAuthRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsIncrementalAuthorizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&IncrementalAuthorizationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(IncrementalAuthorizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(IncrementalAuthorizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &PaymentsIncrementalAuthorizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        errors::ConnectorError,
+    > {
+        let response: GlobalpayPaymentsResponse = res
+            .response
+            .parse_struct("Globalpay PaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
     fn get_error_response(
         &self,
         res: Response,
