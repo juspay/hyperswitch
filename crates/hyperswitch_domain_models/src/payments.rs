@@ -3,15 +3,19 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::SessionToken;
+use common_types::primitive_wrappers::{
+    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     self,
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
+    ext_traits::ValueExt,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -35,13 +39,14 @@ use diesel_models::{
 };
 
 use self::payment_attempt::PaymentAttempt;
-#[cfg(feature = "v1")]
-use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, errors, merchant_account, payment_address,
-    payment_method_data, ApiModelToDieselModelConvertor,
+    address::Address, business_profile, customer, errors, merchant_account,
+    merchant_connector_account, payment_address, payment_method_data, routing,
+    ApiModelToDieselModelConvertor,
 };
+#[cfg(feature = "v1")]
+use crate::{payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -111,6 +116,8 @@ pub struct PaymentIntent {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -142,6 +149,51 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating start redirection url")
     }
+    #[cfg(feature = "v1")]
+    pub fn get_request_extended_authorization_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_request_extended_authorization_optional: Option<AlwaysRequestExtendedAuthorization>,
+        payment_method_optional: Option<common_enums::PaymentMethod>,
+        payment_method_type_optional: Option<common_enums::PaymentMethodType>,
+    ) -> Option<RequestExtendedAuthorizationBool> {
+        use router_env::logger;
+
+        let is_extended_authorization_supported_by_connector = || {
+            let supported_pms = connector.get_payment_methods_supporting_extended_authorization();
+            let supported_pmts =
+                connector.get_payment_method_types_supporting_extended_authorization();
+            // check if payment method or payment method type is supported by the connector
+            logger::info!(
+                "Extended Authentication Connector:{:?}, Supported payment methods: {:?}, Supported payment method types: {:?}, Payment method Selected: {:?}, Payment method type Selected: {:?}",
+                connector,
+                supported_pms,
+                supported_pmts,
+                payment_method_optional,
+                payment_method_type_optional
+            );
+            match (payment_method_optional, payment_method_type_optional) {
+                (Some(payment_method), Some(payment_method_type)) => {
+                    supported_pms.contains(&payment_method)
+                        && supported_pmts.contains(&payment_method_type)
+                }
+                (Some(payment_method), None) => supported_pms.contains(&payment_method),
+                (None, Some(payment_method_type)) => supported_pmts.contains(&payment_method_type),
+                (None, None) => false,
+            }
+        };
+        let intent_request_extended_authorization_optional = self.request_extended_authorization;
+        if always_request_extended_authorization_optional.is_some_and(
+            |always_request_extended_authorization| *always_request_extended_authorization,
+        ) || intent_request_extended_authorization_optional.is_some_and(
+            |intent_request_extended_authorization| *intent_request_extended_authorization,
+        ) {
+            Some(is_extended_authorization_supported_by_connector())
+        } else {
+            None
+        }
+        .map(RequestExtendedAuthorizationBool::from)
+    }
 
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
@@ -159,6 +211,46 @@ impl PaymentIntent {
         url::Url::parse(&finish_redirection_url)
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating finish redirection url")
+    }
+
+    pub fn parse_and_get_metadata<T>(
+        &self,
+        type_name: &'static str,
+    ) -> CustomResult<Option<T>, common_utils::errors::ParsingError>
+    where
+        T: for<'de> masking::Deserialize<'de>,
+    {
+        self.metadata
+            .clone()
+            .map(|metadata| metadata.parse_value(type_name))
+            .transpose()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn merge_metadata(
+        &self,
+        request_metadata: Value,
+    ) -> Result<Value, common_utils::errors::ParsingError> {
+        if !request_metadata.is_null() {
+            match (&self.metadata, &request_metadata) {
+                (Some(Value::Object(existing_map)), Value::Object(req_map)) => {
+                    let mut merged = existing_map.clone();
+                    merged.extend(req_map.clone());
+                    Ok(Value::Object(merged))
+                }
+                (None, Value::Object(_)) => Ok(request_metadata),
+                _ => {
+                    router_env::logger::error!(
+                        "Expected metadata to be an object, got: {:?}",
+                        request_metadata
+                    );
+                    Err(common_utils::errors::ParsingError::UnknownError)
+                }
+            }
+        } else {
+            router_env::logger::error!("Metadata does not contain any key");
+            Err(common_utils::errors::ParsingError::UnknownError)
+        }
     }
 }
 
@@ -225,9 +317,45 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
                 })
             }
+            common_enums::TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
+        })
+    }
+
+    pub fn proxy_create_attempt_amount_details(
+        &self,
+        _confirm_intent_request: &api_models::payments::ProxyPaymentsRequest,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = self.calculate_net_amount();
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            common_enums::TaxCalculationOverride::Skip => self
+                .tax_details
+                .as_ref()
+                .and_then(|tax_details| tax_details.get_tax_amount(None)),
             common_enums::TaxCalculationOverride::Calculate => None,
         };
 
@@ -304,8 +432,6 @@ pub struct PaymentIntent {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
-    /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
-    pub client_secret: common_utils::types::ClientSecret,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     /// The order details for the payment.
@@ -354,7 +480,7 @@ pub struct PaymentIntent {
     /// Authentication type that is requested by the merchant for this payment.
     pub authentication_type: Option<common_enums::AuthenticationType>,
     /// This contains the pre routing results that are done when routing is done during listing the payment methods.
-    pub prerouting_algorithm: Option<Value>,
+    pub prerouting_algorithm: Option<routing::PaymentRoutingInfo>,
     /// The organization id for the payment. This is derived from the merchant account
     pub organization_id: id_type::OrganizationId,
     /// Denotes the request by the merchant whether to enable a payment link for this payment.
@@ -371,10 +497,45 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<id_type::MerchantId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    pub force_3ds_challenge: Option<bool>,
+    pub force_3ds_challenge_trigger: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+    fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get_payment_method_sub_type())
+    }
+
+    fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get_payment_method_type())
+    }
+
+    pub fn get_connector_customer_id_from_feature_metadata(&self) -> Option<String> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery_metadata| {
+                recovery_metadata
+                    .billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
+    }
+
+    pub fn get_billing_merchant_connector_account_id(
+        &self,
+    ) -> Option<id_type::MerchantConnectorAccountId> {
+        self.feature_metadata.as_ref().and_then(|feature_metadata| {
+            feature_metadata.get_billing_merchant_connector_account_id()
+        })
+    }
+
     fn get_request_incremental_authorization_value(
         request: &api_models::payments::PaymentsCreateIntentRequest,
     ) -> CustomResult<
@@ -393,22 +554,6 @@ impl PaymentIntent {
                 }
             })
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
-    }
-
-    /// Check if the client secret is associated with the payment and if it has been expired
-    pub fn validate_client_secret(
-        &self,
-        client_secret: &common_utils::types::ClientSecret,
-    ) -> Result<(), errors::api_error_response::ApiErrorResponse> {
-        common_utils::fp_utils::when(self.client_secret != *client_secret, || {
-            Err(errors::api_error_response::ApiErrorResponse::ClientSecretInvalid)
-        })?;
-
-        common_utils::fp_utils::when(self.session_expiry < common_utils::date_time::now(), || {
-            Err(errors::api_error_response::ApiErrorResponse::ClientSecretExpired)
-        })?;
-
-        Ok(())
     }
 
     pub async fn create_domain_model_from_request(
@@ -435,13 +580,13 @@ impl PaymentIntent {
                         .unwrap_or(common_utils::consts::DEFAULT_SESSION_EXPIRY),
                 ),
             ));
-        let client_secret = payment_id.generate_client_secret();
         let order_details = request.order_details.map(|order_details| {
             order_details
                 .into_iter()
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -458,7 +603,6 @@ impl PaymentIntent {
             modified_at: common_utils::date_time::now(),
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
-            client_secret,
             active_attempt_id: None,
             order_details,
             allowed_payment_method_types,
@@ -514,7 +658,21 @@ impl PaymentIntent {
             platform_merchant_id: platform_merchant_id
                 .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
         })
+    }
+
+    pub fn get_revenue_recovery_metadata(
+        &self,
+    ) -> Option<diesel_models::types::PaymentRevenueRecoveryMetadata> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
+        self.feature_metadata.clone()
     }
 }
 
@@ -543,6 +701,7 @@ pub struct ClickToPayMetaData {
     pub acquirer_merchant_id: String,
     pub merchant_category_code: String,
     pub merchant_country_code: String,
+    pub dpa_client_id: Option<String>,
 }
 
 // TODO: uncomment fields as necessary
@@ -560,7 +719,6 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
-    pub client_secret: Option<common_utils::types::ClientSecret>,
 }
 
 impl HeaderPayload {
@@ -581,11 +739,12 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
+    pub client_secret: Option<Secret<String>>,
 }
 
 // TODO: Check if this can be merged with existing payment data
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentConfirmData<F>
 where
     F: Clone,
@@ -595,6 +754,25 @@ where
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
+    pub mandate_data: Option<api_models::payments::MandateIds>,
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> PaymentConfirmData<F> {
+    pub fn get_connector_customer_id(
+        &self,
+        customer: Option<&customer::Customer>,
+        merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> Option<String> {
+        match customer
+            .and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id()))
+        {
+            Some(id) => Some(id.to_string()),
+            None => self
+                .payment_intent
+                .get_connector_customer_id_from_feature_metadata(),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -631,5 +809,169 @@ where
 {
     pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
         &self.payment_intent.id
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+    pub revenue_recovery_data: RevenueRecoveryData,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct RevenueRecoveryData {
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+    pub processor_payment_method_token: String,
+    pub connector_customer_id: String,
+    pub retry_count: Option<u16>,
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+}
+
+#[cfg(feature = "v2")]
+impl<F> PaymentAttemptRecordData<F>
+where
+    F: Clone,
+{
+    pub fn get_updated_feature_metadata(
+        &self,
+    ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
+        let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
+
+        let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
+        let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let payment_revenue_recovery_metadata = match payment_attempt_connector {
+            Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+                // Update retry count by one.
+                total_retry_count: revenue_recovery.as_ref().map_or(
+                    self.revenue_recovery_data
+                        .retry_count
+                        .map_or_else(|| 1, |retry_count| retry_count),
+                    |data| (data.total_retry_count + 1),
+                ),
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
+                payment_connector_transmission:
+                    common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
+                active_attempt_payment_connector_id: self
+                    .payment_attempt
+                    .get_attempt_merchant_connector_account_id()?,
+                billing_connector_payment_details:
+                    diesel_models::types::BillingConnectorPaymentDetails {
+                        payment_processor_token: self
+                            .revenue_recovery_data
+                            .processor_payment_method_token
+                            .clone(),
+                        connector_customer_id: self
+                            .revenue_recovery_data
+                            .connector_customer_id
+                            .clone(),
+                    },
+                payment_method_type: self.payment_attempt.payment_method_type,
+                payment_method_subtype: self.payment_attempt.payment_method_subtype,
+                connector: connector.parse().map_err(|err| {
+                    router_env::logger::error!(?err, "Failed to parse connector string to enum");
+                    errors::api_error_response::ApiErrorResponse::InternalServerError
+                })?,
+                invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
+            }),
+            None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector not found in payment attempt")?,
+        };
+        Ok(Some(FeatureMetadata {
+            redirect_response: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.redirect_response.clone()),
+            search_tags: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.search_tags.clone()),
+            apple_pay_recurring_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.apple_pay_recurring_details.clone()),
+            payment_revenue_recovery_metadata,
+        }))
+    }
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultOperation {
+    ExistingVaultData(VaultData),
+}
+
+impl VaultOperation {
+    pub fn get_updated_vault_data(
+        existing_vault_data: Option<&Self>,
+        payment_method_data: &payment_method_data::PaymentMethodData,
+    ) -> Option<Self> {
+        match (existing_vault_data, payment_method_data) {
+            (None, payment_method_data::PaymentMethodData::Card(card)) => {
+                Some(Self::ExistingVaultData(VaultData::Card(card.clone())))
+            }
+            (None, payment_method_data::PaymentMethodData::NetworkToken(nt_data)) => Some(
+                Self::ExistingVaultData(VaultData::NetworkToken(nt_data.clone())),
+            ),
+            (Some(Self::ExistingVaultData(vault_data)), payment_method_data) => {
+                match (vault_data, payment_method_data) {
+                    (
+                        VaultData::Card(card),
+                        payment_method_data::PaymentMethodData::NetworkToken(nt_data),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    (
+                        VaultData::NetworkToken(nt_data),
+                        payment_method_data::PaymentMethodData::Card(card),
+                    ) => Some(Self::ExistingVaultData(VaultData::CardAndNetworkToken(
+                        Box::new(CardAndNetworkTokenData {
+                            card_data: card.clone(),
+                            network_token_data: nt_data.clone(),
+                        }),
+                    ))),
+                    _ => Some(Self::ExistingVaultData(vault_data.clone())),
+                }
+            }
+            //payment_method_data is not card or network token
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub enum VaultData {
+    Card(payment_method_data::Card),
+    NetworkToken(payment_method_data::NetworkTokenData),
+    CardAndNetworkToken(Box<CardAndNetworkTokenData>),
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardAndNetworkTokenData {
+    pub card_data: payment_method_data::Card,
+    pub network_token_data: payment_method_data::NetworkTokenData,
+}
+
+impl VaultData {
+    pub fn get_card_vault_data(&self) -> Option<payment_method_data::Card> {
+        match self {
+            Self::Card(card_data) => Some(card_data.clone()),
+            Self::NetworkToken(_network_token_data) => None,
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.card_data.clone()),
+        }
+    }
+
+    pub fn get_network_token_data(&self) -> Option<payment_method_data::NetworkTokenData> {
+        match self {
+            Self::Card(_card_data) => None,
+            Self::NetworkToken(network_token_data) => Some(network_token_data.clone()),
+            Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
+        }
     }
 }

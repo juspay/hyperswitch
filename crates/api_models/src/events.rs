@@ -11,10 +11,11 @@ pub mod payouts;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refund;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery;
 pub mod routing;
 pub mod user;
 pub mod user_role;
-
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     impl_api_event_type,
@@ -113,10 +114,12 @@ impl_api_event_type!(
         GetActivePaymentsMetricRequest,
         GetSdkEventMetricRequest,
         GetAuthEventMetricRequest,
+        GetAuthEventFilterRequest,
         GetPaymentFiltersRequest,
         PaymentFiltersResponse,
         GetRefundFilterRequest,
         RefundFiltersResponse,
+        AuthEventFiltersResponse,
         GetSdkEventFiltersRequest,
         SdkEventFiltersResponse,
         ApiLogsRequest,
@@ -180,6 +183,13 @@ impl<T> ApiEventMetric for DisputesMetricsResponse<T> {
         Some(ApiEventsType::Miscellaneous)
     }
 }
+
+impl<T> ApiEventMetric for AuthEventMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

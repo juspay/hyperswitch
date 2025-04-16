@@ -337,6 +337,24 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_attempt.capture_method;
+
+    let braintree_metadata = payment_intent
+        .connector_metadata
+        .clone()
+        .map(|cm| {
+            cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed parsing ConnectorMetadata")
+        })
+        .transpose()?
+        .and_then(|cm| cm.braintree);
+
+    let merchant_account_id = braintree_metadata
+        .as_ref()
+        .and_then(|braintree| braintree.merchant_account_id.clone());
+    let merchant_config_currency =
+        braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -370,12 +388,16 @@ pub async fn construct_refund_router_data<'a, F>(
             minor_payment_amount: payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
+            refund_connector_metadata: refund.metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: connector_refund_id.clone(),
             browser_info,
             split_refunds,
             integrity_object: None,
             refund_status: refund.refund_status,
+            merchant_account_id,
+            merchant_config_currency,
+            capture_method,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -1764,10 +1786,13 @@ impl<T, F, R> GetProfileId for (storage::Payouts, T, F, R) {
 }
 
 /// Filter Objects based on profile ids
-pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
+pub(super) fn filter_objects_based_on_profile_id_list<
+    T: GetProfileId,
+    U: IntoIterator<Item = T> + FromIterator<T>,
+>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
-    object_list: Vec<T>,
-) -> Vec<T> {
+    object_list: U,
+) -> U {
     if let Some(profile_id_list) = profile_id_list_auth_layer {
         let profile_ids_to_filter: HashSet<_> = profile_id_list.iter().collect();
         object_list

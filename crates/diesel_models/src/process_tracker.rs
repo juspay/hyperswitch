@@ -1,3 +1,4 @@
+pub use common_enums::{enums::ProcessTrackerRunner, ApiVersion};
 use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
@@ -38,6 +39,7 @@ pub struct ProcessTracker {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
 }
 
 impl ProcessTracker {
@@ -63,16 +65,20 @@ pub struct ProcessTrackerNew {
     pub event: Vec<String>,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
 }
 
 impl ProcessTrackerNew {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<T>(
         process_tracker_id: impl Into<String>,
         task: impl Into<String>,
         runner: ProcessTrackerRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
+        retry_count: Option<i32>,
         schedule_time: PrimitiveDateTime,
+        api_version: ApiVersion,
     ) -> StorageResult<Self>
     where
         T: Serialize + std::fmt::Debug,
@@ -83,7 +89,7 @@ impl ProcessTrackerNew {
             name: Some(task.into()),
             tag: tag.into_iter().map(Into::into).collect(),
             runner: Some(runner.to_string()),
-            retry_count: 0,
+            retry_count: retry_count.unwrap_or(0),
             schedule_time: Some(schedule_time),
             rule: String::new(),
             tracking_data: tracking_data
@@ -95,6 +101,7 @@ impl ProcessTrackerNew {
             event: vec![],
             created_at: current_time,
             updated_at: current_time,
+            version: api_version,
         })
     }
 }
@@ -187,30 +194,6 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
             },
         }
     }
-}
-
-#[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    strum::EnumString,
-    strum::Display,
-)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProcessTrackerRunner {
-    PaymentsSyncWorkflow,
-    RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow,
-    ApiKeyExpiryWorkflow,
-    OutgoingWebhookRetryWorkflow,
-    AttachPayoutAccountWorkflow,
-    PaymentMethodStatusUpdateWorkflow,
-    PassiveRecoveryWorkflow,
 }
 
 #[cfg(test)]

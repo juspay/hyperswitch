@@ -174,6 +174,9 @@ impl ConnectorCommon for Deutschebank {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -304,6 +307,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 reason: Some(response.message),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             deutschebank::DeutschebankError::AccessTokenErrorResponse(response) => {
                 Ok(ErrorResponse {
@@ -313,6 +319,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                     reason: Some(response.description),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
         }

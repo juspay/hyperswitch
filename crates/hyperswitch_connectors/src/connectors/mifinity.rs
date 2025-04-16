@@ -154,6 +154,9 @@ impl ConnectorCommon for Mifinity {
                 reason: Some(CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             let response: Result<
@@ -189,6 +192,9 @@ impl ConnectorCommon for Mifinity {
                         ),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 }
 

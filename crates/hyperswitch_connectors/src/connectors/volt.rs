@@ -171,6 +171,9 @@ impl ConnectorCommon for Volt {
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -275,6 +278,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -657,7 +663,7 @@ impl webhooks::IncomingWebhook for Volt {
         let user_agent = utils::get_header_key_value(webhook_headers::USER_AGENT, request.headers)?;
         let version = user_agent
             .split('/')
-            .last()
+            .next_back()
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(format!(
             "{}|{}|{}",

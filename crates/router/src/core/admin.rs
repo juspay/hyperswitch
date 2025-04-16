@@ -14,7 +14,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_connectors::connectors::chargebee;
+use hyperswitch_connectors::connectors::{chargebee, recurly};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -402,9 +402,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
-                    version: hyperswitch_domain_models::consts::API_VERSION,
+                    version: common_types::consts::API_VERSION,
                     is_platform_account: false,
-                    product_type: None,
+                    product_type: self.product_type,
                 },
             )
         }
@@ -673,7 +673,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
-                    product_type: None,
+                    version: common_types::consts::API_VERSION,
+                    product_type: self.product_type,
                 }),
             )
         }
@@ -1313,6 +1314,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Chargebee => {
                 chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
+                chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Checkout => {
@@ -1326,6 +1328,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Coingate => {
                 coingate::transformers::CoingateAuthType::try_from(self.auth_type)?;
+                coingate::transformers::CoingateConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Cryptopay => {
@@ -1333,6 +1338,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::CtpMastercard => Ok(()),
+            api_enums::Connector::CtpVisa => Ok(()),
             api_enums::Connector::Cybersource => {
                 cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;
                 cybersource::transformers::CybersourceConnectorMetadataObject::try_from(
@@ -1364,6 +1370,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Facilitapay => {
+            //     facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Fiserv => {
                 fiserv::transformers::FiservAuthType::try_from(self.auth_type)?;
                 fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;
@@ -1381,12 +1391,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Getnet => {
-            //     getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Getnet => {
+                getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
+                globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Globepay => {
@@ -1400,6 +1411,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             api_enums::Connector::Gpayments => {
                 gpayments::transformers::GpaymentsAuthType::try_from(self.auth_type)?;
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
+                Ok(())
+            }
+            api_enums::Connector::Hipay => {
+                hipay::transformers::HipayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Helcim => {
@@ -1422,6 +1437,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Juspaythreedsserver => Ok(()),
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -1529,6 +1545,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 razorpay::transformers::RazorpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Recurly => {
+                recurly::transformers::RecurlyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Redsys => {
+                redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1547,6 +1571,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Stripe => {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Stripebilling => {
+                stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Trustpay => {
@@ -1801,11 +1829,9 @@ impl PMAuthConfigValidation<'_> {
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
-
         for conn_choice in config.enabled_payment_methods {
             let pm_auth_mca = all_mcas
-                .clone()
-                .into_iter()
+                .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),
@@ -2583,7 +2609,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             status: connector_status,
             connector_wallets_details: encrypted_data.connector_wallets_details,
             additional_merchant_data: encrypted_data.additional_merchant_data,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             feature_metadata,
         })
     }
@@ -2788,7 +2814,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_label: self.business_label.clone(),
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: encrypted_data.additional_merchant_data,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
         })
     }
 
@@ -3000,7 +3026,7 @@ async fn validate_pm_auth(
             })
             .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
-    let all_mcas = &*state
+    let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &state.into(),
@@ -3755,8 +3781,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector
                 .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
+            outgoing_webhook_custom_http_headers,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             always_collect_billing_details_from_wallet_connector: self
@@ -3786,6 +3811,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
+            force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
+            is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+            merchant_business_country: self.merchant_business_country,
         }))
     }
 
@@ -3903,8 +3932,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector_if_required
                 .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
+            outgoing_webhook_custom_http_headers,
             always_collect_billing_details_from_wallet_connector: self
                 .always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: self
@@ -3918,7 +3946,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             default_fallback_routing: None,
-            should_collect_cvv_during_payment: false,
+            should_collect_cvv_during_payment: None,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
@@ -3941,6 +3969,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
+            is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+            merchant_business_country: self.merchant_business_country,
         }))
     }
 }
@@ -4209,8 +4240,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 collect_billing_details_from_wallet_connector: self
                     .collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                    .map(Into::into),
+                outgoing_webhook_custom_http_headers,
                 always_collect_billing_details_from_wallet_connector: self
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
@@ -4227,6 +4257,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
+                is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+                force_3ds_challenge: self.force_3ds_challenge, //
+                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                merchant_business_country: self.merchant_business_country,
             },
         )))
     }
@@ -4342,8 +4376,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 collect_billing_details_from_wallet_connector: self
                     .collect_billing_details_from_wallet_connector_if_required,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                    .map(Into::into),
+                outgoing_webhook_custom_http_headers,
                 order_fulfillment_time: self
                     .order_fulfillment_time
                     .map(|order_fulfillment_time| order_fulfillment_time.into_inner()),
@@ -4360,6 +4393,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
+                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                merchant_business_country: self.merchant_business_country,
             },
         )))
     }

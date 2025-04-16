@@ -1,3 +1,4 @@
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -25,14 +26,7 @@ const failedNo3DSCardDetails = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -42,14 +36,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -517,14 +504,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -541,19 +521,30 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
@@ -564,14 +555,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -610,14 +594,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -634,14 +611,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -658,14 +628,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -683,14 +646,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -707,14 +663,7 @@ export const connectorDetails = {
         },
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

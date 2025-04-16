@@ -394,21 +394,20 @@ where
                                             merchant_id,
                                             pm_metadata,
                                             customer_acceptance,
-                                            pm_data_encrypted.map(Into::into),
+                                            pm_data_encrypted,
                                             key_store,
                                             None,
                                             pm_status,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
-                                            encrypted_payment_method_billing_address
-                                                .map(Into::into),
+                                            encrypted_payment_method_billing_address,
                                             resp.card.and_then(|card| {
                                                 card.card_network
                                                     .map(|card_network| card_network.to_string())
                                             }),
                                             network_token_requestor_ref_id,
                                             network_token_locker_id,
-                                            pm_network_token_data_encrypted.map(Into::into),
+                                            pm_network_token_data_encrypted,
                                         )
                                         .await
                                     } else {
@@ -513,14 +512,13 @@ where
                                                 merchant_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
-                                                pm_data_encrypted.map(Into::into),
+                                                pm_data_encrypted,
                                                 key_store,
                                                 None,
                                                 pm_status,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
-                                                encrypted_payment_method_billing_address
-                                                    .map(Into::into),
+                                                encrypted_payment_method_billing_address,
                                                 resp.card.and_then(|card| {
                                                     card.card_network.map(|card_network| {
                                                         card_network.to_string()
@@ -528,7 +526,7 @@ where
                                                 }),
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
-                                                pm_network_token_data_encrypted.map(Into::into),
+                                                pm_network_token_data_encrypted,
                                             )
                                             .await
                                         } else {
@@ -733,20 +731,20 @@ where
                                 merchant_id,
                                 pm_metadata,
                                 customer_acceptance,
-                                pm_data_encrypted.map(Into::into),
+                                pm_data_encrypted,
                                 key_store,
                                 None,
                                 pm_status,
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
-                                encrypted_payment_method_billing_address.map(Into::into),
+                                encrypted_payment_method_billing_address,
                                 resp.card.and_then(|card| {
                                     card.card_network
                                         .map(|card_network| card_network.to_string())
                                 }),
                                 network_token_requestor_ref_id,
                                 network_token_locker_id,
-                                pm_network_token_data_encrypted.map(Into::into),
+                                pm_network_token_data_encrypted,
                             )
                             .await?;
                         };
@@ -1030,9 +1028,11 @@ pub async fn save_network_token_in_locker(
         .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
         .is_some()
     {
+        let optional_card_cvc = Some(card_data.card_cvc.clone());
         match network_tokenization::make_card_network_tokenization_request(
             state,
-            card_data,
+            &domain::CardDetail::from(card_data),
+            optional_card_cvc,
             &customer_id,
         )
         .await
@@ -1161,11 +1161,13 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 Ok(types::PaymentMethodTokenResult {
                     payment_method_token_result: payment_token_resp,
                     is_payment_method_tokenization_performed: true,
+                    connector_response: resp.connector_response.clone(),
                 })
             }
             _ => Ok(types::PaymentMethodTokenResult {
                 payment_method_token_result: Ok(None),
                 is_payment_method_tokenization_performed: false,
+                connector_response: None,
             }),
         }
     } else {
@@ -1173,6 +1175,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
         Ok(types::PaymentMethodTokenResult {
             payment_method_token_result: Ok(None),
             is_payment_method_tokenization_performed: false,
+            connector_response: None,
         })
     }
 }
@@ -1191,7 +1194,10 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
                         pm_token,
                     ))
                 });
-
+                if router_data.connector_response.is_none() {
+                    router_data.connector_response =
+                        payment_method_token_result.connector_response.clone();
+                }
                 true
             }
             Err(err) => {
@@ -1342,4 +1348,69 @@ pub fn update_connector_mandate_details_status(
         payments: mandate_reference,
         payouts: None,
     }))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn add_token_for_payment_method(
+    router_data: &mut types::RouterData<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    >,
+    payment_method_data_request: types::PaymentMethodTokenizationData,
+    state: SessionState,
+    merchant_connector_account_details: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+) -> RouterResult<types::PspTokenResult> {
+    let connector_id = merchant_connector_account_details.id.clone();
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &(state.conf.connectors),
+        &merchant_connector_account_details
+            .connector_name
+            .to_string(),
+        api::GetToken::Connector,
+        Some(connector_id.clone()),
+    )?;
+
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    let payment_method_token_response_data_type: Result<
+        types::PaymentsResponseData,
+        types::ErrorResponse,
+    > = Err(types::ErrorResponse::default());
+
+    let payment_method_token_router_data =
+        helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
+            router_data.clone(),
+            payment_method_data_request.clone(),
+            payment_method_token_response_data_type,
+        );
+
+    let connector_integration_response = services::execute_connector_processing_step(
+        &state,
+        connector_integration,
+        &payment_method_token_router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_payment_failed_response()?;
+    let payment_token_response = connector_integration_response.response.map(|res| {
+        if let types::PaymentsResponseData::TokenizationResponse { token } = res {
+            Ok(token)
+        } else {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get token from connector")
+        }
+    });
+
+    match payment_token_response {
+        Ok(token) => Ok(types::PspTokenResult { token: Ok(token?) }),
+        Err(error_response) => Ok(types::PspTokenResult {
+            token: Err(error_response),
+        }),
+    }
 }

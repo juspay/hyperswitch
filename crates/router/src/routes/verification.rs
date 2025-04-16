@@ -32,7 +32,10 @@ pub async fn apple_pay_merchant_registration(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
             },
@@ -53,7 +56,7 @@ pub async fn retrieve_apple_pay_verified_domains(
     let merchant_id = &params.merchant_id;
     let mca_id = &params.merchant_connector_account_id;
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -66,13 +69,16 @@ pub async fn retrieve_apple_pay_verified_domains(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

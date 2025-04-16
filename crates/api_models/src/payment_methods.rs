@@ -11,7 +11,10 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::PeekInterface;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::{ExposeInterface, PeekInterface};
 use serde::de;
 use utoipa::{schema, ToSchema};
 
@@ -113,7 +116,7 @@ pub struct PaymentMethodCreate {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
+    #[schema(value_type = PaymentMethodType,example = "google_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -452,6 +455,15 @@ impl PaymentMethodCreate {
             _ => false,
         }
     }
+    pub fn get_tokenize_connector_id(
+        &self,
+    ) -> Result<id_type::MerchantConnectorAccountId, error_stack::Report<errors::ValidationError>>
+    {
+        self.psp_tokenization
+            .clone()
+            .get_required_value("psp_tokenization")
+            .map(|psp| psp.connector_id)
+    }
 }
 
 #[cfg(all(
@@ -556,7 +568,6 @@ pub struct CardDetail {
     pub card_type: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(
     Debug,
     serde::Deserialize,
@@ -902,11 +913,10 @@ pub struct ConnectorTokenDetails {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
-    pub token: String,
+    pub token: masking::Secret<String>,
 }
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Serialize, ToSchema, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
@@ -952,6 +962,8 @@ pub struct PaymentMethodResponse {
 
     /// The connector token details if available
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+
+    pub network_token: Option<NetworkTokenResponse>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -971,6 +983,27 @@ pub struct CardDetailsPaymentMethod {
     pub card_holder_name: Option<masking::Secret<String>>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    #[serde(default = "saved_in_locker_default")]
+    pub saved_to_locker: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetworkTokenDetailsPaymentMethod {
+    pub last4_digits: Option<String>,
+    pub issuer_country: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub network_token_expiry_month: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub network_token_expiry_year: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub nick_name: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
@@ -1121,6 +1154,12 @@ pub struct CardDetailFromLocker {
     pub card_issuer: Option<String>,
     pub card_type: Option<String>,
     pub saved_to_locker: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct NetworkTokenResponse {
+    pub payment_method_data: NetworkTokenDetailsPaymentMethod,
 }
 
 fn saved_in_locker_default() -> bool {
@@ -1885,6 +1924,16 @@ pub struct CustomerPaymentMethodsListResponse {
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct TotalPaymentMethodCountResponse {
+    /// total count of payment methods under the merchant
+    pub total_count: i64,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl common_utils::events::ApiEventMetric for TotalPaymentMethodCountResponse {}
+
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -1981,6 +2030,13 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+
+    ///The network token details for the payment method
+    pub network_tokenization: Option<NetworkTokenResponse>,
+
+    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
+    /// one multi-use token with status `Active` is available for the payment method
+    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2544,6 +2600,139 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerReq
     }
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardNetworkTokenizeRequest {
+    /// Merchant ID associated with the tokenization request
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+
+    /// Details of the card or payment method to be tokenized
+    #[serde(flatten)]
+    pub data: TokenizeDataRequest,
+
+    /// Customer details
+    #[schema(value_type = CustomerDetails)]
+    pub customer: payments::CustomerDetails,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The name of the bank/ provider issuing the payment method to the end user
+    pub payment_method_issuer: Option<String>,
+}
+
+impl common_utils::events::ApiEventMetric for CardNetworkTokenizeRequest {}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenizeDataRequest {
+    Card(TokenizeCardRequest),
+    ExistingPaymentMethod(TokenizePaymentMethodRequest),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TokenizeCardRequest {
+    /// Card Number
+    #[schema(value_type = String, example = "4111111145551142")]
+    pub raw_card_number: CardNumber,
+
+    /// Card Expiry Month
+    #[schema(value_type = String, example = "10")]
+    pub card_expiry_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String, example = "25")]
+    pub card_expiry_year: masking::Secret<String>,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>,  example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
+
+    /// Card Holder Name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Issuing Country
+    pub card_issuing_country: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card Type
+    pub card_type: Option<CardType>,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct TokenizePaymentMethodRequest {
+    /// Payment method's ID
+    #[serde(skip_deserializing)]
+    pub payment_method_id: String,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>,  example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardNetworkTokenizeResponse {
+    /// Response for payment method entry in DB
+    pub payment_method_response: Option<PaymentMethodResponse>,
+
+    /// Customer details
+    #[schema(value_type = CustomerDetails)]
+    pub customer: Option<payments::CustomerDetails>,
+
+    /// Card network tokenization status
+    pub card_tokenized: bool,
+
+    /// Error code
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+
+    /// Error message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+
+    /// Details that were sent for tokenization
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenization_data: Option<TokenizeDataRequest>,
+}
+
+impl common_utils::events::ApiEventMetric for CardNetworkTokenizeResponse {}
+
+impl From<&Card> for MigrateCardDetail {
+    fn from(card: &Card) -> Self {
+        Self {
+            card_number: masking::Secret::new(card.card_number.get_card_no()),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: card.name_on_card.clone(),
+            nick_name: card
+                .nick_name
+                .as_ref()
+                .map(|name| masking::Secret::new(name.clone())),
+            card_issuing_country: None,
+            card_network: None,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionRequest {
@@ -2603,13 +2792,21 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
     /// The payment method type
     #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType, example = "credit")]
+    #[schema(value_type = PaymentMethodType, example = "google_pay")]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment instrument data to be used for the payment
@@ -2661,17 +2858,23 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<NextActionData>)]
     pub next_action: Option<payments::NextActionData>,
 
-    /// The customer authenticaion details for the payment method
+    /// The customer authentication details for the payment method
     /// This refers to either the payment / external authentication details
     pub authentication_details: Option<AuthenticationDetails>,
 
     /// The payment method that was created using this payment method session
+    #[schema(value_type = Option<Vec<String>>)]
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema, Clone)]
 pub struct AuthenticationDetails {
+    /// The status of authentication for the payment method
+    #[schema(value_type = IntentStatus)]
     pub status: common_enums::IntentStatus,
+
+    /// Error details of the authentication
+    #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }

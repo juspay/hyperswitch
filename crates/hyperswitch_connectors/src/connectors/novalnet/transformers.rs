@@ -589,6 +589,9 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
@@ -899,7 +902,7 @@ pub struct NovalnetRefundsTransactionData {
     pub order_no: Option<String>,
     pub payment_type: String,
     pub refund: RefundData,
-    pub refunded_amount: u64,
+    pub refunded_amount: Option<u64>,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
@@ -910,7 +913,7 @@ pub struct NovalnetRefundsTransactionData {
 pub struct RefundData {
     amount: u64,
     currency: common_enums::Currency,
-    payment_type: String,
+    payment_type: Option<String>,
     tid: Option<Secret<i64>>,
 }
 

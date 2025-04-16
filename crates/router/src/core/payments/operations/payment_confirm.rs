@@ -620,7 +620,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 storage_scheme,
             )
             .await?;
-
             (Some(token_data), payment_method_info)
         } else {
             (None, payment_method_info)
@@ -827,6 +826,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_id: None,
             service_details: request.ctp_service_details.clone(),
             card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -909,6 +910,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -922,6 +924,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             customer,
             storage_scheme,
             business_profile,
+            should_retry_with_pan,
         ))
         .await?;
         utils::when(payment_method_data.is_none(), || {
@@ -981,8 +984,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        populate_surcharge_details(state, payment_data).await
+        populate_surcharge_details(state, payment_data).await?;
+        payment_data.payment_attempt.request_extended_authorization = payment_data
+            .payment_intent
+            .get_request_extended_authorization_bool_if_connector_supports(
+                connector_data.connector_name,
+                business_profile.always_request_extended_authorization,
+                payment_data.payment_attempt.payment_method,
+                payment_data.payment_attempt.payment_method_type,
+            );
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1019,7 +1033,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     token,
                     business_profile,
                     acquirer_details,
-                    Some(payment_data.payment_attempt.payment_id.clone()),
+                    payment_data.payment_attempt.payment_id.clone(),
                     payment_data.payment_attempt.organization_id.clone(),
                 ))
                 .await?;
@@ -1060,6 +1074,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     key_store,
                     business_profile.clone(),
                     authentication_id.clone(),
+                    &payment_data.payment_intent.payment_id,
                 ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
@@ -1277,7 +1292,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication_connector_name.clone(),
                     token,
                     business_profile.get_id().to_owned(),
-                    Some(payment_data.payment_intent.payment_id.clone()),
+                    payment_data.payment_intent.payment_id.clone(),
                     three_ds_connector_account
                         .get_mca_id()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -1834,6 +1849,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         shipping_details,
                         is_payment_processor_token_flow,
                         tax_details: None,
+                        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
                     })),
                     &m_key_store,
                     storage_scheme,

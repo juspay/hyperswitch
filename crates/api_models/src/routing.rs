@@ -161,7 +161,7 @@ impl EuclidAnalysable for ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct ConnectorVolumeSplit {
     pub connector: RoutableConnectorChoice,
     pub split: u8,
@@ -178,7 +178,7 @@ pub struct RoutableConnectorChoice {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
 pub enum RoutableChoiceKind {
     OnlyConnector,
     FullStruct,
@@ -337,7 +337,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 #[serde(
     tag = "type",
     content = "data",
@@ -1018,11 +1018,17 @@ impl ContractBasedRoutingConfig {
         if let Some(new_label_info) = new.label_info {
             new_label_info.iter().for_each(|new_label_info| {
                 if let Some(existing_label_infos) = &mut self.label_info {
-                    for existing_label_info in existing_label_infos {
+                    let mut updated = false;
+                    for existing_label_info in &mut *existing_label_infos {
                         if existing_label_info.mca_id == new_label_info.mca_id {
                             existing_label_info.update_target_time(new_label_info);
                             existing_label_info.update_target_count(new_label_info);
+                            updated = true;
                         }
+                    }
+
+                    if !updated {
+                        existing_label_infos.push(new_label_info.clone());
                     }
                 } else {
                     self.label_info = Some(vec![new_label_info.clone()]);

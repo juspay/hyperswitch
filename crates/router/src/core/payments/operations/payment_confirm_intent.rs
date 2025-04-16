@@ -169,11 +169,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         self.validate_status_for_operation(payment_intent.status)?;
-        let client_secret = header_payload
-            .client_secret
-            .as_ref()
-            .get_required_value("client_secret header")?;
-        payment_intent.validate_client_secret(client_secret)?;
 
         let cell_id = state.conf.cell_information.id.clone();
 
@@ -249,6 +244,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_attempt,
             payment_method_data,
             payment_address,
+            mandate_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -321,6 +317,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,

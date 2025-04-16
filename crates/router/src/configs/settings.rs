@@ -66,6 +66,7 @@ pub struct Settings<S: SecretState> {
     pub redis: RedisSettings,
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
+    pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
@@ -96,6 +97,7 @@ pub struct Settings<S: SecretState> {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -408,10 +410,9 @@ pub struct PaymentLink {
 pub struct ForexApi {
     pub api_key: Secret<String>,
     pub fallback_api_key: Secret<String>,
-    /// in s
-    pub call_delay: i64,
-    /// in s
-    pub redis_lock_timeout: u64,
+    pub data_expiration_delay_in_seconds: u32,
+    pub redis_lock_timeout_in_seconds: u32,
+    pub redis_ttl_in_seconds: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -676,6 +677,13 @@ pub struct Secrets {
     pub master_enc_key: Secret<String>,
 }
 
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct FallbackMerchantIds {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
@@ -845,6 +853,12 @@ pub struct DelayedSessionConfig {
 pub struct WebhookSourceVerificationCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connectors_with_webhook_source_verification_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorPaymentsSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1263,6 +1277,53 @@ where
             }
         })
     })?
+}
+
+fn deserialize_merchant_ids_inner(
+    value: impl AsRef<str>,
+) -> Result<HashSet<id_type::MerchantId>, String> {
+    let (values, errors) = value
+        .as_ref()
+        .trim()
+        .split(',')
+        .map(|s| {
+            let trimmed = s.trim();
+            id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `MerchantId`: {error}",
+                    trimmed
+                )
+            })
+        })
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok(t) => {
+                    values.insert(t);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_merchant_ids<'de, D>(
+    deserializer: D,
+) -> Result<HashSet<id_type::MerchantId>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    deserialize_merchant_ids_inner(s).map_err(serde::de::Error::custom)
 }
 
 impl<'de> Deserialize<'de> for TenantConfig {

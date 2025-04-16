@@ -215,6 +215,10 @@ async fn payments_create_core() {
         connector_mandate_id: None,
         shipping_cost: None,
         card_discovery: None,
+        force_3ds_challenge: None,
+        force_3ds_challenge_trigger: None,
+        issuer_error_code: None,
+        issuer_error_message: None,
     };
 
     let expected_response =
@@ -491,6 +495,10 @@ async fn payments_create_core_adyen_no_redirect() {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
         },
         vec![],
     ));

@@ -224,6 +224,9 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transactionid),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 enums::AttemptStatus::Failure,
             ),
@@ -401,6 +404,9 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -905,6 +911,9 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }

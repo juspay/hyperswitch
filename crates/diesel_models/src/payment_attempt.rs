@@ -1,9 +1,9 @@
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+};
 use common_utils::{
     id_type, pii,
-    types::{
-        ConnectorTransactionId, ConnectorTransactionIdTrait, ExtendedAuthorizationAppliedBool,
-        MinorUnit, RequestExtendedAuthorizationBool,
-    },
+    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit},
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -102,6 +102,14 @@ pub struct PaymentAttempt {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub id: id_type::GlobalAttemptId,
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// This field can be returned for both approved and refused Mastercard payments.
+    /// This code provides additional information about the type of transaction or the reason why the payment failed.
+    /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    pub network_advice_code: Option<String>,
+    /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    pub network_decline_code: Option<String>,
+    /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    pub network_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -187,6 +195,8 @@ pub struct PaymentAttempt {
     pub processor_transaction_data: Option<String>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -311,6 +321,7 @@ pub struct PaymentAttemptNew {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
+    pub connector_payment_id: Option<ConnectorTransactionId>,
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_token_details: Option<ConnectorTokenDetails>,
@@ -318,6 +329,10 @@ pub struct PaymentAttemptNew {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
+    pub connector: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -513,6 +528,8 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        capture_before: Option<PrimitiveDateTime>,
+        extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
@@ -545,6 +562,8 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         authentication_type: Option<storage_enums::AuthenticationType>,
+        issuer_error_code: Option<String>,
+        issuer_error_message: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -838,6 +857,9 @@ pub struct PaymentAttemptUpdateInternal {
     // card_network: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -890,12 +912,16 @@ pub struct PaymentAttemptUpdateInternal {
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub card_network: Option<String>,
+    pub capture_before: Option<PrimitiveDateTime>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub processor_transaction_data: Option<String>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub issuer_error_code: Option<String>,
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1078,8 +1104,12 @@ impl PaymentAttemptUpdate {
             order_tax_amount,
             processor_transaction_data,
             connector_mandate_detail,
+            capture_before,
+            extended_authorization_applied,
             card_discovery,
             charges,
+            issuer_error_code,
+            issuer_error_message,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1137,8 +1167,13 @@ impl PaymentAttemptUpdate {
             processor_transaction_data: processor_transaction_data
                 .or(source.processor_transaction_data),
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
+            capture_before: capture_before.or(source.capture_before),
+            extended_authorization_applied: extended_authorization_applied
+                .or(source.extended_authorization_applied),
             card_discovery: card_discovery.or(source.card_discovery),
             charges: charges.or(source.charges),
+            issuer_error_code: issuer_error_code.or(source.issuer_error_code),
+            issuer_error_message: issuer_error_message.or(source.issuer_error_message),
             ..source
         }
     }
@@ -2187,11 +2222,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance: None,
                 card_network: None,
                 shipping_cost: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2245,10 +2284,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2334,10 +2377,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost,
                 order_tax_amount,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail,
                 card_discovery,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2392,10 +2439,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2451,10 +2502,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2510,10 +2565,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -2567,10 +2626,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2624,10 +2687,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2648,6 +2715,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 unified_code,
                 unified_message,
+                capture_before,
+                extended_authorization_applied,
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
@@ -2707,9 +2776,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     client_version: None,
                     customer_acceptance: None,
                     card_network: None,
+                    capture_before,
+                    extended_authorization_applied,
                     shipping_cost: None,
                     order_tax_amount: None,
                     card_discovery: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -2725,6 +2798,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
+                issuer_error_code,
+                issuer_error_message,
             } => {
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
@@ -2746,6 +2821,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     payment_method_data,
                     authentication_type,
                     processor_transaction_data,
+                    issuer_error_code,
+                    issuer_error_message,
                     amount: None,
                     net_amount: None,
                     currency: None,
@@ -2779,6 +2856,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     client_version: None,
                     customer_acceptance: None,
                     card_network: None,
+                    capture_before: None,
+                    extended_authorization_applied: None,
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
@@ -2834,11 +2913,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance: None,
                 card_network: None,
                 shipping_cost: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -2897,11 +2980,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance: None,
                 card_network: None,
                 shipping_cost: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2968,10 +3055,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     customer_acceptance: None,
                     card_network: None,
                     shipping_cost: None,
+                    capture_before: None,
+                    extended_authorization_applied: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
                     charges: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3036,11 +3127,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     client_version: None,
                     customer_acceptance: None,
                     card_network: None,
+                    capture_before: None,
+                    extended_authorization_applied: None,
                     shipping_cost: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
                     charges: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3096,10 +3191,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3153,11 +3252,15 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance: None,
                 card_network: None,
                 shipping_cost: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 order_tax_amount: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -3222,9 +3325,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     customer_acceptance: None,
                     card_network: None,
                     shipping_cost: None,
+                    capture_before: None,
+                    extended_authorization_applied: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -3279,10 +3386,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3339,10 +3450,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3408,10 +3523,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     customer_acceptance: None,
                     card_network: None,
                     shipping_cost: None,
+                    capture_before: None,
+                    extended_authorization_applied: None,
                     order_tax_amount: None,
                     connector_mandate_detail: None,
                     card_discovery: None,
                     charges: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -3466,10 +3585,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 processor_transaction_data: None,
                 connector_mandate_detail: None,
                 card_discovery: None,
                 charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
             },
         }
     }
@@ -3507,6 +3630,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -3545,7 +3669,6 @@ pub struct PaymentAttemptFeatureMetadata {
 pub struct PaymentAttemptRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
 }
-
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);
 

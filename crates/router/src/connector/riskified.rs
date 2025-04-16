@@ -147,6 +147,9 @@ impl ConnectorCommon for Riskified {
             message: response.error.message.clone(),
             reason: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
