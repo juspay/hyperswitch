@@ -291,6 +291,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            client_secret: None,
             sessions_token: vec![],
         };
 
@@ -365,6 +366,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 updated_by: intent.updated_by,
                 tax_details: intent.amount_details.tax_details,
                 active_attempt_id: Some(intent.active_attempt_id),
+                force_3ds_challenge: intent.force_3ds_challenge,
             }));
 
         let new_payment_intent = db

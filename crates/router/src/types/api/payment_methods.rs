@@ -70,15 +70,10 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
-            !self
-                .payment_method_subtype
-                .map(|sub| {
-                    validate_payment_method_type_against_payment_method(
-                        self.payment_method_type,
-                        sub,
-                    )
-                })
-                .unwrap_or(true), // If payment_method_subtype is None, we assume it to be valid
+            !validate_payment_method_type_against_payment_method(
+                self.payment_method_type,
+                self.payment_method_subtype,
+            ),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()

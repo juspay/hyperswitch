@@ -119,6 +119,9 @@ pub struct ConfigMetadata {
     pub card_brands: Option<InputData>,
     pub merchant_category_code: Option<InputData>,
     pub merchant_configuration_id: Option<InputData>,
+    pub currency_id: Option<InputData>,
+    pub platform_id: Option<InputData>,
+    pub ledger_account_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -126,6 +129,7 @@ pub struct ConfigMetadata {
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
     pub paze: Option<Vec<InputData>>,
+    pub google_pay: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -178,6 +182,7 @@ pub struct ConnectorConfig {
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
+    pub ctp_visa: Option<ConnectorTomlConfig>,
     pub cybersource: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
@@ -191,6 +196,7 @@ pub struct ConnectorConfig {
     pub dlocal: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
+    // pub facilitapay: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
@@ -238,7 +244,7 @@ pub struct ConnectorConfig {
     pub stripe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
-    // pub stripebilling : Option<ConnectorTomlConfig>,
+    pub stripebilling: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -306,6 +312,7 @@ impl ConnectorConfig {
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
             AuthenticationConnectors::CtpMastercard => Ok(connector_data.ctp_mastercard),
+            AuthenticationConnectors::CtpVisa => Ok(connector_data.ctp_visa),
             AuthenticationConnectors::UnifiedAuthenticationService => {
                 Ok(connector_data.unified_authentication_service)
             }
@@ -354,6 +361,7 @@ impl ConnectorConfig {
             Connector::Coinbase => Ok(connector_data.coinbase),
             Connector::Coingate => Ok(connector_data.coingate),
             Connector::Cryptopay => Ok(connector_data.cryptopay),
+            Connector::CtpVisa => Ok(connector_data.ctp_visa),
             Connector::Cybersource => Ok(connector_data.cybersource),
             Connector::Iatapay => Ok(connector_data.iatapay),
             Connector::Itaubank => Ok(connector_data.itaubank),
@@ -365,6 +373,7 @@ impl ConnectorConfig {
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
+            // Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
@@ -411,7 +420,7 @@ impl ConnectorConfig {
             Connector::Square => Ok(connector_data.square),
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
-            // Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Stripebilling => Ok(connector_data.stripebilling),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),

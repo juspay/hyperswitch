@@ -538,6 +538,8 @@ pub enum Flow {
     ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
+    /// Payments Update Metadata
+    PaymentsUpdateMetadata,
     /// Payments start redirection flow
     PaymentStartRedirection,
     /// Volume split on the routing type
@@ -568,6 +570,8 @@ pub enum Flow {
     PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Delete a saved payment method using the payment methods session
+    PaymentMethodSessionDeleteSavedPaymentMethod,
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
     /// Create Cards Info flow
@@ -578,6 +582,8 @@ pub enum Flow {
     CardsInfoMigrate,
     ///Total payment method count for merchant
     TotalPaymentMethodCount,
+    /// Process Tracker Revenue Recovery Workflow Retrieve
+    RevenueRecoveryRetrieve,
 }
 
 /// Trait for providing generic behaviour to flow metric

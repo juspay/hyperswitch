@@ -96,7 +96,7 @@ pub trait StorageInterface:
     + blocklist_lookup::BlocklistLookupInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
-    + customers::CustomerInterface
+    + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
@@ -161,7 +161,15 @@ pub trait GlobalStorageInterface:
 
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
-    Send + Sync + dyn_clone::DynClone + OrganizationInterface + 'static
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface
+    + business_profile::ProfileInterface
+    + merchant_connector_account::MerchantConnectorAccountInterface
+    + merchant_key_store::MerchantKeyStoreInterface
+    + 'static
 {
 }
 

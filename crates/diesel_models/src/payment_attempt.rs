@@ -91,7 +91,7 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
@@ -102,6 +102,14 @@ pub struct PaymentAttempt {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub id: id_type::GlobalAttemptId,
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// This field can be returned for both approved and refused Mastercard payments.
+    /// This code provides additional information about the type of transaction or the reason why the payment failed.
+    /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
+    pub network_advice_code: Option<String>,
+    /// For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.
+    pub network_decline_code: Option<String>,
+    /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
+    pub network_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -314,7 +322,7 @@ pub struct PaymentAttemptNew {
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
@@ -322,6 +330,9 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub connector: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -846,6 +857,9 @@ pub struct PaymentAttemptUpdateInternal {
     // card_network: Option<String>,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]
