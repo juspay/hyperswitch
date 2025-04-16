@@ -446,8 +446,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         });
 
         payment_intent.force_3ds_challenge = request
-        .force_3ds_challenge
-        .or(payment_intent.force_3ds_challenge);
+            .force_3ds_challenge
+            .or(payment_intent.force_3ds_challenge);
 
         payment_intent.request_overcapture = request
             .request_overcapture
