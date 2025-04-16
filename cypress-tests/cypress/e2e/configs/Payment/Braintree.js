@@ -367,7 +367,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
