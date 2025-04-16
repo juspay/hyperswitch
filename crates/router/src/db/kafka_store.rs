@@ -372,6 +372,7 @@ impl ConfigInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl CustomerInterface for KafkaStore {
+    type Error = errors::StorageError;
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
