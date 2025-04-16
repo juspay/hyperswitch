@@ -73,7 +73,7 @@ const unsettledTransactionRefundBody = {
   status: "failed",
   error_message:
     "Cannot refund or reverse unless the transaction status is SETTLING or SETTLED.",
-}
+};
 
 export const connectorDetails = {
   card_pm: {
