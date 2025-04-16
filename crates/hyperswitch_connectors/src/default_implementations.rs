@@ -542,6 +542,7 @@ default_imp_for_update_metadata!(
     connectors::Datatrans,
     connectors::Digitalvirgo,
     connectors::Dlocal,
+    connectors::DummyBillingConnector,
     connectors::Elavon,
     connectors::Facilitapay,
     connectors::Fiserv,
