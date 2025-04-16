@@ -300,3 +300,23 @@ pub enum UserRoleVersion {
     V1,
     V2,
 }
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TokenizationFlag {
+    Enabled,
+    Disabled,
+}

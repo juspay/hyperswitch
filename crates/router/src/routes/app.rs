@@ -90,9 +90,7 @@ pub use crate::{
     services::{get_cache_store, get_store},
 };
 use crate::{
-    configs::{secrets_transformers, Settings},
-    db::kafka_store::{KafkaStore, TenantID},
-    routes::hypersense as hypersense_routes,
+    configs::{secrets_transformers, Settings}, core::payments::tokenization, db::kafka_store::{KafkaStore, TenantID}, routes::hypersense as hypersense_routes
 };
 
 #[derive(Clone)]
@@ -1358,6 +1356,27 @@ impl PaymentMethodSession {
         route
     }
 }
+
+#[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
+pub struct Tokenization;
+
+#[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
+impl Tokenization {
+    pub fn server(state: AppState) -> Scope {
+        let mut tokenize_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("")
+                .route(web::post().to(tokenization::)),
+        );
+
+        tokenize_route = tokenize_route.service(
+            web::resource("")
+                .route(web::post().to(payment_methods::payment_methods_session_create)),
+        );
+
+    }
+} 
+
 
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub struct Recon;

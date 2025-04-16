@@ -333,3 +333,6 @@ mod nanoid_tests {
         assert!(ref_id.is_ok())
     }
 }
+
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;

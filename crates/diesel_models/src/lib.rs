@@ -140,3 +140,6 @@ pub(crate) mod metrics {
     counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
     histogram_metric_f64!(DATABASE_CALL_TIME, GLOBAL_METER);
 }
+
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;

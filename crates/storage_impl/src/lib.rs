@@ -501,3 +501,6 @@ impl UniqueConstraints for diesel_models::Customer {
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;
