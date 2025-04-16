@@ -1,4 +1,3 @@
-// use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
 use api_models::{
     cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,

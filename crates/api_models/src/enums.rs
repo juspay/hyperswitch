@@ -164,6 +164,9 @@ pub enum TaxConnectors {
 #[serde(rename_all = "snake_case")]
 pub enum BillingConnectors {
     Chargebee,
+    Recurly,
+    Stripebilling,
+    #[cfg(feature = "dummy_connector")]
     DummyBillingConnector,
 }
 

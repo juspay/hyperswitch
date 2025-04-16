@@ -26,6 +26,7 @@ pub use crate::PaymentMethodType;
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
     Adyenplatform,
+    #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
     #[strum(serialize = "stripe_billing_test")]
     DummyBillingConnector,
@@ -172,6 +173,7 @@ pub enum RoutableConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
     Adyenplatform,
+    #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
     #[strum(serialize = "stripe_billing_test")]
     DummyBillingConnector,
@@ -360,9 +362,9 @@ impl Connector {
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
-            Self::DummyBillingConnector => false,
             #[cfg(feature = "dummy_connector")]
-            Self::DummyConnector1
+            Self::DummyBillingConnector 
+            | Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
             | Self::DummyConnector4
@@ -506,6 +508,7 @@ impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
+            #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector1 => Self::DummyConnector1,
@@ -615,6 +618,7 @@ impl TryFrom<Connector> for RoutableConnectors {
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyBillingConnector => Ok(Self::DummyBillingConnector),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(Self::DummyConnector1),

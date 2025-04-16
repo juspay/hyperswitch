@@ -35,17 +35,7 @@ use hyperswitch_interfaces::{
 // use transformers as stripebilling;
 
 #[derive(Clone)]
-pub struct DummyBillingConnector {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-}
-
-impl DummyBillingConnector {
-    pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMinorUnitForConnector,
-        }
-    }
-}
+pub struct DummyBillingConnector;
 
 impl api::Payment for DummyBillingConnector {}
 impl api::PaymentSession for DummyBillingConnector {}
