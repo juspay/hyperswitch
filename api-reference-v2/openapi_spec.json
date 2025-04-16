@@ -6232,19 +6232,15 @@
                     "nullable": true
                   },
                   "source_bank_account_id": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/Secret"
-                      }
-                    ],
+                    "type": "string",
+                    "description": "Source bank account number",
+                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
                     "nullable": true
                   },
                   "destination_bank_account_id": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/Secret"
-                      }
-                    ],
+                    "type": "string",
+                    "description": "Destination bank account number",
+                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
                     "nullable": true
                   }
                 }
@@ -10550,12 +10546,6 @@
             "type": "string",
             "enum": [
               "user_cnpj"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_pix_qr_expiry"
             ]
           },
           {
