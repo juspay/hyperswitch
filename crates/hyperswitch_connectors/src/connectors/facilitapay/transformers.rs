@@ -2,7 +2,11 @@ use std::str::FromStr;
 
 use api_models::payments::QrCodeInformation;
 use common_enums::{enums, BrazilStatesAbbreviation, PaymentMethod};
-use common_utils::{errors::CustomResult, ext_traits::Encode, types::StringMajorUnit};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{BytesExt, Encode},
+    types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
@@ -12,7 +16,9 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{
+    consts, errors, events::connector_api_logs::ConnectorEvent, types::Response,
+};
 use masking::{ExposeInterface, Secret};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -141,15 +147,14 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
 }
 
 // Helper to build the request from Hyperswitch Auth Type
-impl TryFrom<&FacilitapayAuthType> for FacilitapayAuthRequest {
-    type Error = Error;
-    fn try_from(auth: &FacilitapayAuthType) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl FacilitapayAuthRequest {
+    fn from_auth_type(auth: &FacilitapayAuthType) -> Self {
+        Self {
             user: FacilitapayCredentials {
                 username: auth.username.clone(),
                 password: auth.password.clone(),
             },
-        })
+        }
     }
 }
 
@@ -177,26 +182,97 @@ impl TryFrom<&RefreshTokenRouterData> for FacilitapayAuthRequest {
     type Error = Error;
     fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
         let auth_type = FacilitapayAuthType::try_from(&item.connector_auth_type)?;
-        Self::try_from(&auth_type)
+        Ok(Self::from_auth_type(&auth_type))
     }
 }
 
 fn convert_to_document_type(document_type: &str) -> Result<DocumentType, errors::ConnectorError> {
     match document_type.to_lowercase().as_str() {
-        "cc" => Ok(DocumentType::Cc),
-        "cnpj" => Ok(DocumentType::Cnpj),
-        "cpf" => Ok(DocumentType::Cpf),
-        "curp" => Ok(DocumentType::Curp),
-        "nit" => Ok(DocumentType::Nit),
+        "cc" => Ok(DocumentType::CedulaDeCiudadania),
+        "cnpj" => Ok(DocumentType::CadastroNacionaldaPessoaJurídica),
+        "cpf" => Ok(DocumentType::CadastrodePessoasFísicas),
+        "curp" => Ok(DocumentType::ClaveÚnicadeRegistrodePoblación),
+        "nit" => Ok(DocumentType::NúmerodeIdentificaciónTributaria),
         "passport" => Ok(DocumentType::Passport),
-        "rfc" => Ok(DocumentType::Rfc),
-        "rut" => Ok(DocumentType::Rut),
+        "rfc" => Ok(DocumentType::RegistroFederaldeContribuyentes),
+        "rut" => Ok(DocumentType::RolUnicoTributario),
         "tax_id" | "taxid" => Ok(DocumentType::TaxId),
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Document type '{document_type}'"),
             connector: "Facilitapay",
         }),
     }
+}
+
+pub fn parse_facilitapay_error_response(
+    res: Response,
+    event_builder: Option<&mut ConnectorEvent>,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    let status_code = res.status_code;
+    let response_body_bytes = res.response.clone();
+
+    let (message, raw_error) =
+        match response_body_bytes.parse_struct::<serde_json::Value>("FacilitapayErrorResponse") {
+            Ok(json_value) => {
+                event_builder.map(|i| i.set_response_body(&json_value));
+
+                let message = extract_message_from_json(&json_value);
+                (
+                    message,
+                    serde_json::to_string(&json_value).unwrap_or_default(),
+                )
+            }
+            Err(_) => match String::from_utf8(response_body_bytes.to_vec()) {
+                Ok(text) => {
+                    event_builder.map(|i| i.set_response_body(&text));
+                    (text.clone(), text)
+                }
+                Err(_) => (
+                    "Invalid response format received".to_string(),
+                    format!(
+                        "Unable to parse response as JSON or UTF-8 string. Status code: {}",
+                        status_code
+                    ),
+                ),
+            },
+        };
+
+    Ok(ErrorResponse {
+        status_code,
+        code: consts::NO_ERROR_CODE.to_string(),
+        message,
+        reason: Some(raw_error),
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
+    })
+}
+
+// Helper function to extract a readable message from JSON error
+fn extract_message_from_json(json: &serde_json::Value) -> String {
+    if let Some(obj) = json.as_object() {
+        if let Some(error) = obj.get("error").and_then(|e| e.as_str()) {
+            return error.to_string();
+        }
+
+        if obj.contains_key("errors") {
+            return "Validation error occurred".to_string();
+        }
+
+        if !obj.is_empty() {
+            return obj
+                .iter()
+                .next()
+                .map(|(k, v)| format!("{}: {}", k, v))
+                .unwrap_or_else(|| "Unknown error".to_string());
+        }
+    } else if let Some(s) = json.as_str() {
+        return s.to_string();
+    }
+
+    "Unknown error format".to_string()
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for FacilitapayCustomerRequest {
@@ -294,7 +370,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
 
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.data.id.expose(),
+                connector_customer_id: item.response.data.customer_id.expose(),
             }),
             ..item.data
         })
@@ -354,19 +430,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     reason: item.response.data.cancelled_reason,
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: Some(item.response.data.id),
+                    connector_transaction_id: Some(item.response.data.transaction_id),
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(item.response.data.id.clone()),
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.data.transaction_id.clone(),
+                    ),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: get_qr_code_data(&item.response)?,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.data.id),
+                    connector_response_reference_id: Some(item.response.data.transaction_id),
                     incremental_authorization_allowed: None,
                     charges: None,
                 })
@@ -458,7 +536,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FacilitapayRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.data.id.to_string(),
+                connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.data.status),
             }),
             ..item.data
@@ -475,7 +553,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, FacilitapayRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.data.id.to_string(),
+                connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.data.status),
             }),
             ..item.data

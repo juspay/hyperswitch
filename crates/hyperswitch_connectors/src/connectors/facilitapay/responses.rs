@@ -35,7 +35,8 @@ pub struct FacilitapaySubject {
     pub fiscal_country: String,
     pub updated_at: Option<String>,
     pub status: SubjectKycStatus,
-    pub id: Secret<String>, // Subject ID
+    #[serde(rename = "id")]
+    pub customer_id: Secret<String>,
     pub birth_date: Option<time::Date>,
     pub email: Option<pii::Email>,
     pub phone_country_code: Option<Secret<String>>,
@@ -115,7 +116,8 @@ pub struct FacilitapayPaymentsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OwnerCompany {
     pub social_name: Option<Secret<String>>,
-    pub id: Option<String>, // Subject ID
+    #[serde(rename = "id")]
+    pub company_id: Option<String>,
     pub document_type: DocumentType,
     pub document_number: Secret<String>,
 }
@@ -124,7 +126,8 @@ pub struct OwnerCompany {
 pub struct BankInfo {
     pub swift: Option<Secret<String>>,
     pub name: Option<String>,
-    pub id: String, // Bank ID (UUID)
+    #[serde(rename = "id")]
+    pub bank_id: String,
     pub code: Option<String>,
 }
 
@@ -138,7 +141,8 @@ pub struct BankAccountDetail {
     pub internal: Option<bool>,
     pub intermediary_bank_account: Option<String>,
     pub intermediary_bank_account_id: Option<String>,
-    pub id: String, // Bank Account ID (UUID)
+    #[serde(rename = "id")]
+    pub bank_account_id: String,
     pub iban: Option<String>,
     pub flow_type: Option<String>,
     pub currency: api_models::enums::Currency,
@@ -152,7 +156,8 @@ pub struct BankAccountDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TransactionData {
-    pub id: String, // Transaction ID (UUID)
+    #[serde(rename = "id")]
+    pub transaction_id: String,
     pub value: StringMajorUnit,
     pub status: FacilitapayPaymentStatus,
     pub currency: api_models::enums::Currency,
@@ -201,7 +206,8 @@ pub struct TransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    pub id: String,
+    #[serde(rename = "id")]
+    pub refund_id: String,
     pub status: FacilitapayPaymentStatus,
 }
 

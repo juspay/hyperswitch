@@ -40,7 +40,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts, errors,
+    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, RefreshTokenType, Response},
     webhooks,
@@ -55,6 +55,7 @@ use responses::{
     FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentsResponse,
     FacilitapayRefundResponse,
 };
+use transformers::parse_facilitapay_error_response;
 
 use crate::{
     constants::headers,
@@ -148,77 +149,6 @@ impl ConnectorCommon for Facilitapay {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         parse_facilitapay_error_response(res, event_builder)
     }
-}
-
-fn parse_facilitapay_error_response(
-    res: Response,
-    event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    let status_code = res.status_code;
-    let response_body_bytes = res.response.clone();
-
-    let (message, raw_error) =
-        match response_body_bytes.parse_struct::<serde_json::Value>("FacilitapayErrorResponse") {
-            Ok(json_value) => {
-                event_builder.map(|i| i.set_response_body(&json_value));
-
-                let message = extract_message_from_json(&json_value);
-                (
-                    message,
-                    serde_json::to_string(&json_value).unwrap_or_default(),
-                )
-            }
-            Err(_) => match String::from_utf8(response_body_bytes.to_vec()) {
-                Ok(text) => {
-                    event_builder.map(|i| i.set_response_body(&text));
-                    (text.clone(), text)
-                }
-                Err(_) => (
-                    "Invalid response format received".to_string(),
-                    format!(
-                        "Unable to parse response as JSON or UTF-8 string. Status code: {}",
-                        status_code
-                    ),
-                ),
-            },
-        };
-
-    Ok(ErrorResponse {
-        status_code,
-        code: consts::NO_ERROR_CODE.to_string(),
-        message,
-        reason: Some(raw_error),
-        attempt_status: None,
-        connector_transaction_id: None,
-        network_advice_code: None,
-        network_decline_code: None,
-        network_error_message: None,
-    })
-}
-
-// Helper function to extract a readable message from JSON error
-fn extract_message_from_json(json: &serde_json::Value) -> String {
-    if let Some(obj) = json.as_object() {
-        if let Some(error) = obj.get("error").and_then(|e| e.as_str()) {
-            return error.to_string();
-        }
-
-        if obj.contains_key("errors") {
-            return "Validation error occurred".to_string();
-        }
-
-        if !obj.is_empty() {
-            return obj
-                .iter()
-                .next()
-                .map(|(k, v)| format!("{}: {}", k, v))
-                .unwrap_or_else(|| "Unknown error".to_string());
-        }
-    } else if let Some(s) = json.as_str() {
-        return s.to_string();
-    }
-
-    "Unknown error format".to_string()
 }
 
 impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
