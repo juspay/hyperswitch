@@ -48,11 +48,11 @@ use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, tracing};
