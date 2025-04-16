@@ -402,7 +402,7 @@ impl ChargebeeCustomer {
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 let mandate_id = parts
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 Ok(ChargebeeMandateDetails {
@@ -447,9 +447,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let payment_method_details: ChargebeePaymentMethodDetails =
             serde_json::from_str(&item.content.transaction.payment_method_details)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payment_method_sub_type = Some(enums::PaymentMethodType::from(
-            payment_method_details.card.funding_type,
-        ));
+        let payment_method_sub_type =
+            enums::PaymentMethodType::from(payment_method_details.card.funding_type);
         Ok(Self {
             amount,
             currency,

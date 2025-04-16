@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
             PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SetupMandate, Void,
+            SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
@@ -35,9 +35,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -91,8 +92,9 @@ use hyperswitch_interfaces::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
             PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
-            PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
-            PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
+            PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+            TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -128,6 +130,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
+            impl PaymentUpdateMetadataV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -217,6 +220,13 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             PostSessionTokens,
             PaymentFlowData,
             PaymentsPostSessionTokensData,
+            PaymentsResponseData,
+            > for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            UpdateMetadata,
+            PaymentFlowData,
+            PaymentsUpdateMetadataData,
             PaymentsResponseData,
             > for $path::$connector{}
     )*

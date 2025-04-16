@@ -1087,13 +1087,14 @@ impl IncomingWebhook for Worldpay {
         request: &IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let event_signature = get_header_key_value("Event-Signature", request.headers)?.split(',');
+        let mut event_signature =
+            get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
-            .last()
+            .next_back()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = sign_header
             .split('/')
-            .last()
+            .next_back()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature).change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
     }
