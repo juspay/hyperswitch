@@ -5,8 +5,16 @@ use api_models::{enums, payment_methods::RequiredFieldInfo};
 use crate::settings::{
     self, ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+
+impl Default for ZeroMandates {
+    fn default() -> Self {
+        Self {
+            supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::new()),
+        }
+    }
+}
 
 impl Default for Mandates {
     fn default() -> Self {

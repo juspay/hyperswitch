@@ -859,6 +859,7 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -1108,6 +1109,7 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -1225,6 +1227,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1501,6 +1504,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
+                setup_future_usage_applied,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1525,6 +1529,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
+                setup_future_usage_applied,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1851,6 +1856,7 @@ impl behaviour::Conversion for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
         })
@@ -1941,6 +1947,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 charges: storage_model.charges,
                 issuer_error_code: storage_model.issuer_error_code,
                 issuer_error_message: storage_model.issuer_error_message,
+                setup_future_usage_applied: storage_model.setup_future_usage_applied,
             })
         }
         .await
@@ -2026,6 +2033,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            setup_future_usage_applied: self.setup_future_usage_applied,
         })
     }
 }

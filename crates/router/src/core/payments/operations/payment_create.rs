@@ -979,7 +979,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-                helpers::validate_payment_link_request(request.confirm)?;
+                helpers::validate_payment_link_request(request)?;
             }
         };
 
@@ -1366,6 +1366,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                setup_future_usage_applied: request.setup_future_usage,
             },
             additional_pm_data,
 
