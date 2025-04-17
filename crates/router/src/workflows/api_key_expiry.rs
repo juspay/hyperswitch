@@ -11,10 +11,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
     types::{api, domain::UserEmail, storage},
-    utils::{
-        user::{get_base_url, theme as theme_utils},
-        OptionExt,
-    },
+    utils::{user as user_utils, OptionExt},
 };
 
 pub struct ApiKeyExpiryWorkflow;
@@ -77,7 +74,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             )
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-        let theme = theme_utils::get_most_specific_theme_using_lineage(
+        let theme = user_utils::theme::get_most_specific_theme_using_lineage(
             state,
             ThemeLineage::Merchant {
                 tenant_id: state.tenant.tenant_id.clone(),
@@ -113,7 +110,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .email_client
             .clone()
             .compose_and_send_email(
-                get_base_url(state),
+                user_utils::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )

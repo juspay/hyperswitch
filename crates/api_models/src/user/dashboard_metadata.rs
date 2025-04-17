@@ -202,3 +202,31 @@ pub struct HubspotRequest {
     pub bd_notes: String,
     pub message: String,
 }
+
+impl HubspotRequest {
+    pub fn new(
+        country: String,
+        hubspot_form_id: String,
+        firstname: String,
+        email: String,
+        company_name: String,
+        website: String,
+    ) -> Self {
+        Self {
+            use_hubspot: true,
+            country,
+            hubspot_form_id,
+            firstname,
+            lastname: Default::default(),
+            email,
+            company_name,
+            lead_source: "Hyperswitch Dashboard".to_string(),
+            website,
+            phone: Default::default(),
+            role: Default::default(),
+            monthly_gmv: Default::default(),
+            bd_notes: Default::default(),
+            message: Default::default(),
+        }
+    }
+}
