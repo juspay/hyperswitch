@@ -1,6 +1,6 @@
-// Validate status 2xx
-pm.test("[POST]::/payments/:id/confirm - Status code is 2xx", function () {
-  pm.response.to.be.success;
+// Validate status 501
+pm.test("[POST]::/payments/:id/confirm - Status code is 501", function () {
+  pm.response.to.have.status(501);
 });
 
 // Validate if response header has matching content-type
@@ -73,51 +73,26 @@ if (jsonData?.status) {
   );
 }
 
-// Response body should have "next_action"
+// Response body should have error.type as invalid_request
 pm.test(
-  "[POST]::/payments - Content check if 'next_action' exists",
+  "[POST]::/payments - Content check if error.type is 'invalid_request'",
   function () {
-    pm.expect(typeof jsonData.next_action !== "undefined").to.be
-      .true;
+    pm.expect(jsonData.error.type).to.eql("invalid_request");
   },
 );
 
-// Response body should have value "sofort" for "payment_method_type"
-if (jsonData?.payment_method_type) {
-  pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'payment_method_type' matches 'sofort'",
-    function () {
-      pm.expect(jsonData.payment_method_type).to.eql("sofort");
-    },
-  );
-}
+// Response body should have expected error message
+pm.test(
+  "[POST]::/payments - Content check if error message matches expected value",
+  function () {
+    pm.expect(jsonData.error.message).to.eql("Selected payment method through stripe is not implemented");
+  },
+);
 
-// Response body should have value "payment_method_not_available" for "error_code"
-if (jsonData?.error_code) {
-  pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'error_code' matches 'payment_method_not_available'",
-    function () {
-      pm.expect(jsonData.error_code).to.eql("payment_method_not_available");
-    },
-  );
-}
-
-// Response body should have value "Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort" for "error_message"
-if (jsonData?.error_message) {
-  pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'error_message' matches 'Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort'",
-    function () {
-      pm.expect(jsonData.error_message).to.eql("Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort");
-    },
-  );
-}
-
-// Response body should have value "stripe" for "connector"
-if (jsonData?.connector) {
-  pm.test(
-    "[POST]::/payments/:id/confirm - Content check if value for 'connector' matches 'stripe'",
-    function () {
-      pm.expect(jsonData.connector).to.eql("stripe");
-    },
-  );
-}
+// Response body should have error.code as IR_00
+pm.test(
+  "[POST]::/payments - Content check if error.code is 'IR_00'",
+  function () {
+    pm.expect(jsonData.error.code).to.eql("IR_00");
+  },
+);
