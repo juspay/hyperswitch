@@ -940,6 +940,7 @@ keys = "accept-language,user-agent,x-profile-id"
 
 [opensearch]
 host = "https://localhost:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"
