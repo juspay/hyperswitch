@@ -472,7 +472,7 @@ apple_pay = { country = "MY", currency = "MYR" }
 google_pay = { country = "MY", currency = "MYR" }
 
 [pm_filters.trustpay]
-instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+instant_bank_transfer = { country = "CZ,SK,GB,AT,DE,IT", currency = "CZK, EUR, GBP" }
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.dlocal]

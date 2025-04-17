@@ -40,13 +40,15 @@ where
     }
 
     fn eval_statement(stmt: &vir::ValuedIfStatement, ctx: &types::Context) -> bool {
-        Self::eval_condition(&stmt.condition, ctx)
-            .then(|| {
+        if Self::eval_condition(&stmt.condition, ctx) {
+            {
                 stmt.nested.as_ref().map_or(true, |nested_stmts| {
                     nested_stmts.iter().any(|s| Self::eval_statement(s, ctx))
                 })
-            })
-            .unwrap_or(false)
+            }
+        } else {
+            false
+        }
     }
 
     fn eval_rule(rule: &vir::ValuedRule<O>, ctx: &types::Context) -> bool {

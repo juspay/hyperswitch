@@ -614,7 +614,7 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 duit_now = { country = "MY", currency = "MYR" }
 
 [pm_filters.trustpay]
-instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+instant_bank_transfer = { country = "CZ,SK,GB,AT,DE,IT", currency = "CZK, EUR, GBP" }
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.dlocal]
@@ -766,6 +766,7 @@ keys = "accept-language,user-agent,x-profile-id"
 
 [opensearch]
 host = "https://opensearch:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"

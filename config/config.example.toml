@@ -684,7 +684,7 @@ mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR
 duit_now = { country = "MY", currency = "MYR" }
 
 [pm_filters.trustpay]
-instant_bank_transfer = { country = "CZ,SK,GB", currency = "CZK, EUR, GBP" }
+instant_bank_transfer = { country = "CZ,SK,GB,AT,DE,IT", currency = "CZK, EUR, GBP" }
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.dlocal]
@@ -887,6 +887,7 @@ region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [opensearch]
 host = "https://localhost:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"
