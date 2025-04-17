@@ -23,6 +23,7 @@ v2 = []
 customer_v2 = []
 payment_methods_v2 = []
 crypto_openssl = ["dep:openssl"]
+tokenization_v2 = []
 
 [dependencies]
 async-trait = { version = "0.1.79", optional = true }

@@ -23,6 +23,7 @@ payment_methods_v2 = ["common_utils/payment_methods_v2"]
 dynamic_routing = []
 control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
 revenue_recovery = []
+tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
 actix-multipart = { version = "0.6.1", optional = true }

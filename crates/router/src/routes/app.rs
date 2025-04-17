@@ -1366,7 +1366,7 @@ impl Tokenization {
         let mut tokenize_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
         route = route.service(
             web::resource("")
-                .route(web::post().to(tokenization::)),
+                .route(web::post().to(payment_methods::payment_methods_session_create)),
         );
 
         tokenize_route = tokenize_route.service(

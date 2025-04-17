@@ -2,13 +2,6 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct TokenizationRequest {
-    #[validate(length(min = 1, max = 64, message = "Locker ID must be between 1 and 64 characters"))]
-    pub locker_id: String,
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenizationResponse {
     pub id: i32,
