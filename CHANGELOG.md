@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [Cybersource] send type selection indicator for co-batch cards ([#7840](https://github.com/juspay/hyperswitch/pull/7840)) ([`6cee28c`](https://github.com/juspay/hyperswitch/commit/6cee28c8ea64f6f15b3e364bee87786a85849752))
+
+**Full Changelog:** [`2025.04.09.0-hotfix2...2025.04.09.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix2...2025.04.09.0-hotfix3)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix2
 
 ### Features
