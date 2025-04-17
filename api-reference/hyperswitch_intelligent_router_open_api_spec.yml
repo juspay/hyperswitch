@@ -40,6 +40,10 @@ paths:
               id: "merchant1"
               params: "card"
               labels: ["stripe", "adyen"]
+              config:
+                min_aggregates_size: 5
+                default_success_rate: 0.95
+                specificity_level: ENTITY
       responses:
         "200":
           description: Success rate calculated successfully
@@ -84,6 +88,19 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/UpdateSuccessRateWindowRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels_with_status:
+                - status: false
+                  label: stripe
+                - status: true
+                  label: adyen
+              global_labels_with_status:
+                - status: false
+                  label: stripe
+                - status: true
+                  label: adyen
       responses:
         "200":
           description: Window updated successfully
@@ -700,10 +717,38 @@ components:
           items:
             type: string
           description: Labels for which to calculate success rates
+        config:
+          $ref: "#/components/schemas/CalSuccessRateConfig"
       required:
         - id
         - params
         - labels
+
+    CalSuccessRateConfig:
+      type: object
+      required:
+        - min_aggregates_size
+        - default_success_rate
+      properties:
+        min_aggregates_size:
+          type: integer
+          format: uint32
+          example: 10
+        default_success_rate:
+          type: number
+          format: double
+          example: 0.95
+        specificity_level:
+          $ref: "#/components/schemas/SuccessRateSpecificityLevel"
+
+    SuccessRateSpecificityLevel:
+      type: string
+      description: >
+        Defines the specificity level to be used for calculating the success rate.
+      enum:
+        - ENTITY
+        - GLOBAL
+      example: ENTITY
 
     CalSuccessRateResponse:
       type: object
@@ -730,11 +775,21 @@ components:
           items:
             $ref: "#/components/schemas/LabelWithStatus"
           description: Entity-specific labels with their success/failure status
+          example:
+            - status: false
+              label: stripe
+            - status: true
+              label: adyen
         global_labels_with_status:
           type: array
           items:
             $ref: "#/components/schemas/LabelWithStatus"
           description: Global labels with their success/failure status
+          example:
+            - status: false
+              label: stripe
+            - status: true
+              label: adyen
       required:
         - id
         - params
@@ -1199,8 +1254,12 @@ components:
       example:
         algorithm_id: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
         parameters:
-          payment_method: "card"
-          amount: 1500
+          payment_method:
+            type: enum_variant
+            value: "card"
+          amount:
+            type: number
+            value: 1500
       properties:
         algorithm_id:
           type: string
