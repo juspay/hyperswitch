@@ -1986,6 +1986,10 @@ pub struct ProfileCreate {
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
 
+    /// Active surcharge config id
+    #[schema(value_type = Option<SurchargeRoutingId>)]
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
+
     /// Indicates if debit routing is enabled or not
     #[schema(value_type = Option<bool>)]
     pub is_debit_routing_enabled: Option<bool>,
@@ -2117,6 +2121,10 @@ pub struct ProfileCreate {
 
     ///Indicates if clear pan retries is enabled or not.
     pub is_clear_pan_retries_enabled: Option<bool>,
+
+    /// Active surcharge algorithm id
+    #[schema(value_type = Option<SurchargeRoutingId>)]
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 
     /// Indicates if debit routing is enabled or not
     #[schema(value_type = Option<bool>)]
@@ -2276,6 +2284,10 @@ pub struct ProfileResponse {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: bool,
+
+    /// Active surcharge config id
+    #[schema(value_type = Option<SurchargeRoutingId>)]
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 
     /// Indicates if debit routing is enabled or not
     #[schema(value_type = Option<bool>)]
@@ -2564,6 +2576,10 @@ pub struct ProfileUpdate {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Active surcharge config id
+    #[schema(value_type = Option<SurchargeRoutingId>)]
+    pub active_surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
 
     /// Indicates if debit routing is enabled or not
     #[schema(value_type = Option<bool>)]

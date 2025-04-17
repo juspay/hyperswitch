@@ -1366,6 +1366,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                surcharge_algorithm_id: None,
             },
             additional_pm_data,
 

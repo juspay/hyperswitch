@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
+use api_models::routing::SurchargeRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
@@ -856,6 +857,7 @@ impl Routing {
                             req,
                             payload,
                             TransactionType::Payment,
+                            common_utils::consts::ALGORITHM_TYPE_ROUTING,
                         )
                     })),
             )
@@ -897,6 +899,42 @@ impl Routing {
                     .route(web::delete().to(routing::delete_surcharge_decision_manager_config)),
             )
             .service(
+                web::resource("/decision/surcharge/list").route(web::get().to(
+                    |state, req, query: web::Query<SurchargeRetrieveQuery>| {
+                        routing::list_surcharge_decision_manager_configs(
+                            state,
+                            req,
+                            query,
+                            common_utils::consts::ALGORITHM_TYPE_SURCHARGE,
+                        )
+                    },
+                )),
+            )
+            .service(
+                web::resource("/decision/surcharge/active").route(web::get().to(
+                    |state, req, query_params| {
+                        routing::retrieve_linked_surcharge_config(state, req, query_params)
+                    },
+                )),
+            )
+            .service(
+                web::resource("/decision/surcharge/create").route(web::post().to(
+                    |state, req, payload| {
+                        routing::add_surcharge_decision_manager_config(
+                            state,
+                            req,
+                            payload,
+                            TransactionType::Payment,
+                            common_utils::consts::ALGORITHM_TYPE_SURCHARGE,
+                        )
+                    },
+                )),
+            )
+            .service(
+                web::resource("/decision/surcharge/{algorithm_id}/activate")
+                    .route(web::post().to(routing::surcharge_link_config)),
+            )
+            .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(
                     |state, req, path, payload| {
                         routing::routing_update_default_config_for_profile(
@@ -936,6 +974,7 @@ impl Routing {
                                 req,
                                 payload,
                                 TransactionType::Payout,
+                                common_utils::consts::ALGORITHM_TYPE_ROUTING,
                             )
                         })),
                 )
