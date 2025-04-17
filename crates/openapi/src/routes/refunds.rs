@@ -219,7 +219,7 @@ pub async fn refunds_create() {}
 /// Retrieves a Refund. This may be used to get the status of a previously initiated refund
 #[utoipa::path(
     get,
-    path = "/refunds/{id}",
+    path = "/v2/refunds/{id}",
     params(
         ("id" = String, Path, description = "The identifier for refund")
     ),
