@@ -8,8 +8,16 @@ use api_models::{
 use crate::configs::settings::{
     ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal, RequiredFields,
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+
+impl Default for ZeroMandates {
+    fn default() -> Self {
+        Self {
+            supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::new()),
+        }
+    }
+}
 
 impl Default for Mandates {
     fn default() -> Self {

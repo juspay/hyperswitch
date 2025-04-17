@@ -28,7 +28,7 @@ use masking::Secret;
 pub use payment_methods::configs::settings::{
     ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
     RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -98,6 +98,7 @@ pub struct Settings<S: SecretState> {
     pub user: UserSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,

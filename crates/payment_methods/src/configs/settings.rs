@@ -88,6 +88,12 @@ pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ZeroMandates {
+    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+}
+
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
     T: Eq + std::str::FromStr + std::hash::Hash,
