@@ -488,6 +488,7 @@ paths:
   /euclid.EuclidService/Create:
     post:
       operationId: CreateRule
+      summary: Create a routing Rule
       description: Creates a routing rule with the given parameters
       tags:
         - Static Routing
@@ -561,6 +562,7 @@ paths:
   /euclid.EuclidService/Evaluate:
     post:
       operationId: EvaluateRule
+      summary: Evaludate an existing routing Rule
       description: Evaluates a given routing rule
       tags:
         - Static Routing
@@ -592,9 +594,11 @@ paths:
               algorithm_id: "routing_ec1ac351-7944-440f-bdc7-6a500df1116f"
               parameters:
                 payment_method:
-                  enum_variant: "card"
+                  type: enum_variant
+                  value: "card"
                 amount:
-                  number: 2000
+                  type: number
+                  value: 2000
       responses:
         "200":
           description: Evaluation result
@@ -984,7 +988,6 @@ components:
           description: Configuration for calculation
       required:
         - id
-        - params
         - labels
         - config
 
@@ -1073,7 +1076,6 @@ components:
               current_count: 750
       required:
         - id
-        - params
         - labels_information
 
     LabelInformation:
@@ -1194,16 +1196,36 @@ components:
 
     EvaluateRequest:
       type: object
+      example:
+        algorithm_id: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
+        parameters:
+          payment_method: "card"
+          amount: 1500
       properties:
         algorithm_id:
           type: string
+          example: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
         parameters:
           type: object
+          example:
+            payment_method:
+              type: enum_variant
+              value: "card"
+            amount:
+              type: number
+              value: 1500
           additionalProperties:
             $ref: "#/components/schemas/ValueType"
 
     EvaluateResponse:
       type: object
+      example:
+        status: "success"
+        output:
+          priority:
+            connectors: ["stripe", "adyen"]
+        evaluated_output: ["stripe", "adyen"]
+        eligible_connectors: ["stripe", "adyen", "checkout"]
       properties:
         status:
           type: string
@@ -1220,6 +1242,28 @@ components:
 
     Program:
       type: object
+      example:
+        globals: {}
+        default_selection:
+          priority:
+            connectors: ["stripe", "checkout"]
+        rules:
+          - name: High Amount Card
+            routing_type: priority
+            output:
+              priority:
+                connectors: ["adyen"]
+            statements:
+              - condition:
+                  - lhs: "payment_method"
+                    comparison: equal
+                    value: "card"
+                    metadata: {}
+                  - lhs: "amount"
+                    comparison: greater_than
+                    value: 1000
+                    metadata: {}
+        metadata: {}
       properties:
         globals:
           type: object
@@ -1238,6 +1282,18 @@ components:
 
     Rule:
       type: object
+      example:
+        name: High Volume Transactions
+        routing_type: priority
+        output:
+          priority:
+            connectors: ["stripe", "adyen"]
+        statements:
+          - condition:
+              - lhs: amount
+                comparison: greater_than
+                value: 5000
+                metadata: {}
       properties:
         name:
           type: string
@@ -1263,6 +1319,8 @@ components:
 
     PriorityOutput:
       type: object
+      example:
+        connectors: ["stripe", "adyen"]
       properties:
         connectors:
           type: array
@@ -1279,6 +1337,12 @@ components:
 
     VolumeSplitPriorityOutput:
       type: object
+      example:
+        groups:
+          - split: 60
+            output: ["stripe", "adyen"]
+          - split: 40
+            output: ["checkout"]
       properties:
         groups:
           type: array
@@ -1287,6 +1351,9 @@ components:
 
     VolumeSplit:
       type: object
+      example:
+        split: 70
+        output: "stripe"
       properties:
         split:
           type: integer
@@ -1295,6 +1362,9 @@ components:
 
     VolumeSplitGroup:
       type: object
+      example:
+        split: 50
+        output: ["adyen", "checkout"]
       properties:
         split:
           type: integer
@@ -1305,6 +1375,18 @@ components:
 
     IfStatement:
       type: object
+      example:
+        condition:
+          - lhs: "currency"
+            comparison: equal
+            value: "USD"
+            metadata: {}
+        nested:
+          - condition:
+              - lhs: "amount"
+                comparison: greater_than
+                value: 1000
+                metadata: {}
       properties:
         condition:
           type: array
@@ -1317,6 +1399,11 @@ components:
 
     Comparison:
       type: object
+      example:
+        lhs: "payment_method"
+        comparison: equal
+        value: "card"
+        metadata: {}
       properties:
         lhs:
           type: string
@@ -1343,6 +1430,8 @@ components:
 
     ValueTypeList:
       type: object
+      example:
+        values: ["card", "bank_transfer"]
       properties:
         values:
           type: array
