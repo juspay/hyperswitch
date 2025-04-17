@@ -778,6 +778,10 @@ impl Payments {
                 .service(
                 web::resource("{payment_id}/calculate_tax")
                     .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                )
+                .service(
+                    web::resource("{payment_id}/update_metadata")
+                        .route(web::post().to(payments::payments_update_metadata)),
                 );
         }
         route
@@ -2510,12 +2514,12 @@ impl WebhookEvents {
         web::scope("/events")
             .app_data(web::Data::new(config))
             .service(web::scope("/profile/list").service(web::resource("").route(
-                web::get().to(webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth),
+                web::post().to(webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth),
             )))
             .service(
                 web::scope("/{merchant_id}")
                     .service(web::resource("").route(
-                        web::get().to(webhook_events::list_initial_webhook_delivery_attempts),
+                        web::post().to(webhook_events::list_initial_webhook_delivery_attempts),
                     ))
                     .service(
                         web::scope("/{event_id}")
