@@ -3264,56 +3264,6 @@
           }
         ]
       }
-    },
-    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
-      "get": {
-        "tags": [
-          "Revenue Recovery"
-        ],
-        "summary": "Revenue Recovery - Retrieve",
-        "description": "Retrieve the Revenue Recovery Payment Info",
-        "operationId": "Retrieve Revenue Recovery Info",
-        "parameters": [
-          {
-            "name": "recovery_recovery_id",
-            "in": "path",
-            "description": "The payment intent id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Revenue Recovery Info Retrieved Successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RevenueRecoveryResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "jwt_key": []
-          }
-        ]
-      }
     }
   },
   "components": {
