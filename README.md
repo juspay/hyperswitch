@@ -41,8 +41,8 @@ Single API to access the payments ecosystem and its features
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Architectural Overview](#architectural-overview) 
-3. [Try Hyperswitch](#try-hyperswitch)  
+2. [Try Hyperswitch](#try-hyperswitch)
+3. [Architectural Overview](#architectural-overview) 
 4. [Support, Feature requests & Bugs](#support-feature-requests)  
 5. [Our Vision](#our-vision)  
 6. [Versioning](#versioning)  
