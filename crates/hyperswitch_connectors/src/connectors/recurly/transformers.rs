@@ -497,12 +497,12 @@ impl
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyInvoiceSyncResponse {
-    pub id : String,
+    pub id: String,
     pub total: FloatMajorUnit,
-    pub currency : common_enums::Currency,
-    pub address : Option<RecurlyInvoiceBillingAdddress>,
-    pub lines : Vec<RecurlyLineItems>,
-    pub transactions : Vec<RecurlyInvoiceTransactionsStatus>
+    pub currency: common_enums::Currency,
+    pub address: Option<RecurlyInvoiceBillingAdddress>,
+    pub lines: Vec<RecurlyLineItems>,
+    pub transactions: Vec<RecurlyInvoiceTransactionsStatus>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -517,72 +517,87 @@ pub struct RecurlyInvoiceBillingAdddress {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RecurlyLineItems {
-    #[serde(rename="type")]
-    pub invoice_type : RecurlyInvoiceLineItemType,
+    #[serde(rename = "type")]
+    pub invoice_type: RecurlyInvoiceLineItemType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub start_date : PrimitiveDateTime,
+    pub start_date: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub end_date : PrimitiveDateTime
-} 
+    pub end_date: PrimitiveDateTime,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum RecurlyInvoiceLineItemType {
     Credit,
-    Charge
+    Charge,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub struct RecurlyInvoiceTransactionsStatus {
-    pub status : String
+    pub status: String,
 }
 
-impl TryFrom<
-    ResponseRouterData<
+impl
+    TryFrom<
+        ResponseRouterData<
             recovery_router_flows::BillingConnectorInvoiceSync,
             RecurlyInvoiceSyncResponse,
             recovery_request_types::BillingConnectorInvoiceSyncRequest,
-            recovery_response_types::BillingConnectorInvoiceSyncResponse
-    >
-> for recovery_router_data_types::BillingConnectorInvoiceSyncRouterData {
+            recovery_response_types::BillingConnectorInvoiceSyncResponse,
+        >,
+    > for recovery_router_data_types::BillingConnectorInvoiceSyncRouterData
+{
     type Error = errors::ConnectorError;
-    fn try_from(item :
-        ResponseRouterData<
-        recovery_router_flows::BillingConnectorInvoiceSync,
-        RecurlyInvoiceSyncResponse,
-        recovery_request_types::BillingConnectorInvoiceSyncRequest,
-        recovery_response_types::BillingConnectorInvoiceSyncResponse
->) ->  Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<
+            recovery_router_flows::BillingConnectorInvoiceSync,
+            RecurlyInvoiceSyncResponse,
+            recovery_request_types::BillingConnectorInvoiceSyncRequest,
+            recovery_response_types::BillingConnectorInvoiceSyncResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
         #[allow(clippy::as_conversions)]
         // No of retries never exceeds u16 in recurly. So its better to supress the clippy warning
-        let retry_count = item.response.transactions.len() as u16; 
-        Ok(Self{
-            response : Ok(recovery_response_types::BillingConnectorInvoiceSyncResponse{
-                amount : item.response.total.into(),
-                currency: item.response.currency.into(),
-                merchant_reference_id: item.response.id.into(),
-                retry_count : Some(retry_count),
-                billing_address : Some(api_models::payments::Address{
-                    address : Some(api_models::payments::AddressDetails{
-                        city: item.response.address.and_then(|address| address.city),
-                        state: item.response.address.and_then(|address| address.region),
-                        country: item.response.address.and_then(|address| address.country),
-                        line1: item.response.address.and_then(|address| address.street1),
-                        line2: item.response.address.and_then(|address| address.street2),
-                        line3: None,
-                        zip: item.response.address.and_then(|address| address.postal_code),
-                        first_name : None,
-                        last_name: None
+        let retry_count = item.response.transactions.len() as u16;
+        Ok(Self {
+            response: Ok(
+                recovery_response_types::BillingConnectorInvoiceSyncResponse {
+                    amount: item.response.total.into(),
+                    currency: item.response.currency.into(),
+                    merchant_reference_id: item.response.id.into(),
+                    retry_count: Some(retry_count),
+                    billing_address: Some(api_models::payments::Address {
+                        address: Some(api_models::payments::AddressDetails {
+                            city: item.response.address.and_then(|address| address.city),
+                            state: item.response.address.and_then(|address| address.region),
+                            country: item.response.address.and_then(|address| address.country),
+                            line1: item.response.address.and_then(|address| address.street1),
+                            line2: item.response.address.and_then(|address| address.street2),
+                            line3: None,
+                            zip: item
+                                .response
+                                .address
+                                .and_then(|address| address.postal_code),
+                            first_name: None,
+                            last_name: None,
+                        }),
+                        phone: None,
+                        email: None,
                     }),
-                    phone : None,
-                    email: None
-                }),
-                created_at: item.response.lines.get(0).and_then(|line| Some(line.start_date)),
-                ends_at: item.response.lines.get(0).and_then(|line| Some(line.end_date))
-            }),
+                    created_at: item
+                        .response
+                        .lines
+                        .get(0)
+                        .and_then(|line| Some(line.start_date)),
+                    ends_at: item
+                        .response
+                        .lines
+                        .get(0)
+                        .and_then(|line| Some(line.end_date)),
+                },
+            ),
             ..item.data
         })
-
     }
 }

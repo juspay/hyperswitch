@@ -203,7 +203,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
     }
 }
 
-impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryInvoiceData {
+impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
     fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
         Self {
             amount: data.amount,

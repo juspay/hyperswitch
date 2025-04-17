@@ -868,7 +868,6 @@ pub struct BillingConnectorInvoiceSyncCall {
     pub billing_connectors_which_require_invoice_sync: HashSet<enums::Connector>,
 }
 
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
