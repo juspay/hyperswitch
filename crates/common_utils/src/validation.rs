@@ -26,6 +26,8 @@ pub fn validate_phone_number(phone_number: &str) -> Result<(), ValidationError> 
 pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
     #[deny(clippy::invalid_regex)]
     static EMAIL_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
+        #[allow(unknown_lints)]
+        #[allow(clippy::manual_ok_err)]
         match Regex::new(
             r"^(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
         ) {

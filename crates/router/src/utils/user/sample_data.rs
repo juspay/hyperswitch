@@ -368,6 +368,7 @@ pub async fn generate_sample_data(
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            setup_future_usage_applied: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

@@ -16678,6 +16678,12 @@
           },
           "connector": {
             "$ref": "#/components/schemas/Connector"
+          },
+          "invoice_next_billing_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice Next billing time",
+            "nullable": true
           }
         }
       },
@@ -17193,7 +17199,7 @@
           "client_secret": {
             "type": "string",
             "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+            "example": "cs_0195b34da95d75239c6a4bf514458896"
           },
           "profile_id": {
             "type": "string",
@@ -17791,7 +17797,6 @@
           "status",
           "amount",
           "customer_id",
-          "client_secret",
           "created"
         ],
         "properties": {
@@ -17820,10 +17825,6 @@
             "description": "The connector used for the payment",
             "example": "stripe",
             "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification."
           },
           "created": {
             "type": "string",

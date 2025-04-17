@@ -28,18 +28,13 @@ impl GlobalPaymentId {
         Self(global_id)
     }
 
-    /// Generate a new ClientId from self
-    pub fn generate_client_secret(&self) -> types::ClientSecret {
-        types::ClientSecret::new(self.clone(), generate_time_ordered_id_without_prefix())
-    }
-
     /// Generate the id for revenue recovery Execute PT workflow
     pub fn get_execute_revenue_recovery_id(
         &self,
         task: &str,
         runner: enums::ProcessTrackerRunner,
     ) -> String {
-        format!("{task}_{runner}_{}", self.get_string_repr())
+        format!("{runner}_{task}_{}", self.get_string_repr())
     }
 }
 

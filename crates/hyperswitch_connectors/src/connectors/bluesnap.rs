@@ -747,7 +747,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?; // If location headers are not present connector will return 4XX so this error will never be propagated
                 let payment_fields_token = location
                     .split('/')
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
 

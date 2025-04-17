@@ -4,6 +4,106 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.17.0
+
+### Features
+
+- **connector:** [chargebee] consumes required fields to support transaction monitoring ([#7774](https://github.com/juspay/hyperswitch/pull/7774)) ([`5fa54e5`](https://github.com/juspay/hyperswitch/commit/5fa54e5e57c01c8bf60367e1e762ab90a49d0986))
+- **vsaas:** Modify api key auth to support vsaas cases ([#7593](https://github.com/juspay/hyperswitch/pull/7593)) ([`2a46705`](https://github.com/juspay/hyperswitch/commit/2a4670537a5c0e40e70d2afec0a2ba6124f03927))
+
+### Miscellaneous Tasks
+
+- Change payment method files ownership to `hyperswitch-payment-methods` ([#7808](https://github.com/juspay/hyperswitch/pull/7808)) ([`640c5dd`](https://github.com/juspay/hyperswitch/commit/640c5dd3ca6bf2d01c03b78465978321518cf93d))
+
+**Full Changelog:** [`2025.04.16.0...2025.04.17.0`](https://github.com/juspay/hyperswitch/compare/2025.04.16.0...2025.04.17.0)
+
+
+- - -
+
+## 2025.04.16.0
+
+### Features
+
+- **configs:** [Trustpay] add support for AT,DE,IT country for instant_banktransfer ([#7815](https://github.com/juspay/hyperswitch/pull/7815)) ([`6d961a3`](https://github.com/juspay/hyperswitch/commit/6d961a3f763d084b777d8b364393de7846b07cca))
+- **core:** Add support for updating metadata after payment has been authorized ([#7776](https://github.com/juspay/hyperswitch/pull/7776)) ([`92f6821`](https://github.com/juspay/hyperswitch/commit/92f68213162df099ecabc10e7d10173e322db27a))
+- **docker:** Add webhook notifiers for installation tracking ([#7653](https://github.com/juspay/hyperswitch/pull/7653)) ([`3446c5e`](https://github.com/juspay/hyperswitch/commit/3446c5e6048bad7a9bd38ae64714447de5ef25ef))
+
+### Refactors
+
+- **customer:** Refactor customer db with storage utils and move trait to domain_models and impl to storage_model ([#7538](https://github.com/juspay/hyperswitch/pull/7538)) ([`e8e0b5d`](https://github.com/juspay/hyperswitch/commit/e8e0b5df0e2d8e5d24fb8c1e98ce5b1049cc2f66))
+
+**Full Changelog:** [`2025.04.14.0...2025.04.16.0`](https://github.com/juspay/hyperswitch/compare/2025.04.14.0...2025.04.16.0)
+
+
+- - -
+
+## 2025.04.14.0
+
+### Features
+
+- **webhook:** Add filter by event class and type ([#7275](https://github.com/juspay/hyperswitch/pull/7275)) ([`989b2c3`](https://github.com/juspay/hyperswitch/commit/989b2c34e13053d2f842c69fc9ea8775fb61b517))
+
+### Bug Fixes
+
+- **connector:** Add network error message support for payment connectors ([#7760](https://github.com/juspay/hyperswitch/pull/7760)) ([`b83e044`](https://github.com/juspay/hyperswitch/commit/b83e044b7d8e4b50acd6f8a6cbc27b802514946c))
+- **payment_link:** Add validation for return_url during payment link creation ([#7802](https://github.com/juspay/hyperswitch/pull/7802)) ([`81eaf39`](https://github.com/juspay/hyperswitch/commit/81eaf396c109fddef3c1ab53bf99afc849859d5b))
+- Script for one click docker setup ([#7762](https://github.com/juspay/hyperswitch/pull/7762)) ([`9c80734`](https://github.com/juspay/hyperswitch/commit/9c807340dc0fe89b124d9471643266c86bad6ca3))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.86.0 clippy lints ([#7735](https://github.com/juspay/hyperswitch/pull/7735)) ([`2123f63`](https://github.com/juspay/hyperswitch/commit/2123f63bc54030adf1d8f42f08240c71b03fc09c))
+
+**Full Changelog:** [`2025.04.11.0...2025.04.14.0`](https://github.com/juspay/hyperswitch/compare/2025.04.11.0...2025.04.14.0)
+
+
+- - -
+
+## 2025.04.11.0
+
+### Features
+
+- Remove client_secret from payment_intent and update related code ([#7648](https://github.com/juspay/hyperswitch/pull/7648)) ([`5730ddf`](https://github.com/juspay/hyperswitch/commit/5730ddfc8893017f40a5f5a8c1b7f099cc0d22a9))
+
+**Full Changelog:** [`2025.04.10.1...2025.04.11.0`](https://github.com/juspay/hyperswitch/compare/2025.04.10.1...2025.04.11.0)
+
+
+- - -
+
+## 2025.04.10.1
+
+### Features
+
+- **users:** Refactor `ProdIntent` to support product-type context and merchant-scope ([#7638](https://github.com/juspay/hyperswitch/pull/7638)) ([`bbd2102`](https://github.com/juspay/hyperswitch/commit/bbd2102274f1623ba5a0830e648972d8869cae2b))
+
+### Refactors
+
+- **users:** Modify query to list only v1 merchant_accounts for list v1 merchant accounts API ([#7782](https://github.com/juspay/hyperswitch/pull/7782)) ([`203ae3e`](https://github.com/juspay/hyperswitch/commit/203ae3e97e53eea88bb6332581956ab89002d9cf))
+
+**Full Changelog:** [`2025.04.10.0...2025.04.10.1`](https://github.com/juspay/hyperswitch/compare/2025.04.10.0...2025.04.10.1)
+
+
+- - -
+
+## 2025.04.10.0
+
+### Features
+
+- **connector:** Add invoice number and email in AuthorizeDotNet connector ([#7726](https://github.com/juspay/hyperswitch/pull/7726)) ([`c2f9658`](https://github.com/juspay/hyperswitch/commit/c2f9658c9d8a6ff43aed6b5fdc4b00dc07b1d6d2))
+- **payment_link:** Expose configurations for payment links ([#7742](https://github.com/juspay/hyperswitch/pull/7742)) ([`b475171`](https://github.com/juspay/hyperswitch/commit/b475171dd274ac7e19ebb4d8fe14a58ea0579514))
+
+### Bug Fixes
+
+- **router:** Fix retry_count and add validation for process_tracker ([#7614](https://github.com/juspay/hyperswitch/pull/7614)) ([`6ef7105`](https://github.com/juspay/hyperswitch/commit/6ef71051f6fb3c9b936b5df07dbf22e9d068e3b5))
+
+### Refactors
+
+- **connector:** [STRIPE] Remove sofort bank redirect from stripe ([#7733](https://github.com/juspay/hyperswitch/pull/7733)) ([`8ec56e5`](https://github.com/juspay/hyperswitch/commit/8ec56e5ba4b68a6cf6ab4f2fa685848198ccadbe))
+
+**Full Changelog:** [`2025.04.09.0...2025.04.10.0`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0...2025.04.10.0)
+
+
+- - -
+
 ## 2025.04.09.0
 
 ### Features
