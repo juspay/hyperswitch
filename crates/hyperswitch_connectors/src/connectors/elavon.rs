@@ -1,6 +1,8 @@
 pub mod transformers;
 use std::{collections::HashMap, str, sync::LazyLock};
-
+use crate::utils::PaymentMethodDataType;
+use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
+use crate::utils::is_mandate_supported;
 use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
@@ -579,7 +581,17 @@ impl webhooks::IncomingWebhook for Elavon {
     }
 }
 
-impl ConnectorValidation for Elavon {}
+impl ConnectorValidation for Elavon {
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
+}
+
 
 static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
