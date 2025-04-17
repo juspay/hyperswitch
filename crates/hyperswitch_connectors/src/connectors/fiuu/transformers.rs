@@ -30,10 +30,7 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    errors,
-};
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -895,11 +892,11 @@ impl<F>
                             code: non_threeds_data
                                 .error_code
                                 .clone()
-                                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                             message: non_threeds_data
                                 .error_desc
                                 .clone()
-                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
@@ -944,11 +941,11 @@ impl<F>
                                 code: recurring_response
                                     .reason
                                     .clone()
-                                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                                 message: recurring_response
                                     .reason
                                     .clone()
-                                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                                 reason: recurring_response.reason.clone(),
                                 status_code: item.http_code,
                                 attempt_status: None,
@@ -1111,7 +1108,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             message: refund_data
                                 .reason
                                 .clone()
-                                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                             reason: refund_data.reason.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
@@ -1248,11 +1245,13 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let error_response = if status == enums::AttemptStatus::Failure {
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response.error_code.unwrap_or(NO_ERROR_CODE.to_owned()),
+                        code: response
+                            .error_code
+                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
                         message: response
                             .error_desc
                             .clone()
-                            .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                         reason: response.error_desc,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
@@ -1316,11 +1315,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         code: response
                             .error_code
                             .clone()
-                            .unwrap_or(NO_ERROR_CODE.to_owned()),
+                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
                         message: response
                             .error_desc
                             .clone()
-                            .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                         reason: response.error_desc.clone(),
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
@@ -1490,7 +1489,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 code: status_code.to_owned(),
                 message: optional_message
                     .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: optional_message,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
@@ -1605,7 +1604,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                 code: status_code.to_owned(),
                 message: optional_message
                     .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: optional_message,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
