@@ -253,7 +253,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let status = payment_attempt.status;
 
     let payment_amount = payment_attempt.get_total_amount();
-    let currency = payment_intent.amount_details.currency;
+    let currency = payment_intent.get_currency();
 
     let payment_method_type = payment_attempt.payment_method_type;
 
