@@ -60,13 +60,14 @@ pub async fn recovery_incoming_webhook_flow(
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
+
     let billing_connectors_with_invoice_sync_call = &state.conf.billing_connectors_invoice_sync;
 
-    let should_billing_connector_invoice_api_called = billing_connectors_with_invoice_sync_call
-        .billing_connectors_which_require_invoice_sync
-        .contains(&connector);
+    let should_billing_connector_invoice_api_called =  billing_connectors_with_invoice_sync_call
+            .billing_connectors_which_require_invoice_sync
+            .contains(&connector);
 
-    // let billing_connector_invoice_details =
+    // let billing_connector_invoice_details = 
 
     let billing_connectors_with_payment_sync_call = &state.conf.billing_connectors_payment_sync;
 
@@ -85,19 +86,17 @@ pub async fn recovery_incoming_webhook_flow(
         )
         .await?;
 
-    let invoice_id =
-        billing_connector_payment_details.and_then(|data| Some(data.merchant_reference_id));
+    let invoice_id = billing_connector_payment_details.and_then(|data| Some(data.merchant_reference_id));
 
-    let billing_connector_invoice_details =
+    let billing_connector_invoice_details = 
         BillingConnectorInvoiceSyncResponseData::get_billing_connector_invoice_details(
-            should_billing_connector_invoice_api_called,
-            &state,
-            &merchant_account,
-            &billing_connector_account,
-            connector_name,
-            invoice_id,
-        )
-        .await?;
+            should_billing_connector_invoice_api_called, 
+            &state, 
+            &merchant_account, 
+            &billing_connector_account, 
+            connector_name, 
+            invoice_id
+        ).await?;
 
     // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
 
@@ -265,7 +264,7 @@ impl RevenueRecoveryInvoice {
             &revenue_recovery_response::BillingConnectorInvoiceSyncResponse,
         >,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
-        billing_connector_payment_details.map_or_else(
+        billing_connector_invoice_details.map_or_else(
             || {
                 interface_webhooks::IncomingWebhook::get_revenue_recovery_invoice_details(
                     connector_enum,
@@ -991,10 +990,7 @@ impl BillingConnectorInvoiceSyncResponseData {
         let response_data = match should_billing_connector_invoice_api_called {
             true => {
                 let billing_connector_invoice_id = merchant_reference_id
-                    .map(|id| id.get_string_repr())
-                    .ok_or_else(|| {
-                        errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed
-                    })?;
+                    .map(|id| id.get_string_repr()).ok_or_else(|| errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)?;
                 let billing_connector_invoice_details =
                     Self::handle_billing_connector_invoice_sync_call(
                         state,
