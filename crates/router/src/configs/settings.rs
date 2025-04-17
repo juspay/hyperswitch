@@ -93,6 +93,7 @@ pub struct Settings<S: SecretState> {
     pub user: UserSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
@@ -513,6 +514,11 @@ pub struct CorsSettings {
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ZeroMandates {
+    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

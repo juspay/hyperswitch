@@ -6443,6 +6443,28 @@ pub struct PaymentsSessionRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsUpdateMetadataRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: pii::SecretSerdeValue,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsUpdateMetadataResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsPostSessionTokensRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
@@ -8543,6 +8565,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
+    /// Invoice Next billing time
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
@@ -8644,6 +8668,15 @@ pub struct PaymentsAttemptRecordRequest {
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: String,
+
+    /// Number of attempts made for invoice
+    #[schema(value_type = Option<u16>, example = 1)]
+    pub retry_count: Option<u16>,
+
+    /// Next Billing time of the Invoice
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 
 /// Error details for the payment

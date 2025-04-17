@@ -573,9 +573,10 @@ describe("Connector Agnostic Tests", () => {
           fixtures.pmIdConfirmBody,
           data,
           7000,
-          true,
+          true /* confirm */,
           "automatic",
-          globalState
+          globalState,
+          true /* connector_agnostic_mit */
         );
       });
 
@@ -747,7 +748,8 @@ describe("Connector Agnostic Tests", () => {
         7000,
         true,
         "automatic",
-        globalState
+        globalState,
+        true /* connector_agnostic_mit */
       );
     });
 
