@@ -86,7 +86,7 @@ pub async fn refunds_create(
         auth::auth_type(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
-                is_platform_allowed: false
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
