@@ -155,8 +155,8 @@ Once the services have been confirmed to be up and running, you can proceed with
 
    This will compile the payments router, the primary component within
    hyperswitch and then start it.
-   Depending on the specifications of your machine, compilation can take
-   around 15 minutes.
+   Depending on the specifications of your machine, **compilation can take
+   around 15 minutes**.
 
 5. (Optional) You can also choose to
    [start the scheduler and/or monitoring services](#running-additional-services)
