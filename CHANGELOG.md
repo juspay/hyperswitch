@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.17.0
+
+### Features
+
+- **connector:** [chargebee] consumes required fields to support transaction monitoring ([#7774](https://github.com/juspay/hyperswitch/pull/7774)) ([`5fa54e5`](https://github.com/juspay/hyperswitch/commit/5fa54e5e57c01c8bf60367e1e762ab90a49d0986))
+- **vsaas:** Modify api key auth to support vsaas cases ([#7593](https://github.com/juspay/hyperswitch/pull/7593)) ([`2a46705`](https://github.com/juspay/hyperswitch/commit/2a4670537a5c0e40e70d2afec0a2ba6124f03927))
+
+### Miscellaneous Tasks
+
+- Change payment method files ownership to `hyperswitch-payment-methods` ([#7808](https://github.com/juspay/hyperswitch/pull/7808)) ([`640c5dd`](https://github.com/juspay/hyperswitch/commit/640c5dd3ca6bf2d01c03b78465978321518cf93d))
+
+**Full Changelog:** [`2025.04.16.0...2025.04.17.0`](https://github.com/juspay/hyperswitch/compare/2025.04.16.0...2025.04.17.0)
+
+
+- - -
+
 ## 2025.04.16.0
 
 ### Features
