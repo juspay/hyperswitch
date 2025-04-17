@@ -761,7 +761,10 @@ pub async fn retrieve_linked_surcharge_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: query.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
@@ -802,7 +805,10 @@ pub async fn list_surcharge_decision_manager_configs(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSurchargeDecisionManagerRead,
             },
@@ -845,7 +851,10 @@ pub async fn add_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSurchargeDecisionManagerWrite,
             },
@@ -884,7 +893,10 @@ pub async fn surcharge_link_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSurchargeDecisionManagerWrite,
             },
