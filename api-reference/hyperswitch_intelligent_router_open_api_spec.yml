@@ -827,32 +827,48 @@ components:
 
     CalGlobalSuccessRateRequest:
       type: object
+      example:
+        entity_id: "merchant1"
+        entity_params: "card"
+        entity_labels: ["stripe", "adyen"]
+        global_labels: ["visa", "mastercard"]
+        config:
+          entity_min_aggregates_size: 10
+          entity_default_success_rate: 0.85
       properties:
         entity_id:
           type: string
-          example: merchant1
-          description: Entity identifier
+          example: "merchant1"
         entity_params:
           type: string
-          example: card
-          description: Additional parameters for entity success rate calculation
+          example: "card"
         entity_labels:
           type: array
-          example: ["stripe", "adyen"]
           items:
             type: string
-          description: Entity-specific labels for which to calculate success rates
+          example: ["stripe", "adyen"]
         global_labels:
           type: array
-          example: ["stripe", "adyen"]
           items:
             type: string
-          description: Global labels for which to calculate success rates
-      required:
-        - entity_id
-        - entity_params
-        - entity_labels
-        - global_labels
+          example: ["visa", "mastercard"]
+        config:
+          $ref: "#/components/schemas/CalGlobalSuccessRateConfig"
+
+    CalGlobalSuccessRateConfig:
+      type: object
+      example:
+        entity_min_aggregates_size: 10
+        entity_default_success_rate: 0.85
+      properties:
+        entity_min_aggregates_size:
+          type: integer
+          format: uint32
+          example: 10
+        entity_default_success_rate:
+          type: number
+          format: double
+          example: 0.85
 
     CalGlobalSuccessRateResponse:
       type: object
