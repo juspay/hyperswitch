@@ -84,7 +84,10 @@ pub async fn refunds_create(
             refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false
+            },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
             },
