@@ -63,14 +63,6 @@ Here are the key components of Hyperswitch that deliver the whole solution:
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
-<a href="#architectural-overview">
-  <h2 id="architectural-overview">Architectural Overview</h2>
-</a>
-<img src="./docs/imgs/features.png" />
-<img src="./docs/imgs/non-functional-features.png" />
-
-<img src="./docs/imgs/hyperswitch-architecture-v1.png" />
-
 <a href="#try-hyperswitch">
   <h2 id="try-hyperswitch">Try Hyperswitch</h2>
 </a>
@@ -89,6 +81,7 @@ scripts/docker_output.sh
 The next step is to [configure a connector][configure-a-connector] with the Hyperswitch Control Center and [try a payment][try-a-payment].
 
 Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
+
 
 ### 2. Deployment on cloud
 
@@ -116,6 +109,14 @@ We support deployment on GCP and Azure via Helm charts which takes 30-45mins. Yo
 ### 3. Hosted Sandbox
 
 You can experience the product by signing up for our [hosted sandbox](https://app.hyperswitch.io/). The signup process accepts any email ID and provides access to the entire Control Center. You can set up connectors, define workflows for routing and retries, and even try payments from the dashboard.
+
+<a href="#architectural-overview">
+  <h2 id="architectural-overview">Architectural Overview</h2>
+</a>
+<img src="./docs/imgs/features.png" />
+<img src="./docs/imgs/non-functional-features.png" />
+
+<img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
 [docs-link-for-enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
