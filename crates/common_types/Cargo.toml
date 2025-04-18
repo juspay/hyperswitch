@@ -10,6 +10,7 @@ license.workspace = true
 default = []
 v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2"]
+tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
 diesel = "2.2.3"

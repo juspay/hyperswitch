@@ -1468,6 +1468,24 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    tokenization (id) {
+        id -> Text,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        token_data -> Jsonb,
+        #[max_length = 64]
+        locker_id -> Varchar,
+        flag -> TokenizationFlag,
+        version -> DbApiVersion,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,

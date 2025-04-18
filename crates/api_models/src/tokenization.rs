@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use validator::Validate;
 use common_utils::id_type::GlobalTokenId;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]

@@ -1,17 +1,17 @@
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use std::sync::Arc;
 
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{IntoReport, ResultExt};
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use masking::Secret;
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, tracing};
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
 use actix_web::{web, HttpRequest, HttpResponse};
 
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
@@ -24,6 +24,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub async fn create_token_vault_api(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -52,6 +53,7 @@ pub async fn create_token_vault_api(
 }
 
 #[instrument(skip_all)]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 async fn create_vault_token_core<T: Serialize>(
     state: Arc<AppState>,
     merchant_account: &domain::MerchantAccount,

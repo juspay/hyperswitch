@@ -1539,20 +1539,6 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    tokenization (id) {
-        id -> GlobalTokenId,
-        merchant_id -> Varchar,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        locker_id -> Varchar,
-        flag -> TokenizationFlag,
-        version -> ApiVersion,
-    }
-}
 
 diesel::allow_tables_to_appear_in_same_query!(
     address,
