@@ -56,10 +56,10 @@ const multiUseMandateData = {
 const payment_method_data_no3ds = {
   card: {
     last4: "4242",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
     card_isin: "424242",
     card_extended_bin: null,
     card_exp_month: "01",
@@ -89,11 +89,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         currency: "USD",
         amount: 6000,
@@ -110,11 +105,6 @@ export const connectorDetails = {
       },
     },
     No3DSManualCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -136,11 +126,6 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -162,11 +147,6 @@ export const connectorDetails = {
       },
     },
     Capture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -178,11 +158,6 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         amount_to_capture: 3000,
       },
@@ -197,11 +172,6 @@ export const connectorDetails = {
       },
     },
     Void: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {},
       Response: {
         status: 200,
@@ -211,11 +181,6 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -232,11 +197,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -258,11 +218,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -284,11 +239,6 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -305,11 +255,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -340,11 +285,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -361,11 +301,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -382,11 +317,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -403,11 +333,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -424,11 +349,6 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {},
       Response: {
         status: 200,
@@ -438,11 +358,6 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {},
       Response: {
         status: 200,
@@ -452,11 +367,6 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -487,11 +397,6 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -509,11 +414,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -532,11 +432,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -554,11 +449,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -577,11 +467,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -593,11 +478,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -609,11 +489,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -631,11 +506,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -653,11 +523,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {

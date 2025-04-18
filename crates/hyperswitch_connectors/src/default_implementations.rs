@@ -535,6 +535,7 @@ default_imp_for_update_metadata!(
     connectors::Adyen,
     connectors::Airwallex,
     connectors::Amazonpay,
+    connectors::Archipel,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
