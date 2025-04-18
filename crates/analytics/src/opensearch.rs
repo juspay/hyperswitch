@@ -71,6 +71,8 @@ pub struct OpenSearchConfig {
     host: String,
     auth: OpenSearchAuth,
     indexes: OpenSearchIndexes,
+    #[serde(default)]
+    enabled: bool,
 }
 
 impl Default for OpenSearchConfig {
@@ -91,12 +93,15 @@ impl Default for OpenSearchConfig {
                 sessionizer_refunds: "sessionizer-refund-events".to_string(),
                 sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
+            enabled: false,
         }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpenSearchError {
+    #[error("Opensearch is not enabled")]
+    NotEnabled,
     #[error("Opensearch connection error")]
     ConnectionError,
     #[error("Opensearch NON-200 response content: '{0}'")]
@@ -174,6 +179,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "IR",
                 7,
                 "Access Forbidden error",
+                None,
+            )),
+            Self::NotEnabled => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                8,
+                "Opensearch is not enabled",
                 None,
             )),
         }
@@ -408,14 +419,23 @@ impl OpenSearchAuth {
 }
 
 impl OpenSearchConfig {
-    pub async fn get_opensearch_client(&self) -> StorageResult<OpenSearchClient> {
-        Ok(OpenSearchClient::create(self)
-            .await
-            .map_err(|_| StorageError::InitializationError)?)
+    pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {
+        if !self.enabled {
+            return Ok(None);
+        }
+        Ok(Some(
+            OpenSearchClient::create(self)
+                .await
+                .change_context(StorageError::InitializationError)?,
+        ))
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+
+        if !self.enabled {
+            return Ok(());
+        }
 
         when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -430,6 +450,7 @@ impl OpenSearchConfig {
         Ok(())
     }
 }
+
 #[derive(Debug, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenSearchHealthStatus {
