@@ -232,6 +232,7 @@ impl PaymentAttemptInterface for MockDb {
             charges: None,
             issuer_error_code: None,
             issuer_error_message: None,
+            setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
