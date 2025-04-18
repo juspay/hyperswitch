@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
+use async_bb8_diesel::AsyncRunQueryDsl
+;
 use diesel::{
     associations::HasTable,
     debug_query,

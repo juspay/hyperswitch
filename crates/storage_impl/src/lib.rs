@@ -40,6 +40,8 @@ use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
+use diesel_models::tokenization::Tokenization;
+
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
@@ -505,12 +507,16 @@ impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl UniqueConstraints for diesel_models::Tokenization {
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl UniqueConstraints for diesel_models::tokenization::Tokenization {
     fn unique_constraints(&self) -> Vec<String> {
-        vec![self.id.get_string_repr().to_owned()]
+        vec![
+            format!("id_{}", self.id.get_string_repr()),
+            format!("locker_id_{}", self.locker_id),
+        ]
     }
+
     fn table_name(&self) -> &str {
-        "Tokenization"
+        "tokenization"
     }
 }

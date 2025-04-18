@@ -1,17 +1,9 @@
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use std::sync::Arc;
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{IntoReport, ResultExt};
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use masking::Secret;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, tracing};
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
 use actix_web::{web, HttpRequest, HttpResponse};
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
@@ -21,6 +13,7 @@ use crate::{
         domain,
         payment_methods as pm_types,
     },
+    hyperswitch_domain_models,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
@@ -41,7 +34,7 @@ pub async fn create_token_vault_api(
         |state, auth: auth::AuthenticationData, request, _| async move {
             create_vault_token_core(
                 state.into(),
-                auth.merchant_account,
+                &auth.merchant_account,
                 request,
             )
             .await
@@ -72,7 +65,7 @@ async fn create_vault_token_core<T: Serialize>(
     .encode_to_vec()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encode AddVaultRequest")?;
-
+    //&state.conf.cell_information.id
     // Call the vault service
     let resp = services::tokenization::call_to_vault::<pm_types::AddVault>(&state, payload)
         .await
@@ -86,7 +79,8 @@ async fn create_vault_token_core<T: Serialize>(
         .attach_printable("Failed to parse data into AddVaultResponse")?;
 
     // Create new tokenization record
-    let tokenization_new = storage_models::tokenization::TokenizationNew {
+    let tokenization_new = hyperswitch_domain_models::tokenization::TokenizationNew {
+        id: domain::GlobalTokenId::generate(&state.conf.cell_information.id),
         merchant_id: merchant_account.merchant_id.clone(),
         locker_id: stored_resp.vault_id.to_string(),
         flag: storage_enums::TokenizationFlag::Active,

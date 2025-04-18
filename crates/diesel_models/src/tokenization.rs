@@ -2,41 +2,51 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 use common_utils::id_type::{GlobalTokenId, MerchantId};
 use serde::{Deserialize, Serialize};
-use common_utils::pii;
-use common_utils::consts::MAX_LOCKER_ID_LENGTH;
+use crate::{
+    enums::{TokenizationFlag, TokenizationType},
+    schema_v2::tokenization,
+    PgPooledConn, StorageResult,
+    query::generics,
+};
+use common_utils::{
+    consts::MAX_LOCKER_ID_LENGTH,
+};
+use common_enums::ApiVersion;
 
-use crate::{enums as storage_enums, schema::tokenization};
-use crate::types;
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
-#[diesel(table_name = tokenization, primary_key(id), check_for_backend(diesel::pg::Pg))]
+#[derive(Clone, Debug, Identifiable, Queryable)]
+#[diesel(table_name = tokenization)]
 pub struct Tokenization {
-    pub id: GlobalTokenId,
-    pub merchant_id: MerchantId,
+    pub id: common_utils::id_type::GlobalTokenId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub locker_id: String,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
-    pub locker_id: String,
-    pub flag: types::TokenizationFlag,
-    pub version: types::ApiVersion,
+    pub version: ApiVersion,
+    pub flag: TokenizationFlag,
 }
 
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[derive(Clone, Debug, Insertable, Serialize, Deserialize)]
+#[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = tokenization)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct TokenizationNew {
-    pub merchant_id: MerchantId,
+    pub id: common_utils::id_type::GlobalTokenId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub locker_id: String,
-    pub flag: types::TokenizationFlag,
-    pub version: types::ApiVersion,
+    pub created_at: PrimitiveDateTime,
+    pub updated_at: PrimitiveDateTime,
+    pub version: ApiVersion,
+    pub flag: TokenizationFlag,
 }
 
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl TokenizationNew {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Tokenization> {
+        generics::generic_insert(conn, self).await
+    }
+}
+
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = tokenization)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct TokenizationUpdate {
-    pub status: Option<storage_enums::TokenizationStatus>,
-    pub updated_at: PrimitiveDateTime,
-} 
+    pub updated_at: Option<PrimitiveDateTime>,
+    pub version: Option<ApiVersion>,
+    pub flag: Option<TokenizationFlag>,
+}

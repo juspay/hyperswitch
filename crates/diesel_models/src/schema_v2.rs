@@ -1473,16 +1473,13 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     tokenization (id) {
-        id -> Text,
-        #[max_length = 64]
+        id -> Varchar,
         merchant_id -> Varchar,
-        token_data -> Jsonb,
-        #[max_length = 64]
-        locker_id -> Varchar,
-        flag -> TokenizationFlag,
-        version -> DbApiVersion,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        locker_id -> Varchar,
+        flag -> crate::enums::TokenizationFlag,
+        version -> ApiVersion,
     }
 }
 
@@ -1532,4 +1529,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     user_key_store,
     user_roles,
     users,
+    tokenization,
 );

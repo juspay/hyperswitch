@@ -1539,7 +1539,6 @@ diesel::table! {
     }
 }
 
-
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -1586,5 +1585,4 @@ diesel::allow_tables_to_appear_in_same_query!(
     user_key_store,
     user_roles,
     users,
-    tokenization,
 );
