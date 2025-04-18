@@ -9,6 +9,8 @@ use diesel::{
 };
 use masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
+use strum::{Display, EnumString};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -180,4 +182,13 @@ pub struct BillingConnectorPaymentDetails {
     pub payment_processor_token: String,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, strum::Display, strum::EnumString, Default)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TokenizationFlag {
+    #[default]
+    Enabled,
+    Expired,
 }

@@ -1,11 +1,14 @@
+use common_utils::errors::CustomResult;
+use common_utils::id_type::GlobalTokenId;
+use diesel_models as storage;
 use error_stack::ResultExt;
 use router_env::logger;
 
 use super::{MockDb, Store};
 use crate::{
-    connection::pg_connection,
-    core::errors::{self, CustomResult},
-    types::storage,
+    connection,
+    core::errors::{self, utils::StorageErrorExt},
+    types::domain,
 };
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -13,19 +16,18 @@ use crate::{
 pub trait TokenizationInterface {
     async fn insert_tokenization(
         &self,
-        tokenization: storage::TokenizationNew,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError>;
+        tokenization: domain::TokenizationNew,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError>;
 
-    async fn find_tokenization_by_token(
+    async fn find_tokenization_by_id(
         &self,
-        token: &str,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError>;
+        id: GlobalTokenId,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError>;
 
-    async fn update_tokenization(
+    async fn find_tokenization_by_locker_id(
         &self,
-        token: &str,
-        tokenization: storage::TokenizationUpdate,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError>;
+        locker_id: &str,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError>;
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -33,37 +35,42 @@ pub trait TokenizationInterface {
 impl TokenizationInterface for Store {
     async fn insert_tokenization(
         &self,
-        tokenization: storage::TokenizationNew,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
-        tokenization
+        tokenization: domain::TokenizationNew,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::TokenizationNew::from(tokenization)
             .insert(&conn)
             .await
-            .change_context(errors::StorageError::DatabaseError)
-            .attach_printable("Error inserting tokenization")
+            .map_err(Into::into)
+            .into_report()
+            .async_and_then(|t| async move { t.try_into() })
+            .await
     }
 
-    async fn find_tokenization_by_token(
+    async fn find_tokenization_by_id(
         &self,
-        token: &str,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
-        storage::Tokenization::find_by_token(&conn, token)
+        id: GlobalTokenId,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Tokenization::find_by_id(&conn, id)
             .await
-            .change_context(errors::StorageError::DatabaseError)
-            .attach_printable(format!("Error finding tokenization for token: {}", token))
+            .map_err(Into::into)
+            .into_report()
+            .async_and_then(|t| async move { t.try_into() })
+            .await
     }
 
-    async fn update_tokenization(
+    async fn find_tokenization_by_locker_id(
         &self,
-        token: &str,
-        tokenization: storage::TokenizationUpdate,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
-        storage::Tokenization::update_by_token(&conn, token, tokenization)
+        locker_id: &str,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Tokenization::find_by_locker_id(&conn, locker_id)
             .await
-            .change_context(errors::StorageError::DatabaseError)
-            .attach_printable(format!("Error updating tokenization for token: {}", token))
+            .map_err(Into::into)
+            .into_report()
+            .async_and_then(|t| async move { t.try_into() })
+            .await
     }
 }
 
@@ -72,26 +79,52 @@ impl TokenizationInterface for Store {
 impl TokenizationInterface for MockDb {
     async fn insert_tokenization(
         &self,
-        _tokenization: storage::TokenizationNew,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError> {
+        _tokenization: domain::TokenizationNew,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError> {
         logger::error!("Mock DB does not support tokenization operations");
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_tokenization_by_token(
+    async fn find_tokenization_by_id(
         &self,
-        _token: &str,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError> {
+        _id: GlobalTokenId,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError> {
         logger::error!("Mock DB does not support tokenization operations");
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn update_tokenization(
+    async fn find_tokenization_by_locker_id(
         &self,
-        _token: &str,
-        _tokenization: storage::TokenizationUpdate,
-    ) -> CustomResult<storage::Tokenization, errors::StorageError> {
+        _locker_id: &str,
+    ) -> CustomResult<domain::Tokenization, errors::StorageError> {
         logger::error!("Mock DB does not support tokenization operations");
         Err(errors::StorageError::MockDbError)?
+    }
+}
+
+impl From<domain::TokenizationNew> for storage::TokenizationNew {
+    fn from(value: domain::TokenizationNew) -> Self {
+        Self {
+            merchant_id: value.merchant_id,
+            locker_id: value.locker_id,
+            status: value.status.into(),
+            version: value.version.into(),
+        }
+    }
+}
+
+impl TryFrom<storage::Tokenization> for domain::Tokenization {
+    type Error = error_stack::Report<errors::StorageError>;
+
+    fn try_from(value: storage::Tokenization) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: value.id,
+            merchant_id: value.merchant_id,
+            locker_id: value.locker_id,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            status: value.status.into(),
+            version: value.version.into(),
+        })
     }
 } 

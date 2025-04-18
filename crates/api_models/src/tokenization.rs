@@ -1,13 +1,12 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+use common_utils::id_type::GlobalTokenId;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenizationResponse {
-    pub id: i32,
-    pub locker_id: String,
+    pub id: GlobalTokenId,
     pub created_at: i64,
-    pub updated_at: i64,
     pub flag: TokenizationFlag,
 }
 
