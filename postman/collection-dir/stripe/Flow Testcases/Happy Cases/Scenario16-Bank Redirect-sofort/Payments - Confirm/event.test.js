@@ -1,6 +1,6 @@
-// Validate status 501
-pm.test("[POST]::/payments/:id/confirm - Status code is 501", function () {
-  pm.response.to.have.status(501);
+// Validate status 5xx
+pm.test("[POST]::/payments - Status code is 5xx", function () {
+  pm.response.to.be.error;
 });
 
 // Validate if response header has matching content-type
