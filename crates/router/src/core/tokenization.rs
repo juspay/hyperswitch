@@ -8,72 +8,97 @@ use masking::Secret;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, tracing};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use serde_json::Value;
+use serde::Serialize;
+use actix_web::{web, HttpRequest, HttpResponse};
 
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
-    services,
+    services::{self, api, authentication as auth},
     types::{
         api,
-        domain::MerchantAccount,
+        domain,
     },
 };
 
-#[instrument(skip_all)]
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-pub async fn tokenize_card(
-    state: Arc<AppState>,
-    merchant_account: MerchantAccount,
-    req: Value,
-) -> RouterResult<api::TokenizationResponse> {
-    // Extract card details from JSON request
-    let card_number = req["card_number"]
-        .as_str()
-        .ok_or(errors::ApiErrorResponse::InvalidCardNumber)?;
-    let expiry_month = req["expiry_month"]
-        .as_str()
-        .ok_or(errors::ApiErrorResponse::InvalidExpiryDate)?;
-    let expiry_year = req["expiry_year"]
-        .as_str()
-        .ok_or(errors::ApiErrorResponse::InvalidExpiryDate)?;
-    let name_on_card = req["name_on_card"].as_str();
-    let card_cvc = req["card_cvc"].as_str();
+#[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
+pub async fn create_vault_token_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api::TokenizationRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizeCard;
+    let payload = json_payload.into_inner();
 
-    // Create a tokenization request
-    let tokenization_req = api::TokenizationRequest {
-        card_number: Secret::new(card_number.to_string()),
-        expiry_month: Secret::new(expiry_month.to_string()),
-        expiry_year: Secret::new(expiry_year.to_string()),
-        name_on_card: name_on_card.map(|s| Secret::new(s.to_string())),
-        card_cvc: card_cvc.map(|s| Secret::new(s.to_string())),
-    };
-
-    // Call the tokenization service
-    let tokenization_response = services::tokenization::tokenize_card(
+    Box::pin(api::server_wrap(
+        flow,
         state,
-        merchant_account,
-        tokenization_req,
-    )
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| async move {
+            create_vault_token_core(
+                state.into(),
+                auth.merchant_account,
+                request,
+            )
+            .await
+        },
+        &auth::V2ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to tokenize card")?;
+}
 
-    Ok(tokenization_response)
+#[instrument(skip_all)]
+async fn create_vault_token_core<T: Serialize>(
+    state: Arc<AppState>,
+    merchant_account: domain::MerchantAccount,
+    req: T,
+) -> RouterResult<api::TokenizationResponse> {
+ 
+    let payload = pm_types::AddVaultRequest {
+        entity_id: merchant_account.get_id().to_owned(),
+        vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+        data: &req,
+        ttl: state.conf.locker.ttl_for_storage_in_secs,
+    }
+    .encode_to_vec()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encode AddVaultRequest")?;
+
+    // Call the vault service
+    let resp = services::tokenization::call_to_vault::<pm_types::AddVault>(&state, payload)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Call to vault failed")?;
+
+    // Parse the response
+    let stored_resp: pm_types::AddVaultResponse = resp
+        .parse_struct("AddVaultResponse")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse data into AddVaultResponse")?;
+
+    // Convert to TokenizationResponse
+    Ok(api::TokenizationResponse {
+        token: stored_resp.vault_id.to_string(),
+        message: "Token created successfully".to_string(),
+    })
 }
 
 #[instrument(skip_all)]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub async fn detokenize_card(
     state: Arc<AppState>,
-    merchant_account: MerchantAccount,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     token: String,
 ) -> RouterResult<api::DetokenizationResponse> {
     // Call the detokenization service
     let detokenization_response = services::tokenization::detokenize_card(
         state,
         merchant_account,
+        key_store,
         token,
     )
     .await
