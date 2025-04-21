@@ -873,6 +873,7 @@ pub struct PaymentAttempt {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -1126,6 +1127,7 @@ pub struct PaymentAttemptNew {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -1243,6 +1245,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1519,6 +1522,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
+                setup_future_usage_applied,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1543,6 +1547,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
+                setup_future_usage_applied,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1869,6 +1874,7 @@ impl behaviour::Conversion for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -1967,6 +1973,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 created_by: storage_model
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                setup_future_usage_applied: storage_model.setup_future_usage_applied,
             })
         }
         .await
@@ -2054,6 +2061,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery: self.card_discovery,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
+            setup_future_usage_applied: self.setup_future_usage_applied,
         })
     }
 }

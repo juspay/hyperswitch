@@ -1368,6 +1368,7 @@ impl PaymentCreate {
                 card_discovery: None,
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
+                setup_future_usage_applied: request.setup_future_usage,
             },
             additional_pm_data,
 

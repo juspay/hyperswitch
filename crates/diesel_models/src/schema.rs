@@ -937,6 +937,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        setup_future_usage_applied -> Nullable<FutureUsage>,
     }
 }
 
