@@ -260,7 +260,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 default_imp_for_webhook_source_verification!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1425,7 +1424,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1527,7 +1525,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1565,7 +1562,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 default_imp_for_authorize_session_token!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -2123,7 +2119,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
     connector::Adyenplatform,
