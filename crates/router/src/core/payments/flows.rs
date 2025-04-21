@@ -221,7 +221,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl api::PaymentsCompleteAuthorize for connector::DummyBillingConnector{}
+impl api::PaymentsCompleteAuthorize for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl
     services::ConnectorIntegration<
@@ -274,7 +274,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl api::ConnectorVerifyWebhookSource for connector::DummyBillingConnector{}
+impl api::ConnectorVerifyWebhookSource for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl
     services::ConnectorIntegration<
@@ -328,13 +328,13 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl api::ConnectorCustomer for connector::DummyBillingConnector{}
+impl api::ConnectorCustomer for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl
     services::ConnectorIntegration<
-    api::CreateConnectorCustomer,
-    types::ConnectorCustomerData,
-    types::PaymentsResponseData,
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
     > for connector::DummyBillingConnector
 {
 }
@@ -384,7 +384,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 #[cfg(feature = "dummy_connector")]
-impl services::ConnectorRedirectResponse for connector::DummyBillingConnector{
+impl services::ConnectorRedirectResponse for connector::DummyBillingConnector {
     fn get_flow_type(
         &self,
         _query_params: &str,
@@ -470,7 +470,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl api::Dispute for connector::DummyBillingConnector{}
+impl api::Dispute for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl api::AcceptDispute for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
@@ -478,7 +478,7 @@ impl
     services::ConnectorIntegration<
         api::Accept,
         types::AcceptDisputeRequestData,
-        types::AcceptDisputeResponse,   
+        types::AcceptDisputeResponse,
     > for connector::DummyBillingConnector
 {
 }
@@ -615,7 +615,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl api::SubmitEvidence for connector::DummyBillingConnector{}
+impl api::SubmitEvidence for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl
     services::ConnectorIntegration<
@@ -669,7 +669,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl api::DefendDispute for connector::DummyBillingConnector{}
+impl api::DefendDispute for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl
     services::ConnectorIntegration<
@@ -861,8 +861,7 @@ impl<const T: u8>
 impl api::PayoutCreate for connector::DummyBillingConnector {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyBillingConnector
 {
 }
@@ -913,8 +912,7 @@ impl<const T: u8>
 impl api::PayoutSync for connector::DummyBillingConnector {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyBillingConnector
 {
 }
@@ -1027,8 +1025,7 @@ impl<const T: u8>
 impl api::PayoutFulfill for connector::DummyBillingConnector {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyBillingConnector
 {
 }
@@ -1077,8 +1074,7 @@ impl<const T: u8>
 impl api::PayoutCancel for connector::DummyBillingConnector {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyBillingConnector
 {
 }
@@ -1129,8 +1125,7 @@ impl<const T: u8>
 impl api::PayoutQuote for connector::DummyBillingConnector {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyBillingConnector
 {
 }
@@ -1541,7 +1536,7 @@ impl<const T: u8>
 }
 
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl api::FraudCheckTransaction for connector::DummyBillingConnector{}
+impl api::FraudCheckTransaction for connector::DummyBillingConnector {}
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl
     services::ConnectorIntegration<
@@ -2281,7 +2276,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl UasPostAuthentication for connector::DummyBillingConnector{}
+impl UasPostAuthentication for connector::DummyBillingConnector {}
 #[cfg(feature = "dummy_connector")]
 impl
     services::ConnectorIntegration<

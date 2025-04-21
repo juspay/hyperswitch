@@ -1,8 +1,8 @@
 pub mod adyenplatform;
 #[cfg(feature = "dummy_connector")]
-pub mod dummyconnector;
-#[cfg(feature = "dummy_connector")]
 pub mod dummybillingconnector;
+#[cfg(feature = "dummy_connector")]
+pub mod dummyconnector;
 pub mod ebanx;
 pub mod gpayments;
 pub mod netcetera;
@@ -50,9 +50,9 @@ pub use hyperswitch_connectors::connectors::{
 };
 
 #[cfg(feature = "dummy_connector")]
-pub use self::dummyconnector::DummyConnector;
-#[cfg(feature = "dummy_connector")]
 pub use self::dummybillingconnector::DummyBillingConnector;
+#[cfg(feature = "dummy_connector")]
+pub use self::dummyconnector::DummyConnector;
 pub use self::{
     adyenplatform::Adyenplatform, ebanx::Ebanx, gpayments::Gpayments, netcetera::Netcetera,
     nmi::Nmi, payone::Payone, plaid::Plaid, riskified::Riskified, signifyd::Signifyd,

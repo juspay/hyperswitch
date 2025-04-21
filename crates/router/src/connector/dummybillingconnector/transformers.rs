@@ -14,9 +14,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 // Auth Headers
 pub mod auth_headers {
