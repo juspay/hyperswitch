@@ -19,7 +19,7 @@ use diesel_models::{
 };
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    mandates::{MandateData, MandateDetails},
+    mandates::MandateDetails,
     payments::{
         payment_attempt::PaymentAttempt, payment_intent::CustomerData,
         FromRequestEncryptablePaymentIntent,
@@ -315,6 +315,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             session_expiry,
             platform_merchant_account,
+            &business_profile,
         )
         .await?;
 
@@ -335,6 +336,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             merchant_key_store,
             profile_id,
             &customer_acceptance,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -493,7 +495,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = mandate_data.map(MandateData::from);
+        let setup_mandate = mandate_data;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
@@ -625,6 +627,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -776,6 +781,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentCreateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -789,6 +795,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             customer,
             storage_scheme,
             business_profile,
+            should_retry_with_pan,
         ))
         .await
     }
@@ -972,7 +979,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-                helpers::validate_payment_link_request(request.confirm)?;
+                helpers::validate_payment_link_request(request)?;
             }
         };
 
@@ -1088,6 +1095,7 @@ impl PaymentCreate {
         _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1111,11 +1119,12 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
         state: &SessionState,
-        payment_method_billing_address_id: Option<String>,
+        optional_payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<domain::PaymentMethod>,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1192,6 +1201,16 @@ impl PaymentCreate {
                         },
                         _ => None,
                     })
+                    .or_else(|| match payment_method_type {
+                        Some(enums::PaymentMethodType::Paypal) => {
+                            Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                apple_pay: None,
+                                google_pay: None,
+                                samsung_pay: None,
+                            })
+                        }
+                        _ => None,
+                    })
             });
         };
 
@@ -1233,6 +1252,44 @@ impl PaymentCreate {
             payment_method_type,
             additional_pm_data.as_ref(),
         ));
+
+        // TODO: remove once https://github.com/juspay/hyperswitch/issues/7421 is fixed
+        let payment_method_billing_address_id = match optional_payment_method_billing_address_id {
+            None => payment_method_info
+                .as_ref()
+                .and_then(|pm_info| pm_info.payment_method_billing_address.as_ref())
+                .map(|address| {
+                    address.clone().deserialize_inner_value(|value| {
+                        value.parse_value::<api_models::payments::Address>("Address")
+                    })
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .ok()
+                .flatten()
+                .async_map(|addr| async move {
+                    helpers::create_or_find_address_for_payment_by_request(
+                        state,
+                        Some(addr.get_inner()),
+                        None,
+                        merchant_id,
+                        payment_method_info
+                            .as_ref()
+                            .map(|pmd_info| pmd_info.customer_id.clone())
+                            .as_ref(),
+                        key_store,
+                        payment_id,
+                        storage_scheme,
+                    )
+                    .await
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .flatten()
+                .map(|address| address.address_id),
+            address_id => address_id,
+        };
 
         Ok((
             storage::PaymentAttemptNew {
@@ -1309,6 +1366,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                setup_future_usage_applied: request.setup_future_usage,
             },
             additional_pm_data,
 
@@ -1331,6 +1389,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
         platform_merchant_account: Option<&domain::MerchantAccount>,
+        business_profile: &domain::Profile,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1459,6 +1518,9 @@ impl PaymentCreate {
                 }),
                 payment_method_type: None,
             });
+        let force_3ds_challenge_trigger = request
+            .force_3ds_challenge
+            .unwrap_or(business_profile.force_3ds_challenge);
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
@@ -1516,10 +1578,12 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details,
             skip_external_tax_calculation,
-            request_extended_authorization: None,
+            request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             platform_merchant_id: platform_merchant_account
                 .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
+            force_3ds_challenge: request.force_3ds_challenge,
+            force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
         })
     }
 

@@ -6,6 +6,8 @@ use api_models::{
     },
 };
 use common_enums::enums as api_enums;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     id_type,
     new_type::{
@@ -16,7 +18,6 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -71,6 +72,10 @@ impl PaymentMethodData {
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
+
+    pub fn is_network_token_payment_method_data(&self) -> bool {
+        matches!(self, Self::NetworkToken(_))
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -102,6 +107,20 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardDetail {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 impl CardDetailsForNetworkTransactionId {
     pub fn get_nti_and_card_details_for_mit_flow(
         recurring_details: mandates::RecurringDetails,
@@ -126,6 +145,23 @@ impl CardDetailsForNetworkTransactionId {
             mandate_reference_id,
             network_transaction_id_and_card_details.clone().into(),
         ))
+    }
+}
+
+impl From<&Card> for CardDetail {
+    fn from(item: &Card) -> Self {
+        Self {
+            card_number: item.card_number.to_owned(),
+            card_exp_month: item.card_exp_month.to_owned(),
+            card_exp_year: item.card_exp_year.to_owned(),
+            card_issuer: item.card_issuer.to_owned(),
+            card_network: item.card_network.to_owned(),
+            card_type: item.card_type.to_owned(),
+            card_issuing_country: item.card_issuing_country.to_owned(),
+            bank_code: item.bank_code.to_owned(),
+            nick_name: item.nick_name.to_owned(),
+            card_holder_name: item.card_holder_name.to_owned(),
+        }
     }
 }
 
@@ -433,6 +469,9 @@ pub enum BankRedirectData {
         issuer: common_enums::BankNames,
     },
     LocalBankRedirect {},
+    Eft {
+        provider: String,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -578,6 +617,7 @@ pub enum BankTransferData {
     LocalBankTransfer {
         bank_code: Option<String>,
     },
+    InstantBankTransfer {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -647,6 +687,40 @@ pub enum MobilePaymentData {
         /// Unique user identifier
         client_uid: Option<String>,
     },
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn try_from(value: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
+        match value {
+            payment_methods::PaymentMethodCreateData::Card(payment_methods::CardDetail {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc,
+                card_issuer,
+                card_network,
+                card_type,
+                card_issuing_country,
+                nick_name,
+                card_holder_name,
+            }) => Ok(Self::Card(Card {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_cvc: card_cvc.get_required_value("card_cvc")?,
+                card_issuer,
+                card_network,
+                card_type: card_type.map(|card_type| card_type.to_string()),
+                card_issuing_country: card_issuing_country.map(|country| country.to_string()),
+                bank_code: None,
+                nick_name,
+                card_holder_name,
+            })),
+        }
+    }
 }
 
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
@@ -1025,6 +1099,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::LocalBankRedirect { .. } => {
                 Self::LocalBankRedirect {}
             }
+            api_models::payments::BankRedirectData::Eft { provider } => Self::Eft { provider },
         }
     }
 }
@@ -1382,6 +1457,9 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
             }
+            api_models::payments::BankTransferData::InstantBankTransfer {} => {
+                Self::InstantBankTransfer {}
+            }
         }
     }
 }
@@ -1413,6 +1491,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     bank_code: bank_code.map(MaskedBankAccount::from),
                 },
             )),
+            BankTransferData::InstantBankTransfer {} => Self::InstantBankTransfer {},
         }
     }
 }
@@ -1609,6 +1688,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
             Self::Bizum {} => api_enums::PaymentMethodType::Bizum,
             Self::Blik { .. } => api_enums::PaymentMethodType::Blik,
+            Self::Eft { .. } => api_enums::PaymentMethodType::Eft,
             Self::Eps { .. } => api_enums::PaymentMethodType::Eps,
             Self::Giropay { .. } => api_enums::PaymentMethodType::Giropay,
             Self::Ideal { .. } => api_enums::PaymentMethodType::Ideal,
@@ -1662,6 +1742,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
+            Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
         }
     }
 }
@@ -1842,5 +1923,59 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
         }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SingleUsePaymentMethodToken {
+    pub token: Secret<String>,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl SingleUsePaymentMethodToken {
+    pub fn get_single_use_token_from_payment_method_token(
+        token: Secret<String>,
+        mca_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
+        Self {
+            token,
+            merchant_connector_id: mca_id,
+        }
+    }
+}
+
+impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDetailsPaymentMethod {
+    fn from(item: NetworkTokenDetailsPaymentMethod) -> Self {
+        Self {
+            last4_digits: item.last4_digits,
+            issuer_country: item.issuer_country,
+            network_token_expiry_month: item.network_token_expiry_month,
+            network_token_expiry_year: item.network_token_expiry_year,
+            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SingleUseTokenKey(String);
+
+#[cfg(feature = "v2")]
+impl SingleUseTokenKey {
+    pub fn store_key(payment_method_id: &id_type::GlobalPaymentMethodId) -> Self {
+        let new_token = format!("single_use_token_{}", payment_method_id.get_string_repr());
+        Self(new_token)
+    }
+
+    pub fn get_store_key(&self) -> &str {
+        &self.0
     }
 }

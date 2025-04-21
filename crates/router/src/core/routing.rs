@@ -188,15 +188,20 @@ pub async fn create_routing_algorithm_under_profile(
     )
     .await?
     .get_required_value("Profile")?;
-
+    let merchant_id = merchant_account.get_id();
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
-
-    let all_mcas = helpers::MerchantConnectorAccounts::get_all_mcas(
-        merchant_account.get_id(),
-        &key_store,
-        &state,
-    )
-    .await?;
+    let all_mcas = state
+        .store
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            key_manager_state,
+            merchant_id,
+            true,
+            &key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_id.get_string_repr().to_owned(),
+        })?;
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
         all_mcas.filter_by_profile(business_profile.get_id(), |mca| {
@@ -1586,7 +1591,23 @@ pub async fn contract_based_dynamic_routing_setup(
     };
 
     // validate the contained mca_ids
+    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &config.label_info {
+        for info in info_vec {
+            utils::when(
+                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
+                || {
+                    Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Duplicate mca configuration received".to_string(),
+                        },
+                    ))
+                },
+            )?;
+
+            contained_mca.push(info.mca_id.to_owned());
+        }
+
         let validation_futures: Vec<_> = info_vec
             .iter()
             .map(|info| async {
@@ -1671,6 +1692,7 @@ pub async fn contract_based_routing_update_configs(
         .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
 
     // validate the contained mca_ids
+    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &request.label_info {
         for info in info_vec {
             let mca = db
@@ -1690,6 +1712,19 @@ pub async fn contract_based_routing_update_configs(
                     message: "Incorrect mca configuration received".to_string(),
                 })
             })?;
+
+            utils::when(
+                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
+                || {
+                    Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Duplicate mca configuration received".to_string(),
+                        },
+                    ))
+                },
+            )?;
+
+            contained_mca.push(info.mca_id.to_owned());
         }
     }
 

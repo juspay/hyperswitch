@@ -699,6 +699,9 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         }
     }

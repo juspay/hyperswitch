@@ -168,6 +168,9 @@ impl ConnectorCommon for Bluesnap {
                             reason: Some(reason),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         }
                     }
                     bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
@@ -177,6 +180,9 @@ impl ConnectorCommon for Bluesnap {
                         reason: Some(error_res.error_description),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     },
                     bluesnap::BluesnapErrors::General(error_response) => {
                         let (error_res, attempt_status) = if res.status_code == 403
@@ -199,6 +205,9 @@ impl ConnectorCommon for Bluesnap {
                             reason: Some(error_res),
                             attempt_status,
                             connector_transaction_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         }
                     }
                 };
@@ -738,7 +747,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?; // If location headers are not present connector will return 4XX so this error will never be propagated
                 let payment_fields_token = location
                     .split('/')
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
 

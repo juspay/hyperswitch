@@ -3,9 +3,18 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 use super::generics;
 use crate::{
     errors,
-    refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
-    schema::refund::dsl,
+    refund::{RefundUpdate, RefundUpdateInternal},
     PgPooledConn, StorageResult,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+use crate::{
+    refund::{Refund, RefundNew},
+    schema::refund::dsl,
+};
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+use crate::{
+    refund::{Refund, RefundNew},
+    schema_v2::refund::dsl,
 };
 
 impl RefundNew {
@@ -14,6 +23,7 @@ impl RefundNew {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 impl Refund {
     pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -120,6 +130,62 @@ impl Refund {
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+impl Refund {
+    pub async fn update_with_id(
+        self,
+        conn: &PgPooledConn,
+        refund: RefundUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            self.id.to_owned(),
+            RefundUpdateInternal::from(refund),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    pub async fn find_by_global_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalRefundId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id.to_owned()),
+        )
+        .await
+    }
+
+    pub async fn find_by_merchant_id_connector_transaction_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_transaction_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
             None,
             None,
             None,

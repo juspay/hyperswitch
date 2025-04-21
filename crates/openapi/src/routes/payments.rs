@@ -599,6 +599,21 @@ pub fn payments_dynamic_tax_calculation() {}
 
 pub fn payments_post_session_tokens() {}
 
+/// Payments - Update Metadata
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/update_metadata",
+    request_body=PaymentsUpdateMetadataRequest,
+    responses(
+        (status = 200, description = "Metadata updated successfully", body = PaymentsUpdateMetadataResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Update Metadata for a Payment",
+    security(("api_key" = []))
+)]
+pub fn payments_update_metadata() {}
+
 /// Payments - Create Intent
 ///
 /// **Creates a payment intent object when amount_details are passed.**
@@ -727,7 +742,7 @@ pub fn payments_update_intent() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsConfirmIntentResponse),
+      (status = 200, description = "Payment created", body = PaymentsResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payments",
@@ -748,7 +763,7 @@ pub fn payments_confirm_intent() {}
         ("force_sync" = ForceSync, Query, description = "A boolean to indicate whether to force sync the payment status. Value can be true or false")
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsRetrieveResponse),
+        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found with the given id")
     ),
     tag = "Payments",

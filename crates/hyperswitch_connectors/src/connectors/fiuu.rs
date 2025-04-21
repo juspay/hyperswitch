@@ -235,6 +235,9 @@ impl ConnectorCommon for Fiuu {
             reason: Some(response.error_desc.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

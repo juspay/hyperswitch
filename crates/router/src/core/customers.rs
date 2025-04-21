@@ -188,7 +188,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
         })
     }
 
@@ -197,10 +197,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
-        let address_details = address.map(api_models::payments::AddressDetails::from);
-
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
+            customers::CustomerResponse::foreign_from((customer.clone(), address)),
         ))
     }
 }
@@ -286,7 +284,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             default_billing_address: encrypted_customer_billing_address.map(Into::into),
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
         })
     }
@@ -837,7 +835,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                         &pm.payment_method_id,
                     )
                     .await
-                    .switch()?;
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "failed to delete payment method while redacting customer details",
+                    )?;
                 }
             }
             Err(error) => {
@@ -1265,10 +1266,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
-        let address_details = address.map(api_models::payments::AddressDetails::from);
-
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
+            customers::CustomerResponse::foreign_from((customer.clone(), address)),
         ))
     }
 }

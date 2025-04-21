@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{enums, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -23,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -41,6 +44,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers::{self as iatapay, IatapayPaymentsResponse};
 
@@ -151,6 +155,9 @@ impl ConnectorCommon for Iatapay {
                 reason: Some(CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }
         } else {
             let response: iatapay::IatapayErrorResponse = res
@@ -167,6 +174,9 @@ impl ConnectorCommon for Iatapay {
                 reason: response.reason,
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }
         };
         Ok(response_error_message)
@@ -284,6 +294,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -744,4 +757,126 @@ impl IncomingWebhook for Iatapay {
     }
 }
 
-impl ConnectorSpecifications for Iatapay {}
+lazy_static! {
+    static ref IATAPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Iatapay",
+        description:
+            "IATA Pay is a payment method for travellers to pay for air tickets purchased online by directly debiting their bank account.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref IATAPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic
+        ];
+
+        let mut iatapay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiCollect,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::Upi,
+            enums::PaymentMethodType::UpiIntent,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Ideal,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::LocalBankRedirect,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::RealTimePayment,
+            enums::PaymentMethodType::DuitNow,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::RealTimePayment,
+            enums::PaymentMethodType::Fps,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::RealTimePayment,
+            enums::PaymentMethodType::PromptPay,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods.add(
+            enums::PaymentMethod::RealTimePayment,
+            enums::PaymentMethodType::VietQr,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        iatapay_supported_payment_methods
+    };
+
+    static ref IATAPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
+        vec![enums::EventClass::Payments, enums::EventClass::Refunds,];
+}
+
+impl ConnectorSpecifications for Iatapay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*IATAPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*IATAPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*IATAPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

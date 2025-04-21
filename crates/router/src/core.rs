@@ -7,6 +7,7 @@ pub mod authentication;
 #[cfg(feature = "v1")]
 pub mod blocklist;
 pub mod cache;
+pub mod card_testing_guard;
 pub mod cards_info;
 pub mod conditional_config;
 pub mod configs;
@@ -41,6 +42,9 @@ pub mod poll;
 pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
+#[cfg(feature = "v2")]
+pub mod refunds_v2;
+
 pub mod routing;
 pub mod surcharge_decision_config;
 #[cfg(feature = "olap")]
@@ -57,3 +61,5 @@ pub mod webhooks;
 pub mod unified_authentication_service;
 
 pub mod relay;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery;

@@ -1,3 +1,4 @@
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -25,14 +26,7 @@ const failedNo3DSCardDetails = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -42,14 +36,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -517,14 +504,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -541,19 +521,30 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
@@ -564,14 +555,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -610,14 +594,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -634,14 +611,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -658,14 +628,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -683,14 +646,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -707,14 +663,7 @@ export const connectorDetails = {
         },
         mandate_data: null,
         authentication_type: "three_ds",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "125.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -817,85 +766,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-    Giropay: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "giropay",
-        payment_method_data: {
-          bank_redirect: {
-            giropay: {
-              bank_name: "",
-              bank_account_bic: "",
-              bank_account_iban: "",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "DE",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          error_code: "905_1",
-          error_message:
-            "Could not find an acquirer account for the provided txvariant (giropay), currency (EUR), and action (AUTH).",
-        },
-      },
-    },
-    Sofort: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "sofort",
-        payment_method_data: {
-          bank_redirect: {
-            sofort: {
-              preferred_language: "en",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "DE",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "14_006",
-          error_message: "Required object 'paymentMethod' is not provided.",
         },
       },
     },

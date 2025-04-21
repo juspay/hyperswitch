@@ -322,6 +322,26 @@ pub async fn payment_method_update_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_delete_api() {}
 
+/// Payment Method - List Customer Saved Payment Methods
+///
+/// List the payment methods saved for a customer
+#[utoipa::path(
+    get,
+    path = "/v2/customers/{id}/saved-payment-methods",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the customer"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 404, description = "Customer Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "List Customer Saved Payment Methods",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn list_customer_payment_method_api() {}
+
 /// Payment Method Session - Create
 ///
 /// Create a payment method session for a customer
@@ -340,7 +360,7 @@ pub async fn payment_method_delete_api() {}
         )))
     ),
     responses(
-        (status = 200, description = "Create the payment method session", body = PaymentMethodsSessionResponse),
+        (status = 200, description = "Create the payment method session", body = PaymentMethodSessionResponse),
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -360,7 +380,7 @@ pub fn payment_method_session_create() {}
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodsSessionResponse),
+        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -423,3 +443,116 @@ pub fn payment_method_session_list_payment_methods() {}
     security(("ephemeral_key" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method() {}
+
+/// Payment Method Session - Delete a saved payment method
+///
+/// Delete a saved payment method from the given payment method session.
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    delete,
+    path = "/v2/payment-method-session/:id",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+    ),
+    request_body(
+        content = PaymentMethodSessionDeleteSavedPaymentMethod,
+            examples(( "Update the card holder name" = (
+                value =json!( {
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3",
+                }
+            )
+        )))
+    ),
+    responses(
+        (status = 200, description = "The payment method has been updated successfully", body = PaymentMethodDeleteResponse),
+        (status = 404, description = "The request is invalid")
+    ),
+    tag = "Payment Method Session",
+    operation_id = "Delete a saved payment method",
+    security(("ephemeral_key" = []))
+)]
+pub fn payment_method_session_delete_saved_payment_method() {}
+
+/// Card network tokenization - Create using raw card data
+///
+/// Create a card network token for a customer and store it as a payment method.
+/// This API expects raw card details for creating a network token with the card networks.
+#[utoipa::path(
+    post,
+    path = "/payment_methods/tokenize-card",
+    request_body = CardNetworkTokenizeRequest,
+    responses(
+        (status = 200, description = "Payment Method Created", body = CardNetworkTokenizeResponse),
+        (status = 404, description = "Customer not found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create card network token",
+    security(("admin_api_key" = []))
+)]
+pub async fn tokenize_card_api() {}
+
+/// Card network tokenization - Create using existing payment method
+///
+/// Create a card network token for a customer for an existing payment method.
+/// This API expects an existing payment method ID for a card.
+#[utoipa::path(
+    post,
+    path = "/payment_methods/{id}/tokenize-card",
+    request_body = CardNetworkTokenizeRequest,
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method Updated", body = CardNetworkTokenizeResponse),
+        (status = 404, description = "Customer not found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create card network token",
+    security(("admin_api_key" = []))
+)]
+pub async fn tokenize_card_using_pm_api() {}
+
+/// Payment Method Session - Confirm a payment method session
+///
+/// **Confirms a payment method session object with the payment method data**
+#[utoipa::path(
+  post,
+  path = "/v2/payment-method-session/:id/confirm",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = "pro_abcdefghijklmnop"
+      )
+    ),
+  request_body(
+      content = PaymentMethodSessionConfirmRequest,
+      examples(
+          (
+              "Confirm the payment method session with card details" = (
+                  value = json!({
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment Method created", body = PaymentMethodResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payment Method Session",
+  operation_id = "Confirm the payment method session",
+  security(("publishable_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payment_method_session_confirm() {}
