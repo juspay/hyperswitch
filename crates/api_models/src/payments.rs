@@ -8206,6 +8206,7 @@ pub struct ClickToPaySessionResponse {
     pub dpa_id: String,
     pub dpa_name: String,
     pub locale: String,
+    #[schema(value_type = Vec<String>, example = "[Visa, Mastercard]")]
     pub card_brands: HashSet<api_enums::CardNetwork>,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
