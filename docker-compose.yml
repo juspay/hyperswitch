@@ -184,20 +184,13 @@ services:
     pull_policy: always
     ports:
       - "9050:9050"
-      - "9060:9060"
-      - "5252:5252"
     networks:
       - router_net
     depends_on:
       hyperswitch-server:
         condition: service_healthy
     environment:
-      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
-      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
-      - HYPERSWITCH_SERVER_URL=http://localhost:8080
-      - HYPERSWITCH_SERVER_URL_FOR_DEMO_APP=http://hyperswitch-server:8080
-      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
-      - SELF_SERVER_URL=http://localhost:5252
+      - ENABLE_LOGGING=true
       - SDK_ENV=local
       - ENV_LOGGING_URL=http://localhost:3103
       - ENV_BACKEND_URL=http://localhost:8080
