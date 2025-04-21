@@ -18,14 +18,17 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types as recovery_flow_common_types
 };
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_data_v2::RouterDataV2, router_flow_types::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_data_v2::{RouterDataV2, UasFlowData}, 
+    router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        unified_authentication_service::{Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate},
     }, router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
+        unified_authentication_service::{UasPreAuthenticationRequestData,UasPostAuthenticationRequestData,UasAuthenticationRequestData,UasConfirmationRequestData,UasAuthenticationResponseData}
     }, router_response_types::{PaymentsResponseData, RefundsResponseData}, types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -94,7 +97,49 @@ impl Recurly {
 // impl api::Refund for Recurly {}
 // impl api::RefundExecute for Recurly {}
 // impl api::RefundSync for Recurly {}
-impl api::PaymentToken for Recurly {}
+// impl api::PaymentToken for Recurly {}
+impl api::PayoutsV2 for Recurly {}
+impl api::UnifiedAuthenticationServiceV2 for Recurly{}
+impl api::UasPreAuthenticationV2 for Recurly{}
+impl  api::UasPostAuthenticationV2 for Recurly{}
+impl  api::UasAuthenticationV2 for Recurly{}
+impl  api::UasAuthenticationConfirmationV2 for Recurly{}
+impl ConnectorIntegrationV2<
+    PreAuthenticate,
+    UasFlowData,
+    UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+> for Recurly {
+    //TODO: implement sessions flow
+}
+
+impl ConnectorIntegrationV2<PostAuthenticate,
+    UasFlowData,
+    UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData
+> 
+for Recurly {
+    //TODO: implement sessions flow
+}
+impl ConnectorIntegrationV2<AuthenticationConfirmation,
+    UasFlowData,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData
+>
+ for Recurly {
+    //TODO: implement sessions flow
+}
+impl ConnectorIntegrationV2<Authenticate,
+    UasFlowData,
+    UasAuthenticationRequestData,
+    UasAuthenticationResponseData
+>
+for Recurly {
+    //TODO: implement sessions flow
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -192,16 +237,16 @@ impl
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            self.common_get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
+    // fn get_content_type(&self) -> &'static str {
+    //     self.common_get_content_type()
+    // }
 
     fn get_url(
         &self,
@@ -281,7 +326,7 @@ impl
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            self.common_get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -345,7 +390,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterDataV2::try_from(ResponseRouterDataV2 {
+        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2::try_from(ResponseRouterDataV2 {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -376,7 +421,7 @@ impl
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            self.common_get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);

@@ -537,7 +537,7 @@ pub enum RecurlyInvoiceLineItemType {
     Charge,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct RecurlyInvoiceTransactionsStatus {
     pub status: String,
@@ -567,6 +567,9 @@ impl
         #[allow(clippy::as_conversions)]
         // No of retries never exceeds u16 in recurly. So its better to supress the clippy warning
         let retry_count = item.response.transactions.len() as u16;
+        let merchant_reference_id =
+            id_type::PaymentReferenceId::from_str(&item.response.id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             response: Ok(
                 recovery_response_types::BillingConnectorInvoiceSyncResponse {
@@ -575,20 +578,21 @@ impl
                         item.response.total,
                         item.response.currency,
                     )?,
-                    currency: item.response.currency.into(),
-                    merchant_reference_id: item.response.id.into(),
+                    currency: item.response.currency,
+                    merchant_reference_id,
                     retry_count: Some(retry_count),
                     billing_address: Some(api_models::payments::Address {
                         address: Some(api_models::payments::AddressDetails {
-                            city: item.response.address.and_then(|address| address.city),
-                            state: item.response.address.and_then(|address| address.region),
-                            country: item.response.address.and_then(|address| address.country),
-                            line1: item.response.address.and_then(|address| address.street1),
-                            line2: item.response.address.and_then(|address| address.street2),
+                            city: item.response.address.clone().and_then(|address| address.city),
+                            state: item.response.address.clone().and_then(|address| address.region),
+                            country: item.response.address.clone().and_then(|address| address.country),
+                            line1: item.response.address.clone().and_then(|address| address.street1),
+                            line2: item.response.address.clone().and_then(|address| address.street2),
                             line3: None,
                             zip: item
                                 .response
                                 .address
+                                .clone()
                                 .and_then(|address| address.postal_code),
                             first_name: None,
                             last_name: None,
@@ -599,13 +603,13 @@ impl
                     created_at: item
                         .response
                         .lines
-                        .get(0)
-                        .and_then(|line| Some(line.start_date)),
+                        .first()
+                        .map(|line| line.start_date),
                     ends_at: item
                         .response
                         .lines
-                        .get(0)
-                        .and_then(|line| Some(line.end_date)),
+                        .first()
+                        .map(|line| line.end_date),
                 },
             ),
             ..item.data

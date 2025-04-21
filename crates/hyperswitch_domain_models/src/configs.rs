@@ -2,6 +2,7 @@
 use api_models::errors;
 use common_enums::ApplicationError;
 use common_types::consts::API_VERSION;
+use common_utils::errors::CustomResult;
 use masking::Secret;
 use router_derive;
 use serde::Deserialize;
@@ -117,15 +118,14 @@ pub struct Connectors {
 
 impl Connectors {
     pub fn get_connector_params_using_connector_name(
-        self,
+        &self,
         connector_name: String,
-    ) -> Result<ConnectorParams, api_error_response::ApiErrorResponse> {
-        type Error = &'static str;
+    ) -> CustomResult<ConnectorParams, api_error_response::ApiErrorResponse> {
         match connector_name.as_str() {
-            "recurly" => Ok(self.recurly),
-            "stripebilling" => Ok(self.stripebilling),
-            "chargebee" => Ok(self.chargebee),
-            _ => Err(api_error_response::ApiErrorResponse::IncorrectConnectorNameGiven),
+            "recurly" => Ok(self.recurly.clone()),
+            "stripebilling" => Ok(self.stripebilling.clone()),
+            "chargebee" => Ok(self.chargebee.clone()),
+            _ => Err(api_error_response::ApiErrorResponse::IncorrectConnectorNameGiven.into()),
         }
     }
 }

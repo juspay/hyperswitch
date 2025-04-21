@@ -86,7 +86,7 @@ pub async fn recovery_incoming_webhook_flow(
         .await?;
 
     let invoice_id =
-        billing_connector_payment_details.and_then(|data| Some(data.merchant_reference_id));
+        billing_connector_payment_details.clone().map(|data| data.merchant_reference_id);
 
     let billing_connector_invoice_details =
         BillingConnectorInvoiceSyncResponseData::get_billing_connector_invoice_details(
@@ -941,10 +941,10 @@ impl BillingConnectorInvoiceSyncResponseData {
         .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)
         .attach_printable("invalid connector name received in payment attempt")?;
 
-        let connector_integration: services::BoxedBillingConnectorPaymentsSyncIntegrationInterface<
-            router_flow_types::BillingConnectorPaymentsSync,
-            revenue_recovery_request::BillingConnectorPaymentsSyncRequest,
-            revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
+        let connector_integration: services::BoxedBillingConnectorInvoiceSyncIntegrationInterface<
+            router_flow_types::BillingConnectorInvoiceSync,
+            revenue_recovery_request::BillingConnectorInvoiceSyncRequest,
+            revenue_recovery_response::BillingConnectorInvoiceSyncResponse,
         > = connector_data.connector.get_connector_integration();
 
         let router_data =
@@ -990,18 +990,18 @@ impl BillingConnectorInvoiceSyncResponseData {
         merchant_account: &domain::MerchantAccount,
         billing_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         connector_name: &str,
-        merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
+        merchant_reference_id: Option<id_type::PaymentReferenceId>,
     ) -> CustomResult<
         Option<revenue_recovery_response::BillingConnectorInvoiceSyncResponse>,
         errors::RevenueRecoveryError,
     > {
         let response_data = match should_billing_connector_invoice_api_called {
             true => {
-                let billing_connector_invoice_id = merchant_reference_id
+                let billing_connector_invoice_id = merchant_reference_id.as_ref()
                     .map(|id| id.get_string_repr())
-                    .ok_or_else(|| {
+                    .ok_or(
                         errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed
-                    })?;
+                    )?;
                 let billing_connector_invoice_details =
                     Self::handle_billing_connector_invoice_sync_call(
                         state,
@@ -1039,15 +1039,12 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
         .parse_value("ConnectorAuthType")
         .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)?;
 
+
         let connector_params = 
-        hyperswitch_domain_models::configs::Connectors
-            ::get_connector_params_using_connector_name(&state.conf.connectors, connector_name.to_string())
-            .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
-            .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",connector_name))?;
-
-
-        let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params_using_connector_name(&state.conf.connectors, connector_name.to_string());
-
+            hyperswitch_domain_models::configs::Connectors
+                ::get_connector_params_using_connector_name(&state.conf.connectors, connector_name.to_string())
+                .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+                .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",connector_name))?;
         let router_data = types::RouterDataV2 {
             flow: PhantomData::<router_flow_types::BillingConnectorInvoiceSync>,
             tenant_id: state.tenant.tenant_id.clone(),
