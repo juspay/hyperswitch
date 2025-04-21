@@ -128,7 +128,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, Pa
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsConfirmIntentRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: merchant_account.get_id().to_owned(),
@@ -150,11 +150,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -329,12 +327,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
-        mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         use crate::core::payments::OperationSessionSetters;
 

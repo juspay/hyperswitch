@@ -1283,7 +1283,7 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
@@ -1315,7 +1315,7 @@ pub async fn add_payment_method_to_vault(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pm: &domain::PaymentMethod,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
@@ -1349,7 +1349,7 @@ pub async fn retrieve_payment_method_from_vault(
 #[instrument(skip_all)]
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {

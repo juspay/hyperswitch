@@ -90,6 +90,10 @@ pub async fn rust_locker_migration(
     let mut customers_moved = 0;
     let mut cards_moved = 0;
 
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
     for customer in domain_customers {
         let result = db
             .find_payment_method_by_customer_id_merchant_id_list(
@@ -106,7 +110,7 @@ pub async fn rust_locker_migration(
                     pm,
                     &customer.customer_id,
                     merchant_id,
-                    &merchant_account,
+                    &merchant_context,
                 )
             })
             .await?;
@@ -134,7 +138,7 @@ pub async fn call_to_locker(
     payment_methods: Vec<domain::PaymentMethod>,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
@@ -197,7 +201,7 @@ pub async fn call_to_locker(
                 pm_create,
                 &card_details,
                 customer_id,
-                merchant_account,
+                merchant_context,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
 

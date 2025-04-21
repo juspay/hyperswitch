@@ -34,15 +34,13 @@ use crate::{
 pub async fn payments_session_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -65,14 +63,13 @@ where
             &state,
             req_state,
             merchant_account.clone(),
-            key_store,
+            merchant_context.get_merchant_key_store(),
             profile,
             operation.clone(),
             req,
             payment_id,
             call_connector_action,
             header_payload.clone(),
-            platform_merchant_account,
         )
         .await?;
 
@@ -94,15 +91,13 @@ where
 pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     operation: Op,
     req: Req,
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    platform_merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,

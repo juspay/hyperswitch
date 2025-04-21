@@ -198,16 +198,14 @@ pub async fn retrieve_payment_method_core(
 
 pub async fn initiate_pm_collect_link(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     req: payment_methods::PaymentMethodCollectLinkRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodCollectLinkResponse> {
     // Validate request and initiate flow
     let pm_collect_link_data =
         validator::validate_request_and_initiate_payment_method_collect_link(
             &state,
-            &merchant_account,
-            &key_store,
+            &merchant_context,
             &req,
         )
         .await?;
@@ -215,7 +213,7 @@ pub async fn initiate_pm_collect_link(
     // Create DB entrie
     let pm_collect_link = create_pm_collect_db_entry(
         &state,
-        &merchant_account,
+        &merchant_context,
         &pm_collect_link_data,
         req.return_url.clone(),
     )
@@ -246,7 +244,7 @@ pub async fn initiate_pm_collect_link(
 
 pub async fn create_pm_collect_db_entry(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pm_collect_link_data: &PaymentMethodCollectLinkData,
     return_url: Option<String>,
 ) -> RouterResult<PaymentMethodCollectLink> {
@@ -262,7 +260,7 @@ pub async fn create_pm_collect_db_entry(
             .customer_id
             .get_string_repr()
             .to_string(),
-        merchant_id: merchant_account.get_id().to_owned(),
+        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.clone(),
@@ -292,8 +290,7 @@ pub async fn render_pm_collect_link(
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn render_pm_collect_link(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     req: payment_methods::PaymentMethodCollectLinkRenderRequest,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
@@ -356,8 +353,8 @@ pub async fn render_pm_collect_link(
                         &(&state).into(),
                         &customer_id,
                         &req.merchant_id,
-                        &key_store,
-                        merchant_account.storage_scheme,
+                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_merchant_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -372,7 +369,12 @@ pub async fn render_pm_collect_link(
                     ))?;
 
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
-                    publishable_key: Secret::new(merchant_account.publishable_key),
+                    publishable_key: Secret::new(
+                        merchant_context
+                            .get_merchant_account()
+                            .clone()
+                            .publishable_key,
+                    ),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
                     customer_id: customer.customer_id,
@@ -860,8 +862,7 @@ pub async fn create_payment_method(
     state: &SessionState,
     request_state: &routes::app::ReqState,
     req: api::PaymentMethodCreate,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let response = create_payment_method_core(
@@ -883,8 +884,7 @@ pub async fn create_payment_method_core(
     state: &SessionState,
     _request_state: &routes::app::ReqState,
     req: api::PaymentMethodCreate,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
 ) -> RouterResult<api::PaymentMethodResponse> {
     use common_utils::ext_traits::ValueExt;
@@ -1033,8 +1033,7 @@ pub struct NetworkTokenPaymentMethodDetails {
 pub async fn network_tokenize_and_vault_the_pmd(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
@@ -1224,8 +1223,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
 pub async fn payment_method_intent_create(
     state: &SessionState,
     req: api::PaymentMethodIntentCreate,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -1301,8 +1299,7 @@ impl PerformFilteringOnEnabledPaymentMethods
 #[instrument(skip_all)]
 pub async fn list_payment_methods_for_session(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<api::PaymentMethodListResponse> {
@@ -1350,8 +1347,7 @@ pub async fn list_payment_methods_for_session(
 #[instrument(skip_all)]
 pub async fn list_saved_payment_methods_for_customer(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     customer_id: id_type::GlobalCustomerId,
 ) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let customer_payment_methods =
@@ -1367,7 +1363,7 @@ pub async fn list_saved_payment_methods_for_customer(
 #[instrument(skip_all)]
 pub async fn get_total_saved_payment_methods_for_merchant(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
 ) -> RouterResponse<api::TotalPaymentMethodCountResponse> {
     let total_payment_method_count =
         get_total_payment_method_count_core(&state, &merchant_account).await?;
@@ -1681,8 +1677,7 @@ pub async fn create_pm_additional_data_update(
 pub async fn vault_payment_method(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<(pm_types::AddVaultResponse, String)> {
@@ -1814,8 +1809,7 @@ fn get_pm_list_context(
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn list_customer_payment_method_core(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -1850,7 +1844,7 @@ pub async fn list_customer_payment_method_core(
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn get_total_payment_method_count_core(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
 ) -> RouterResult<api::TotalPaymentMethodCountResponse> {
     let db = &*state.store;
 
@@ -1873,8 +1867,7 @@ pub async fn get_total_payment_method_count_core(
 pub async fn retrieve_payment_method(
     state: SessionState,
     pm: api::PaymentMethodId,
-    key_store: domain::MerchantKeyStore,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm.payment_method_id)
@@ -1906,8 +1899,7 @@ pub async fn retrieve_payment_method(
 #[instrument(skip_all)]
 pub async fn update_payment_method(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     req: api::PaymentMethodUpdate,
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
@@ -1927,8 +1919,7 @@ pub async fn update_payment_method(
 #[instrument(skip_all)]
 pub async fn update_payment_method_core(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     request: api::PaymentMethodUpdate,
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResult<api::PaymentMethodResponse> {
@@ -2031,8 +2022,7 @@ pub async fn update_payment_method_core(
 pub async fn delete_payment_method(
     state: SessionState,
     pm_id: api::PaymentMethodId,
-    key_store: domain::MerchantKeyStore,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2047,8 +2037,7 @@ pub async fn delete_payment_method(
 pub async fn delete_payment_method_core(
     state: SessionState,
     pm_id: id_type::GlobalPaymentMethodId,
-    key_store: domain::MerchantKeyStore,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
 ) -> RouterResult<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2226,8 +2215,7 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_create(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     request: payment_methods::PaymentMethodSessionRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
@@ -2319,8 +2307,7 @@ pub async fn payment_methods_session_create(
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     request: payment_methods::PaymentMethodsSessionUpdateRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
@@ -2409,8 +2396,7 @@ pub async fn payment_methods_session_retrieve(
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update_payment_method(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     request: payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
 ) -> RouterResponse<payment_methods::PaymentMethodResponse> {
@@ -2443,8 +2429,7 @@ pub async fn payment_methods_session_update_payment_method(
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_delete_payment_method(
     state: SessionState,
-    key_store: domain::MerchantKeyStore,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     pm_id: id_type::GlobalPaymentMethodId,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
@@ -2517,9 +2502,8 @@ fn construct_zero_auth_payments_request(
 async fn create_zero_auth_payment(
     state: SessionState,
     req_state: routes::app::ReqState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     request: api_models::payments::PaymentsRequest,
 ) -> RouterResult<api_models::payments::PaymentsResponse> {
     let response = Box::pin(payments_core::payments_create_and_confirm_intent(
@@ -2546,8 +2530,7 @@ async fn create_zero_auth_payment(
 pub async fn payment_methods_session_confirm(
     state: SessionState,
     req_state: routes::app::ReqState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     request: payment_methods::PaymentMethodSessionConfirmRequest,
@@ -2662,11 +2645,10 @@ pub async fn payment_methods_session_confirm(
 impl pm_types::SavedPMLPaymentsInfo {
     pub async fn form_payments_info(
         payment_intent: PaymentIntent,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: domain::Profile,
         db: &dyn StorageInterface,
         key_manager_state: &util_types::keymanager::KeyManagerState,
-        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let collect_cvv_during_payment = profile.should_collect_cvv_during_payment;
 
@@ -2719,9 +2701,8 @@ impl pm_types::SavedPMLPaymentsInfo {
 async fn create_single_use_tokenization_flow(
     state: SessionState,
     req_state: routes::app::ReqState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     payment_method_create_request: &payment_methods::PaymentMethodCreate,
     payment_method: &api::PaymentMethodResponse,
     payment_method_session: &domain::payment_methods::PaymentMethodSession,

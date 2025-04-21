@@ -53,8 +53,7 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
@@ -73,8 +72,7 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
@@ -113,7 +111,7 @@ where
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         customer_id: None,
         connector: connector_id.to_owned(),
         payment_id: payment_data
@@ -147,7 +145,7 @@ where
         recurring_mandate_payment_data: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &payment_data.payment_attempt,
         ),
         preprocessing_id: None,
@@ -182,8 +180,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::Authorize>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -396,8 +393,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentCaptureData<api::Capture>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -559,8 +555,7 @@ pub async fn construct_router_data_for_psync<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentStatusData<api::PSync>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -687,8 +682,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentIntentData<api::Session>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -848,8 +842,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::SetupMandate>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -1049,8 +1042,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -1169,7 +1161,7 @@ where
 
     router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
@@ -1208,7 +1200,7 @@ where
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &payment_data.payment_attempt,
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
@@ -1272,7 +1264,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResponse<Self>;
 }
 
@@ -1288,7 +1280,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
     ) -> RouterResponse<Response>;
 }
@@ -1305,7 +1297,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentsCaptureResponse> {
         let payment_intent = &self.payment_intent;
@@ -1596,7 +1588,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
@@ -1702,7 +1694,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;

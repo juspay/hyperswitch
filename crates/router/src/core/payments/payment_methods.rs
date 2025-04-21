@@ -14,9 +14,8 @@ use crate::{db::errors::StorageErrorExt, routes, types::domain};
 ))]
 pub async fn list_payment_methods(
     state: routes::SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     payment_id: id_type::GlobalPaymentId,
     _req: api_models::payments::PaymentMethodsListRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,

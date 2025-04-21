@@ -61,7 +61,7 @@ pub async fn construct_webhook_router_data(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
@@ -73,7 +73,7 @@ pub async fn construct_webhook_router_data(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
         tenant_id: state.tenant.tenant_id.clone(),

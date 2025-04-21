@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{admin::*, api_locking},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::admin,
+    types::{api::admin, domain},
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -490,13 +490,10 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_connector(
-                state,
-                req,
-                auth_data.merchant_account,
-                auth_data.profile_id,
-                auth_data.key_store,
-            )
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth_data.merchant_account, auth_data.key_store),
+            ));
+            create_connector(state, req, merchant_context, auth_data.profile_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),

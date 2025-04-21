@@ -85,11 +85,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         state: &'a SessionState,
         _payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsGetIntentRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -148,11 +146,11 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsGetIntentRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         })
     }
@@ -200,12 +198,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsGetIntentRequest, payments::Payme
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
         payment_data: &mut payments::PaymentIntentData<F>,
-        mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         Ok(api::ConnectorCallType::Skip)
     }

@@ -77,9 +77,8 @@ pub async fn validate_create_request(
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn validate_create_request(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     req: &payouts::PayoutCreateRequest,
-    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
@@ -87,7 +86,7 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
-    let merchant_id = merchant_account.get_id();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
 
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
@@ -112,7 +111,7 @@ pub async fn validate_create_request(
         db,
         &payout_id,
         merchant_id,
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_account().storage_scheme,
     )
     .await
     .attach_printable_lazy(|| {
@@ -136,13 +135,8 @@ pub async fn validate_create_request(
         || customer_in_request.phone.is_some()
         || customer_in_request.phone_country_code.is_some()
     {
-        helpers::get_or_create_customer_details(
-            state,
-            &customer_in_request,
-            merchant_account,
-            merchant_key_store,
-        )
-        .await?
+        helpers::get_or_create_customer_details(state, &customer_in_request, merchant_context)
+            .await?
     } else {
         None
     };
@@ -150,10 +144,9 @@ pub async fn validate_create_request(
     #[cfg(feature = "v1")]
     let profile_id = core_utils::get_profile_id_from_business_details(
         &state.into(),
-        merchant_key_store,
         req.business_country,
         req.business_label.as_ref(),
-        merchant_account,
+        merchant_context,
         req.profile_id.as_ref(),
         &*state.store,
         false,
@@ -181,9 +174,9 @@ pub async fn validate_create_request(
                     let payment_method = db
                         .find_payment_method(
                             &state.into(),
-                            merchant_key_store,
+                            merchant_context.get_merchant_key_store(),
                             &payment_method_id,
-                            merchant_account.storage_scheme,
+                            merchant_context.get_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -221,11 +214,11 @@ pub async fn validate_create_request(
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
                 &customer.customer_id,
-                merchant_account.get_id(),
+                merchant_context.get_merchant_account().get_id(),
                 req.payout_type,
-                merchant_key_store,
+                merchant_context.get_merchant_key_store(),
                 None,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
         }
@@ -236,7 +229,7 @@ pub async fn validate_create_request(
                     .payment_method
                     .as_ref()
                     .get_required_value("payment_method_id")?,
-                merchant_key_store,
+                merchant_context.get_merchant_key_store(),
                 payment_method,
                 None,
                 false,

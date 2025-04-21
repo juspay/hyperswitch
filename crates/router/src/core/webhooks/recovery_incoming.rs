@@ -36,9 +36,8 @@ use crate::{
 #[cfg(feature = "revenue_recovery")]
 pub async fn recovery_incoming_webhook_flow(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     _webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector_enum: &connector_integration_interface::ConnectorEnum,
@@ -194,7 +193,7 @@ async fn handle_schedule_failed_payment(
     intent_retry_count: u16,
     mca_retry_threshold: u16,
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     payment_attempt_with_recovery_intent: &(
         Option<revenue_recovery::RecoveryPaymentAttempt>,
         revenue_recovery::RecoveryPaymentIntent,
@@ -265,9 +264,8 @@ impl RevenueRecoveryInvoice {
         &self,
         state: &SessionState,
         req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentIntent>, errors::RevenueRecoveryError>
     {
         let payment_response = Box::pin(payments::payments_get_intent_using_merchant_reference(
@@ -314,9 +312,8 @@ impl RevenueRecoveryInvoice {
         &self,
         state: &SessionState,
         req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<revenue_recovery::RecoveryPaymentIntent, errors::RevenueRecoveryError> {
         let payload = api_payments::PaymentsCreateIntentRequest::from(&self.0);
         let global_payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id);
@@ -389,9 +386,8 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<
         Option<(
@@ -465,9 +461,8 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         req_state: &ReqState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         billing_connector_account_id: &id_type::MerchantConnectorAccountId,
         payment_connector_account: Option<domain::MerchantConnectorAccount>,
@@ -589,14 +584,13 @@ impl RevenueRecoveryAttempt {
         is_recovery_transaction_event: bool,
         billing_connector_account: &domain::MerchantConnectorAccount,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
         connector_enum: &connector_integration_interface::ConnectorEnum,
         req_state: &ReqState,
         billing_connector_payment_details: Option<
             &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
         >,
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<
@@ -741,7 +735,7 @@ pub struct BillingConnectorPaymentsSyncFlowRouterData(
 impl BillingConnectorPaymentsSyncResponseData {
     async fn handle_billing_connector_payment_sync_call(
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         connector_name: &str,
         id: &str,
@@ -801,7 +795,7 @@ impl BillingConnectorPaymentsSyncResponseData {
     async fn get_billing_connector_payment_details(
         should_billing_connector_payment_api_called: bool,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         billing_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         connector_name: &str,
         object_ref_id: &webhooks::ObjectReferenceId,
@@ -845,7 +839,7 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
         state: &SessionState,
         connector_name: &str,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         billing_connector_psync_id: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let auth_type: types::ConnectorAuthType = helpers::MerchantConnectorAccountType::DbVal(

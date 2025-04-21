@@ -119,7 +119,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsCaptureRequest, PaymentCaptureD
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsCaptureRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: merchant_account.get_id().to_owned(),
@@ -141,11 +141,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsCaptureRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentCaptureData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();

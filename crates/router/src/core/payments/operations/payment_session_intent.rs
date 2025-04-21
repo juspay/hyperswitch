@@ -119,11 +119,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         _request: &PaymentsSessionRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -204,7 +202,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::Payme
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsSessionRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: merchant_account.get_id().to_owned(),
@@ -270,11 +268,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
 
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut payments::PaymentIntentData<F>,
-        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         let db = &state.store;
         let all_connector_accounts = db

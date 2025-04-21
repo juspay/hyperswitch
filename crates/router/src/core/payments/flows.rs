@@ -50,8 +50,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -63,8 +62,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccount,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -74,8 +72,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>>;
@@ -102,7 +99,7 @@ pub trait Feature<F, T> {
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where

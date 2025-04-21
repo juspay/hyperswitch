@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, refunds::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::refunds,
+    types::{api::refunds, domain},
 };
 
 /// Refunds - Create
@@ -37,13 +37,10 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_create_core(
-                state,
-                auth.merchant_account,
-                auth.profile_id,
-                auth.key_store,
-                req,
-            )
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_create_core(state, merchant_context, auth.profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -99,11 +96,13 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             refund_response_wrapper(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile_id,
-                auth.key_store,
                 refund_request,
                 refund_retrieve_core_with_refund_id,
             )
@@ -153,11 +152,13 @@ pub async fn refunds_retrieve_with_body(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             refund_response_wrapper(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile_id,
-                auth.key_store,
                 req,
                 refund_retrieve_core_with_refund_id,
             )
@@ -202,7 +203,10 @@ pub async fn refunds_update(
         &req,
         refund_update_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_update_core(state, auth.merchant_account, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_update_core(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -237,7 +241,10 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_list(state, auth.merchant_account, None, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_list(state, merchant_context, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -279,9 +286,12 @@ pub async fn refunds_list_profile(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             refund_list(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )
@@ -326,7 +336,10 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_filter_list(state, auth.merchant_account, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_filter_list(state, merchant_context, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -363,7 +376,10 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            get_filters_for_refunds(state, auth.merchant_account, None)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            get_filters_for_refunds(state, merchant_context, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -403,9 +419,12 @@ pub async fn get_refunds_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             get_filters_for_refunds(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
@@ -436,7 +455,10 @@ pub async fn get_refunds_aggregates(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            get_aggregates_for_refunds(state, auth.merchant_account, None, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            get_aggregates_for_refunds(state, merchant_context, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -488,9 +510,12 @@ pub async fn get_refunds_aggregate_profile(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             get_aggregates_for_refunds(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )

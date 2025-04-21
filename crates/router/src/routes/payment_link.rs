@@ -4,6 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     core::{api_locking, payment_link::*},
     services::{api, authentication as auth},
+    types::domain,
     AppState,
 };
 
@@ -71,10 +72,12 @@ pub async fn initiate_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             initiate_payment_link_flow(
                 state,
-                auth.merchant_account,
-                auth.key_store,
+                merchant_context,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
@@ -106,10 +109,12 @@ pub async fn initiate_secure_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             initiate_secure_payment_link_flow(
                 state,
-                auth.merchant_account,
-                auth.key_store,
+                merchant_context,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
                 headers,
@@ -187,10 +192,12 @@ pub async fn payment_link_status(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             get_payment_link_status(
                 state,
-                auth.merchant_account,
-                auth.key_store,
+                merchant_context,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
