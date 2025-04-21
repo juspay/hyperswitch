@@ -25,7 +25,7 @@ pub struct RevenueRecoveryAttemptData {
     /// customer id at payment connector for which mandate is attached.
     pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
-    pub connector_account_reference_id: String,
+    pub connector_account_reference_ids: Option<String>,
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
     /// transaction status at billing connector equivalent to payment attempt status.
@@ -224,7 +224,7 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
             error_message: data.error_message.clone(),
             processor_payment_method_token: data.processor_payment_method_token.clone(),
             connector_customer_id: data.connector_customer_id.clone(),
-            connector_account_reference_id: data.connector_account_reference_id.clone(),
+            connector_account_reference_ids: Some(data.connector_account_reference_id.clone()),
             transaction_created_at: data.transaction_created_at,
             status: data.status,
             payment_method_type: data.payment_method_type,

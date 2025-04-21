@@ -666,8 +666,8 @@ impl PaymentIntent {
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
-            connector_account_reference_id: "stripebilling".to_string(), //mca metadata  accountreference
-            transaction_created_at: None,                                // would unwrap or as now
+            connector_account_reference_ids: None,
+            transaction_created_at: None, // would unwrap or as now
             status: common_enums::AttemptStatus::Started,
             payment_method_type: self
                 .get_payment_method_type()

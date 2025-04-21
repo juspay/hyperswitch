@@ -458,7 +458,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             error_message,
             processor_payment_method_token: connector_mandate_details.mandate_id,
             connector_customer_id: connector_mandate_details.customer_id,
-            connector_account_reference_id,
+            connector_account_reference_ids: Some(connector_account_reference_id),
             transaction_created_at,
             status,
             payment_method_type,

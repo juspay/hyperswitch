@@ -169,16 +169,20 @@ impl MerchantConnectorAccount {
 
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
         &self,
-        account_reference_id: String,
+        account_reference_id: Option<String>,
     ) -> Option<id_type::MerchantConnectorAccountId> {
         self.feature_metadata.as_ref().and_then(|metadata| {
-            metadata.revenue_recovery.as_ref().and_then(|recovery| {
-                recovery
-                    .mca_reference
-                    .billing_to_recovery
-                    .get(&account_reference_id)
-                    .cloned()
-            })
+            metadata
+                .revenue_recovery
+                .as_ref()
+                .zip(account_reference_id)
+                .and_then(|(recovery, account_reference_id)| {
+                    recovery
+                        .mca_reference
+                        .billing_to_recovery
+                        .get(&account_reference_id)
+                        .cloned()
+                })
         })
     }
 }

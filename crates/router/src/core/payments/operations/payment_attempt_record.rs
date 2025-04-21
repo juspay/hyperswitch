@@ -192,7 +192,7 @@ impl<F: Send + Clone + Sync>
             billing_connector_id: request.billing_connector_id.clone(),
             processor_payment_method_token: request.processor_payment_method_token.clone(),
             connector_customer_id: request.connector_customer_id.clone(),
-            triggered_by: request.triggered_by.clone(),
+            triggered_by: request.triggered_by,
         };
 
         let payment_data = PaymentAttemptRecordData {

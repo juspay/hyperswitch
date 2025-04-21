@@ -185,12 +185,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
 
-        let payment_attempt = match payment_intent.active_attempt_id {
-            Some(active_attempt_id) => db
+        let payment_attempt = match payment_intent.active_attempt_id.clone() {
+            Some(ref active_attempt_id) => db
                 .find_payment_attempt_by_id(
                     key_manager_state,
                     key_store,
-                    &active_attempt_id,
+                    active_attempt_id,
                     storage_scheme,
                 )
                 .await

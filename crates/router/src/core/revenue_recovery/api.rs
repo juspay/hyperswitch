@@ -1,4 +1,3 @@
-use super::types;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -171,16 +170,14 @@ pub async fn record_internal_attempt_api(
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
 
-    let payment_connector_account = revenue_recovery_attempt_data
-        .find_payment_merchant_connector_account(state, &pcr_data.key_store, &pcr_data.billing_mca)
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: pcr_data.billing_mca.id.get_string_repr().to_owned(),
-        })?;
-
     let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
         &pcr_data.billing_mca.id,
-        payment_connector_account,
+        Some(
+            revenue_recovery_metadata
+                .active_attempt_payment_connector_id
+                .clone(),
+        ),
+        Some(revenue_recovery_metadata.connector),
         common_enums::TriggeredBy::Internal,
     );
     let attempt_response = Box::pin(payments::record_attempt_core(
