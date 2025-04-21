@@ -426,8 +426,8 @@ force_cookies = true                 # Whether to use only cookies for JWT extra
 
 [hubspot]
 enabled = false  # Whether to enable hubspot tracking
-base_url = ""    # Base url for hubspot tracking
-form_id=""       # HubSpot-specific form ID
+request_url = ""    # Request url for hubspot tracking
+form_id=""       # Hubspot-specific form ID
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

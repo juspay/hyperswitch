@@ -11,7 +11,10 @@ use crate::{
     routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
     types::{api, domain::UserEmail, storage},
-    utils::{user as user_utils, OptionExt},
+    utils::{
+        user::{self as user_utils, theme as theme_utils},
+        OptionExt,
+    },
 };
 
 pub struct ApiKeyExpiryWorkflow;
@@ -74,7 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             )
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-        let theme = user_utils::theme::get_most_specific_theme_using_lineage(
+        let theme = theme_utils::get_most_specific_theme_using_lineage(
             state,
             ThemeLineage::Merchant {
                 tenant_id: state.tenant.tenant_id.clone(),

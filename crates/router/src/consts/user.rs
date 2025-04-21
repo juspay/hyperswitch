@@ -41,3 +41,5 @@ pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 pub const DEFAULT_PROFILE_NAME: &str = "default";
 pub const DEFAULT_PRODUCT_TYPE: common_enums::MerchantProductType =
     common_enums::MerchantProductType::Orchestration;
+
+pub const HUBSPOT_LEAD_SOURCE: &str = "Hyperswitch Dashboard"; // hubspot lead source

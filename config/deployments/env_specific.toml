@@ -321,7 +321,7 @@ encryption_key = "user_auth_table_encryption_key" # Encryption key used for encr
 
 [hubspot]
 enabled = false
-base_url = ""
+request_url = ""
 form_id=""
 
 [cell_information]

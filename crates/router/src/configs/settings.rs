@@ -688,7 +688,7 @@ pub struct FallbackMerchantIds {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct HubspotSettings {
     pub enabled: bool,
-    pub base_url: String,
+    pub request_url: String,
     pub form_id: String,
 }
 

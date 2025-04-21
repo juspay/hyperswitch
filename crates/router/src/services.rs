@@ -15,6 +15,8 @@ pub mod card_testing_guard;
 #[cfg(feature = "olap")]
 pub mod openidconnect;
 
+pub mod hubspot;
+
 use std::sync::Arc;
 
 use error_stack::ResultExt;

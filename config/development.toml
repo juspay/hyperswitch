@@ -405,7 +405,7 @@ force_cookies = true
 
 [hubspot]
 enabled = false
-base_url = ""
+request_url = ""
 form_id=""
 
 
