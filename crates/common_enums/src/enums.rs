@@ -213,6 +213,7 @@ pub enum CardDiscovery {
     Clone,
     Copy,
     Debug,
+    Default,
     Hash,
     Eq,
     PartialEq,
@@ -227,6 +228,7 @@ pub enum CardDiscovery {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryAlgorithmType {
+    #[default]
     Monitoring,
     Smart,
     Cascading,
