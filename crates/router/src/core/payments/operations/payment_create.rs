@@ -1366,6 +1366,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                setup_future_usage_applied: request.setup_future_usage,
             },
             additional_pm_data,
 
