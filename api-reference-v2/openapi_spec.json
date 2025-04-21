@@ -16713,6 +16713,12 @@
           },
           "connector": {
             "$ref": "#/components/schemas/Connector"
+          },
+          "invoice_next_billing_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice Next billing time",
+            "nullable": true
           }
         }
       },
