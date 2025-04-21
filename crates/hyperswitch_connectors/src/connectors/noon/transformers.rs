@@ -684,7 +684,7 @@ pub struct NoonPaypalResponse {
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaypalResponseResult {
     order: NoonPaymentsOrderResponse,
-    payment_data: Option<NoonPaypalPaymentData>,
+    payment_data: NoonPaypalPaymentData,
     subscription: Option<NoonSubscriptionObject>,
 }
 
@@ -709,12 +709,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
     ) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
         let status = get_payment_status((order.status, item.data.status));
-        let url = item
-            .response
-            .result
-            .payment_data
-            .map(|redirection_data| redirection_data.data.url);
-        let redirection_data = url.map(|url| RedirectForm::from((url, Method::Get)));
+        let url = item.response.result.payment_data.data.url;
+        let redirection_data = RedirectForm::from((url, Method::Get));
         let mandate_reference =
             item.response
                 .result
@@ -744,7 +740,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponse
                         order.reference.or(Some(order.id.to_string()));
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(order.id.to_string()),
-                        redirection_data: Box::new(redirection_data),
+                        redirection_data: Box::new(Some(redirection_data)),
                         mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
