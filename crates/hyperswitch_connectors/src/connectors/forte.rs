@@ -1,10 +1,9 @@
 pub mod transformers;
 
-use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
-use base64::Engine;
-
 use std::sync::LazyLock;
 
+use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -26,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, ConnectorInfo, PaymentMethodDetails, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -50,10 +52,7 @@ use transformers as forte;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{
-        construct_not_supported_error_report, convert_amount, PaymentsSyncRequestData,
-        RefundsRequestData,
-    },
+    utils::{convert_amount, PaymentsSyncRequestData, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -721,64 +720,63 @@ impl IncomingWebhook for Forte {
     }
 }
 
-static FORTE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = 
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
+static FORTE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
 
-        let supported_card_network = vec![
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::Discover,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa
-        ];
+    let supported_card_network = vec![
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+    ];
 
-        let mut forte_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut forte_supported_payment_methods = SupportedPaymentMethods::new();
 
-        forte_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    forte_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        forte_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
-        forte_supported_payment_methods
-    });
+    forte_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+    forte_supported_payment_methods
+});
 
 static FORTE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Forte",
@@ -786,8 +784,8 @@ static FORTE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         "CSG Forte offers a unified payments platform, enabling businesses to securely process credit cards, debit cards, ACH/eCheck transactions, and more, with advanced fraud prevention and seamless integration.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
-    
-static FORTE_SUPPORTED_WEBHOOK_FLOWS:[enums::EventClass; 0] = [];
+
+static FORTE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Forte {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

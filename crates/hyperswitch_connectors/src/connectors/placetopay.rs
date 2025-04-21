@@ -23,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, ConnectorInfo, PaymentMethodDetails, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -42,11 +45,7 @@ use hyperswitch_interfaces::{
 };
 use transformers as placetopay;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{construct_not_supported_error_report, convert_amount},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Placetopay {
@@ -669,7 +668,7 @@ impl IncomingWebhook for Placetopay {
     }
 }
 
-static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = 
+static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
@@ -680,7 +679,7 @@ static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             common_enums::CardNetwork::AmericanExpress,
             common_enums::CardNetwork::DinersClub,
             common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa
+            common_enums::CardNetwork::Visa,
         ];
 
         let mut placetopay_supported_payment_methods = SupportedPaymentMethods::new();
@@ -688,7 +687,7 @@ static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         placetopay_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -701,13 +700,13 @@ static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         }
                     }),
                 ),
-            }
+            },
         );
 
         placetopay_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -720,7 +719,7 @@ static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         }
                     }),
                 ),
-            }
+            },
         );
         placetopay_supported_payment_methods
     });
@@ -732,7 +731,7 @@ static PLACETOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS:[enums::EventClass; 0] = [];
+static PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Placetopay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

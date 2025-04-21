@@ -1,10 +1,9 @@
 pub mod transformers;
 
-use api_models::webhooks::IncomingWebhookEvent;
-use base64::Engine;
-
 use std::sync::LazyLock;
 
+use api_models::webhooks::IncomingWebhookEvent;
+use base64::Engine;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -31,7 +30,10 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         SetupMandateRequestData,
     },
-    router_response_types::{MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, ConnectorInfo, PaymentMethodDetails},
+    router_response_types::{
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
@@ -55,7 +57,6 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use ring::hmac;
 use router_env::logger;
@@ -1238,7 +1239,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
     }
 }
 
-static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = 
+static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
@@ -1252,7 +1253,7 @@ static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             common_enums::CardNetwork::JCB,
             common_enums::CardNetwork::UnionPay,
             common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa
+            common_enums::CardNetwork::Visa,
         ];
 
         let mut braintree_supported_payment_methods = SupportedPaymentMethods::new();
@@ -1260,7 +1261,7 @@ static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         braintree_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1273,13 +1274,13 @@ static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         }
                     }),
                 ),
-            }
+            },
         );
 
         braintree_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1292,7 +1293,7 @@ static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         }
                     }),
                 ),
-            }
+            },
         );
         braintree_supported_payment_methods
     });
@@ -1304,9 +1305,8 @@ static BRAINTREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static BRAINTREE_SUPPORTED_WEBHOOK_FLOWS:[enums::EventClass; 2] = [enums::EventClass::Payments, enums::EventClass::Refunds];
-
-
+static BRAINTREE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Braintree {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

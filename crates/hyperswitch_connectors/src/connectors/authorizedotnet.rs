@@ -1,7 +1,5 @@
 pub mod transformers;
-use std::fmt::Debug;
-
-use std::sync::LazyLock;
+use std::{fmt::Debug, sync::LazyLock};
 
 use common_enums::{enums, PaymentAction};
 use common_utils::{
@@ -25,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt, ConnectorInfo, PaymentMethodDetails},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData,
@@ -1041,8 +1042,7 @@ impl api::ConnectorRedirectResponse for Authorizedotnet {
     }
 }
 
-
-static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = 
+static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
@@ -1055,7 +1055,7 @@ static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMetho
             common_enums::CardNetwork::Discover,
             common_enums::CardNetwork::JCB,
             common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa
+            common_enums::CardNetwork::Visa,
         ];
 
         let mut authorizedotnet_supported_payment_methods = SupportedPaymentMethods::new();
@@ -1063,29 +1063,29 @@ static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMetho
         authorizedotnet_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         authorizedotnet_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,
-            }
+            },
         );
 
         authorizedotnet_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1098,13 +1098,13 @@ static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMetho
                         }
                     }),
                 ),
-            }
+            },
         );
 
         authorizedotnet_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
+            PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
@@ -1117,7 +1117,7 @@ static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMetho
                         }
                     }),
                 ),
-            }
+            },
         );
         authorizedotnet_supported_payment_methods
     });
@@ -1129,7 +1129,8 @@ static  AUTHORIZEDOTNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static AUTHORIZEDOTNET_SUPPORTED_WEBHOOK_FLOWS:[enums::EventClass; 2] = [enums::EventClass::Payments, enums::EventClass::Refunds];
+static AUTHORIZEDOTNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Authorizedotnet {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
