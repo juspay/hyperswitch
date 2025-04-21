@@ -47,6 +47,7 @@ pub async fn migrate_payment_method(
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<PaymentMethodMigrateResponse>, errors::ApiErrorResponse> {
     let mut req = req;
+    println!("migrate_payment_method_api {:?}", req);
     let card_details = &req.card.get_required_value("card")?;
 
     let card_number_validation_result =
@@ -496,7 +497,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let connector_mandate_details = if should_require_connector_mandate_details {
         let connector_mandate_details_req = req
-            .connector_mandate_details
+            .connector_mandate_details.clone()
+            .and_then(|c| c.payments)
             .clone()
             .get_required_value("connector mandate details")?;
 
@@ -508,8 +510,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     } else {
         req.connector_mandate_details
             .clone()
-            .map(|connector_mandate_details_req| {
-                serde_json::to_value(&connector_mandate_details_req)
+            .and_then(|c| c.payments)
+            .map(|mandate_details_req| {
+                serde_json::to_value(&mandate_details_req)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse connector mandate details")
             })

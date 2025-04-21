@@ -278,7 +278,6 @@ pub async fn migrate_payment_method_api(
     json_payload: web::Json<payment_methods::PaymentMethodMigrate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-
     Box::pin(api::server_wrap(
         flow,
         state,
