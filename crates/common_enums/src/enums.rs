@@ -30,6 +30,7 @@ pub mod diesel_exports {
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbTokenizationFlag as TokenizationFlag,
     };
 }
 
@@ -8069,4 +8070,35 @@ pub enum ProcessTrackerRunner {
 pub enum CryptoPadding {
     PKCS7,
     ZeroPadding,
+}
+
+
+// #[derive(
+//     Clone,
+//     Copy,
+//     Debug,
+//     Eq,
+//     Display,
+//     PartialEq,
+//     serde::Deserialize,
+//     serde::Serialize,
+// )]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString, 
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TokenizationFlag {
+    Enabled,
+    Disabled,
 }

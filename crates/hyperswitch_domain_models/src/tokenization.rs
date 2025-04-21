@@ -1,7 +1,8 @@
-use common_utils::pii;
+use common_utils::{errors::{CustomResult, ValidationError}, pii};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use common_utils::id_type;
+use diesel_models::tokenization;
 use common_enums;
 use crate::types;
 use common_utils;
@@ -44,4 +45,52 @@ impl From<Tokenization> for TokenizationResponse {
             flag: value.flag,
         }
     }
-} 
+}
+
+#[async_trait::async_trait]
+impl super::behaviour::Conversion for Tokenization {
+    type DstType = diesel_models::tokenization::Tokenization;
+    type NewDstType = diesel_models::tokenization::TokenizationNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+
+    async fn convert_back( 
+        _state: &keymanager::KeyManagerState, 
+        item: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError> {
+        Ok(Self {
+            id: item.id,
+            merchant_id: item.merchant_id,
+            locker_id: item.locker_id,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            flag: item.flag,
+            version: item.version,
+
+        })
+    }
+    
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(diesel_models::tokenization::TokenizationNew {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+}

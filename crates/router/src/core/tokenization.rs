@@ -79,10 +79,12 @@ async fn create_vault_token_core<T: Serialize>(
         .attach_printable("Failed to parse data into AddVaultResponse")?;
 
     // Create new tokenization record
-    let tokenization_new = hyperswitch_domain_models::tokenization::TokenizationNew {
+    let tokenization_new = hyperswitch_domain_models::tokenization::Tokenization {
         id: domain::GlobalTokenId::generate(&state.conf.cell_information.id),
         merchant_id: merchant_account.merchant_id.clone(),
         locker_id: stored_resp.vault_id.to_string(),
+        created_at: common_utils::date_time::now(),
+        updated_at: common_utils::date_time::now(),
         flag: storage_enums::TokenizationFlag::Active,
         version: storage_enums::ApiVersion::V2,
     };

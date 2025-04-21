@@ -25,12 +25,19 @@ pub mod diesel_exports {
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt, 
     };
 }
 pub use common_enums::*;
 use common_utils::pii;
-use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Jsonb};
+use common_utils::tokenization;
+use diesel::{
+    deserialize::FromSqlRow, 
+    expression::AsExpression, 
+    sql_types::{Jsonb, Text},
+    pg::Pg,
+    serialize::{ToSql, Output},
+};
 use router_derive::diesel_enum;
 use time::PrimitiveDateTime;
 use std::io::Write;
@@ -311,55 +318,11 @@ pub enum UserRoleVersion {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
-    strum::Display,
-    strum::EnumString,
+    diesel::deserialize::FromSqlRow,
+    diesel::expression::AsExpression,
 )]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
+#[diesel(sql_type = diesel::sql_types::Text)]
 pub enum TokenizationFlag {
     Enabled,
     Disabled,
 }
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl diesel::sql_types::SingleValue for TokenizationFlag {}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl diesel::sql_types::SqlType for TokenizationFlag {
-    type IsNull = diesel::sql_types::is_nullable::NotNull;
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl diesel::serialize::ToSql<TokenizationFlag, diesel::pg::Pg> for TokenizationFlag {
-    fn to_sql<'b>(
-        &'b self,
-        out: &mut diesel::serialize::Output<'b, '_, diesel::pg::Pg>,
-    ) -> diesel::serialize::Result {
-        match self {
-            TokenizationFlag::Enabled => out.write_all(b"enabled")?,
-            TokenizationFlag::Disabled => out.write_all(b"disabled")?,
-        }
-        Ok(diesel::serialize::IsNull::No)
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl diesel::deserialize::FromSql<TokenizationFlag, diesel::pg::Pg> for TokenizationFlag {
-    fn from_sql(value: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
-        match value.as_bytes() {
-            b"enabled" => Ok(TokenizationFlag::Enabled),
-            b"disabled" => Ok(TokenizationFlag::Disabled),
-            _ => Err("Unrecognized enum variant".into()),
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl diesel::Expression for TokenizationFlag {
-    type SqlType = TokenizationFlag;
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl<QS> diesel::AppearsOnTable<QS> for TokenizationFlag where QS: diesel::query_source::QuerySource {}
-

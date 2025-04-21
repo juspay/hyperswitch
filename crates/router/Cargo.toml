@@ -49,7 +49,7 @@ partial-auth = []
 
 [dependencies]
 actix-cors = "0.6.5"
-actix-http = "3.6.0"
+actix-http = "3.6.0" 
 actix-multipart = "0.6.1"
 actix-rt = "2.9.0"
 actix-web = "4.5.1"

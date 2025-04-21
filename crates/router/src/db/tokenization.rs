@@ -1,4 +1,4 @@
-use error_stack::{ResultExt, Report};
+use error_stack::{ResultExt, Report, report};
 use common_utils::ext_traits::OptionExt;
 use common_utils::id_type::{CellId, GlobalTokenId, MerchantId};
 use common_utils::errors::CustomResult;
@@ -9,8 +9,8 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use super::MockDb;
 use crate::{
     connection,
-    errors::{StorageError},
-    core::errors::{self, CustomResult} ,
+    errors::StorageError,
+    core::errors::{self, CustomResult},
     database::store::Store,
 };
 
@@ -20,31 +20,7 @@ use diesel_models::{
     schema_v2::tokenization::dsl as tokenization_dsl,
     PgPooledConn,
 };
-
-
-// use common_utils::{id_type, pii};
-// use diesel_models;
-// use error_stack::ResultExt;
-// use futures::future::try_join_all;
-// use hyperswitch_domain_models::{
-//     behaviour::{Conversion, ReverseConversion},
-//     customer as domain,
-//     merchant_key_store::MerchantKeyStore,
-// };
-// use masking::PeekInterface;
-// use router_env::{instrument, tracing};
-
-// use crate::{
-//     diesel_error_to_data_error,
-//     errors::StorageError,
-//     kv_router_store,
-//     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
-//     store::enums::MerchantStorageScheme,
-//     utils::{pg_connection_read, pg_connection_write},
-//     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
-// };
 use hyperswitch_domain_models::tokenization as domain_tokenization;
-
 
 // New type wrapper to avoid orphan rule
 #[derive(Debug, Clone)]
@@ -65,20 +41,28 @@ impl TokenizationInterface for Store {
         tokenization: domain_tokenization::Tokenization,
     ) -> CustomResult<domain_tokenization::Tokenization, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-
-        tokenization.convert()
+        let tokenization_db = TokenizationNew {
+            id: tokenization.id,
+            merchant_id: tokenization.merchant_id,
+            locker_id: tokenization.locker_id,
+            created_at: common_utils::date_time::now(),
+            updated_at: common_utils::date_time::now(),
+            flag: tokenization.flag.to_db_flag(),
+            version: tokenization.version,
+        };
+        tokenization.construct_new()
             .await
-            .change_context(StorageError::EncryptionError)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
                 key_manager_state,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(StorageError::DecryptionError)
+            .change_context(errors::StorageError::DecryptionError)
         
         // // First insert and get the ID
         // let inserted_row = diesel::insert_into(tokenization_dsl::tokenization)

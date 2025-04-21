@@ -1478,7 +1478,7 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         locker_id -> Varchar,
-        flag -> crate::enums::TokenizationFlag,
+        flag -> TokenizationFlag,
         version -> ApiVersion,
     }
 }
