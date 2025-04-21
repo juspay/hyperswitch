@@ -140,6 +140,7 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub authentication_providers: AuthenticationProviders,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -519,6 +520,31 @@ pub struct Mandates {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ZeroMandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationProviders {
+    #[serde(deserialize_with = "deserialize_connector_list")]
+    pub click_to_pay: HashSet<enums::Connector>,
+}
+
+fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        connector_list: String,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    wrapper
+        .connector_list
+        .split(',')
+        .map(|s| s.trim().parse().map_err(D::Error::custom))
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

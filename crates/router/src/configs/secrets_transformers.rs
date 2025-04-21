@@ -551,5 +551,6 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,
+        authentication_providers: conf.authentication_providers,
     }
 }

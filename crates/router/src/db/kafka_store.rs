@@ -1281,7 +1281,6 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
         state: &KeyManagerState,
