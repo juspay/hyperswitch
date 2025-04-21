@@ -220,7 +220,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_complete_authorize!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -305,7 +304,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_create_customer!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -350,7 +348,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
     }
 }
 
-
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -375,7 +372,6 @@ macro_rules! default_imp_for_connector_request_id {
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
-
 
 default_imp_for_connector_request_id!(
     connector::Adyenplatform,
@@ -422,7 +418,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_accept_dispute!(
     connector::Adyenplatform,
@@ -489,7 +484,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_file_upload!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -532,7 +526,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_submit_evidence!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -574,7 +567,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_defend_dispute!(
     connector::Adyenplatform,
@@ -634,7 +626,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_pre_processing_steps!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -662,7 +653,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_post_processing_steps!(
     connector::Adyenplatform,
     connector::Nmi,
@@ -688,7 +678,6 @@ macro_rules! default_imp_for_payouts {
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Payouts for connector::DummyConnector<T> {}
-
 
 default_imp_for_payouts!(
     connector::Gpayments,
@@ -727,7 +716,6 @@ impl<const T: u8>
     for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
@@ -769,7 +757,6 @@ impl<const T: u8>
     for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
@@ -818,7 +805,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
     connector::Adyenplatform,
@@ -861,7 +847,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
     connector::Gpayments,
@@ -900,7 +885,6 @@ impl<const T: u8>
     for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
@@ -943,7 +927,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
     connector::Adyenplatform,
@@ -985,7 +968,6 @@ impl<const T: u8>
     for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
@@ -1031,7 +1013,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
     connector::Adyenplatform,
@@ -1074,7 +1055,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_approve!(
     connector::Adyenplatform,
@@ -1119,7 +1099,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_reject!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1147,7 +1126,6 @@ macro_rules! default_imp_for_fraud_check {
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
-
 
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
@@ -1192,7 +1170,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Adyenplatform,
@@ -1235,7 +1212,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
@@ -1280,7 +1256,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Adyenplatform,
@@ -1323,7 +1298,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
@@ -1368,7 +1342,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Adyenplatform,
@@ -1411,7 +1384,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1453,7 +1425,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
@@ -1557,7 +1528,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1595,7 +1565,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_authorize_session_token!(
     connector::Adyenplatform,
@@ -1638,7 +1607,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_calculate_tax!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1679,7 +1647,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_session_update!(
     connector::Adyenplatform,
@@ -1722,7 +1689,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_post_session_tokens!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1763,7 +1729,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_update_metadata!(
     connector::Adyenplatform,
@@ -1808,7 +1773,6 @@ impl<const T: u8>
 {
 }
 
-
 default_imp_for_uas_pre_authentication!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -1849,7 +1813,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_uas_post_authentication!(
     connector::Adyenplatform,
@@ -1909,7 +1872,6 @@ impl<const T: u8>
 {
 }
 
-
 macro_rules! default_imp_for_uas_authentication {
     ($($path:ident::$connector:ident),*) => {
         $( impl UasAuthentication for $path::$connector {}
@@ -1935,7 +1897,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 default_imp_for_uas_authentication!(
     connector::Adyenplatform,
@@ -2073,7 +2034,6 @@ macro_rules! default_imp_for_revenue_recovery {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 
-
 default_imp_for_revenue_recovery! {
     connector::Adyenplatform,
     connector::Ebanx,
@@ -2163,7 +2123,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
