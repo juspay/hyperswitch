@@ -4148,6 +4148,7 @@ where
                 key_store,
                 value,
                 payment_data.get_payment_intent(),
+                &business_profile.get_id(),
             )
             .await?;
             payment_data.push_sessions_token(session_token);
@@ -4169,6 +4170,7 @@ pub async fn get_session_token_for_click_to_pay(
     key_store: &domain::MerchantKeyStore,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    profile_id: &id_type::ProfileId,
 ) -> RouterResult<api_models::payments::SessionToken> {
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
@@ -4226,7 +4228,7 @@ pub async fn get_session_token_for_click_to_pay(
         .store
         .list_enabled_connector_accounts_by_profile_id(
             key_manager_state,
-            &payment_intent.profile_id.clone().unwrap(),
+            profile_id,
             key_store,
             common_enums::ConnectorType::PaymentProcessor,
         )
