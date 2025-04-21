@@ -1409,7 +1409,7 @@ static WELLSFARGO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     });
 
 static WELLSFARGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Wellsfargo",
+    display_name: "Wells Fargo",
     description:
         "Wells Fargo is a major bank offering retail, commercial, and wealth management services",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
