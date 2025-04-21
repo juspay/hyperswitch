@@ -1,7 +1,5 @@
 pub mod adyenplatform;
 #[cfg(feature = "dummy_connector")]
-pub mod dummybillingconnector;
-#[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
 pub mod ebanx;
 pub mod gpayments;
@@ -49,8 +47,6 @@ pub use hyperswitch_connectors::connectors::{
     xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
-#[cfg(feature = "dummy_connector")]
-pub use self::dummybillingconnector::DummyBillingConnector;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{

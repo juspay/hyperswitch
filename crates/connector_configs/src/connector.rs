@@ -245,7 +245,6 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
-    pub stripe_billing_test: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -365,7 +364,7 @@ impl ConnectorConfig {
             Connector::CtpVisa => Ok(connector_data.ctp_visa),
             Connector::Cybersource => Ok(connector_data.cybersource),
             #[cfg(feature = "dummy_connector")]
-            Connector::DummyBillingConnector => Ok(connector_data.stripe_billing_test),
+            Connector::DummyBillingConnector => Ok(connector_data.dummy_connector),
             Connector::Iatapay => Ok(connector_data.iatapay),
             Connector::Itaubank => Ok(connector_data.itaubank),
             Connector::Opennode => Ok(connector_data.opennode),

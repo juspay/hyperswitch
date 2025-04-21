@@ -220,17 +220,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentsCompleteAuthorize for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::CompleteAuthorize,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_complete_authorize!(
     connector::Adyenplatform,
@@ -273,17 +262,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorVerifyWebhookSource for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::VerifyWebhookSource,
-        types::VerifyWebhookSourceRequestData,
-        types::VerifyWebhookSourceResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 default_imp_for_webhook_source_verification!(
     connector::Adyenplatform,
     connector::Ebanx,
@@ -327,17 +305,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorCustomer for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_create_customer!(
     connector::Adyenplatform,
@@ -383,17 +350,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
     }
 }
 
-#[cfg(feature = "dummy_connector")]
-impl services::ConnectorRedirectResponse for connector::DummyBillingConnector {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
-    }
-}
 
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
@@ -420,8 +376,6 @@ macro_rules! default_imp_for_connector_request_id {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorTransactionId for connector::DummyBillingConnector {}
 
 default_imp_for_connector_request_id!(
     connector::Adyenplatform,
@@ -469,19 +423,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::Dispute for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl api::AcceptDispute for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Accept,
-        types::AcceptDisputeRequestData,
-        types::AcceptDisputeResponse,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_accept_dispute!(
     connector::Adyenplatform,
@@ -547,30 +488,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-#[cfg(feature = "dummy_connector")]
-impl api::FileUpload for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl api::UploadFile for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Upload,
-        types::UploadFileRequestData,
-        types::UploadFileResponse,
-    > for connector::DummyBillingConnector
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl api::RetrieveFile for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Retrieve,
-        types::RetrieveFileRequestData,
-        types::RetrieveFileResponse,
-    > for connector::DummyBillingConnector
-{
-}
+
 
 default_imp_for_file_upload!(
     connector::Adyenplatform,
@@ -614,17 +532,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::SubmitEvidence for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Evidence,
-        types::SubmitEvidenceRequestData,
-        types::SubmitEvidenceResponse,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_submit_evidence!(
     connector::Adyenplatform,
@@ -668,17 +575,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::DefendDispute for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Defend,
-        types::DefendDisputeRequestData,
-        types::DefendDisputeResponse,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_defend_dispute!(
     connector::Adyenplatform,
@@ -738,17 +634,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentsPreProcessing for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PreProcessing,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_pre_processing_steps!(
     connector::Adyenplatform,
@@ -777,17 +662,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentsPostProcessing for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PostProcessing,
-        types::PaymentsPostProcessingData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_post_processing_steps!(
     connector::Adyenplatform,
@@ -815,8 +689,6 @@ macro_rules! default_imp_for_payouts {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
-#[cfg(feature = "dummy_connector")]
-impl Payouts for connector::DummyBillingConnector {}
 
 default_imp_for_payouts!(
     connector::Gpayments,
@@ -856,15 +728,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutCreate for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
@@ -907,15 +770,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutSync for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl services::ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
@@ -964,19 +818,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutEligibility for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PoEligibility,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
@@ -1020,15 +861,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutFulfill for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
@@ -1069,15 +901,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutCancel for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
@@ -1120,15 +943,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutQuote for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
@@ -1172,16 +986,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutRecipient for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
@@ -1227,19 +1031,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl api::PayoutRecipientAccount for connector::DummyBillingConnector {}
-#[cfg(feature = "payouts")]
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PoRecipientAccount,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
@@ -1284,17 +1075,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentApprove for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Approve,
-        types::PaymentsApproveData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_approve!(
     connector::Adyenplatform,
@@ -1339,17 +1119,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentReject for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Reject,
-        types::PaymentsRejectData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_reject!(
     connector::Adyenplatform,
@@ -1379,8 +1148,6 @@ macro_rules! default_imp_for_fraud_check {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
-#[cfg(feature = "dummy_connector")]
-impl api::FraudCheck for connector::DummyBillingConnector {}
 
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
@@ -1425,17 +1192,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl api::FraudCheckSale for connector::DummyBillingConnector {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl
-    services::ConnectorIntegration<
-        api::Sale,
-        frm_types::FraudCheckSaleData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
@@ -1480,17 +1236,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl api::FraudCheckCheckout for connector::DummyBillingConnector {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl
-    services::ConnectorIntegration<
-        api::Checkout,
-        frm_types::FraudCheckCheckoutData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
@@ -1535,17 +1280,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl api::FraudCheckTransaction for connector::DummyBillingConnector {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl
-    services::ConnectorIntegration<
-        api::Transaction,
-        frm_types::FraudCheckTransactionData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
@@ -1590,17 +1324,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl api::FraudCheckFulfillment for connector::DummyBillingConnector {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl
-    services::ConnectorIntegration<
-        api::Fulfillment,
-        frm_types::FraudCheckFulfillmentData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
@@ -1645,17 +1368,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl api::FraudCheckRecordReturn for connector::DummyBillingConnector {}
-#[cfg(all(feature = "frm", feature = "dummy_connector"))]
-impl
-    services::ConnectorIntegration<
-        api::RecordReturn,
-        frm_types::FraudCheckRecordReturnData,
-        frm_types::FraudCheckResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
@@ -1699,17 +1411,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentIncrementalAuthorization for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::IncrementalAuthorization,
-        types::PaymentsIncrementalAuthorizationData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
@@ -1753,17 +1454,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorMandateRevoke for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::MandateRevoke,
-        types::MandateRevokeRequestData,
-        types::MandateRevokeResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
@@ -1867,53 +1557,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::ExternalAuthentication for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorPreAuthentication for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorPreAuthenticationVersionCall for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorAuthentication for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl api::ConnectorPostAuthentication for connector::DummyBillingConnector {}
-
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::Authentication,
-        types::authentication::ConnectorAuthenticationRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PreAuthentication,
-        types::authentication::PreAuthNRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PreAuthenticationVersionCall,
-        types::authentication::PreAuthNRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PostAuthentication,
-        types::authentication::ConnectorPostAuthenticationRequestData,
-        types::authentication::AuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
@@ -1953,17 +1596,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentAuthorizeSessionToken for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::AuthorizeSessionToken,
-        types::AuthorizeSessionTokenData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_authorize_session_token!(
     connector::Adyenplatform,
@@ -2006,17 +1638,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::TaxCalculation for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::CalculateTax,
-        types::PaymentsTaxCalculationData,
-        types::TaxCalculationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_calculate_tax!(
     connector::Adyenplatform,
@@ -2059,17 +1680,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentSessionUpdate for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::SdkSessionUpdate,
-        types::SdkPaymentsSessionUpdateData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_session_update!(
     connector::Adyenplatform,
@@ -2112,17 +1722,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentPostSessionTokens for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::PostSessionTokens,
-        types::PaymentsPostSessionTokensData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_post_session_tokens!(
     connector::Adyenplatform,
@@ -2165,17 +1764,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl api::PaymentUpdateMetadata for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        api::UpdateMetadata,
-        types::PaymentsUpdateMetadataData,
-        types::PaymentsResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_update_metadata!(
     connector::Adyenplatform,
@@ -2220,19 +1808,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl UasPreAuthentication for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl UnifiedAuthenticationService for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        PreAuthenticate,
-        types::UasPreAuthenticationRequestData,
-        types::UasAuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_uas_pre_authentication!(
     connector::Adyenplatform,
@@ -2275,17 +1850,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl UasPostAuthentication for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        PostAuthenticate,
-        types::UasPostAuthenticationRequestData,
-        types::UasAuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_uas_post_authentication!(
     connector::Adyenplatform,
@@ -2345,17 +1909,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl UasAuthenticationConfirmation for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        AuthenticationConfirmation,
-        types::UasConfirmationRequestData,
-        types::UasAuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 macro_rules! default_imp_for_uas_authentication {
     ($($path:ident::$connector:ident),*) => {
@@ -2383,17 +1936,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "dummy_connector")]
-impl UasAuthentication for connector::DummyBillingConnector {}
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        Authenticate,
-        types::UasAuthenticationRequestData,
-        types::UasAuthenticationResponseData,
-    > for connector::DummyBillingConnector
-{
-}
 
 default_imp_for_uas_authentication!(
     connector::Adyenplatform,
@@ -2531,8 +2073,6 @@ macro_rules! default_imp_for_revenue_recovery {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 
-#[cfg(feature = "dummy_connector")]
-impl api::RevenueRecovery for connector::DummyBillingConnector {}
 
 default_imp_for_revenue_recovery! {
     connector::Adyenplatform,
@@ -2575,20 +2115,6 @@ impl<const T: u8>
         types::BillingConnectorPaymentsSyncRequest,
         types::BillingConnectorPaymentsSyncResponse,
     > for connector::DummyConnector<T>
-{
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl api::BillingConnectorPaymentsSyncIntegration for connector::DummyBillingConnector {}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        BillingConnectorPaymentsSync,
-        types::BillingConnectorPaymentsSyncRequest,
-        types::BillingConnectorPaymentsSyncResponse,
-    > for connector::DummyBillingConnector
 {
 }
 
@@ -2638,19 +2164,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl api::RevenueRecoveryRecordBack for connector::DummyBillingConnector {}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl
-    services::ConnectorIntegration<
-        RecoveryRecordBack,
-        types::RevenueRecoveryRecordBackRequest,
-        types::RevenueRecoveryRecordBackResponse,
-    > for connector::DummyBillingConnector
-{
-}
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
