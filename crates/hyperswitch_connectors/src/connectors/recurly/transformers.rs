@@ -25,6 +25,7 @@ use hyperswitch_domain_models::{
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
+    router_data_v2::flow_common_types as recovery_flow_common_types
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -34,7 +35,7 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::utils;
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{RefundsResponseRouterData, ResponseRouterData, ResponseRouterDataV2},
     utils::PaymentsAuthorizeRequestData,
 };
 
@@ -333,19 +334,21 @@ pub struct PaymentGateway {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
-        ResponseRouterData<
+        ResponseRouterDataV2<
             recovery_router_flows::BillingConnectorPaymentsSync,
             RecurlyRecoveryDetailsData,
+            recovery_flow_common_types::BillingConnectorPaymentsSyncFlowData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
-    > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterData
+    > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterDataV2
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
+        item: ResponseRouterDataV2<
             recovery_router_flows::BillingConnectorPaymentsSync,
             RecurlyRecoveryDetailsData,
+            recovery_flow_common_types::BillingConnectorPaymentsSyncFlowData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
@@ -468,19 +471,21 @@ pub struct RecurlyRecordBackResponse {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
-        ResponseRouterData<
+        ResponseRouterDataV2<
             recovery_router_flows::RecoveryRecordBack,
             RecurlyRecordBackResponse,
+            recovery_flow_common_types::RevenueRecoveryRecordBackData,
             recovery_request_types::RevenueRecoveryRecordBackRequest,
             recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
-    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
+    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
+        item: ResponseRouterDataV2<
             recovery_router_flows::RecoveryRecordBack,
             RecurlyRecordBackResponse,
+            recovery_flow_common_types::RevenueRecoveryRecordBackData,
             recovery_request_types::RevenueRecoveryRecordBackRequest,
             recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
@@ -540,19 +545,21 @@ pub struct RecurlyInvoiceTransactionsStatus {
 
 impl
     TryFrom<
-        ResponseRouterData<
+        ResponseRouterDataV2<
             recovery_router_flows::BillingConnectorInvoiceSync,
             RecurlyInvoiceSyncResponse,
+            recovery_flow_common_types::BillingConnectorInvoiceSyncFlowData,
             recovery_request_types::BillingConnectorInvoiceSyncRequest,
             recovery_response_types::BillingConnectorInvoiceSyncResponse,
         >,
-    > for recovery_router_data_types::BillingConnectorInvoiceSyncRouterData
+    > for recovery_router_data_types::BillingConnectorInvoiceSyncRouterDataV2
 {
-    type Error = errors::ConnectorError;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
+        item: ResponseRouterDataV2<
             recovery_router_flows::BillingConnectorInvoiceSync,
             RecurlyInvoiceSyncResponse,
+            recovery_flow_common_types::BillingConnectorInvoiceSyncFlowData,
             recovery_request_types::BillingConnectorInvoiceSyncRequest,
             recovery_response_types::BillingConnectorInvoiceSyncResponse,
         >,
@@ -563,7 +570,11 @@ impl
         Ok(Self {
             response: Ok(
                 recovery_response_types::BillingConnectorInvoiceSyncResponse {
-                    amount: item.response.total.into(),
+                    amount: utils::convert_back_amount_to_minor_units(
+                        &FloatMajorUnitForConnector,
+                        item.response.total,
+                        item.response.currency,
+                    )?,
                     currency: item.response.currency.into(),
                     merchant_reference_id: item.response.id.into(),
                     retry_count: Some(retry_count),

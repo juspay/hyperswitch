@@ -3,7 +3,9 @@ use common_enums::enums as common_enums;
 use common_utils::{id_type, types as util_types};
 use time::PrimitiveDateTime;
 
-use crate::router_response_types::revenue_recovery::{BillingConnectorPaymentsSyncResponse,BillingConnectorInvoiceSyncResponse};
+use crate::router_response_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+};
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
@@ -215,7 +217,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             amount: data.amount,
             currency: data.currency,
             merchant_reference_id: data.merchant_reference_id.clone(),
-            billing_address: data.billing_address,
+            billing_address: data.billing_address.clone(),
         }
     }
 }

@@ -60,14 +60,13 @@ pub async fn recovery_incoming_webhook_flow(
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
-
     let billing_connectors_with_invoice_sync_call = &state.conf.billing_connectors_invoice_sync;
 
-    let should_billing_connector_invoice_api_called =  billing_connectors_with_invoice_sync_call
-            .billing_connectors_which_require_invoice_sync
-            .contains(&connector);
+    let should_billing_connector_invoice_api_called = billing_connectors_with_invoice_sync_call
+        .billing_connectors_which_require_invoice_sync
+        .contains(&connector);
 
-    // let billing_connector_invoice_details = 
+    // let billing_connector_invoice_details =
 
     let billing_connectors_with_payment_sync_call = &state.conf.billing_connectors_payment_sync;
 
@@ -86,17 +85,19 @@ pub async fn recovery_incoming_webhook_flow(
         )
         .await?;
 
-    let invoice_id = billing_connector_payment_details.and_then(|data| Some(data.merchant_reference_id));
+    let invoice_id =
+        billing_connector_payment_details.and_then(|data| Some(data.merchant_reference_id));
 
-    let billing_connector_invoice_details = 
+    let billing_connector_invoice_details =
         BillingConnectorInvoiceSyncResponseData::get_billing_connector_invoice_details(
-            should_billing_connector_invoice_api_called, 
-            &state, 
-            &merchant_account, 
-            &billing_connector_account, 
-            connector_name, 
-            invoice_id
-        ).await?;
+            should_billing_connector_invoice_api_called,
+            &state,
+            &merchant_account,
+            &billing_connector_account,
+            connector_name,
+            invoice_id,
+        )
+        .await?;
 
     // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
 
@@ -881,12 +882,19 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
         .parse_value("ConnectorAuthType")
         .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)?;
 
+        let connector_params = 
+            hyperswitch_domain_models::configs::Connectors
+                ::get_connector_params_using_connector_name(&state.conf.connectors, connector_name.to_string())
+                .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+                .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",connector_name))?;
+
         let router_data = types::RouterDataV2 {
             flow: PhantomData::<router_flow_types::BillingConnectorPaymentsSync>,
             tenant_id: state.tenant.tenant_id.clone(),
             resource_common_data: flow_common_types::BillingConnectorPaymentsSyncFlowData,
             connector_auth_type: auth_type,
             request: revenue_recovery_request::BillingConnectorPaymentsSyncRequest {
+                connector_params,
                 billing_connector_psync_id: billing_connector_psync_id.to_string(),
             },
             response: Err(types::ErrorResponse::default()),
@@ -990,7 +998,10 @@ impl BillingConnectorInvoiceSyncResponseData {
         let response_data = match should_billing_connector_invoice_api_called {
             true => {
                 let billing_connector_invoice_id = merchant_reference_id
-                    .map(|id| id.get_string_repr()).ok_or_else(|| errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)?;
+                    .map(|id| id.get_string_repr())
+                    .ok_or_else(|| {
+                        errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed
+                    })?;
                 let billing_connector_invoice_details =
                     Self::handle_billing_connector_invoice_sync_call(
                         state,
@@ -1028,6 +1039,15 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
         .parse_value("ConnectorAuthType")
         .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)?;
 
+        let connector_params = 
+        hyperswitch_domain_models::configs::Connectors
+            ::get_connector_params_using_connector_name(&state.conf.connectors, connector_name.to_string())
+            .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+            .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",connector_name))?;
+
+
+        let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params_using_connector_name(&state.conf.connectors, connector_name.to_string());
+
         let router_data = types::RouterDataV2 {
             flow: PhantomData::<router_flow_types::BillingConnectorInvoiceSync>,
             tenant_id: state.tenant.tenant_id.clone(),
@@ -1035,6 +1055,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
             connector_auth_type: auth_type,
             request: revenue_recovery_request::BillingConnectorInvoiceSyncRequest {
                 billing_connector_invoice_id: billing_connector_invoice_id.to_string(),
+                connector_params
             },
             response: Err(types::ErrorResponse::default()),
         };
