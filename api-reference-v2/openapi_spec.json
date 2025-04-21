@@ -7648,6 +7648,18 @@
           "phone_country_code": {
             "type": "string",
             "nullable": true
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CtpServiceProvider"
+              }
+            ],
+            "nullable": true
+          },
+          "dpa_client_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -9804,6 +9816,21 @@
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
+            "nullable": true
+          },
+          "network_advice_code": {
+            "type": "string",
+            "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "nullable": true
+          },
+          "network_decline_code": {
+            "type": "string",
+            "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "nullable": true
+          },
+          "network_error_message": {
+            "type": "string",
+            "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
             "nullable": true
           }
         }
@@ -14369,6 +14396,38 @@
           }
         }
       },
+      "PaymentAttemptRecordResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The global identifier for the payment attempt"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "payment_intent_feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_attempt_feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentAttemptFeatureMetadata"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -14771,6 +14830,27 @@
           "enable_button_only_on_form_ready": {
             "type": "boolean",
             "description": "Flag to enable the button only when the payment form is ready for submission"
+          },
+          "payment_form_header_text": {
+            "type": "string",
+            "description": "Optional header for the SDK's payment form",
+            "nullable": true
+          },
+          "payment_form_label_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkSdkLabelType"
+              }
+            ],
+            "nullable": true
+          },
+          "show_card_terms": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14913,6 +14993,27 @@
             "type": "boolean",
             "description": "Flag to enable the button only when the payment form is ready for submission",
             "nullable": true
+          },
+          "payment_form_header_text": {
+            "type": "string",
+            "description": "Optional header for the SDK's payment form",
+            "nullable": true
+          },
+          "payment_form_label_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkSdkLabelType"
+              }
+            ],
+            "nullable": true
+          },
+          "show_card_terms": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14959,6 +15060,22 @@
             "description": "Identifier for the payment link"
           }
         }
+      },
+      "PaymentLinkSdkLabelType": {
+        "type": "string",
+        "enum": [
+          "above",
+          "floating",
+          "never"
+        ]
+      },
+      "PaymentLinkShowSdkTerms": {
+        "type": "string",
+        "enum": [
+          "always",
+          "auto",
+          "never"
+        ]
       },
       "PaymentLinkStatus": {
         "type": "string",
@@ -15157,6 +15274,7 @@
         "type": "object",
         "required": [
           "payment_method_type",
+          "payment_method_subtype",
           "customer_id",
           "payment_method_data"
         ],
@@ -15165,12 +15283,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "metadata": {
             "type": "object",
@@ -16521,7 +16634,6 @@
         "type": "object",
         "required": [
           "total_retry_count",
-          "payment_connector_transmission",
           "billing_connector_id",
           "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
@@ -16538,7 +16650,12 @@
             "minimum": 0
           },
           "payment_connector_transmission": {
-            "$ref": "#/components/schemas/PaymentConnectorTransmission"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentConnectorTransmission"
+              }
+            ],
+            "nullable": true
           },
           "billing_connector_id": {
             "type": "string",
@@ -16561,6 +16678,12 @@
           },
           "connector": {
             "$ref": "#/components/schemas/Connector"
+          },
+          "invoice_next_billing_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice Next billing time",
+            "nullable": true
           }
         }
       },
@@ -16637,7 +16760,8 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type"
+          "payment_method_type",
+          "payment_method_subtype"
         ],
         "properties": {
           "return_url": {
@@ -16653,12 +16777,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "shipping": {
             "allOf": [
@@ -16880,6 +16999,11 @@
               }
             ],
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17075,7 +17199,7 @@
           "client_secret": {
             "type": "string",
             "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+            "example": "cs_0195b34da95d75239c6a4bf514458896"
           },
           "profile_id": {
             "type": "string",
@@ -17441,7 +17565,8 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type"
+          "payment_method_type",
+          "payment_method_subtype"
         ],
         "properties": {
           "amount_details": {
@@ -17633,12 +17758,7 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "customer_acceptance": {
             "allOf": [
@@ -17660,6 +17780,11 @@
             "type": "string",
             "description": "The payment_method_id to be associated with the payment",
             "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17672,7 +17797,6 @@
           "status",
           "amount",
           "customer_id",
-          "client_secret",
           "created"
         ],
         "properties": {
@@ -17701,10 +17825,6 @@
             "description": "The connector used for the payment",
             "example": "stripe",
             "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification."
           },
           "created": {
             "type": "string",
@@ -19652,7 +19772,6 @@
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
-          "should_collect_cvv_during_payment",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled"
         ],
@@ -19833,7 +19952,8 @@
           },
           "should_collect_cvv_during_payment": {
             "type": "boolean",
-            "description": "Indicates if CVV should be collected during payment or not."
+            "description": "Indicates if CVV should be collected during payment or not.",
+            "nullable": true
           },
           "is_click_to_pay_enabled": {
             "type": "boolean",

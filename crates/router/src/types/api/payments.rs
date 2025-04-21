@@ -27,8 +27,9 @@ pub use api_models::{
         PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
         PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
         PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-        UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
+        VerifyRequest, VerifyResponse, WalletData,
     },
 };
 use error_stack::ResultExt;
@@ -36,22 +37,24 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent,
     PaymentGetIntent, PaymentMethodToken, PaymentUpdateIntent, PostProcessing, PostSessionTokens,
-    PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
+    PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
+    Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
     PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentSync,
-    PaymentToken, PaymentVoid, PaymentsCompleteAuthorize, PaymentsPostProcessing,
-    PaymentsPreProcessing, TaxCalculation,
+    PaymentToken, PaymentUpdateMetadata, PaymentVoid, PaymentsCompleteAuthorize,
+    PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
 };
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
     PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
     PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
-    PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
-    PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
+    PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
+    PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+    TaxCalculationV2,
 };
 use crate::core::errors;
 
@@ -135,18 +138,14 @@ mod payments_test {
             card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
-            card_holder_name: Some(common_utils::types::NameType::get_unchecked(
-                "JohnDoe".to_string(),
-            )),
+            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: Some(common_utils::types::NameType::get_unchecked(
-                "nick_name".to_string(),
-            )),
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }
     }
 

@@ -237,8 +237,9 @@ impl ConnectorCommon for Fiservemea {
                     },
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
             None => Ok(ErrorResponse {
@@ -251,8 +252,9 @@ impl ConnectorCommon for Fiservemea {
                 reason: response.response_type,
                 attempt_status: None,
                 connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
         }
     }

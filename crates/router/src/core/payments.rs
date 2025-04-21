@@ -73,7 +73,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -1738,7 +1738,7 @@ pub async fn record_attempt_core(
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
     platform_merchant_account: Option<domain::MerchantAccount>,
-) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
+) -> RouterResponse<api_models::payments::PaymentAttemptRecordResponse> {
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
     let operation: &operations::payment_attempt_record::PaymentAttemptRecord =
@@ -2040,9 +2040,6 @@ pub(crate) async fn payments_create_and_confirm_intent(
         .get_json_body()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unexpected response from payments core")?;
-
-    // Adding client secret to ensure client secret validation passes during confirm intent step
-    header_payload.client_secret = Some(create_intent_response.client_secret.clone());
 
     let payload = payments_api::PaymentsConfirmIntentRequest::from(&request);
 
@@ -4218,6 +4215,12 @@ pub async fn get_session_token_for_click_to_pay(
 
     validate_customer_details_for_click_to_pay(&customer_details)?;
 
+    let provider = match merchant_connector_account.connector_name.as_str() {
+        "ctp_mastercard" => Some(enums::CtpServiceProvider::Mastercard),
+        "ctp_visa" => Some(enums::CtpServiceProvider::Visa),
+        _ => None,
+    };
+
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
@@ -4233,6 +4236,8 @@ pub async fn get_session_token_for_click_to_pay(
             phone_number: customer_details.phone.clone(),
             email: customer_details.email.clone(),
             phone_country_code: customer_details.phone_country_code.clone(),
+            provider,
+            dpa_client_id: click_to_pay_metadata.dpa_client_id.clone(),
         },
     )))
 }
@@ -5542,6 +5547,7 @@ where
         "PaymentSession" => true,
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
+        "PaymentUpdateMetadata" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -7730,7 +7736,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication_details.three_ds_requestor_url.clone(),
                 payment_intent.psd2_sca_exemption_type,
                 payment_intent.payment_id,
-                business_profile.force_3ds_challenge,
+                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
             ))
             .await?
         };
@@ -8005,6 +8011,8 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
+    #[cfg(feature = "v2")]
+    fn get_client_secret(&self) -> &Option<Secret<String>>;
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod>;
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds>;
     fn get_address(&self) -> &PaymentAddress;
@@ -8046,6 +8054,8 @@ pub trait OperationSessionGetters<F> {
 pub trait OperationSessionSetters<F> {
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
+    #[cfg(feature = "v2")]
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_email_if_not_present(&mut self, email: pii::Email);
@@ -8353,6 +8363,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        &self.client_secret
+    }
+
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
     }
@@ -8485,7 +8499,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        self.client_secret = client_secret;
+    }
     fn set_payment_attempt(&mut self, _payment_attempt: storage::PaymentAttempt) {
         todo!()
     }
@@ -8568,6 +8584,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
+    }
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        todo!()
     }
 
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
@@ -8701,7 +8720,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        todo!()
+    }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = payment_attempt;
     }
@@ -8787,7 +8808,9 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         todo!()
     }
-
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        todo!()
+    }
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
     }
@@ -8918,7 +8941,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        todo!()
+    }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = Some(payment_attempt);
     }
@@ -9004,7 +9029,9 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
     }
-
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        todo!()
+    }
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
     }
@@ -9137,7 +9164,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        todo!()
+    }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = payment_attempt;
     }

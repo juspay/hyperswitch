@@ -308,7 +308,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                     let apple_pay_payment_data =
                         payment_method_data.get_applepay_decoded_payment_data()?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
-                        .expose()[..]
+                        .expose()
                         .as_bytes()
                         .parse_struct("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::InvalidWalletToken {
@@ -344,8 +344,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         billing_contact: BillingDetails {
                             country_code: billing_address.country,
                             address_lines: Some(address),
-                            family_name: billing_address.last_name.to_owned().map(From::from),
-                            given_name: billing_address.first_name.to_owned().map(From::from),
+                            family_name: billing_address.last_name.to_owned(),
+                            given_name: billing_address.first_name.to_owned(),
                             postal_code: billing_address.zip,
                         },
                     }

@@ -182,8 +182,9 @@ impl ConnectorCommon for Noon {
                     reason: Some(noon_error_response.message),
                     attempt_status,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
             Err(error_message) => {
@@ -330,31 +331,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: noon::NoonAuthPaymentResponse = res
+        let response: noon::NoonPaymentsResponse = res
             .response
-            .parse_struct("Noon PaymentsAuthorizeResponse")
+            .parse_struct("NoonPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        match response {
-            noon::NoonAuthPaymentResponse::NoonPaypalResponse(response) => {
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-            noon::NoonAuthPaymentResponse::NoonPaymentsResponse(response) => {
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -444,9 +433,9 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: noon::NoonPaypalResponse = res
+        let response: noon::NoonPaymentsResponse = res
             .response
-            .parse_struct("Noon NoonPaypalResponse")
+            .parse_struct("NoonPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
