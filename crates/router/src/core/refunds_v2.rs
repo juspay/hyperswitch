@@ -450,8 +450,8 @@ pub async fn refund_update_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     req: refunds::RefundUpdateRequest,
-    global_refund_id: common_utils::id_type::GlobalRefundId,
-) -> RouterResponse<refunds::RefundResponse> {
+    global_refund_id: id_type::GlobalRefundId,
+) -> errors::RouterResponse<refunds::RefundResponse> {
     let db = state.store.as_ref();
     let refund = db
         .find_refund_by_id(&global_refund_id, merchant_account.storage_scheme)

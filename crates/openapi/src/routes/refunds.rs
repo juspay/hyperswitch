@@ -218,7 +218,7 @@ pub async fn refunds_create() {}
 ///
 /// Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/refunds/{id}",
     params(
         ("id" = String, Path, description = "The identifier for refund")

@@ -3264,6 +3264,119 @@
           }
         ]
       }
+    },
+    "/v2/refunds/{id}": {
+      "put": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Refunds - Update",
+        "description": "Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields",
+        "operationId": "Update a Refund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The identifier for refund",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundUpdateRequest"
+              },
+              "examples": {
+                "Update merchant reference id of a refund": {
+                  "value": {
+                    "merchant_reference_id": "ref_123"
+                  }
+                },
+                "Update refund reason": {
+                  "value": {
+                    "reason": "Paid by mistake"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Refund updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
+      "get": {
+        "tags": [
+          "Revenue Recovery"
+        ],
+        "summary": "Revenue Recovery - Retrieve",
+        "description": "Retrieve the Revenue Recovery Payment Info",
+        "operationId": "Retrieve Revenue Recovery Info",
+        "parameters": [
+          {
+            "name": "recovery_recovery_id",
+            "in": "path",
+            "description": "The payment intent id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenue Recovery Info Retrieved Successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueRecoveryResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {

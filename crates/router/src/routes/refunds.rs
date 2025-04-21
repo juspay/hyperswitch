@@ -329,7 +329,10 @@ pub async fn refunds_update(
                 global_refund_id.clone(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
