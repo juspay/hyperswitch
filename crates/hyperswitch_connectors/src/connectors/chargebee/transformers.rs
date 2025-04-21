@@ -452,7 +452,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         Ok(Self {
             amount,
             currency,
-            merchant_reference_id,
+            merchant_reference_ids: Some(merchant_reference_id),
             connector_transaction_id,
             error_code,
             error_message,

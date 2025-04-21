@@ -58,7 +58,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         let request = PaymentsGetIntentRequest {
             id: tracking_data.global_payment_id.clone(),
         };
-        let pcr_data = extract_data_and_perform_action(state, &tracking_data).await?;
+        let revenue_recovery_payment_data =
+            extract_data_and_perform_action(state, &tracking_data).await?;
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,
@@ -67,9 +68,9 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         >(
             state,
             state.get_req_state(),
-            pcr_data.merchant_account.clone(),
-            pcr_data.profile.clone(),
-            pcr_data.key_store.clone(),
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.profile.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
             payments::operations::PaymentGetIntent,
             request,
             tracking_data.global_payment_id.clone(),
@@ -77,7 +78,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             None,
         )
         .await?;
-        let store = state.store.as_ref();
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
@@ -85,7 +85,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &tracking_data,
-                    &pcr_data,
+                    &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
                 )
                 .await
@@ -95,7 +95,8 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &tracking_data,
-                    &pcr_data,
+                    &revenue_recovery_payment_data,
+                    &payment_data.payment_intent,
                 ))
                 .await?;
                 Ok(())

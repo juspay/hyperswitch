@@ -13,7 +13,7 @@ pub struct RevenueRecoveryAttemptData {
     /// currency of the transaction
     pub currency: common_enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
-    pub merchant_reference_id: id_type::PaymentReferenceId,
+    pub merchant_reference_ids: Option<id_type::PaymentReferenceId>,
     /// transaction id reference at payment connector
     pub connector_transaction_id: Option<util_types::ConnectorTransactionId>,
     /// error code sent by billing connector.
@@ -218,7 +218,7 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
         Self {
             amount: data.amount,
             currency: data.currency,
-            merchant_reference_id: data.merchant_reference_id.clone(),
+            merchant_reference_ids: Some(data.merchant_reference_id.clone()),
             connector_transaction_id: data.connector_transaction_id.clone(),
             error_code: data.error_code.clone(),
             error_message: data.error_message.clone(),

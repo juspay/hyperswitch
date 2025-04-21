@@ -1,20 +1,22 @@
-use api_models::payments as payments_api;
-use common_utils::id_type;
-use hyperswitch_domain_models::payments as payments_domain;
-
 use super::types;
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, operations::Operation},
+        webhooks::recovery_incoming,
     },
     logger,
     routes::SessionState,
+    services,
     types::{
         api::payments as api_types,
         storage::{self, revenue_recovery as revenue_recovery_types},
     },
 };
+use api_models::payments as payments_api;
+use common_utils::id_type;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::payments as payments_domain;
 
 pub async fn call_psync_api(
     state: &SessionState,
@@ -151,4 +153,59 @@ pub async fn update_payment_intent_api(
     )
     .await?;
     Ok(payment_data)
+}
+
+pub async fn record_internal_attempt_api(
+    state: &SessionState,
+    payment_intent: &payments_domain::PaymentIntent,
+    pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+    revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
+    let revenue_recovery_attempt_data =
+        recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
+            payment_intent,
+            revenue_recovery_metadata,
+            &pcr_data.billing_mca,
+        )
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "get_revenue_recovery_attempt was not constructed".to_string(),
+        })?;
+
+    let payment_connector_account = revenue_recovery_attempt_data
+        .find_payment_merchant_connector_account(state, &pcr_data.key_store, &pcr_data.billing_mca)
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: pcr_data.billing_mca.id.get_string_repr().to_owned(),
+        })?;
+
+    let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
+        &pcr_data.billing_mca.id,
+        payment_connector_account,
+        common_enums::TriggeredBy::Internal,
+    );
+    let attempt_response = Box::pin(payments::record_attempt_core(
+        state.clone(),
+        state.get_req_state(),
+        pcr_data.merchant_account.clone(),
+        pcr_data.profile.clone(),
+        pcr_data.key_store.clone(),
+        request_payload,
+        payment_intent.id.clone(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
+    ))
+    .await;
+
+    match attempt_response {
+        Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
+            Ok(attempt_response)
+        }
+        Ok(_) => Err(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Unexpected response from record attempt core"),
+        error @ Err(_) => {
+            router_env::logger::error!(?error);
+            Err(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("failed to record attempt for revenue recovery workflow")
+        }
+    }
 }

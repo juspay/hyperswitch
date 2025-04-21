@@ -8,8 +8,9 @@ use common_utils::{
 use diesel_models::{process_tracker as storage, schema::process_tracker::retry_count};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    errors::api_error_response, revenue_recovery, router_data_v2::flow_common_types,
-    router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
+    errors::api_error_response, payments as domain_payments, revenue_recovery,
+    router_data_v2::flow_common_types, router_flow_types,
+    router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
@@ -384,7 +385,18 @@ impl RevenueRecoveryAttempt {
             },
         )
     }
-
+    pub fn get_revenue_recovery_attempt(
+        payment_intent: &domain_payments::PaymentIntent,
+        revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
+        billing_connector_account: &domain::MerchantConnectorAccount,
+    ) -> CustomResult<Self, errors::RevenueRecoveryError> {
+        Ok(RevenueRecoveryAttempt(
+            payment_intent.create_revenue_recovery_attempt_data(
+                revenue_recovery_metadata.clone(),
+                billing_connector_account,
+            ),
+        ))
+    }
     async fn get_payment_attempt(
         &self,
         state: &SessionState,
@@ -478,8 +490,11 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let request_payload = self
-            .create_payment_record_request(billing_connector_account_id, payment_connector_account);
+        let request_payload = self.create_payment_record_request(
+            billing_connector_account_id,
+            payment_connector_account,
+            common_enums::TriggeredBy::External,
+        );
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
@@ -526,12 +541,13 @@ impl RevenueRecoveryAttempt {
         &self,
         billing_merchant_connector_account_id: &id_type::MerchantConnectorAccountId,
         payment_merchant_connector_account: Option<domain::MerchantConnectorAccount>,
+        triggered_by: common_enums::TriggeredBy,
     ) -> api_payments::PaymentsAttemptRecordRequest {
         let amount_details = api_payments::PaymentAttemptAmountDetails::from(&self.0);
         let feature_metadata = api_payments::PaymentAttemptFeatureMetadata {
             revenue_recovery: Some(api_payments::PaymentAttemptRevenueRecoveryData {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
-                attempt_triggered_by: common_enums::TriggeredBy::External,
+                attempt_triggered_by: triggered_by,
             }),
         };
         let error = Option::<api_payments::RecordAttemptErrorDetails>::from(&self.0);
@@ -554,6 +570,7 @@ impl RevenueRecoveryAttempt {
             transaction_created_at: self.0.transaction_created_at,
             processor_payment_method_token: self.0.processor_payment_method_token.clone(),
             connector_customer_id: self.0.connector_customer_id.clone(),
+            triggered_by
         }
     }
 

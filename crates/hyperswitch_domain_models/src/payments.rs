@@ -42,7 +42,7 @@ use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, payment_address, payment_method_data, routing,
+    merchant_connector_account, payment_address, payment_method_data, revenue_recovery, routing,
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
@@ -647,6 +647,39 @@ impl PaymentIntent {
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
         self.feature_metadata.clone()
     }
+
+    pub fn create_revenue_recovery_attempt_data(
+        &self,
+        revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
+        billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> revenue_recovery::RevenueRecoveryAttemptData {
+        revenue_recovery::RevenueRecoveryAttemptData {
+            amount: self.amount_details.order_amount,
+            currency: self.amount_details.currency,
+            merchant_reference_ids: self.merchant_reference_id.clone(), // is the intent id
+            connector_transaction_id: None,                             // No connector id
+            error_code: None,
+            error_message: None,
+            processor_payment_method_token: revenue_recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token,
+            connector_customer_id: revenue_recovery_metadata
+                .billing_connector_payment_details
+                .connector_customer_id,
+            connector_account_reference_id: "stripebilling".to_string(), //mca metadata  accountreference
+            transaction_created_at: None,                                // would unwrap or as now
+            status: common_enums::AttemptStatus::Started,
+            payment_method_type: self
+                .get_payment_method_type()
+                .unwrap_or(revenue_recovery_metadata.payment_method_type),
+            payment_method_sub_type: self
+                .get_payment_method_sub_type()
+                .unwrap_or(revenue_recovery_metadata.payment_method_subtype),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -803,6 +836,7 @@ pub struct RevenueRecoveryData {
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
     pub processor_payment_method_token: String,
     pub connector_customer_id: String,
+    pub triggered_by: storage_enums::enums::TriggeredBy,
 }
 
 #[cfg(feature = "v2")]
