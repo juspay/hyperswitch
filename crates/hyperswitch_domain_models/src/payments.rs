@@ -674,6 +674,29 @@ impl PaymentIntent {
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
         self.feature_metadata.clone()
     }
+
+    pub fn get_optional_customer_id(
+        &self,
+    ) -> CustomResult<Option<id_type::CustomerId>, common_utils::errors::ValidationError> {
+        self.customer_id
+            .as_ref()
+            .map(|customer_id| id_type::CustomerId::try_from(customer_id.clone()))
+            .transpose()
+    }
+
+    pub fn get_optional_connector_metadata(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::ConnectorMetadata>,
+        common_utils::errors::ParsingError,
+    > {
+        self.connector_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+            })
+            .transpose()
+    }
 }
 
 #[cfg(feature = "v1")]
