@@ -47,7 +47,6 @@ pub async fn migrate_payment_method(
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<PaymentMethodMigrateResponse>, errors::ApiErrorResponse> {
     let mut req = req;
-    println!("migrate_payment_method_api {:?}", req);
     let card_details = &req.card.get_required_value("card")?;
 
     let card_number_validation_result =
