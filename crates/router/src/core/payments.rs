@@ -1769,13 +1769,69 @@ pub async fn record_attempt_core(
             platform_merchant_account.as_ref(),
         )
         .await?;
+    let payment_address = PaymentAddress::new(
+        payment_data.payment_intent
+            .shipping_address
+            .clone()
+            .map(|address| address.into_inner()),
+        payment_data.payment_intent
+            .billing_address
+            .clone()
+            .map(|address| address.into_inner()),
+        payment_data.payment_attempt
+            .payment_method_billing_address
+            .clone()
+            .map(|address| address.into_inner()),
+        Some(true),
+    );
 
-    let (_operation, payment_data) = boxed_operation
+        let (status_payment_data, _req,connector_http_status_code, external_latency) =
+                Box::pin(proxy_for_payments_operation_core::<
+                    api::PSync,
+                    _,
+                    _,
+                    _,
+                    PaymentStatusData<api::PSync>,
+                >(
+                    &state,
+                    req_state.clone(),
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    profile.clone(),
+                    operations::PaymentGet,
+                    api::PaymentsRetrieveRequest {
+                        force_sync: true,
+                        expand_attempts: false,
+                        param: None,
+                    },
+                    operations::GetTrackerResponse {
+                        payment_data: PaymentStatusData {
+                            flow: PhantomData,
+                            payment_intent : payment_data.payment_intent.clone(),
+                            payment_attempt: Some(payment_data.payment_attempt.clone()),
+                            attempts: None,
+                            should_sync_with_connector: true,
+                            payment_address: payment_address.clone(),
+                        },
+                    },
+                    CallConnectorAction::Trigger,
+                    HeaderPayload::default(),
+                ))
+                .await?;
+    let record_payment_data = domain_payments::PaymentAttemptRecordData {
+        flow: PhantomData,
+        payment_intent: status_payment_data.payment_intent,
+        payment_attempt: status_payment_data.payment_attempt.unwrap(),
+        revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
+        payment_address,
+    };
+            
+    let (_operation, final_payment_data) = boxed_operation
         .to_update_tracker()?
         .update_trackers(
             &state,
             req_state,
-            payment_data,
+            record_payment_data,
             None,
             merchant_account.storage_scheme,
             None,
@@ -1786,7 +1842,7 @@ pub async fn record_attempt_core(
         .await?;
 
     transformers::GenerateResponse::generate_response(
-        payment_data,
+        final_payment_data,
         &state,
         None,
         None,
