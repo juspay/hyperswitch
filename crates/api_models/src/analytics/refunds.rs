@@ -11,7 +11,6 @@ use crate::enums::{Currency, RefundStatus};
     Clone,
     Copy,
     Debug,
-    Default,
     Hash,
     Eq,
     PartialEq,
@@ -24,7 +23,6 @@ use crate::enums::{Currency, RefundStatus};
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundType {
-    #[default]
     InstantRefund,
     RegularRefund,
     RetryRefund,
