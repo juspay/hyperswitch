@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use std::{
     any::type_name,
     borrow::Cow,
@@ -28,7 +30,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData, ConnectorInfo, PaymentMethodDetails, SupportedPaymentMethods, SupportedPaymentMethodsExt},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -267,22 +269,6 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
 }
 
 impl ConnectorValidation for Fiuu {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _payment_method: PaymentMethod,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic
-            | CaptureMethod::Manual
-            | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
@@ -1019,4 +1005,132 @@ impl webhooks::IncomingWebhook for Fiuu {
     }
 }
 
-impl ConnectorSpecifications for Fiuu {}
+static FIUU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = 
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            CaptureMethod::Automatic,
+            CaptureMethod::Manual,
+            CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Discover,
+        ];
+
+        let mut fiuu_supported_payment_methods = SupportedPaymentMethods::new();
+
+        fiuu_supported_payment_methods.add(
+            PaymentMethod::RealTimePayment,
+            PaymentMethodType::DuitNow,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        fiuu_supported_payment_methods.add(
+            PaymentMethod::BankRedirect,
+            PaymentMethodType::OnlineBankingFpx,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        fiuu_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::GooglePay,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        fiuu_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::ApplePay,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        fiuu_supported_payment_methods.add(
+            PaymentMethod::Card,
+            PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        fiuu_supported_payment_methods.add(
+            PaymentMethod::Card,
+            PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            }
+        );
+
+        fiuu_supported_payment_methods
+    });
+
+static FIUU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Fiuu",
+    description:
+        "Fiuu, formerly known as Razer Merchant Services, is a leading online payment gateway in Southeast Asia, offering secure and seamless payment solutions for businesses of all sizes, including credit and debit cards, e-wallets, and bank transfers.",
+    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static FIUU_SUPPORTED_WEBHOOK_FLOWS:[common_enums::EventClass; 2] = [common_enums::EventClass::Payments, common_enums::EventClass::Refunds];
+
+
+
+impl ConnectorSpecifications for Fiuu {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&FIUU_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*FIUU_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&FIUU_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
