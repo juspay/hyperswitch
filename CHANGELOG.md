@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix5
+
+### Bug Fixes
+
+- **connector:** [noon] address next_action_url being null for cards in 3ds payment ([#7861](https://github.com/juspay/hyperswitch/pull/7861)) ([`a264bde`](https://github.com/juspay/hyperswitch/commit/a264bdea4b36bc8e39c6f08dc0bfd1d0e314c433))
+
+### Revert
+
+- Fix(connector): [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7860](https://github.com/juspay/hyperswitch/pull/7860)) ([`4038b52`](https://github.com/juspay/hyperswitch/commit/4038b5276f383f99a604004d73255a01ea530512))
+
+**Full Changelog:** [`2025.04.09.0-hotfix4...2025.04.09.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix4...2025.04.09.0-hotfix5)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix4
 
 ### Bug Fixes
