@@ -1113,8 +1113,8 @@ pub struct MerchantRiskIndicator {
     /// New field introduced:
     /// - transChar -> Indicates to the ACS specific transactions identified by the Merchant.
     ///      - Size: Variable, 1-2 elements. JSON Data Type: Array of String. Accepted values:
-    ///          - 01 -> Cryptocurrency transaction
-    ///          - 02 -> NFT transaction
+    ///                     - 01 -> Cryptocurrency transaction
+    ///                     - 02 -> NFT transaction
     trans_char: Option<String>,
 }
 
@@ -1558,19 +1558,19 @@ pub struct Sdk {
     ///    Creates a JSON object of the following data as the JWS payload to be signed:
     ///
     ///    - SDK Reference Number -> Identifies the vendor and version of the 3DS SDK that is utilised for a specific
-    ///      transaction. The value is assigned by EMVCo when the Letter of Approval of the
-    ///      specific 3DS SDK is issued. The field is limited to 32 characters.
+    ///                              transaction. The value is assigned by EMVCo when the Letter of Approval of the
+    ///                              specific 3DS SDK is issued. The field is limited to 32 characters.
     ///    - SDK Signature Timestamp -> Date and time indicating when the 3DS SDK generated the Split-SDK Server Signed
-    ///      Content converted into UTC. The value is limited to 14 characters. Accepted
-    ///      format: YYYYMMDDHHMMSS.
+    ///                                 Content converted into UTC. The value is limited to 14 characters. Accepted
+    ///                                 format: YYYYMMDDHHMMSS.
     ///    - SDK Transaction ID -> Universally unique transaction identifier assigned by the 3DS SDK to identify a
-    ///      single transaction. The field is limited to 36 characters and it shall be in a
-    ///      canonical format as defined in IETF RFC 4122. This may utilize any of the specified
-    ///      versions as long as the output meets specific requirements.
+    ///                            single transaction. The field is limited to 36 characters and it shall be in a
+    ///                            canonical format as defined in IETF RFC 4122. This may utilize any of the specified
+    ///                            versions as long as the output meets specific requirements.
     ///    - Split-SDK Server ID -> DS assigned Split-SDK Server identifier. Each DS can provide a unique ID to each
-    ///      Split-SDK Server on an individual basis. The field is limited to 32 characters.
-    ///      Any individual DS may impose specific formatting and character requirements on the
-    ///      contents of this field.
+    ///                             Split-SDK Server on an individual basis. The field is limited to 32 characters.
+    ///                             Any individual DS may impose specific formatting and character requirements on the
+    ///                             contents of this field.
     ///
     ///    Generates a digital signature of the full JSON object according to JWS (RFC 7515) using JWS Compact
     ///    Serialization. The parameter values for this version of the specification and to be included in the JWS
@@ -1705,7 +1705,7 @@ pub struct SplitSdkType {
     /// Limited Split-SDK Indicator: If the Split-SDK client has limited capabilities
     ///    - Length: 1 character
     ///    - Value accepted:
-    ///      • Y = Limited
+    ///       • Y = Limited
     ///    - Only present if value = Y
     limited_ind: Option<String>,
 }

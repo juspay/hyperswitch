@@ -125,7 +125,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            match value.split('.').next_back() {
+            match value.split('.').last() {
                 Some(decimal_part) => {
                     decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
                 }

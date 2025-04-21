@@ -1373,7 +1373,7 @@ pub fn construct_file_upload_request(
                 .file_type
                 .as_ref()
                 .split('/')
-                .next_back()
+                .last()
                 .unwrap_or_default()
         ))
         .mime_str(request.file_type.as_ref())

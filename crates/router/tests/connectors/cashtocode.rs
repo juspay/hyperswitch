@@ -68,7 +68,7 @@ impl CashtocodeTest {
             router_return_url: Some(String::from("https://google.com")),
             webhook_url: None,
             complete_authorize_url: None,
-            customer_id: cust_id.ok(),
+            customer_id: if let Ok(id) = cust_id { Some(id) } else { None },
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,

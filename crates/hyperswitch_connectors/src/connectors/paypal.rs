@@ -148,7 +148,7 @@ impl Paypal {
                     if let Some(field) = error
                         .field
                         .as_ref()
-                        .and_then(|field| field.split('/').next_back())
+                        .and_then(|field| field.split('/').last())
                     {
                         reason.push_str(&format!(", field - {field}"));
                     }
