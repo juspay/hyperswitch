@@ -208,7 +208,7 @@ pub async fn refunds_retrieve(
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
             },
-            req.headers()
+            req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
     ))
