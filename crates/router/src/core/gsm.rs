@@ -1,16 +1,12 @@
 use api_models::gsm as gsm_api_types;
-use diesel_models::gsm as storage;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::{
-        errors,
-        errors::{RouterResponse, StorageErrorExt},
-    },
+    core::errors::{self, RouterResponse, StorageErrorExt},
     db::gsm::GsmInterface,
     services,
-    types::transformers::ForeignInto,
+    types::transformers::{ForeignFrom, ForeignInto},
     SessionState,
 };
 
@@ -55,6 +51,21 @@ pub async fn update_gsm_rule(
     gsm_request: gsm_api_types::GsmUpdateRequest,
 ) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
+    let connector = gsm_request.connector.clone();
+    let flow = gsm_request.flow.clone();
+    let code = gsm_request.code.clone();
+    let sub_flow = gsm_request.sub_flow.clone();
+    let message = gsm_request.message.clone();
+
+    let gsm_db_record =
+        GsmInterface::find_gsm_rule(db, connector.to_string(), flow, sub_flow, code, message)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "GSM with given key does not exist in our records".to_string(),
+            })?;
+
+    let feature_info = Option::foreign_from((&gsm_request, gsm_db_record));
+
     let gsm_api_types::GsmUpdateRequest {
         connector,
         flow,
@@ -69,6 +80,8 @@ pub async fn update_gsm_rule(
         unified_message,
         error_category,
         clear_pan_possible,
+        alternate_network_possible: _,
+        feature: _,
     } = gsm_request;
     GsmInterface::update_gsm_rule(
         db,
@@ -77,8 +90,8 @@ pub async fn update_gsm_rule(
         sub_flow,
         code,
         message,
-        storage::GatewayStatusMappingUpdate {
-            decision: decision.map(|d| d.to_string()),
+        hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate {
+            decision,
             status,
             router_error: Some(router_error),
             step_up_possible,
@@ -86,6 +99,8 @@ pub async fn update_gsm_rule(
             unified_message,
             error_category,
             clear_pan_possible,
+            feature_data: feature_info.clone().map(|data| data.1),
+            feature: feature_info.map(|data| data.0),
         },
     )
     .await
