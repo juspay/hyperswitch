@@ -270,3 +270,6 @@ creds.json
 
 # Nix services data
 /data
+
+# Python
+venv/

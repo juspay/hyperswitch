@@ -1,0 +1,5 @@
+2025-04-20 13:13:35,607 - INFO - Attempting to sign in user: jarnura47@gmail.com
+2025-04-20 13:13:35,622 - INFO - Sign in successful, TOTP token obtained
+2025-04-20 13:13:35,622 - INFO - Attempting to terminate 2FA with skip_two_factor_auth=True
+2025-04-20 13:13:35,628 - INFO - 2FA terminated successfully, JWT token obtained
+{"success": true, "totp_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMzRkNmY1MjEtMWJmNS00MzYzLTg3MzAtMzk1ZjA1YzY3YzlkIiwicHVycG9zZSI6InRvdHAiLCJvcmlnaW4iOiJzaWduX2luIiwicGF0aCI6W10sImV4cCI6MTc0NTMwNzgxNSwidGVuYW50X2lkIjoicHVibGljIn0.IR2uoCvLj6gziuziWm1e8f3sP0s-hoiplfHqeNB6XN8", "jwt_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiMzRkNmY1MjEtMWJmNS00MzYzLTg3MzAtMzk1ZjA1YzY3YzlkIiwibWVyY2hhbnRfaWQiOiJtZXJjaGFudF8xNzQ1MDE1NzM0Iiwicm9sZV9pZCI6Im9yZ19hZG1pbiIsImV4cCI6MTc0NTMwNzgxNSwib3JnX2lkIjoib3JnX0NsTVVmelN1M01Udm5scWFkWU9SIiwicHJvZmlsZV9pZCI6InByb19USHBmTUlaRm9RbnhteGFzQmExMCIsInRlbmFudF9pZCI6InB1YmxpYyJ9.pOcnPqYFdH6vVCNPFzJw7lhni47eDdTMSyS6ngxZdjo"}

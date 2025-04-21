@@ -1,0 +1,288 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hyperswitch Python Client SDK",
+    "description": "Python client SDK for Hyperswitch API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/payments": {
+      "post": {
+        "operationId": "create_payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts": {
+      "post": {
+        "operationId": "create_merchant_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api_keys": {
+      "post": {
+        "operationId": "create_api_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PaymentsCreateRequest": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Amount to be charged"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code"
+          }
+        },
+        "required": ["amount", "currency"]
+      },
+      "PaymentsResponse": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment"
+          },
+          "status": {
+            "type": "string",
+            "description": "Status of the payment"
+          }
+        }
+      },
+      "MerchantAccountCreate": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Unique identifier for the merchant"
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Name of the merchant"
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "URL to redirect after payment"
+          },
+          "webhook_details": {
+            "type": "object",
+            "properties": {
+              "webhook_version": {
+                "type": "string"
+              },
+              "webhook_username": {
+                "type": "string"
+              },
+              "webhook_password": {
+                "type": "string"
+              },
+              "payment_created_enabled": {
+                "type": "boolean"
+              },
+              "payment_succeeded_enabled": {
+                "type": "boolean"
+              },
+              "payment_failed_enabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "sub_merchants_enabled": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "primary_business_details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "country": {
+                  "type": "string"
+                },
+                "business": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": ["merchant_id", "merchant_name", "merchant_details"]
+      },
+      "MerchantDetails": {
+        "type": "object",
+        "properties": {
+          "primary_contact_person": {
+            "type": "string"
+          },
+          "primary_phone": {
+            "type": "string"
+          },
+          "primary_email": {
+            "type": "string"
+          },
+          "secondary_contact_person": {
+            "type": "string"
+          },
+          "secondary_phone": {
+            "type": "string"
+          },
+          "secondary_email": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "about_business": {
+            "type": "string"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressDetails"
+          }
+        }
+      },
+      "AddressDetails": {
+        "type": "object",
+        "properties": {
+          "line1": {
+            "type": "string"
+          },
+          "line2": {
+            "type": "string"
+          },
+          "line3": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "zip": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string",
+            "enum": ["US", "GB", "CA", "AU", "IN"]
+          }
+        }
+      },
+      "MerchantAccountResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "merchant_name": {
+            "type": "string"
+          },
+          "default_profile": {
+            "type": "string"
+          },
+          "publishable_key": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["merchant_id", "name"]
+      },
+      "ApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "api_key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+} 

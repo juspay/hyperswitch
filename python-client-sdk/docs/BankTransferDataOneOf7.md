@@ -1,0 +1,29 @@
+# BankTransferDataOneOf7
+
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**bri_va_bank_transfer** | [**BankTransferDataOneOf4PermataBankTransfer**](BankTransferDataOneOf4PermataBankTransfer.md) |  | 
+
+## Example
+
+```python
+from hyperswitch.models.bank_transfer_data_one_of7 import BankTransferDataOneOf7
+
+# TODO update the JSON string below
+json = "{}"
+# create an instance of BankTransferDataOneOf7 from a JSON string
+bank_transfer_data_one_of7_instance = BankTransferDataOneOf7.from_json(json)
+# print the JSON string representation of the object
+print(BankTransferDataOneOf7.to_json())
+
+# convert the object into a dict
+bank_transfer_data_one_of7_dict = bank_transfer_data_one_of7_instance.to_dict()
+# create an instance of BankTransferDataOneOf7 from a dict
+bank_transfer_data_one_of7_from_dict = BankTransferDataOneOf7.from_dict(bank_transfer_data_one_of7_dict)
+```
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

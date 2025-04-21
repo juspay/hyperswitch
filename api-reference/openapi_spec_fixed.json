@@ -1,0 +1,117 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hyperswitch - API Documentation",
+    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | <https://api.hyperswitch.io>       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key             |  Description                                                                                  |\n|-----------------|-----------------------------------------------------------------------------------------------|\n| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |\n| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "contact": {
+      "name": "Hyperswitch Support",
+      "url": "https://hyperswitch.io",
+      "email": "hyperswitch@juspay.in"
+    },
+    "license": {
+      "name": "Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandbox.hyperswitch.io",
+      "description": "Sandbox Environment"
+    }
+  ],
+  "paths": {
+    "/payments/{payment_id}/post_session_tokens": {
+      "post": {
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for payment"
+          }
+        ]
+      }
+    },
+    "/customers/payment_methods": {
+      "get": {
+        "operationId": "list_customer_payment_methods"
+      }
+    },
+    "/relay/{relay_id}": {
+      "get": {
+        "parameters": [
+          {
+            "name": "relay_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for relay"
+          }
+        ]
+      }
+    },
+    "/payments/{payment_id}/update_metadata": {
+      "post": {
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for payment"
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/mandates": {
+      "get": {
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for customer"
+          }
+        ]
+      }
+    },
+    "/accounts/{account_id}/connectors": {
+      "get": {
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for account"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApplePaySessionResponse": {
+        "type": "object",
+        "properties": {
+          "default": {
+            "type": "object",
+            "description": "Default response object"
+          }
+        }
+      }
+    }
+  }
+} 

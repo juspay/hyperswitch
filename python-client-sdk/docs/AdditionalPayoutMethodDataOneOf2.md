@@ -1,0 +1,29 @@
+# AdditionalPayoutMethodDataOneOf2
+
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**wallet** | [**WalletAdditionalData**](WalletAdditionalData.md) |  | 
+
+## Example
+
+```python
+from hyperswitch.models.additional_payout_method_data_one_of2 import AdditionalPayoutMethodDataOneOf2
+
+# TODO update the JSON string below
+json = "{}"
+# create an instance of AdditionalPayoutMethodDataOneOf2 from a JSON string
+additional_payout_method_data_one_of2_instance = AdditionalPayoutMethodDataOneOf2.from_json(json)
+# print the JSON string representation of the object
+print(AdditionalPayoutMethodDataOneOf2.to_json())
+
+# convert the object into a dict
+additional_payout_method_data_one_of2_dict = additional_payout_method_data_one_of2_instance.to_dict()
+# create an instance of AdditionalPayoutMethodDataOneOf2 from a dict
+additional_payout_method_data_one_of2_from_dict = AdditionalPayoutMethodDataOneOf2.from_dict(additional_payout_method_data_one_of2_dict)
+```
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

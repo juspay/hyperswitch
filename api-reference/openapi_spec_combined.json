@@ -1,0 +1,431 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hyperswitch - API Documentation",
+    "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | <https://api.hyperswitch.io>       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key             |  Description                                                                                  |\n|-----------------|-----------------------------------------------------------------------------------------------|\n| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |\n| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
+    "contact": {
+      "name": "Hyperswitch Support",
+      "url": "https://hyperswitch.io",
+      "email": "hyperswitch@juspay.in"
+    },
+    "license": {
+      "name": "Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://sandbox.hyperswitch.io",
+      "description": "Sandbox Environment"
+    }
+  ],
+  "paths": {
+    "/payments": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create a payment",
+        "description": "To process a payment you will have to create a payment, attach a payment method and confirm the payment. Depending on the payment method chosen the confirmation of payment might require customer intervention (e.g. 3DS authentication, Bank OTP, etc).",
+        "operationId": "payments_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCreateRequest"
+              },
+              "examples": {
+                "Card": {
+                  "summary": "Create Payment using Card",
+                  "description": "Payment using card payment method",
+                  "value": {
+                    "amount": 6540,
+                    "currency": "USD",
+                    "confirm": true,
+                    "capture_method": "automatic",
+                    "capture_on": "2022-09-10T10:11:12Z",
+                    "amount_to_capture": 6540,
+                    "customer_id": "customer_id",
+                    "email": "guest@example.com",
+                    "name": "John Doe",
+                    "phone": "999999999",
+                    "phone_country_code": "+65",
+                    "description": "Its my first payment request",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "John Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                    "billing": {
+                      "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "city": "San Francisco",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "John",
+                        "last_name": "Doe"
+                      }
+                    },
+                    "shipping": {
+                      "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "city": "San Francisco",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "John",
+                        "last_name": "Doe"
+                      }
+                    },
+                    "statement_descriptor_name": "Juspay",
+                    "statement_descriptor_suffix": "Router",
+                    "metadata": {
+                      "udf1": "value1",
+                      "new_customer": "true",
+                      "login_date": "2019-09-10T10:11:12Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/{payment_id}/post_session_tokens": {
+      "post": {
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for payment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session tokens response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "session_token": {
+                      "type": "string",
+                      "description": "The session token for the payment"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/payment_methods": {
+      "get": {
+        "operationId": "list_customer_payment_methods",
+        "responses": {
+          "200": {
+            "description": "List of customer payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentMethod"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/relay/{relay_id}": {
+      "get": {
+        "parameters": [
+          {
+            "name": "relay_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for relay"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relay response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/{payment_id}/update_metadata": {
+      "post": {
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for payment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata update response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMetadataResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/{customer_id}/mandates": {
+      "get": {
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for customer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of customer mandates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Mandate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{account_id}/connectors": {
+      "get": {
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier for account"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of account connectors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Connector"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApplePaySessionResponse": {
+        "type": "object",
+        "properties": {
+          "default": {
+            "type": "object",
+            "description": "Default response object"
+          }
+        }
+      },
+      "PaymentsCreateRequest": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Amount in cents"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code"
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Whether to confirm the payment"
+          }
+        },
+        "required": ["amount", "currency"]
+      },
+      "PaymentsResponse": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Payment identifier"
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status"
+          }
+        }
+      },
+      "PaymentsErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "code": {
+                "type": "string",
+                "description": "Error code"
+              }
+            }
+          }
+        }
+      },
+      "PaymentMethod": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment method identifier"
+          },
+          "type": {
+            "type": "string",
+            "description": "Payment method type"
+          }
+        }
+      },
+      "RelayResponse": {
+        "type": "object",
+        "properties": {
+          "relay_id": {
+            "type": "string",
+            "description": "Relay identifier"
+          },
+          "status": {
+            "type": "string",
+            "description": "Relay status"
+          }
+        }
+      },
+      "PaymentMetadataResponse": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Payment identifier"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Updated metadata"
+          }
+        }
+      },
+      "Mandate": {
+        "type": "object",
+        "properties": {
+          "mandate_id": {
+            "type": "string",
+            "description": "Mandate identifier"
+          },
+          "status": {
+            "type": "string",
+            "description": "Mandate status"
+          }
+        }
+      },
+      "Connector": {
+        "type": "object",
+        "properties": {
+          "connector_id": {
+            "type": "string",
+            "description": "Connector identifier"
+          },
+          "connector_name": {
+            "type": "string",
+            "description": "Connector name"
+          }
+        }
+      }
+    }
+  }
+} 
