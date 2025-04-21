@@ -1,7 +1,7 @@
 use common_enums::enums;
 use error_stack::ResultExt;
 
-use crate::{errors, generate_time_ordered_id_without_prefix, types};
+use crate::errors;
 
 crate::global_id_type!(
     GlobalPaymentId,
