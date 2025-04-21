@@ -1,6 +1,8 @@
 pub mod adyenplatform;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
+#[cfg(feature = "dummy_connector")]
+pub mod dummybillingconnector;
 pub mod ebanx;
 pub mod gpayments;
 pub mod netcetera;
@@ -25,8 +27,7 @@ pub use hyperswitch_connectors::connectors::{
     coinbase::Coinbase, coingate, coingate::Coingate, cryptopay, cryptopay::Cryptopay,
     ctp_mastercard, ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource,
     datatrans, datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
-    digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, dummybillingconnector,
-    dummybillingconnector::DummyBillingConnector, elavon, elavon::Elavon, facilitapay,
+    digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, facilitapay,
     facilitapay::Facilitapay, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
     fiuu::Fiuu, forte, forte::Forte, getnet, getnet::Getnet, globalpay, globalpay::Globalpay,
     globepay, globepay::Globepay, gocardless, gocardless::Gocardless, helcim, helcim::Helcim,
@@ -50,6 +51,8 @@ pub use hyperswitch_connectors::connectors::{
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
+#[cfg(feature = "dummy_connector")]
+pub use self::dummybillingconnector::DummyBillingConnector;
 pub use self::{
     adyenplatform::Adyenplatform, ebanx::Ebanx, gpayments::Gpayments, netcetera::Netcetera,
     nmi::Nmi, payone::Payone, plaid::Plaid, riskified::Riskified, signifyd::Signifyd,

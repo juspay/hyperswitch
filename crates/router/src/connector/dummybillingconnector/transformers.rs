@@ -3,7 +3,7 @@ use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, types::String
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::RouterData,
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -16,30 +16,12 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{convert_uppercase, PaymentsAuthorizeRequestData},
 };
 
 // Auth Headers
 pub mod auth_headers {
     pub const DUMMYBILLING_API_VERSION: &str = "dummybilling-version";
     pub const DUMMYBILLING_VERSION: &str = "2023-01-01";
-}
-
-// Auth Struct
-pub struct DummyBillingAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for DummyBillingAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
 }
 
 // Payment Status
@@ -90,7 +72,7 @@ pub struct DummyBillingConnectorCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
-    complete: bool,
+    // complete: bool,
 }
 impl TryFrom<&DummyBillingConnectorRouterData<&PaymentsAuthorizeRouterData>>
     for DummyBillingConnectorPaymentsRequest
@@ -106,7 +88,6 @@ impl TryFrom<&DummyBillingConnectorRouterData<&PaymentsAuthorizeRouterData>>
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
                     amount: item.amount.clone(),
@@ -139,7 +120,7 @@ impl TryFrom<&DummyBillingConnectorRouterData<&PaymentsAuthorizeRouterData>>
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
+                    // complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
                     amount: item.amount.clone(),
@@ -294,7 +275,7 @@ pub struct DummyBillingWebhookData {
 pub struct DummyBillingWebhookObject {
     #[serde(rename = "id")]
     pub invoice_id: String,
-    #[serde(deserialize_with = "convert_uppercase")]
+    // #[serde(deserialize_with = "convert_uppercase")]
     pub currency: enums::Currency,
     pub customer: String,
     #[serde(rename = "amount_remaining")]
@@ -340,7 +321,7 @@ pub struct DummyBillingInvoiceData {
 pub struct DummyBillingInvoiceObject {
     #[serde(rename = "id")]
     pub invoice_id: String,
-    #[serde(deserialize_with = "convert_uppercase")]
+    // #[serde(deserialize_with = "convert_uppercase")]
     pub currency: enums::Currency,
     pub customer: String,
     #[serde(rename = "amount_remaining")]
@@ -377,7 +358,7 @@ pub struct DummyBillingRecoveryDetailsData {
     pub charge_id: String,
     pub status: DummyBillingChargeStatus,
     pub amount: common_utils::types::MinorUnit,
-    #[serde(deserialize_with = "convert_uppercase")]
+    // #[serde(deserialize_with = "convert_uppercase")]
     pub currency: enums::Currency,
     pub customer: String,
     pub payment_method: String,

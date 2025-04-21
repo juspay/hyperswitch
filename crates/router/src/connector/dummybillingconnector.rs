@@ -1,11 +1,7 @@
 pub mod transformers;
-
 use std::collections::HashMap;
 
-use common_utils::{
-    errors::CustomResult,
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
-};
+use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
@@ -31,8 +27,6 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors, webhooks,
 };
-
-// use transformers as stripebilling;
 
 #[derive(Clone)]
 pub struct DummyBillingConnector;

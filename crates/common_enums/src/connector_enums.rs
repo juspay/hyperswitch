@@ -363,8 +363,9 @@ impl Connector {
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
             #[cfg(feature = "dummy_connector")]
-            Self::DummyBillingConnector 
-            | Self::DummyConnector1
+            Self::DummyBillingConnector => false,
+            #[cfg(feature = "dummy_connector")]
+            Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
             | Self::DummyConnector4
