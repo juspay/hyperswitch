@@ -787,7 +787,8 @@ impl RequiredField {
             Self::PixSourceBankAccountId => (
                 "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
+                    required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id"
+                        .to_string(),
                     display_name: "source_bank_account_id".to_string(),
                     field_type: FieldType::UserSourceBankAccountId,
                     value: None,
@@ -796,7 +797,9 @@ impl RequiredField {
             Self::PixDestinationBankAccountId => (
                 "payment_method_data.bank_transfer.pix.destination_bank_account_id".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix.destination_bank_account_id".to_string(),
+                    required_field:
+                        "payment_method_data.bank_transfer.pix.destination_bank_account_id"
+                            .to_string(),
                     display_name: "destination_bank_account_id".to_string(),
                     field_type: FieldType::UserDestinationBankAccountId,
                     value: None,
@@ -3117,8 +3120,8 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
                         ]),
-                    }
-                )
+                    },
+                ),
             ]),
         ),
         (
