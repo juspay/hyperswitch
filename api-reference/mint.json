@@ -32,6 +32,10 @@
     {
       "name": "Locker API Reference",
       "url": "locker-api-reference"
+    },
+    {
+      "name": "Intelligent Router API Reference",
+      "url": "intelligent-router-api-reference"
     }
   ],
   "navigation": [
@@ -65,7 +69,8 @@
             "api-reference/payments/payments-link--retrieve",
             "api-reference/payments/payments--list",
             "api-reference/payments/payments--external-3ds-authentication",
-            "api-reference/payments/payments--complete-authorize"
+            "api-reference/payments/payments--complete-authorize",
+            "api-reference/payments/payments--update-metadata"
           ]
         },
         {
@@ -275,6 +280,32 @@
             "locker-api-reference/cards/delete-data-from-locker",
             "locker-api-reference/cards/retrieve-data-from-locker",
             "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Hyperswitch Intelligent Router",
+      "pages": ["intelligent-router-api-reference/overview"]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        {
+          "group": "Success Rate",
+          "pages": [
+            "intelligent-router-api-reference/success-rate/fetch-success-rate-for-an-entity",
+            "intelligent-router-api-reference/success-rate/update-success-rate-window",
+            "intelligent-router-api-reference/success-rate/invalidate-windows",
+            "intelligent-router-api-reference/success-rate/fetch-entity-and-global-success-rates"
+          ]
+        },
+        {
+          "group": "Elimination",
+          "pages": [
+            "intelligent-router-api-reference/elimination/fetch-eliminated-processor-list",
+            "intelligent-router-api-reference/elimination/update-elimination-bucket",
+            "intelligent-router-api-reference/elimination/invalidate-elimination-bucket"
           ]
         }
       ]

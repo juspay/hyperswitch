@@ -225,25 +225,6 @@ impl SecretsHandler for settings::ApplepayMerchantConfigs {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::PaymentMethodAuth {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let payment_method_auth = value.get_inner();
-
-        let pm_auth_key = secret_management_client
-            .get_secret(payment_method_auth.pm_auth_key.clone())
-            .await?;
-
-        Ok(value.transition_state(|payment_method_auth| Self {
-            pm_auth_key,
-            ..payment_method_auth
-        }))
-    }
-}
-
-#[async_trait::async_trait]
 impl SecretsHandler for settings::KeyManagerConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -480,6 +461,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         replica_database,
         secrets,
+        fallback_merchant_ids_api_key_auth: conf.fallback_merchant_ids_api_key_auth,
         locker: conf.locker,
         connectors: conf.connectors,
         forex_api,
@@ -501,12 +483,13 @@ pub(crate) async fn fetch_raw_secrets(
         email: conf.email,
         user: conf.user,
         mandates: conf.mandates,
+        zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
-        // additional_revenue_recovery_details_call: conf.additional_revenue_recovery_details_call,
+        billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use diesel::{
     associations::HasTable, BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
 };
@@ -49,6 +51,7 @@ impl Event {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn list_initial_attempts_by_merchant_id_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -56,6 +59,8 @@ impl Event {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
     ) -> StorageResult<Vec<Self>> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
@@ -81,6 +86,8 @@ impl Event {
             (dsl::created_at, created_after, created_before),
             limit,
             offset,
+            event_types,
+            is_delivered,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -127,6 +134,7 @@ impl Event {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn list_initial_attempts_by_profile_id_constraints(
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
@@ -134,6 +142,8 @@ impl Event {
         created_before: time::PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
     ) -> StorageResult<Vec<Self>> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
@@ -159,6 +169,8 @@ impl Event {
             (dsl::created_at, created_after, created_before),
             limit,
             offset,
+            event_types,
+            is_delivered,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -217,6 +229,8 @@ impl Event {
         ),
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
     ) -> T
     where
         T: diesel::query_dsl::methods::LimitDsl<Output = T>
@@ -231,6 +245,14 @@ impl Event {
         >,
         T: diesel::query_dsl::methods::FilterDsl<
             diesel::dsl::Eq<dsl::business_profile_id, common_utils::id_type::ProfileId>,
+            Output = T,
+        >,
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::EqAny<dsl::event_type, HashSet<common_enums::EventType>>,
+            Output = T,
+        >,
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::Eq<dsl::is_overall_delivery_successful, bool>,
             Output = T,
         >,
     {
@@ -250,6 +272,14 @@ impl Event {
             query = query.offset(offset);
         }
 
+        if !event_types.is_empty() {
+            query = query.filter(dsl::event_type.eq_any(event_types));
+        }
+
+        if let Some(is_delivered) = is_delivered {
+            query = query.filter(dsl::is_overall_delivery_successful.eq(is_delivered));
+        }
+
         query
     }
 
@@ -259,6 +289,8 @@ impl Event {
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
     ) -> StorageResult<i64> {
         use async_bb8_diesel::AsyncRunQueryDsl;
         use diesel::{debug_query, pg::Pg, QueryDsl};
@@ -284,6 +316,8 @@ impl Event {
             (dsl::created_at, created_after, created_before),
             None,
             None,
+            event_types,
+            is_delivered,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());

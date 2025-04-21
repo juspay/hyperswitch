@@ -165,6 +165,29 @@ impl PaymentAttempt {
         .ok_or(report!(DatabaseError::NotFound))
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id(
+        conn: &PgPooledConn,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+    ) -> StorageResult<Self> {
+        // perform ordering on the application level instead of database level
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            dsl::payment_id.eq(payment_id.to_owned()).and(
+                dsl::status
+                    .eq(enums::AttemptStatus::Charged)
+                    .or(dsl::status.eq(enums::AttemptStatus::PartialCharged)),
+            ),
+            Some(1),
+            None,
+            Some(dsl::modified_at.desc()),
+        )
+        .await?
+        .into_iter()
+        .nth(0)
+        .ok_or(report!(DatabaseError::NotFound))
+    }
+
     #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,

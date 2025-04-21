@@ -748,7 +748,13 @@ impl<F, T>
                     None,
                     None,
                     None,
-                    Some((res.refusal_code.clone(), res.refusal_description.clone())),
+                    Some((
+                        res.refusal_code.clone(),
+                        res.refusal_description.clone(),
+                        res.advice
+                            .as_ref()
+                            .and_then(|advice_code| advice_code.code.clone()),
+                    )),
                 ),
                 WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None, None),
             })
@@ -786,18 +792,22 @@ impl<F, T>
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
-            (_, Some((code, message))) => Err(ErrorResponse {
-                code,
+            (_, Some((code, message, advice_code))) => Err(ErrorResponse {
+                code: code.clone(),
                 message: message.clone(),
-                reason: Some(message),
+                reason: Some(message.clone()),
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: advice_code,
+                // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
+                // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
+                network_decline_code: Some(code),
+                network_error_message: Some(message),
             }),
         };
         Ok(Self {
