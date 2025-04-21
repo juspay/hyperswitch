@@ -7,9 +7,7 @@ use diesel::Table;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
-#[cfg(feature = "v1")]
-use error_stack::report;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 
 use super::generics;
 #[cfg(feature = "v1")]
