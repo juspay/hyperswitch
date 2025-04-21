@@ -497,7 +497,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let connector_mandate_details = if should_require_connector_mandate_details {
         let connector_mandate_details_req = req
-            .connector_mandate_details.clone()
+            .connector_mandate_details
+            .clone()
             .and_then(|c| c.payments)
             .clone()
             .get_required_value("connector mandate details")?;
