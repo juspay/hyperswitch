@@ -201,11 +201,14 @@ pub async fn refunds_retrieve(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
             },
-            req.headers(),
+            req.headers()
         ),
         api_locking::LockAction::NotApplicable,
     ))
