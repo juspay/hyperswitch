@@ -705,8 +705,12 @@ describe("Corner cases", () => {
 
   context("Duplicate Payment ID", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    let createConfirmBody;
 
     beforeEach(function () {
+      createConfirmBody = Cypress._.cloneDeep(
+        fixtures.createConfirmPaymentBody
+      );
       if (!shouldContinue) {
         this.skip();
       }
@@ -718,7 +722,7 @@ describe("Corner cases", () => {
       ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
-        fixtures.createConfirmPaymentBody,
+        createConfirmBody,
         data,
         "no_three_ds",
         "automatic",
@@ -743,7 +747,7 @@ describe("Corner cases", () => {
       data.Request.payment_id = globalState.get("paymentID");
 
       cy.createConfirmPaymentTest(
-        fixtures.createConfirmPaymentBody,
+        createConfirmBody,
         data,
         "no_three_ds",
         "automatic",
@@ -763,6 +767,21 @@ describe("Corner cases", () => {
       }
     });
 
+    it("Create new payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
     it("Create new refund", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -780,7 +799,6 @@ describe("Corner cases", () => {
       cy.syncRefundCallTest(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
-
     it("Create a refund with  a duplicate refund ID", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"

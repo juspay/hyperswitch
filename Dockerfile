@@ -29,8 +29,6 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
-# Use cargo's sparse index protocol
-ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
 RUN cargo build \
@@ -73,6 +71,10 @@ ENV TZ=Etc/UTC \
 RUN mkdir -p ${BIN_DIR}
 
 COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
+
+# Create the 'app' user and group
+RUN useradd --user-group --system --no-create-home --no-log-init app
+USER app:app
 
 WORKDIR ${BIN_DIR}
 

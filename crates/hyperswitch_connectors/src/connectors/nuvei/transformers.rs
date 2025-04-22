@@ -977,6 +977,7 @@ where
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
                 | BankRedirectData::OnlineBankingFinland { .. }
@@ -1542,17 +1543,14 @@ fn build_error_response<T>(
     http_code: u16,
 ) -> Option<Result<T, ErrorResponse>> {
     match response.status {
-        NuveiPaymentStatus::Error => Some(get_error_response(
-            response.err_code,
-            &response.reason,
-            http_code,
-        )),
+        NuveiPaymentStatus::Error => Some(
+            get_error_response(response.err_code, &response.reason, http_code).map_err(|err| *err),
+        ),
         _ => {
-            let err = Some(get_error_response(
-                response.gw_error_code,
-                &response.gw_error_reason,
-                http_code,
-            ));
+            let err = Some(
+                get_error_response(response.gw_error_code, &response.gw_error_reason, http_code)
+                    .map_err(|err| *err),
+            );
             match response.transaction_status {
                 Some(NuveiTransactionStatus::Error) | Some(NuveiTransactionStatus::Declined) => err,
                 _ => match response
@@ -1708,7 +1706,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, NuveiPaymentsResponse>>
                 item.response
                     .transaction_id
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-            ),
+            )
+            .map_err(|err| *err),
             ..item.data
         })
     }
@@ -1728,7 +1727,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiPaymentsResponse>>
                 item.response
                     .transaction_id
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-            ),
+            )
+            .map_err(|err| *err),
             ..item.data
         })
     }
@@ -1782,7 +1782,7 @@ fn get_refund_response(
     response: NuveiPaymentsResponse,
     http_code: u16,
     txn_id: String,
-) -> Result<RefundsResponseData, ErrorResponse> {
+) -> Result<RefundsResponseData, Box<ErrorResponse>> {
     let refund_status = response
         .transaction_status
         .clone()
@@ -1808,8 +1808,8 @@ fn get_error_response<T>(
     error_code: Option<i64>,
     error_msg: &Option<String>,
     http_code: u16,
-) -> Result<T, ErrorResponse> {
-    Err(ErrorResponse {
+) -> Result<T, Box<ErrorResponse>> {
+    Err(Box::new(ErrorResponse {
         code: error_code
             .map(|c| c.to_string())
             .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
@@ -1820,7 +1820,10 @@ fn get_error_response<T>(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: None,
-    })
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
+    }))
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

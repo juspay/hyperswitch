@@ -12,6 +12,7 @@ use crate::{
     enums,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
@@ -61,7 +62,7 @@ pub struct RefundRequest {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundsCreateRequest {
@@ -74,14 +75,18 @@ pub struct RefundsCreateRequest {
     )]
     pub payment_id: common_utils::id_type::GlobalPaymentId,
 
-    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.
+    /// Unique Identifier for the Refund given by the Merchant.
     #[schema(
-        max_length = 30,
-        min_length = 30,
+        max_length = 64,
+        min_length = 1,
         example = "ref_mbabizu24mvu3mela5njyhpit4",
-        value_type = Option<String>,
+        value_type = String,
     )]
-    pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = Option<String>)]
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the amount_captured of the payment
     #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
@@ -153,6 +158,7 @@ pub struct RefundManualUpdateRequest {
     pub error_message: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 /// To indicate whether to refund needs to be instant or scheduled
 #[derive(
     Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
@@ -161,6 +167,18 @@ pub struct RefundManualUpdateRequest {
 pub enum RefundType {
     #[default]
     Scheduled,
+    Instant,
+}
+
+#[cfg(feature = "v2")]
+/// To indicate whether the refund needs to be instant or scheduled
+#[derive(
+    Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RefundType {
+    Scheduled,
+    #[default]
     Instant,
 }
 
@@ -210,6 +228,10 @@ pub struct RefundResponse {
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>,)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
+    /// Error code received from the issuer in case of failed refunds
+    pub issuer_error_code: Option<String>,
+    /// Error message received from the issuer in case of failed refunds
+    pub issuer_error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]

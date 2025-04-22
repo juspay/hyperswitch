@@ -148,6 +148,9 @@ impl ConnectorCommon for Globalpay {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -376,6 +379,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -478,8 +484,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Gl
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -557,7 +565,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: GlobalpayPaymentsResponse = res
             .response
-            .parse_struct("globalpay PaymentsResponse")
+            .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -577,6 +585,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Glo
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
+
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
@@ -654,8 +663,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -744,8 +755,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -905,8 +918,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Globalpay
             .response
             .parse_struct("globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),

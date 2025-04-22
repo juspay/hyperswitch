@@ -2,10 +2,10 @@ use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
-use common_utils::types::{
-    ConnectorTransactionId, ExtendedAuthorizationAppliedBool, MinorUnit,
-    RequestExtendedAuthorizationBool,
+use common_types::primitive_wrappers::{
+    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+use common_utils::types::{ConnectorTransactionId, MinorUnit};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -210,6 +210,7 @@ pub struct PaymentAttemptBatchNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v1")]
@@ -292,6 +293,7 @@ impl PaymentAttemptBatchNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            setup_future_usage_applied: self.setup_future_usage_applied,
         }
     }
 }

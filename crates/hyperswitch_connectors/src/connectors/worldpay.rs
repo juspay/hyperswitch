@@ -156,6 +156,9 @@ impl ConnectorCommon for Worldpay {
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -483,6 +486,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 
@@ -1093,13 +1099,14 @@ impl IncomingWebhook for Worldpay {
         request: &IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let event_signature = get_header_key_value("Event-Signature", request.headers)?.split(',');
+        let mut event_signature =
+            get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
-            .last()
+            .next_back()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = sign_header
             .split('/')
-            .last()
+            .next_back()
             .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature).change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
     }

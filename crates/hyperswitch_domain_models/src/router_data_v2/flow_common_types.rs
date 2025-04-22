@@ -145,7 +145,13 @@ pub struct FilesFlowData {
 }
 
 #[derive(Debug, Clone)]
+pub struct RevenueRecoveryRecordBackData;
+
+#[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
     pub source_authentication_id: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct BillingConnectorPaymentsSyncFlowData;

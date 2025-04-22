@@ -157,8 +157,10 @@ mod id_type {
                 serde::Serialize,
                 serde::Deserialize,
                 diesel::expression::AsExpression,
+                utoipa::ToSchema,
             )]
             #[diesel(sql_type = $diesel_type)]
+            #[schema(value_type = String)]
             pub struct $type($crate::id_type::LengthId<$max_length, $min_length>);
         };
         ($type:ident, $doc:literal) => {
@@ -379,20 +381,41 @@ macro_rules! create_list_wrapper {
             $($function_def: tt)*
         }
     ) => {
+        #[derive(Clone, Debug)]
         pub struct $wrapper_name(Vec<$type_name>);
         impl $wrapper_name {
             pub fn new(list: Vec<$type_name>) -> Self {
                 Self(list)
             }
-            pub fn iter(&self) -> std::slice::Iter<'_, $type_name> {
-                self.0.iter()
+            pub fn with_capacity(size: usize) -> Self {
+                Self(Vec::with_capacity(size))
             }
             $($function_def)*
         }
-        impl Iterator for $wrapper_name {
+        impl std::ops::Deref for $wrapper_name {
+            type Target = Vec<$type_name>;
+            fn deref(&self) -> &<Self as std::ops::Deref>::Target {
+                &self.0
+            }
+        }
+        impl std::ops::DerefMut for $wrapper_name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+        impl IntoIterator for $wrapper_name {
             type Item = $type_name;
-            fn next(&mut self) -> Option<Self::Item> {
-                self.0.pop()
+            type IntoIter = std::vec::IntoIter<$type_name>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.into_iter()
+            }
+        }
+
+        impl<'a> IntoIterator for &'a $wrapper_name {
+            type Item = &'a $type_name;
+            type IntoIter = std::slice::Iter<'a, $type_name>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.iter()
             }
         }
 

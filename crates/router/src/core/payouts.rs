@@ -26,10 +26,6 @@ use diesel_models::{
     generic_link::{GenericLinkNew, PayoutLink},
     CommonMandateReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use diesel_models::{
-    PaymentsMandateReference, PaymentsMandateReferenceRecord as PaymentsMandateReferenceRecordV2,
-};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
@@ -1128,13 +1124,13 @@ pub async fn call_connector_payout(
     // Eligibility flow
     complete_payout_eligibility(state, merchant_account, connector_data, payout_data).await?;
     // Create customer flow
-    complete_create_recipient(
+    Box::pin(complete_create_recipient(
         state,
         merchant_account,
         key_store,
         connector_data,
         payout_data,
-    )
+    ))
     .await?;
     // Create customer's disbursement account flow
     Box::pin(complete_create_recipient_disburse_account(
@@ -1189,13 +1185,13 @@ pub async fn complete_create_recipient(
             .connector_name
             .supports_create_recipient(payout_data.payouts.payout_type)
     {
-        create_recipient(
+        Box::pin(create_recipient(
             state,
             merchant_account,
             key_store,
             connector_data,
             payout_data,
-        )
+        ))
         .await
         .attach_printable("Creation of customer failed")?;
     }
@@ -3096,7 +3092,9 @@ pub async fn add_external_account_addition_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        common_types::consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 

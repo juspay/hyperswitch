@@ -1,15 +1,10 @@
-use api_models::{
-    admin::ExtendedCardInfoConfig,
-    enums::FrmSuggestion,
-    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData, PaymentsConfirmIntentRequest},
-};
+use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use tracing_futures::Instrument;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -174,11 +169,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
         self.validate_status_for_operation(payment_intent.status)?;
-        let client_secret = header_payload
-            .client_secret
-            .as_ref()
-            .get_required_value("client_secret header")?;
-        payment_intent.validate_client_secret(client_secret)?;
 
         let cell_id = state.conf.cell_information.id.clone();
 
@@ -215,8 +205,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             )
             .await?;
 
-        let payment_attempt = db
-            .insert_payment_attempt(
+        let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+            db.insert_payment_attempt(
                 key_manager_state,
                 key_store,
                 payment_attempt_domain_model,
@@ -254,6 +244,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_attempt,
             payment_method_data,
             payment_address,
+            mandate_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -326,6 +317,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         BoxedConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -421,7 +413,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: payment_data.payment_attempt.id.clone(),
+                active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
             };
 
         let authentication_type = payment_data.payment_attempt.authentication_type;

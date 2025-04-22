@@ -1,5 +1,5 @@
 /* eslint-disable cypress/unsafe-to-chain-command */
-/* eslint-disable cypress/no-unnecessary-waiting */
+
 import jsQR from "jsqr";
 
 // Define constants for wait times
@@ -7,11 +7,14 @@ const CONSTANTS = {
   TIMEOUT: 20000, // 20 seconds
   WAIT_TIME: 10000, // 10 seconds
   ERROR_PATTERNS: [
-    /4\d{2}/,
-    /5\d{2}/,
-    /error/i,
-    /invalid request/i,
-    /server error/i,
+    /^(4|5)\d{2}\s/, // HTTP error status codes
+    /\berror occurred\b/i,
+    /\bpayment failed\b/i,
+    /\binvalid request\b/i,
+    /\bserver error\b/i,
+    /\btransaction failed\b/i,
+    /\bpayment declined\b/i,
+    /\bauthorization failed\b/i,
   ],
   VALID_TERMINAL_STATUSES: [
     "failed",
@@ -31,28 +34,28 @@ export function handleRedirection(
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
       break;
     case "bank_transfer":
       bankTransferRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType,
-        handlerMetadata.next_action_type
+        handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirection_url, urls.expected_url, connectorId);
+      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
       break;
     case "upi":
       upiRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
@@ -128,7 +131,7 @@ function bankRedirectRedirection(
     redirectionUrl,
     expectedUrl,
     connectorId,
-    ({ connectorId, paymentMethodType, constants }) => {
+    ({ connectorId, constants, paymentMethodType }) => {
       switch (connectorId) {
         case "adyen":
           switch (paymentMethodType) {
@@ -137,63 +140,22 @@ function bankRedirectRedirection(
               cy.get('[value="authorised"]').click();
               break;
             case "ideal":
-              cy.get(":nth-child(4) > td > p").should(
-                "contain.text",
-                "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
-              );
-              cy.get(".btnLink").click();
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
-              break;
-            case "giropay":
-              cy.get(
-                ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
-              ).click();
-              cy.wait(5000);
-              cy.get(".normal-3").should(
-                "contain.text",
-                "Bank suchen ‑ mit giropay zahlen."
-              );
-              cy.get("#bankSearch").type("giropay TestBank{enter}");
-              cy.get(".normal-2 > div").click();
-              cy.get('[data-testid="customerIban"]').type(
-                "DE48499999601234567890"
-              );
-              cy.get('[data-testid="customerIdentification"]').type(
-                "9123456789"
-              );
-              cy.get(":nth-child(3) > .rds-button").click();
-              cy.get('[data-testid="onlineBankingPin"]').type("1234");
-              cy.get(".rds-button--primary").click();
-              cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
-              cy.get(".rds-button--primary").click();
-              cy.get('[data-testid="photoTan"]').type("123456");
-              cy.get(".rds-button--primary").click();
-              cy.wait(5000);
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
-              break;
-            case "sofort":
-              cy.get(".modal-overlay.modal-shown.in", {
-                timeout: constants.TIMEOUT,
-              }).then(($modal) => {
-                // If modal is found, handle it
-                if ($modal.length > 0) {
-                  cy.get("button.cookie-modal-deny-all.button-tertiary")
-                    .should("be.visible")
-                    .should("contain", "Reject All")
-                    .click({ multiple: true });
-                  cy.get("div#TopBanks.top-banks-multistep")
-                    .should("contain", "Demo Bank")
-                    .as("btn")
-                    .click();
-                  cy.get("@btn").click();
-                } else {
-                  cy.get("input.phone").type("9123456789");
-                  cy.get("#button.onContinue")
-                    .should("contain", "Continue")
-                    .click();
-                }
+              cy.wait(constants.TIMEOUT / 10); // 2 seconds
+              cy.get("button[data-testid=payment-action-button]").click();
+              cy.wait(constants.TIMEOUT / 10); // 2 seconds
+              cy.get("button[id=bank-item-TESTNL2A]").click();
+              cy.wait(constants.TIMEOUT / 10); // 2 seconds
+              cy.location("host").then(() => {
+                cy.url().then((currentUrl) => {
+                  cy.origin(new URL(currentUrl).origin, () => {
+                    cy.url().then(() => {
+                      cy.get("button.shared-styles_button__cNu+v")
+                        .contains("Success")
+                        .click();
+                      cy.url().should("include", "/loading/SUCCESS");
+                    });
+                  });
+                });
               });
               break;
             default:
@@ -430,7 +392,10 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                 });
             });
           break;
-
+        case "redsys":
+          cy.get("div.autenticada").click();
+          cy.get('input[value="Enviar"]').click();
+          break;
         default:
           cy.wait(constants.WAIT_TIME);
       }
@@ -503,29 +468,45 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
         try {
           const redirectionHost = new URL(redirectionUrl).host;
           const expectedHost = new URL(expectedUrl).host;
-          if (redirectionHost.endsWith(expectedHost)) {
-            cy.wait(constants.WAIT_TIME / 2);
 
-            cy.window()
-              .its("location")
-              .then((location) => {
+          cy.window()
+            .its("location")
+            .then((location) => {
+              // Check for payment_id in the URL
+              const urlParams = new URLSearchParams(location.search);
+              const paymentId = urlParams.get("payment_id");
+
+              if (!paymentId) {
+                // eslint-disable-next-line cypress/assertion-before-screenshot
+                cy.screenshot("missing-payment-id-error");
+                throw new Error("URL does not contain payment_id parameter");
+              }
+
+              // Proceed with other verifications based on whether redirection host ends with expected host
+              if (redirectionHost.endsWith(expectedHost)) {
+                cy.wait(constants.WAIT_TIME / 2);
+
                 // Check page state before taking screenshots
                 cy.document().then((doc) => {
                   const pageText = doc.body.innerText.toLowerCase();
                   if (!pageText) {
                     // eslint-disable-next-line cypress/assertion-before-screenshot
                     cy.screenshot("blank-page-error");
-                  } else if (
-                    constants.ERROR_PATTERNS.some((pattern) =>
+                  } else {
+                    // Check if any error pattern exists in the text
+                    const hasError = constants.ERROR_PATTERNS.some((pattern) =>
                       pattern.test(pageText)
-                    )
-                  ) {
-                    // eslint-disable-next-line cypress/assertion-before-screenshot
-                    cy.screenshot(`error-page-${Date.now()}`);
+                    );
+
+                    if (hasError) {
+                      // Only take screenshot if an error pattern was found
+                      // eslint-disable-next-line cypress/assertion-before-screenshot
+                      cy.screenshot(`error-page-${Date.now()}`);
+                      throw new Error(`Page contains error: ${pageText}`);
+                    }
                   }
                 });
 
-                const urlParams = new URLSearchParams(location.search);
                 const paymentStatus = urlParams.get("status");
 
                 if (
@@ -537,21 +518,21 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                     `Redirection failed with payment status: ${paymentStatus}`
                   );
                 }
-              });
-          } else {
-            cy.window().its("location.origin").should("eq", expectedUrl);
+              } else {
+                cy.window().its("location.origin").should("eq", expectedUrl);
 
-            Cypress.on("uncaught:exception", (err, runnable) => {
-              // Log the error details
-              // eslint-disable-next-line no-console
-              console.error(
-                `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
-              );
+                Cypress.on("uncaught:exception", (err, runnable) => {
+                  // Log the error details
+                  // eslint-disable-next-line no-console
+                  console.error(
+                    `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
+                  );
 
-              // Return false to prevent the error from failing the test
-              return false;
+                  // Return false to prevent the error from failing the test
+                  return false;
+                });
+              }
             });
-          }
         } catch (error) {
           throw new Error(`Redirection verification failed: ${error}`);
         }
@@ -670,37 +651,33 @@ function handleFlow(
   callback,
   options = {}
 ) {
+  // Extract the host from the redirection URL
   const originalHost = new URL(redirectionUrl.href).host;
   cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
+    const callbackArgs = {
+      connectorId,
+      constants: CONSTANTS,
+      expectedUrl: expectedUrl.origin,
+      ...options, // e.g. paymentMethodType if provided
+    };
+
     if (currentHost !== originalHost) {
-      // Regular redirection flow - host changed, use cy.origin()
+      // For a regular redirection flow: host changed, use cy.origin
       cy.url().then((currentUrl) => {
-        cy.origin(
-          new URL(currentUrl).origin,
-          {
-            args: {
-              connectorId,
-              constants: CONSTANTS,
-              expectedUrl: expectedUrl.origin,
-              ...options, // optional params like paymentMethodType
-            },
-          },
-          callback
-        );
+        cy.origin(new URL(currentUrl).origin, { args: callbackArgs }, callback);
       });
     } else {
-      // Embedded flow - host unchanged, use cy.get("iframe")
+      // For embedded flows using an iframe:
       cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
         .should("be.visible")
-        .should("exist");
-
-      // Execute callback within the iframe context
-      callback({
-        connectorId,
-        constants: CONSTANTS,
-        expectedUrl: expectedUrl.origin,
-        ...options, // optional params like paymentMethodType
-      });
+        .should("exist")
+        .then((iframes) => {
+          if (iframes.length === 0) {
+            throw new Error("No iframe found for embedded flow.");
+          }
+          // Execute the callback directly for the embedded flow
+          callback(callbackArgs);
+        });
     }
   });
 }

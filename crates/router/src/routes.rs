@@ -44,7 +44,6 @@ pub mod poll;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
-#[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -65,17 +64,21 @@ pub mod recovery_webhooks;
 
 pub mod relay;
 
+#[cfg(feature = "olap")]
+pub mod process_tracker;
+
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
-pub use self::app::PaymentMethodsSession;
+pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
     Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
+    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
+    Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
