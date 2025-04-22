@@ -1,8 +1,13 @@
+use api_models::user::LineageContext;
 use common_enums::TokenPurpose;
 use common_utils::id_type;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRole,
+};
 use error_stack::ResultExt;
 use masking::Secret;
+use router_env::logger;
 
 use super::UserFromStorage;
 use crate::{
@@ -123,21 +128,119 @@ impl JWTFlow {
         state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
+        lineage_context: Option<LineageContext>,
     ) -> UserResult<Secret<String>> {
-        let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
-        let merchant_id =
-            utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
-        let profile_id =
-            utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
+        let (user_id, org_id, merchant_id, profile_id, role_id, tenant_id) = match lineage_context {
+            Some(ctx) => {
+                let tenant_id = ctx
+                    .tenant_id
+                    .clone()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                let matched_user_role = {
+                    let matched_user_role_v1 = state
+                        .global_store
+                        .find_user_role_by_user_id_and_lineage(
+                            ctx.user_id.as_str(),
+                            &tenant_id,
+                            &ctx.org_id,
+                            &ctx.merchant_id,
+                            &ctx.profile_id,
+                            UserRoleVersion::V1,
+                        )
+                        .await
+                        .ok();
+
+                    if matched_user_role_v1.is_some() {
+                        matched_user_role_v1
+                    } else {
+                        state
+                            .global_store
+                            .find_user_role_by_user_id_and_lineage(
+                                ctx.user_id.as_str(),
+                                &tenant_id,
+                                &ctx.org_id,
+                                &ctx.merchant_id,
+                                &ctx.profile_id,
+                                UserRoleVersion::V2,
+                            )
+                            .await
+                            .ok()
+                    }
+                };
+
+                if matched_user_role.is_some() {
+                    (
+                        ctx.user_id,
+                        ctx.org_id,
+                        ctx.merchant_id,
+                        ctx.profile_id,
+                        ctx.role_id,
+                        ctx.tenant_id,
+                    )
+                } else {
+                    // fallback
+                    let user_id = next_flow.user.get_user_id().to_string();
+                    let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
+                    let merchant_id =
+                        utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
+                    let profile_id =
+                        utils::user_role::get_single_profile_id(state, user_role, &merchant_id)
+                            .await?;
+
+                    (
+                        user_id,
+                        org_id,
+                        merchant_id,
+                        profile_id,
+                        user_role.role_id.clone(),
+                        Some(user_role.tenant_id.clone()),
+                    )
+                }
+            }
+            None => {
+                // fallback logic if no lineage context is found
+                let user_id = next_flow.user.get_user_id().to_string();
+                let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
+                let merchant_id =
+                    utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
+                let profile_id =
+                    utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
+                (
+                    user_id,
+                    org_id,
+                    merchant_id,
+                    profile_id,
+                    user_role.role_id.clone(),
+                    Some(user_role.tenant_id.clone()),
+                )
+            }
+        };
+
+        let lineage_context = LineageContext {
+            user_id: user_id.clone(),
+            merchant_id: merchant_id.clone(),
+            role_id: role_id.clone(),
+            org_id: org_id.clone(),
+            profile_id: profile_id.clone(),
+            tenant_id: tenant_id.clone(),
+        };
+
+        if let Err(e) =
+            utils::user::set_lineage_context_in_cache(&state, lineage_context, user_id.clone())
+                .await
+        {
+            logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
+        }
 
         auth::AuthToken::new_token(
-            next_flow.user.get_user_id().to_string(),
+            user_id,
             merchant_id,
-            user_role.role_id.clone(),
+            role_id,
             &state.conf,
             org_id,
             profile_id,
-            Some(user_role.tenant_id.clone()),
+            tenant_id,
         )
         .await
         .map(|token| token.into())
@@ -320,10 +423,11 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
+                let user_id = self.user.get_user_id();
                 let user_role = state
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                        user_id: self.user.get_user_id(),
+                        user_id: user_id,
                         tenant_id: self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: None,
                         merchant_id: None,
@@ -339,7 +443,29 @@ impl NextFlow {
                     .ok_or(UserErrors::InternalServerError)?;
                 utils::user_role::set_role_info_in_cache_by_user_role(state, &user_role).await;
 
-                jwt_flow.generate_jwt(state, self, &user_role).await
+                let lineage_context = match utils::user::get_lineage_context_from_cache(
+                    &state,
+                    self.user.get_user_id().to_string(),
+                )
+                .await
+                {
+                    Ok(Some(ctx)) => Some(ctx),
+                    Ok(None) => {
+                        logger::info!(
+                            "No lineage context found in cache for user {}",
+                            user_id.to_string()
+                        );
+                        None
+                    }
+                    Err(err) => {
+                        logger::error!("Failed to fetch lineage context from Redis: {:?}", err);
+                        None
+                    }
+                };
+
+                jwt_flow
+                    .generate_jwt(state, self, &user_role, lineage_context)
+                    .await
             }
         }
     }
@@ -358,7 +484,7 @@ impl NextFlow {
                 }
                 utils::user_role::set_role_info_in_cache_by_user_role(state, user_role).await;
 
-                jwt_flow.generate_jwt(state, self, user_role).await
+                jwt_flow.generate_jwt(state, self, user_role, None).await
             }
         }
     }

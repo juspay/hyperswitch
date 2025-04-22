@@ -9,10 +9,13 @@ use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
-use router_env::env;
+use router_env::{env, logger};
 
 use crate::{
-    consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
+    consts::user::{
+        LINEAGE_CONTEXT_PREFIX, LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS, REDIS_SSO_PREFIX,
+        REDIS_SSO_TTL,
+    },
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
@@ -338,4 +341,49 @@ pub async fn validate_email_domain_auth_type_using_db(
             .any(|auth_method| auth_method.auth_type == required_auth_type))
     .then_some(())
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
+}
+
+pub async fn set_lineage_context_in_cache(
+    state: &SessionState,
+    lineage_context: user_api::LineageContext,
+    user_id: String,
+) -> UserResult<()> {
+    let connection = get_redis_connection(state)?;
+    let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
+    connection
+        .set_key_with_expiry(
+            &key.into(),
+            serde_json::to_string(&lineage_context)
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to serialize LineageContext")?,
+            LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to set lineage context in redis")?;
+    Ok(())
+}
+
+pub async fn get_lineage_context_from_cache(
+    state: &SessionState,
+    user_id: String,
+) -> UserResult<Option<user_api::LineageContext>> {
+    let connection = get_redis_connection(state)?;
+    let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
+    let lineage_context = connection
+        .get_key::<Option<String>>(&key.into())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get lineage context from redis")?;
+
+    match lineage_context {
+        Some(json_str) => match serde_json::from_str::<user_api::LineageContext>(&json_str) {
+            Ok(ctx) => Ok(Some(ctx)),
+            Err(err) => {
+                logger::error!("Failed to deserialize LineageContext: {:?}", err);
+                Ok(None)
+            }
+        },
+        None => Ok(None),
+    }
 }
