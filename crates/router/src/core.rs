@@ -42,6 +42,9 @@ pub mod poll;
 pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
+#[cfg(feature = "v2")]
+pub mod refunds_v2;
+
 pub mod routing;
 pub mod surcharge_decision_config;
 #[cfg(feature = "olap")]

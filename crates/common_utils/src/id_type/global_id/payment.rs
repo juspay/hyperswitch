@@ -34,7 +34,7 @@ impl GlobalPaymentId {
         task: &str,
         runner: enums::ProcessTrackerRunner,
     ) -> String {
-        format!("{task}_{runner}_{}", self.get_string_repr())
+        format!("{runner}_{task}_{}", self.get_string_repr())
     }
 }
 

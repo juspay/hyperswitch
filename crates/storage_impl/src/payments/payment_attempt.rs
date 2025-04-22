@@ -3,7 +3,7 @@ use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
     errors::CustomResult,
     fallback_reverse_lookup_not_found,
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait},
+    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy},
 };
 use diesel_models::{
     enums::{
@@ -214,6 +214,33 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_last_successful_or_partially_captured_attempt_by_payment_id(
+            &conn, payment_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?
+        .convert(
+            key_manager_state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -650,6 +677,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
+                    created_by: payment_attempt.created_by.clone(),
+                    setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1048,6 +1078,26 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .await
             }
         }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+                key_manager_state,
+                merchant_key_store,
+                payment_id,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(feature = "v2")]
@@ -1653,8 +1703,11 @@ impl DataModelExt for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1671,7 +1724,7 @@ impl DataModelExt for PaymentAttempt {
                 storage_model.tax_amount,
             ),
             payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
+            merchant_id: storage_model.merchant_id.clone(),
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             currency: storage_model.currency,
@@ -1738,6 +1791,13 @@ impl DataModelExt for PaymentAttempt {
             charges: storage_model.charges,
             issuer_error_code: storage_model.issuer_error_code,
             issuer_error_message: storage_model.issuer_error_message,
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            setup_future_usage_applied: storage_model.setup_future_usage_applied,
         }
     }
 }
@@ -1824,6 +1884,9 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            setup_future_usage_applied: self.setup_future_usage_applied,
         }
     }
 
@@ -1837,7 +1900,7 @@ impl DataModelExt for PaymentAttemptNew {
                 storage_model.tax_amount,
             ),
             payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
+            merchant_id: storage_model.merchant_id.clone(),
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             currency: storage_model.currency,
@@ -1899,6 +1962,13 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            setup_future_usage_applied: storage_model.setup_future_usage_applied,
         }
     }
 }
