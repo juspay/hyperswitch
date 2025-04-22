@@ -32,6 +32,7 @@ use euclid::{
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
     contract_routing_client::ContractBasedDynamicRouting,
+    elimination_based_client::{EliminationBasedRouting, EliminationResponse},
     success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
     DynamicRoutingError,
 };
@@ -1562,7 +1563,7 @@ pub async fn perform_dynamic_routing(
         profile.get_id().get_string_repr()
     );
 
-    let connector_list = match dynamic_routing_algo_ref
+    let mut connector_list = match dynamic_routing_algo_ref
         .success_based_algorithm
         .as_ref()
         .async_map(|algorithm| {
@@ -1591,7 +1592,7 @@ pub async fn perform_dynamic_routing(
                         state,
                         routable_connectors.clone(),
                         profile.get_id(),
-                        dynamic_routing_config_params_interpolator,
+                        dynamic_routing_config_params_interpolator.clone(),
                         algorithm.clone(),
                     )
                 })
@@ -1600,9 +1601,28 @@ pub async fn perform_dynamic_routing(
                 .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
                 .ok()
                 .flatten()
-                .unwrap_or(routable_connectors)
+                .unwrap_or(routable_connectors.clone())
         }
     };
+
+    connector_list = dynamic_routing_algo_ref
+        .elimination_routing_algorithm
+        .as_ref()
+        .async_map(|algorithm| {
+            perform_elimination_routing(
+                state,
+                connector_list.clone(),
+                profile.get_id(),
+                dynamic_routing_config_params_interpolator.clone(),
+                algorithm.clone(),
+            )
+        })
+        .await
+        .transpose()
+        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
+        .ok()
+        .flatten()
+        .unwrap_or(connector_list);
 
     Ok(connector_list)
 }
@@ -1859,6 +1879,127 @@ pub async fn perform_success_based_routing(
             });
         }
         logger::debug!(success_based_routing_connectors=?connectors);
+        Ok(connectors)
+    } else {
+        Ok(routable_connectors)
+    }
+}
+
+/// elimination dynamic routing
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_elimination_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile_id: &common_utils::id_type::ProfileId,
+    elimination_routing_configs_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
+    elimination_algo_ref: api_routing::EliminationRoutingAlgorithm,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    if elimination_algo_ref.enabled_feature
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
+    {
+        logger::debug!(
+            "performing elimination_routing for profile {}",
+            profile_id.get_string_repr()
+        );
+        let client = state
+            .grpc_client
+            .dynamic_routing
+            .elimination_based_client
+            .as_ref()
+            .ok_or(errors::RoutingError::EliminationClientInitializationError)
+            .attach_printable("elimination routing's gRPC client not found")?;
+
+        let elimination_routing_config = routing::helpers::fetch_dynamic_routing_configs::<
+            api_routing::EliminationRoutingConfig,
+        >(
+            state,
+            profile_id,
+            elimination_algo_ref
+                .algorithm_id_with_timestamp
+                .algorithm_id
+                .ok_or(errors::RoutingError::GenericNotFoundError {
+                    field: "elimination_routing_algorithm_id".to_string(),
+                })
+                .attach_printable(
+                    "elimination_routing_algorithm_id not found in business_profile",
+                )?,
+        )
+        .await
+        .change_context(errors::RoutingError::EliminationRoutingConfigError)
+        .attach_printable("unable to fetch elimination dynamic routing configs")?;
+
+        let elimination_routing_config_params = elimination_routing_configs_params_interpolator
+            .get_string_val(
+                elimination_routing_config
+                    .params
+                    .as_ref()
+                    .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)?,
+            );
+
+        let elimination_based_connectors: EliminationResponse = client
+            .perform_elimination_routing(
+                profile_id.get_string_repr().to_string(),
+                elimination_routing_config_params,
+                routable_connectors.clone(),
+                elimination_routing_config.elimination_analyser_config,
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(errors::RoutingError::EliminationRoutingCalculationError)
+            .attach_printable(
+                "unable to analyze/fetch elimination routing from dynamic routing service",
+            )?;
+        let mut connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
+        let mut eliminated_connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
+        let mut non_eliminated_connectors =
+            Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
+        for labels_with_status in elimination_based_connectors.labels_with_status {
+            let (connector, merchant_connector_id) = labels_with_status.label
+                .split_once(':')
+                .ok_or(errors::RoutingError::InvalidEliminationBasedConnectorLabel(labels_with_status.label.to_string()))
+                .attach_printable(
+                    "unable to split connector_name and mca_id from the label obtained by the elimination based dynamic routing service",
+                )?;
+
+            let routable_connector = api_routing::RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(connector)
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "RoutableConnectors".to_string(),
+                    })
+                    .attach_printable("unable to convert String to RoutableConnectors")?,
+                merchant_connector_id: Some(
+                    common_utils::id_type::MerchantConnectorAccountId::wrap(
+                        merchant_connector_id.to_string(),
+                    )
+                    .change_context(errors::RoutingError::GenericConversionError {
+                        from: "String".to_string(),
+                        to: "MerchantConnectorAccountId".to_string(),
+                    })
+                    .attach_printable("unable to convert MerchantConnectorAccountId from string")?,
+                ),
+            };
+
+            if labels_with_status
+                .elimination_information
+                .is_some_and(|elimination_info| {
+                    elimination_info
+                        .entity
+                        .is_some_and(|entity_info| entity_info.is_eliminated)
+                })
+            {
+                eliminated_connectors.push(routable_connector);
+            } else {
+                non_eliminated_connectors.push(routable_connector);
+            }
+            connectors.extend(non_eliminated_connectors.clone());
+            connectors.extend(eliminated_connectors.clone());
+        }
+        logger::debug!(dynamic_eliminated_connectors=?eliminated_connectors);
+        logger::debug!(dynamic_elimination_based_routing_connectors=?connectors);
         Ok(connectors)
     } else {
         Ok(routable_connectors)
