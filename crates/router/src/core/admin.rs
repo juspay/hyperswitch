@@ -2914,7 +2914,14 @@ pub async fn create_connector(
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
-        update_revenue_recovery_algorithm_under_profile(business_profile.clone(),store,key_manager_state,&key_store,common_enums::RevenueRecoveryAlgorithmType::Monitoring).await?;
+        update_revenue_recovery_algorithm_under_profile(
+            business_profile.clone(),
+            store,
+            key_manager_state,
+            &key_store,
+            common_enums::RevenueRecoveryAlgorithmType::Monitoring,
+        )
+        .await?;
     }
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
@@ -4589,15 +4596,14 @@ pub async fn update_revenue_recovery_algorithm_under_profile(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
-    revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType
-    
-) -> RouterResult<()>{
-    let data = diesel_models::business_profile::RevenueRecoveryAlgorithmData{
+    revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+) -> RouterResult<()> {
+    let data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
         monitoring_configured_timestamp: date_time::now(),
     };
-    let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate{
+    let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
         revenue_recovery_retry_algorithm_type,
-        revenue_recovery_retry_algorithm_data:Some(data),
+        revenue_recovery_retry_algorithm_data: Some(data),
     };
 
     db.update_profile_by_profile_id(

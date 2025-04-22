@@ -1637,7 +1637,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
-                revenue_recovery_retry_algorithm_type:Some(revenue_recovery_retry_algorithm_type),
+                revenue_recovery_retry_algorithm_type: Some(revenue_recovery_retry_algorithm_type),
                 revenue_recovery_retry_algorithm_data,
             },
         }
