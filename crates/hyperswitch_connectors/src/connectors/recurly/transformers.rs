@@ -505,13 +505,13 @@ pub struct RecurlyInvoiceSyncResponse {
     pub id: String,
     pub total: FloatMajorUnit,
     pub currency: common_enums::Currency,
-    pub address: Option<RecurlyInvoiceBillingAdddress>,
+    pub address: Option<RecurlyInvoiceBillingAddress>,
     pub line_items: Vec<RecurlyLineItems>,
     pub transactions: Vec<RecurlyInvoiceTransactionsStatus>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RecurlyInvoiceBillingAdddress {
+pub struct RecurlyInvoiceBillingAddress {
     pub street1: Option<Secret<String>>,
     pub street2: Option<Secret<String>>,
     pub region: Option<Secret<String>>,
