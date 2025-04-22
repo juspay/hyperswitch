@@ -127,30 +127,30 @@ pub struct BankInfo {
     pub swift: Option<Secret<String>>,
     pub name: Option<String>,
     #[serde(rename = "id")]
-    pub bank_id: String,
+    pub bank_id: Secret<String>,
     pub code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BankAccountDetail {
-    pub routing_number: Option<String>,
+    pub routing_number: Option<Secret<String>>,
     pub pix_info: Option<PixInfo>,
-    pub owner_name: Option<String>,
+    pub owner_name: Option<Secret<String>>,
     pub owner_document_number: Option<Secret<String>>,
     pub owner_company: Option<OwnerCompany>,
     pub internal: Option<bool>,
-    pub intermediary_bank_account: Option<String>,
-    pub intermediary_bank_account_id: Option<String>,
+    pub intermediary_bank_account: Option<Secret<String>>,
+    pub intermediary_bank_account_id: Option<Secret<String>>,
     #[serde(rename = "id")]
-    pub bank_account_id: String,
-    pub iban: Option<String>,
+    pub bank_account_id: Secret<String>,
+    pub iban: Option<Secret<String>>,
     pub flow_type: Option<String>,
     pub currency: api_models::enums::Currency,
-    pub branch_number: Option<String>,
+    pub branch_number: Option<Secret<String>>,
     pub branch_country: Option<String>,
     pub bank: Option<BankInfo>,
     pub account_type: Option<String>,
-    pub account_number: Option<String>,
+    pub account_number: Option<Secret<String>>,
     pub aba: Option<String>,
 }
 
