@@ -4224,6 +4224,37 @@ pub async fn get_session_token_for_click_to_pay(
         _ => None,
     };
 
+    let card_brands =
+        get_card_brands_based_on_active_merchant_connector_account(state, profile_id, key_store)
+            .await?;
+
+    Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
+        api_models::payments::ClickToPaySessionResponse {
+            dpa_id: click_to_pay_metadata.dpa_id,
+            dpa_name: click_to_pay_metadata.dpa_name,
+            locale: click_to_pay_metadata.locale,
+            card_brands,
+            acquirer_bin: click_to_pay_metadata.acquirer_bin,
+            acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
+            merchant_category_code: click_to_pay_metadata.merchant_category_code,
+            merchant_country_code: click_to_pay_metadata.merchant_country_code,
+            transaction_amount,
+            transaction_currency_code: transaction_currency,
+            phone_number: customer_details.phone.clone(),
+            email: customer_details.email.clone(),
+            phone_country_code: customer_details.phone_country_code.clone(),
+            provider,
+            dpa_client_id: click_to_pay_metadata.dpa_client_id.clone(),
+        },
+    )))
+}
+
+async fn get_card_brands_based_on_active_merchant_connector_account(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<HashSet<enums::CardNetwork>> {
+    let key_manager_state = &(state).into();
     let merchant_configured_payment_connectors = state
         .store
         .list_enabled_connector_accounts_by_profile_id(
@@ -4271,26 +4302,7 @@ pub async fn get_session_token_for_click_to_pay(
             }
         }
     }
-
-    Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
-        api_models::payments::ClickToPaySessionResponse {
-            dpa_id: click_to_pay_metadata.dpa_id,
-            dpa_name: click_to_pay_metadata.dpa_name,
-            locale: click_to_pay_metadata.locale,
-            card_brands,
-            acquirer_bin: click_to_pay_metadata.acquirer_bin,
-            acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
-            merchant_category_code: click_to_pay_metadata.merchant_category_code,
-            merchant_country_code: click_to_pay_metadata.merchant_country_code,
-            transaction_amount,
-            transaction_currency_code: transaction_currency,
-            phone_number: customer_details.phone.clone(),
-            email: customer_details.email.clone(),
-            phone_country_code: customer_details.phone_country_code.clone(),
-            provider,
-            dpa_client_id: click_to_pay_metadata.dpa_client_id.clone(),
-        },
-    )))
+    Ok(card_brands)
 }
 
 fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {

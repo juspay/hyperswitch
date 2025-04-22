@@ -900,5 +900,11 @@ background_color = "#FFFFFF"                                                    
 [platform]
 enabled = true
 
+[authentication_providers]
+click_to_pay = {connector_list = "adyen, cybersource"}
+
+
 [open_router]
 enabled = false
+
+

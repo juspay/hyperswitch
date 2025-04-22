@@ -9697,7 +9697,7 @@
           "card_brands": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CardNetwork"
             },
             "example": "[Visa, Mastercard]"
           },
