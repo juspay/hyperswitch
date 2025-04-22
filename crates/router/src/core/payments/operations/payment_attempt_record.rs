@@ -195,8 +195,6 @@ impl<F: Send + Clone + Sync>
             retry_count: request.retry_count,
             invoice_next_billing_time: request.invoice_next_billing_time,
         };
-        // We need the address here to send it in the response
-        // In case we need to send an outgoing webhook, we might have to send the billing address and shipping address
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
                 .shipping_address
