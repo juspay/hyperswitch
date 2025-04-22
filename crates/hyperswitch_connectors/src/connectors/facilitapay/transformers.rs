@@ -29,7 +29,7 @@ use super::{
     },
     responses::{
         FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentStatus,
-        FacilitapayPaymentsResponse, FacilitapayRefundResponse,
+        FacilitapayPaymentsResponse, FacilitapayRefundResponse, SubjectKycStatus,
     },
 };
 use crate::{
@@ -347,27 +347,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
         item: ResponseRouterData<F, FacilitapayCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response_data = item.response.data.clone();
-
-        if let Some(state_str) = &response_data.address_state {
-            match BrazilStatesAbbreviation::foreign_try_from(state_str.clone()) {
-                Ok(_) => {
-                    router_env::logger::debug!(facilitapay_state = %state_str, "Received valid Brazil state from Facilitapay");
-                }
-                Err(parse_error) => {
-                    router_env::logger::error!(
-                        facilitapay_customer_response=?response_data,
-                        invalid_state_received=%state_str,
-                        parsing_error=?parse_error,
-                        "Invalid address_state received from Facilitapay, expected a valid Brazil state abbreviation or null"
-                    );
-                    return Err(parse_error).change_context(
-                        errors::ConnectorError::InvalidDataFormat {
-                            field_name: "address_state (invalid Brazil state abbreviation)",
-                        },
-                    );
-                }
-            }
-        }
 
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
