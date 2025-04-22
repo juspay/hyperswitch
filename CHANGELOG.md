@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix6
+
+### Bug Fixes
+
+- **connector:** Revert noon-paypal ([#7865](https://github.com/juspay/hyperswitch/pull/7865)) ([`e63bdec`](https://github.com/juspay/hyperswitch/commit/e63bdec1c57f04660bf16fb54434da1df95be3e0))
+
+### Revert
+
+- Fix(connector): [noon] address next_action_url being null for cards in 3ds payment ([#7863](https://github.com/juspay/hyperswitch/pull/7863)) ([`e0035ad`](https://github.com/juspay/hyperswitch/commit/e0035ad98f2c57b391bc5ca77e10d18a22025488))
+
+**Full Changelog:** [`2025.04.09.0-hotfix5...2025.04.09.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix5...2025.04.09.0-hotfix6)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix5
 
 ### Bug Fixes
