@@ -7795,6 +7795,17 @@ pub enum ErrorCategory {
     ProcessorDeclineIncorrectData,
 }
 
+impl ErrorCategory {
+    pub fn should_perform_elimination_routing(self) -> bool {
+        match self {
+            Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Debug,

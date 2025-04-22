@@ -4,6 +4,60 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.22.0
+
+### Features
+
+- **dynamic_routing:** Add open router integration for success based routing ([#7795](https://github.com/juspay/hyperswitch/pull/7795)) ([`a51c9f0`](https://github.com/juspay/hyperswitch/commit/a51c9f039ffc02f4880a301d8453d98dc90df1e1))
+- **refunds_v2:** Add refund create core flow ([#7619](https://github.com/juspay/hyperswitch/pull/7619)) ([`eabef32`](https://github.com/juspay/hyperswitch/commit/eabef328c665cfbaf953a5eb15bd15484c62dcf7))
+
+### Bug Fixes
+
+- **connector:** [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7832](https://github.com/juspay/hyperswitch/pull/7832)) ([`662e45f`](https://github.com/juspay/hyperswitch/commit/662e45f0037c0aa039c1de72500c6004322f3ffb))
+- **core:** [CARD TESTING GUARD] Added Card Testing Guard Config response in case of NULL ([#7478](https://github.com/juspay/hyperswitch/pull/7478)) ([`73eb467`](https://github.com/juspay/hyperswitch/commit/73eb467d32a0cabb6e27c25dd084aea6bb38e861))
+
+### Refactors
+
+- **middleware:** Add middleware to record metrics for request count and duration ([#7803](https://github.com/juspay/hyperswitch/pull/7803)) ([`54a1719`](https://github.com/juspay/hyperswitch/commit/54a1719fe6aaabf22d5696606c1458ec1f49f037))
+- **required_fields:** Move pm required fields to pm crate ([#7539](https://github.com/juspay/hyperswitch/pull/7539)) ([`103a5c1`](https://github.com/juspay/hyperswitch/commit/103a5c182b9744faf27d367efd58fac669d5c2ba))
+
+### Revert
+
+- Fix(connector): [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7859](https://github.com/juspay/hyperswitch/pull/7859)) ([`c89a412`](https://github.com/juspay/hyperswitch/commit/c89a4121a3450d5c8c613dbcbedb846cb9bfd176))
+
+**Full Changelog:** [`2025.04.18.0...2025.04.22.0`](https://github.com/juspay/hyperswitch/compare/2025.04.18.0...2025.04.22.0)
+
+
+- - -
+
+## 2025.04.18.0
+
+### Features
+
+- **payment_method:** Add logic for setup_future_usage downgrade and add filter based on zero mandate config ([#7775](https://github.com/juspay/hyperswitch/pull/7775)) ([`d061e0a`](https://github.com/juspay/hyperswitch/commit/d061e0a7c55c518cf76047eb1cbe506b0faed0bf))
+- Add primary key not null query to generic filter function ([#7785](https://github.com/juspay/hyperswitch/pull/7785)) ([`8738f19`](https://github.com/juspay/hyperswitch/commit/8738f190677c25e9023e2faa2be9aa9a60ce1097))
+
+### Bug Fixes
+
+- **connector:**
+  - [Cybersource] send type selection indicator for co-batch cards ([#7828](https://github.com/juspay/hyperswitch/pull/7828)) ([`ec147d5`](https://github.com/juspay/hyperswitch/commit/ec147d5e7316c5fa5a5ac90ca7bc9318dc2dcaab))
+  - [globalpay] handle edge case where currency comes as empty upon payment decline ([#7812](https://github.com/juspay/hyperswitch/pull/7812)) ([`689e738`](https://github.com/juspay/hyperswitch/commit/689e738f7e12b9810a9e260d4936dc6f7450de49))
+
+### Refactors
+
+- **accounts:** Move dashboard_metadata table to accounts_schema and point v2 to v1 dashboard_metadata ([#7793](https://github.com/juspay/hyperswitch/pull/7793)) ([`4f4e31d`](https://github.com/juspay/hyperswitch/commit/4f4e31db24652e72ce50745e9d64618c93c692bc))
+- **cypress-v2:** Change `Authorization` and `payment_methods_enabled` for v2 cypress tests ([#7805](https://github.com/juspay/hyperswitch/pull/7805)) ([`8a737d5`](https://github.com/juspay/hyperswitch/commit/8a737d578123fcb3c265271984b5e36c8333e54a))
+
+### Miscellaneous Tasks
+
+- **analytics:** Opensearch client creation based on config ([#7810](https://github.com/juspay/hyperswitch/pull/7810)) ([`2067bc3`](https://github.com/juspay/hyperswitch/commit/2067bc352044f00f2c724b4a97f1de0cf599f337))
+- **postman:** Update Postman collection files ([`daa02cc`](https://github.com/juspay/hyperswitch/commit/daa02cc9b1bd8c791d5bfe7e042f8a492c761128))
+
+**Full Changelog:** [`2025.04.17.0...2025.04.18.0`](https://github.com/juspay/hyperswitch/compare/2025.04.17.0...2025.04.18.0)
+
+
+- - -
+
 ## 2025.04.17.0
 
 ### Features

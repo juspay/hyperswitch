@@ -786,6 +786,30 @@ connectors_with_webhook_source_verification_call = "paypal"
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
+[zero_mandates.supported_payment_methods]
+bank_debit.ach = { connector_list = "gocardless,adyen" }
+bank_debit.becs = { connector_list = "gocardless,adyen" }
+bank_debit.bacs = { connector_list = "gocardless" }
+bank_debit.sepa = { connector_list = "gocardless,adyen" }
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal"
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal"
+pay_later.klarna.connector_list = "adyen"
+wallet.apple_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,authorizedotnet"
+wallet.samsung_pay.connector_list = "cybersource"
+wallet.google_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,authorizedotnet"
+wallet.paypal.connector_list = "adyen,novalnet"
+wallet.momo.connector_list = "adyen"
+wallet.kakao_pay.connector_list = "adyen"
+wallet.go_pay.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen"
+wallet.dana.connector_list = "adyen"
+wallet.twint.connector_list = "adyen"
+wallet.vipps.connector_list = "adyen"
+bank_redirect.ideal.connector_list = "adyen"
+bank_redirect.bancontact_card.connector_list = "adyen"
+bank_redirect.trustly.connector_list = "adyen"
+bank_redirect.open_banking_uk.connector_list = "adyen"
+
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
@@ -995,7 +1019,7 @@ connector_list = "cybersource"
 
 [grpc_client.dynamic_routing_client]
 host = "localhost"
-port = 7000
+port = 8000
 service = "dynamo"
 
 [theme.storage]
@@ -1010,3 +1034,7 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
+
+[open_router]
+enabled = false
+url = "http://localhost:8080"
