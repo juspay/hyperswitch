@@ -57,7 +57,6 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -632,6 +631,24 @@ mod storage {
             }
         }
 
+        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[instrument(skip_all)]
+        async fn find_refund_by_merchant_id_connector_transaction_id(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            connector_transaction_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Refund::find_by_merchant_id_connector_transaction_id(
+                &conn,
+                merchant_id,
+                connector_transaction_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn update_refund(
@@ -1092,7 +1109,6 @@ impl RefundInterface for MockDb {
         Ok(refund)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,

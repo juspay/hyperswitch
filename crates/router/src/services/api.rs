@@ -880,12 +880,6 @@ where
     );
     state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(
-        status_code.to_string(),
-        flow.to_string(),
-        merchant_id.to_owned(),
-    );
-
     output
 }
 
@@ -939,18 +933,15 @@ where
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
 
-    let server_wrap_util_res = metrics::request::record_request_time_metric(
-        server_wrap_util(
-            &flow,
-            state.clone(),
-            incoming_request_header,
-            request,
-            payload,
-            func,
-            api_auth,
-            lock_action,
-        ),
+    let server_wrap_util_res = server_wrap_util(
         &flow,
+        state.clone(),
+        incoming_request_header,
+        request,
+        payload,
+        func,
+        api_auth,
+        lock_action,
     )
     .await
     .map(|response| {
@@ -1277,6 +1268,7 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     }
 }
 
+impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
