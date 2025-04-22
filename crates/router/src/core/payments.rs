@@ -3702,7 +3702,7 @@ where
             header_payload.clone(),
         )
         .await?;
-    println!("$$$$$$updated trackers"); 
+    println!("$$$$$$updated trackers");
 
     let router_data = if should_continue_further {
         router_data
