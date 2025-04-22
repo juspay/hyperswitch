@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.16.0-hotfix1
+
+### Bug Fixes
+
+- **connector:**
+  - Revert noon-paypal ([#7868](https://github.com/juspay/hyperswitch/pull/7868)) ([`b7915d3`](https://github.com/juspay/hyperswitch/commit/b7915d3243df49b91e0f2ea4dc37bbda7c1f0f85))
+  - [Cybersource] send type selection indicator for co-batch cards ([#7869](https://github.com/juspay/hyperswitch/pull/7869)) ([`a14de9a`](https://github.com/juspay/hyperswitch/commit/a14de9aae476f2feb22bebad8eed55313c1980da))
+
+**Full Changelog:** [`2025.04.16.0...2025.04.16.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.04.16.0...2025.04.16.0-hotfix1)
+
+
+- - -
+
 ## 2025.04.16.0
 
 ### Features
