@@ -290,7 +290,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &merchant_context)?;
+        .validate_request(&req, merchant_context)?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -306,7 +306,7 @@ where
             state,
             &validate_result.payment_id,
             &req,
-            &merchant_context,
+            merchant_context,
             auth_flow,
             &header_payload,
         )
@@ -337,7 +337,7 @@ where
         .attach_printable("Failed while fetching/creating customer")?;
 
     let authentication_type =
-        call_decision_manager(state, &merchant_context, &business_profile, &payment_data).await?;
+        call_decision_manager(state, merchant_context, &business_profile, &payment_data).await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
@@ -345,7 +345,7 @@ where
         &operation,
         state,
         &req,
-        &merchant_context,
+        merchant_context,
         &business_profile,
         &mut payment_data,
         eligible_connectors,
@@ -382,7 +382,7 @@ where
         let frm_configs = if state.conf.frm.enabled {
             Box::pin(frm_core::call_frm_before_connector_call(
                 &operation,
-                &merchant_context,
+                merchant_context,
                 &mut payment_data,
                 state,
                 &mut frm_info,
@@ -500,7 +500,7 @@ where
                     let (router_data, mca) = call_connector_service(
                         state,
                         req_state.clone(),
-                        &merchant_context,
+                        merchant_context,
                         connector.clone(),
                         &operation,
                         &mut payment_data,
@@ -529,7 +529,7 @@ where
                                 &mut should_continue_transaction,
                                 &connector_details,
                                 &business_profile,
-                                &merchant_context.get_merchant_key_store(),
+                                merchant_context.get_merchant_key_store(),
                                 mandate_type,
                                 &should_do_uas_confirmation_call,
                             )
@@ -551,7 +551,7 @@ where
                         .save_pm_and_mandate(
                             state,
                             &router_data,
-                            &merchant_context,
+                            merchant_context,
                             &mut payment_data,
                             &business_profile,
                         )
@@ -563,7 +563,7 @@ where
                             state,
                             payment_data,
                             router_data,
-                            &merchant_context.get_merchant_key_store(),
+                            merchant_context.get_merchant_key_store(),
                             merchant_context.get_merchant_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -576,7 +576,7 @@ where
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
                             state,
-                            &merchant_context,
+                            merchant_context,
                             &customer,
                             &mca,
                             connector,
@@ -617,7 +617,7 @@ where
                     let (router_data, mca) = call_connector_service(
                         state,
                         req_state.clone(),
-                        &merchant_context,
+                        merchant_context,
                         connector_data.clone(),
                         &operation,
                         &mut payment_data,
@@ -656,7 +656,7 @@ where
                                 connectors,
                                 &connector_data,
                                 router_data,
-                                &merchant_context,
+                                merchant_context,
                                 &operation,
                                 &customer,
                                 &validate_result,
@@ -684,7 +684,7 @@ where
                                 &mut should_continue_transaction,
                                 &connector_details,
                                 &business_profile,
-                                &merchant_context.get_merchant_key_store(),
+                                merchant_context.get_merchant_key_store(),
                                 mandate_type,
                                 &should_do_uas_confirmation_call,
                             )
@@ -702,7 +702,7 @@ where
                         .save_pm_and_mandate(
                             state,
                             &router_data,
-                            &merchant_context,
+                            merchant_context,
                             &mut payment_data,
                             &business_profile,
                         )
@@ -714,7 +714,7 @@ where
                             state,
                             payment_data,
                             router_data,
-                            &merchant_context.get_merchant_key_store(),
+                            merchant_context.get_merchant_key_store(),
                             merchant_context.get_merchant_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -727,7 +727,7 @@ where
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
                             state,
-                            &merchant_context,
+                            merchant_context,
                             &customer,
                             &mca,
                             &connector_data,
@@ -745,7 +745,7 @@ where
                     let session_surcharge_details =
                         call_surcharge_decision_management_for_session_flow(
                             state,
-                            &merchant_context,
+                            merchant_context,
                             &business_profile,
                             payment_data.get_payment_attempt(),
                             payment_data.get_payment_intent(),
@@ -755,7 +755,7 @@ where
                         .await?;
                     Box::pin(call_multiple_connectors_service(
                         state,
-                        &merchant_context,
+                        merchant_context,
                         connectors,
                         &operation,
                         payment_data,
@@ -774,7 +774,7 @@ where
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
                     req_state,
-                    &merchant_context,
+                    merchant_context,
                     &mut payment_data,
                     fraud_info,
                     frm_configs
@@ -798,7 +798,7 @@ where
                     customer.clone(),
                     validate_result.storage_scheme,
                     None,
-                    &merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_key_store(),
                     #[cfg(feature = "frm")]
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
@@ -834,7 +834,7 @@ where
                 customer.clone(),
                 validate_result.storage_scheme,
                 None,
-                &merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_key_store(),
                 None,
                 header_payload.clone(),
             )
@@ -967,7 +967,7 @@ where
     let connector = set_eligible_connector_for_nti_in_payment_data(
         state,
         &business_profile,
-        &merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_key_store(),
         &mut payment_data,
         connector_choice,
     )
@@ -1028,7 +1028,7 @@ where
             state,
             payment_data,
             router_data,
-            &merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
             &locale,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -3346,7 +3346,7 @@ where
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
-        &merchant_context,
+        merchant_context,
         payment_data,
         &connector.connector_name.to_string(),
         connector.merchant_connector_id.as_ref(),
@@ -6536,7 +6536,7 @@ where
 
     route_connector_v1_for_payments(
         &state,
-        &merchant_context,
+        merchant_context,
         business_profile,
         payment_data,
         transaction_data,
