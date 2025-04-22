@@ -1483,7 +1483,6 @@ pub enum PaymentType {
     SevenEleven,
     #[serde(rename = "econtext_stores")]
     JapaneseConvenienceStores,
-    PayEasy,
     Pix,
 }
 
@@ -4264,7 +4263,6 @@ pub fn get_wait_screen_metadata(
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
         | PaymentType::JapaneseConvenienceStores
-        | PaymentType::PayEasy
         | PaymentType::Pix => Ok(None),
     }
 }
@@ -4283,8 +4281,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Indomaret
         | PaymentType::BoletoBancario
         | PaymentType::Oxxo
-        | PaymentType::JapaneseConvenienceStores
-        | PaymentType::PayEasy => {
+        | PaymentType::JapaneseConvenienceStores => {
             let voucher_data = VoucherNextStepData {
                 expires_at,
                 reference,
