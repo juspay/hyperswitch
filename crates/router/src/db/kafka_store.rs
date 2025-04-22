@@ -83,6 +83,7 @@ use crate::{
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
+        tokenization::TokenizationInterface,
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
@@ -4164,5 +4165,17 @@ impl CallbackMapperInterface for KafkaStore {
         id: &str,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         self.diesel_store.find_call_back_mapper_by_id(id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl TokenizationInterface for KafkaStore {
+    async fn insert_tokenization(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError> {
+        self.diesel_store.insert_tokenization(tokenization, merchant_key_store, key_manager_state).await
     }
 }

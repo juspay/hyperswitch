@@ -26,6 +26,7 @@ pub mod diesel_exports {
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt, 
+        DbTokenizationFlag as TokenizationFlag,
     };
 }
 pub use common_enums::*;

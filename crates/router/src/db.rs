@@ -40,6 +40,7 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+pub mod tokenization;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_utils::id_type;
@@ -139,6 +140,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + tokenization::TokenizationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

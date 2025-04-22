@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 use common_utils::id_type::GlobalTokenId;
+use time::PrimitiveDateTime;
+use common_enums;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenizationResponse {
     pub id: GlobalTokenId,
-    pub created_at: i64,
-    pub flag: TokenizationFlag,
+    pub created_at: PrimitiveDateTime,
+    pub flag: common_enums::TokenizationFlag,
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]

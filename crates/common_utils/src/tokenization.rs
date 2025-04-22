@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use diesel;
 use common_enums::ApiVersion;
-
+use time::PrimitiveDateTime;
 use crate::{
     consts::{MAX_LOCKER_ID_LENGTH, TOKEN_LENGTH},
     id_type::GlobalTokenId,
@@ -21,9 +21,9 @@ pub struct TokenizationResponse {
     /// Reference to the vault/locker where the actual data is stored
     pub locker_id: String,
     /// Timestamp when the token was created
-    pub created_at: i64,
+    pub created_at: PrimitiveDateTime,
     /// Timestamp when the token was last updated
-    pub updated_at: i64,
+    pub updated_at: PrimitiveDateTime,
     /// Current status of the token
     pub flag: TokenizationFlag,
 }

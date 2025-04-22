@@ -41,6 +41,7 @@ use crate::{
     payments::*,
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
+    tokenization,
 };
 
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
@@ -228,3 +229,6 @@ impl ApiEventMetric for PaymentMethodSessionResponse {
         })
     }
 }
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for tokenization::TokenizationResponse {}

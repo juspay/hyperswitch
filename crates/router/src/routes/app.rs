@@ -38,6 +38,8 @@ use super::payment_methods;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::tokenization as tokenization_routes;
 #[cfg(all(
     feature = "oltp",
     any(feature = "v1", feature = "v2"),
@@ -91,7 +93,6 @@ pub use crate::{
 };
 use crate::{
     configs::{secrets_transformers, Settings}, core::payments::tokenization, db::kafka_store::{KafkaStore, TenantID}, routes::hypersense as hypersense_routes,
-    core::tokenization as tokenization_core,
 };
 
 #[derive(Clone)]
@@ -1358,18 +1359,25 @@ impl PaymentMethodSession {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "oltp"))]
 pub struct Tokenization;
 
-#[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
+#[cfg(all(feature = "v2", feature = "oltp"))]
 impl Tokenization {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/tokenize")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("")
-                    .route(web::post().to(tokenization_core::create_token_vault_api)),
-            )
+        let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
+        token_route = token_route.service(
+            web::resource("")
+                .route(web::post().to(tokenization_routes::create_token_vault_api)),
+        );
+
+        token_route
+        // web::scope("/v2/tokenize")
+        //     .app_data(web::Data::new(state))
+        //     .service(
+        //         web::resource("")
+        //             .route(web::post().to(tokenization_routes::create_token_vault_api)),
+        //     )
     }
 }
 

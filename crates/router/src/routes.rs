@@ -59,6 +59,7 @@ pub mod verify_connector;
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub mod webhook_events;
 pub mod webhooks;
+pub mod tokenization;
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub mod recovery_webhooks;
@@ -72,6 +73,8 @@ pub mod process_tracker;
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
 pub use self::app::PaymentMethodSession;
+#[cfg(feature = "v2")]
+pub use self::app::Tokenization;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{

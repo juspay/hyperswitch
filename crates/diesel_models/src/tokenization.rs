@@ -26,11 +26,11 @@ use common_enums;
 pub struct Tokenization {
     pub id: common_utils::id_type::GlobalTokenId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub locker_id: String,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
-    pub version: common_enums::enums::ApiVersion,
+    pub locker_id: String,
     pub flag: common_enums::enums::TokenizationFlag,
+    pub version: common_enums::enums::ApiVersion,
 }
 
 #[derive(Clone, Debug, Insertable)]

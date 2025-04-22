@@ -582,6 +582,8 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Tokenization flow
+    TokenizationFlow,
 }
 
 /// Trait for providing generic behaviour to flow metric

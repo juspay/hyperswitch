@@ -1,10 +1,18 @@
-use common_utils::{errors::{CustomResult, ValidationError}, pii};
+
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use common_utils::id_type;
+use common_utils::{
+    id_type,
+    types::{keymanager, MinorUnit},
+    errors::{CustomResult, ValidationError}, pii,
+};
+use masking::{ExposeInterface, Secret};
 use diesel_models::tokenization;
 use common_enums;
-use crate::types;
+use crate::{
+    types,
+    merchant_key_store::MerchantKeyStore,
+};
 use common_utils;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -15,7 +23,7 @@ pub struct Tokenization {
     pub locker_id: String,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
-    pub flag: common_utils::tokenization::TokenizationFlag,
+    pub flag: common_enums::TokenizationFlag,
     pub version: common_enums::ApiVersion,
 }
 
@@ -25,7 +33,7 @@ pub struct TokenizationNew {
     pub id: common_utils::id_type::GlobalTokenId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub locker_id: String,
-    pub flag: common_utils::tokenization::TokenizationFlag,
+    pub flag: common_enums::TokenizationFlag,
     pub version: common_enums::ApiVersion,
 }
 
@@ -34,7 +42,7 @@ pub struct TokenizationNew {
 pub struct TokenizationResponse {
     pub token: String,
     pub created_at: PrimitiveDateTime,
-    pub flag: common_utils::tokenization::TokenizationFlag,
+    pub flag: common_enums::TokenizationFlag,
 }
 
 impl From<Tokenization> for TokenizationResponse {
@@ -50,7 +58,7 @@ impl From<Tokenization> for TokenizationResponse {
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Tokenization {
     type DstType = diesel_models::tokenization::Tokenization;
-    type NewDstType = diesel_models::tokenization::TokenizationNew;
+    type NewDstType = diesel_models::tokenization::Tokenization;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::tokenization::Tokenization {
@@ -83,7 +91,7 @@ impl super::behaviour::Conversion for Tokenization {
     }
     
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(diesel_models::tokenization::TokenizationNew {
+        Ok(diesel_models::tokenization::Tokenization {
             id: self.id,
             merchant_id: self.merchant_id,
             locker_id: self.locker_id,
@@ -94,3 +102,14 @@ impl super::behaviour::Conversion for Tokenization {
         })
     }
 }
+
+// #[async_trait::async_trait]
+// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+// pub trait TokenizationInterface {
+//     async fn insert_tokenization(
+//         &self,
+//         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+//         merchant_key_store: &MerchantKeyStore,
+//         key_manager_state: &keymanager::KeyManagerState
+//     ) -> CustomResult<Tokenization, StorageError>;
+// }
