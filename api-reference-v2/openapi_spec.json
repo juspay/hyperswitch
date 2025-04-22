@@ -20394,82 +20394,6 @@
           }
         }
       },
-      "RefundRequest": {
-        "type": "object",
-        "required": [
-          "payment_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The payment id against which refund is to be initiated",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "maxLength": 30,
-            "minLength": 30
-          },
-          "refund_id": {
-            "type": "string",
-            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment. If this is not passed by the merchant, this field shall be auto generated and provided in the API response. It is recommended to generate uuid(v4) as the refund_id.",
-            "example": "ref_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 100
-          },
-          "reason": {
-            "type": "string",
-            "description": "Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`",
-            "example": "Customer returned the product",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "refund_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RefundType"
-              }
-            ],
-            "default": "Instant",
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
-          },
-          "split_refunds": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SplitRefund"
-              }
-            ],
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "RefundResponse": {
         "type": "object",
         "required": [
@@ -20572,7 +20496,7 @@
       },
       "RefundType": {
         "type": "string",
-        "description": "To indicate whether to refund needs to be instant or scheduled",
+        "description": "To indicate whether the refund needs to be instant or scheduled",
         "enum": [
           "scheduled",
           "instant"
@@ -20599,7 +20523,8 @@
       "RefundsCreateRequest": {
         "type": "object",
         "required": [
-          "payment_id"
+          "payment_id",
+          "merchant_reference_id"
         ],
         "properties": {
           "payment_id": {
@@ -20611,11 +20536,17 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.",
+            "description": "Unique Identifier for the Refund given by the Merchant.",
             "example": "ref_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
+            "maxLength": 255
           },
           "amount": {
             "type": "integer",
