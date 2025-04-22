@@ -36,7 +36,10 @@ use super::{
 };
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{is_payment_failure, missing_field_err, QrImage, RouterData as OtherRouterData},
+    utils::{
+        is_payment_failure, missing_field_err, ForeignTryFrom, QrImage,
+        RouterData as OtherRouterData,
+    },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -348,7 +351,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
         let response_data = item.response.data.clone();
 
         if let Some(state_str) = &response_data.address_state {
-            match BrazilStatesAbbreviation::from_str(state_str) {
+            match BrazilStatesAbbreviation::foreign_try_from(state_str.clone()) {
                 Ok(_) => {
                     router_env::logger::debug!(facilitapay_state = %state_str, "Received valid Brazil state from Facilitapay");
                 }

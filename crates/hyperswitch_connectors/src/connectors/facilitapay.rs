@@ -171,12 +171,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         _req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/{}/{}",
-            self.base_url(connectors),
-            "subject",
-            "people"
-        ))
+        Ok(format!("{}/subject/people", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -270,7 +265,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/{}", self.base_url(connectors), "sign_in"))
+        Ok(format!("{}/sign_in", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -362,7 +357,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/{}", self.base_url(connectors), "transactions"))
+        Ok(format!("{}/transactions", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -458,9 +453,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fac
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}/{}/{}",
+            "{}/transactions/{}",
             self.base_url(connectors),
-            "transactions",
             connector_transaction_id
         ))
     }
@@ -608,9 +602,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/{}/{}/refund_received_transaction",
+            "{}/transactions/{}/refund_received_transaction",
             self.base_url(connectors),
-            "transactions",
             req.request.connector_transaction_id
         ))
     }
@@ -698,9 +691,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Facilitap
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}/{}/{}/refund_received_transaction/{}",
+            "{}/transactions/{}/refund_received_transaction/{}",
             self.base_url(connectors),
-            "transactions",
             req.request.connector_transaction_id,
             refund_id
         ))

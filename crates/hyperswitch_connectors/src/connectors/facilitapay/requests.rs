@@ -86,30 +86,30 @@ pub struct FacilitapayCustomerRequest {
 pub enum DocumentType {
     /// CC is the Cedula de Ciudadania, is a 10-digit number, which is the national identity card for Colombian citizens.
     /// It is used for citizen identification purposes.
-    #[serde(rename = "Cc")]
+    #[serde(rename = "cc")]
     CedulaDeCiudadania,
     /// CNPJ stands for Cadastro Nacional da Pessoa Jurídica, is a 14-digit number,
     /// which is the national registry of legal entities in Brazil used as a unique identifier for Brazilian companies.
-    #[serde(rename = "Cnpj")]
+    #[serde(rename = "cnpj")]
     CadastroNacionaldaPessoaJurídica,
     /// CPF stands for Cadastro de Pessoas Físicas, is a 11-digit number,
     /// which is the national registry of natural persons in Brazil used as a unique identifier for Brazilian citizens.
-    #[serde(rename = "Cpf")]
+    #[serde(rename = "cpf")]
     CadastrodePessoasFísicas,
     /// CURP stands for Clave Única de Registro de Población,is a 18-digit number used as a unique identifier for Mexican citizens.
     /// It is used to track tax information and other identification purposes by the government.
-    #[serde(rename = "Curp")]
+    #[serde(rename = "curp")]
     ClaveÚnicadeRegistrodePoblación,
     /// NIT is the Número de Identificación Tributaria, is a 10-digit number, which is the tax identification number in Colombia. Used for companies.
-    #[serde(rename = "Nit")]
+    #[serde(rename = "nit")]
     NúmerodeIdentificaciónTributaria,
     /// Passport is the travel document usually issued by a country's government
     Passport,
     /// RFC stands for Registro Federal de Contribuyentes, is a 13-digit number used as a unique identifier for Mexican companies.
-    #[serde(rename = "Rfc")]
+    #[serde(rename = "rfc")]
     RegistroFederaldeContribuyentes,
     /// RUT stands for Rol Unico Tributario, is a 9-digit number used as a unique identifier for Chilean citizens and companies.
-    #[serde(rename = "Rut")]
+    #[serde(rename = "rut")]
     RolUnicoTributario,
     /// A Taxpayer Identification Number is an identifying number used for tax purposes
     TaxId,

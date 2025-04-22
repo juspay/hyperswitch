@@ -3116,7 +3116,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         common: HashMap::from([
                             RequiredField::PixSourceBankAccountId.to_tuple(),
                             RequiredField::PixDestinationBankAccountId.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["BR"]),
+                            RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
                         ]),
