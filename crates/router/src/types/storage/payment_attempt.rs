@@ -222,6 +222,8 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
+            processor_merchant_id: Default::default(),
+            created_by: None,
             setup_future_usage_applied: Default::default(),
         };
 
@@ -310,6 +312,8 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
+            processor_merchant_id: Default::default(),
+            created_by: None,
             setup_future_usage_applied: Default::default(),
         };
         let store = state
@@ -411,6 +415,8 @@ mod tests {
             extended_authorization_applied: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
+            processor_merchant_id: Default::default(),
+            created_by: None,
             setup_future_usage_applied: Default::default(),
         };
         let store = state
