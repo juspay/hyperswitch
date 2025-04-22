@@ -256,6 +256,8 @@ where
                             .attach_printable("The redis value which acquired the lock is not equal to the redis value requesting for releasing the lock")
             }
         }
-        Err(error) => Err(error).change_context(errors::ApiErrorResponse::InternalServerError),
+        Err(error) => Err(error)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while deleting redis key"),
     }
 }
