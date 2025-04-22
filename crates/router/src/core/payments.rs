@@ -1824,7 +1824,9 @@ pub async fn record_attempt_core(
     let record_payment_data = domain_payments::PaymentAttemptRecordData {
         flow: PhantomData,
         payment_intent: status_payment_data.payment_intent,
-        payment_attempt: status_payment_data.payment_attempt.unwrap_or(payment_data.payment_attempt),
+        payment_attempt: status_payment_data
+            .payment_attempt
+            .unwrap_or(payment_data.payment_attempt),
         revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
         payment_address,
     };
