@@ -4,6 +4,8 @@ use api_models::webhooks::{ConnectorWebhookSecrets, IncomingWebhookEvent, Object
 #[cfg(feature = "frm")]
 use base64::Engine;
 #[cfg(feature = "frm")]
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+#[cfg(feature = "frm")]
 use common_utils::{
     consts::BASE64_ENGINE,
     request::{Method, RequestBuilder},
@@ -11,11 +13,7 @@ use common_utils::{
 };
 #[cfg(feature = "frm")]
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
-use common_utils::{
-    errors::CustomResult,
-    request::Request,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
-};
+use common_utils::{errors::CustomResult, request::Request};
 #[cfg(feature = "frm")]
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
@@ -72,6 +70,7 @@ use transformers as riskified;
 
 #[cfg(feature = "frm")]
 use crate::constants::headers;
+#[cfg(feature = "frm")]
 use crate::utils::convert_amount;
 #[cfg(feature = "frm")]
 use crate::{
@@ -84,12 +83,14 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Riskified {
+    #[cfg(feature = "frm")]
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Riskified {
     pub fn new() -> &'static Self {
         &Self {
+            #[cfg(feature = "frm")]
             amount_converter: &StringMajorUnitForConnector,
         }
     }
