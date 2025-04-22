@@ -7612,7 +7612,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "example": "[Visa, Mastercard]"
           },
           "acquirer_bin": {
             "type": "string"
