@@ -10,7 +10,7 @@ pub struct ProxyRequest {
     #[schema(example = "https://api.example.com/endpoint")]
     pub destination_url: String,
 
-    pub mca_id: String,
+    pub headers: Value,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

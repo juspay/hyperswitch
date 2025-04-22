@@ -145,7 +145,8 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
-            .service(routes::Relay::server(state.clone()));
+            .service(routes::Relay::server(state.clone()))
+            .service(routes::Proxy::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
