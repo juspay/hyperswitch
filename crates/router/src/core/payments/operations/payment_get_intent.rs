@@ -10,7 +10,6 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations},
-        utils::ValidatePlatformMerchant,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
@@ -99,9 +98,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
             .find_payment_intent_by_id(key_manager_state, &request.id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        payment_intent
-            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,

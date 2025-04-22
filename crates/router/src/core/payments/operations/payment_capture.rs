@@ -11,7 +11,6 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, types::MultipleCaptureData},
-        utils::ValidatePlatformMerchant,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -46,7 +45,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -76,9 +75,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        payment_intent
-            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(

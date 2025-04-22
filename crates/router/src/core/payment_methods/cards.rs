@@ -4,6 +4,9 @@ use std::{
     str::FromStr,
 };
 
+use ::payment_methods::configs::payment_connector_required_fields::{
+    get_billing_required_fields, get_shipping_required_fields,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -91,10 +94,7 @@ use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
-    configs::{
-        defaults::{get_billing_required_fields, get_shipping_required_fields},
-        settings,
-    },
+    configs::settings,
     consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
