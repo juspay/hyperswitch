@@ -3703,26 +3703,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             "fs",
         )));
 
-        let card_testing_guard_config = match self.card_testing_guard_config {
-            Some(card_testing_guard_config) => Some(CardTestingGuardConfig::foreign_from(
-                card_testing_guard_config,
-            )),
-            None => Some(CardTestingGuardConfig {
-                is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
-                card_ip_blocking_threshold:
-                    common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
-                is_guest_user_card_blocking_enabled:
-                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
-                guest_user_card_blocking_threshold:
-                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
-                is_customer_id_blocking_enabled:
-                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
-                customer_id_blocking_threshold:
-                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
-                card_testing_guard_expiry:
-                    common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
-            }),
-        };
+        let card_testing_guard_config = self
+            .card_testing_guard_config
+            .map(CardTestingGuardConfig::foreign_from)
+            .or(Some(CardTestingGuardConfig::default()));
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -3875,26 +3859,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             "fs",
         )));
 
-        let card_testing_guard_config = match self.card_testing_guard_config {
-            Some(card_testing_guard_config) => Some(CardTestingGuardConfig::foreign_from(
-                card_testing_guard_config,
-            )),
-            None => Some(CardTestingGuardConfig {
-                is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
-                card_ip_blocking_threshold:
-                    common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
-                is_guest_user_card_blocking_enabled:
-                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
-                guest_user_card_blocking_threshold:
-                    common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
-                is_customer_id_blocking_enabled:
-                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
-                customer_id_blocking_threshold:
-                    common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
-                card_testing_guard_expiry:
-                    common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
-            }),
-        };
+        let card_testing_guard_config = self
+            .card_testing_guard_config
+            .map(CardTestingGuardConfig::foreign_from)
+            .or(Some(CardTestingGuardConfig::default()));
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             id: profile_id,

@@ -6,15 +6,21 @@ use std::collections::hash_map;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
-#[cfg(feature = "dynamic_routing")]
-use common_utils::ext_traits::AsyncExt;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::{
+    open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest},
+    routing as api_routing,
+};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::{
+    ext_traits::{AsyncExt, BytesExt},
+    request,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -48,11 +54,10 @@ use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 use crate::core::admin;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::{core::routing::transformers::OpenRouterDecideGatewayRequestExt, headers, services};
 use crate::{
-    core::{
-        errors, errors as oss_errors,
-        routing::{self},
-    },
+    core::{errors, errors as oss_errors, routing},
     logger,
     types::{
         api::{self, routing as routing_types},
@@ -1485,6 +1490,53 @@ pub fn make_dsl_input_for_surcharge(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_open_routing(
+    state: &SessionState,
+    routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile: &domain::Profile,
+    payment_data: oss_storage::PaymentAttempt,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::RoutingError::DeserializationError {
+            from: "JSON".to_string(),
+            to: "DynamicRoutingAlgorithmRef".to_string(),
+        })
+        .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
+        .ok_or(errors::RoutingError::GenericNotFoundError {
+            field: "dynamic_routing_algorithm".to_string(),
+        })?;
+
+    logger::debug!(
+        "performing dynamic_routing with open_router for profile {}",
+        profile.get_id().get_string_repr()
+    );
+
+    let connectors = dynamic_routing_algo_ref
+        .success_based_algorithm
+        .async_map(|algo| {
+            perform_success_based_routing_with_open_router(
+                state,
+                routable_connectors.clone(),
+                profile.get_id(),
+                algo,
+                payment_data,
+            )
+        })
+        .await
+        .transpose()
+        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
+        .ok()
+        .flatten()
+        .unwrap_or(routable_connectors);
+
+    Ok(connectors)
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn perform_dynamic_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
@@ -1553,6 +1605,165 @@ pub async fn perform_dynamic_routing(
     };
 
     Ok(connector_list)
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn perform_success_based_routing_with_open_router(
+    state: &SessionState,
+    mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
+    profile_id: &common_utils::id_type::ProfileId,
+    success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
+    payment_attempt: oss_storage::PaymentAttempt,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    if success_based_algo_ref.enabled_feature
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
+    {
+        logger::debug!(
+            "performing success_based_routing with open_router for profile {}",
+            profile_id.get_string_repr()
+        );
+
+        let open_router_req_body = OpenRouterDecideGatewayRequest::construct_sr_request(
+            payment_attempt,
+            routable_connectors
+                .iter()
+                .map(|gateway| gateway.connector)
+                .collect::<Vec<_>>(),
+            Some(or_types::RankingAlgorithm::SrBasedRouting),
+        );
+
+        let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
+        let mut request = request::Request::new(services::Method::Post, &url);
+        request.add_header(headers::CONTENT_TYPE, "application/json".into());
+        request.add_header(
+            headers::X_TENANT_ID,
+            state.tenant.tenant_id.get_string_repr().to_owned().into(),
+        );
+        request.set_body(request::RequestContent::Json(Box::new(
+            open_router_req_body,
+        )));
+
+        let response = services::call_connector_api(state, request, "open_router_sr_call")
+            .await
+            .change_context(errors::RoutingError::OpenRouterCallFailed {
+                algo: "success_rate".into(),
+            })?;
+
+        let sr_sorted_connectors = match response {
+            Ok(resp) => {
+                let decided_gateway: DecidedGateway = resp
+                    .response
+                    .parse_struct("DecidedGateway")
+                    .change_context(errors::RoutingError::OpenRouterError(
+                        "Failed to parse the response from open_router".into(),
+                    ))?;
+
+                if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
+                    logger::debug!(
+                        "Open router gateway_priority_map response: {:?}",
+                        gateway_priority_map
+                    );
+                    routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
+                        let connector_choice_a_score = gateway_priority_map
+                            .get(&connector_choice_a.connector.to_string())
+                            .copied()
+                            .unwrap_or(0.0);
+                        let connector_choice_b_score = gateway_priority_map
+                            .get(&connector_choice_b.connector.to_string())
+                            .copied()
+                            .unwrap_or(0.0);
+                        connector_choice_b_score
+                            .partial_cmp(&connector_choice_a_score)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                }
+                Ok(routable_connectors)
+            }
+            Err(err) => {
+                let err_resp: or_types::ErrorResponse = err
+                    .response
+                    .parse_struct("ErrorResponse")
+                    .change_context(errors::RoutingError::OpenRouterError(
+                        "Failed to parse the response from open_router".into(),
+                    ))?;
+                logger::error!("open_router_error_response: {:?}", err_resp);
+                Err(errors::RoutingError::OpenRouterError(
+                    "Failed to perform success based routing in open router".into(),
+                ))
+            }
+        }?;
+
+        Ok(sr_sorted_connectors)
+    } else {
+        Ok(routable_connectors)
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn update_success_rate_score_with_open_router(
+    state: &SessionState,
+    payment_connector: common_enums::RoutableConnectors,
+    profile_id: &common_utils::id_type::ProfileId,
+    payment_id: &common_utils::id_type::PaymentId,
+    payment_status: bool,
+) -> RoutingResult<()> {
+    let open_router_req_body = or_types::UpdateScorePayload {
+        merchant_id: profile_id.clone(),
+        gateway: payment_connector,
+        status: payment_status.into(),
+        payment_id: payment_id.clone(),
+    };
+
+    let url = format!("{}/{}", &state.conf.open_router.url, "update-gateway-score");
+    let mut request = request::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        state.tenant.tenant_id.get_string_repr().to_owned().into(),
+    );
+    request.set_body(request::RequestContent::Json(Box::new(
+        open_router_req_body,
+    )));
+
+    let response =
+        services::call_connector_api(state, request, "open_router_update_gateway_score_call")
+            .await
+            .change_context(errors::RoutingError::OpenRouterCallFailed {
+                algo: "success_rate".into(),
+            })?;
+
+    match response {
+        Ok(resp) => {
+            let update_score_resp = String::from_utf8(resp.response.to_vec()).change_context(
+                errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ),
+            )?;
+
+            logger::debug!(
+                "Open router update_gateway_score response: {:?}",
+                update_score_resp
+            );
+
+            Ok(())
+        }
+        Err(err) => {
+            let err_resp: or_types::ErrorResponse = err
+                .response
+                .parse_struct("ErrorResponse")
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ))?;
+            logger::error!("open_router_error_response: {:?}", err_resp);
+            Err(errors::RoutingError::OpenRouterError(
+                "Failed to update gateway score for success based routing in open router".into(),
+            ))
+        }
+    }?;
+
+    Ok(())
 }
 
 /// success based dynamic routing

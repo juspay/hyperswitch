@@ -16,7 +16,7 @@ pub use api_models::{
     },
 };
 use common_utils::{ext_traits::ValueExt, types::keymanager as km_types};
-use diesel_models::organization::OrganizationBridge;
+use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -141,6 +141,10 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
         let masked_outgoing_webhook_custom_http_headers =
             outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
+        let card_testing_guard_config = item
+            .card_testing_guard_config
+            .or(Some(CardTestingGuardConfig::default()));
+
         Ok(Self {
             merchant_id: item.merchant_id,
             profile_id,
@@ -186,9 +190,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             always_request_extended_authorization: item.always_request_extended_authorization,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
-            card_testing_guard_config: item
-                .card_testing_guard_config
-                .map(ForeignInto::foreign_into),
+            card_testing_guard_config: card_testing_guard_config.map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             force_3ds_challenge: item.force_3ds_challenge,
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
@@ -224,6 +226,10 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .change_context(errors::ParsingError::IntegerOverflow)?;
         let masked_outgoing_webhook_custom_http_headers =
             outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
+
+        let card_testing_guard_config = item
+            .card_testing_guard_config
+            .or(Some(CardTestingGuardConfig::default()));
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -265,9 +271,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             authentication_product_ids: item.authentication_product_ids,
-            card_testing_guard_config: item
-                .card_testing_guard_config
-                .map(ForeignInto::foreign_into),
+            card_testing_guard_config: card_testing_guard_config.map(ForeignInto::foreign_into),
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
@@ -336,25 +340,10 @@ pub async fn create_profile_from_merchant_account(
         "fs",
     )));
 
-    let card_testing_guard_config = match request.card_testing_guard_config {
-        Some(card_testing_guard_config) => Some(CardTestingGuardConfig::foreign_from(
-            card_testing_guard_config,
-        )),
-        None => Some(CardTestingGuardConfig {
-            is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
-            card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
-            is_guest_user_card_blocking_enabled:
-                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
-            guest_user_card_blocking_threshold:
-                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
-            is_customer_id_blocking_enabled:
-                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
-            customer_id_blocking_threshold:
-                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
-            card_testing_guard_expiry:
-                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
-        }),
-    };
+    let card_testing_guard_config = request
+        .card_testing_guard_config
+        .map(CardTestingGuardConfig::foreign_from)
+        .or(Some(CardTestingGuardConfig::default()));
 
     Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,

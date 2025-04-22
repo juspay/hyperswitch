@@ -117,6 +117,15 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
@@ -864,6 +873,7 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
@@ -1020,7 +1030,7 @@ impl PaymentAttempt {
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
-        todo!();
+        self.amount_details.surcharge_amount
     }
 }
 
@@ -1114,6 +1124,7 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
@@ -1234,6 +1245,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UnresolvedResponseUpdate {
@@ -1515,6 +1527,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
+                setup_future_usage_applied,
                 overcapture_status,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -1540,6 +1553,7 @@ impl PaymentAttemptUpdate {
                 payment_method_data,
                 connector_mandate_detail,
                 charges,
+                setup_future_usage_applied,
                 overcapture_status,
             },
             Self::UnresolvedResponseUpdate {
@@ -1867,6 +1881,7 @@ impl behaviour::Conversion for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             overcapture_status: self.overcapture_status,
@@ -1958,6 +1973,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 charges: storage_model.charges,
                 issuer_error_code: storage_model.issuer_error_code,
                 issuer_error_message: storage_model.issuer_error_message,
+                setup_future_usage_applied: storage_model.setup_future_usage_applied,
                 overcapture_status: storage_model.overcapture_status,
             })
         }
@@ -2044,6 +2060,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             overcapture_status: self.overcapture_status,
         })
     }
