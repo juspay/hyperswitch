@@ -3291,11 +3291,6 @@
                 "$ref": "#/components/schemas/RefundUpdateRequest"
               },
               "examples": {
-                "Update merchant reference id of a refund": {
-                  "value": {
-                    "merchant_reference_id": "ref_123"
-                  }
-                },
                 "Update refund reason": {
                   "value": {
                     "reason": "Paid by mistake"
@@ -20542,14 +20537,6 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
-          },
-          "merchant_reference_id": {
-            "type": "string",
-            "description": "Unique Identifier for the Refund given by the Merchant.",
-            "example": "ref_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
-            "maxLength": 64,
-            "minLength": 1
           }
         },
         "additionalProperties": false

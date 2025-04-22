@@ -461,10 +461,9 @@ pub async fn refund_update_core(
     let response = db
         .update_refund(
             refund,
-            storage::RefundUpdate::MerchantTriggeredUpdate {
+            storage::RefundUpdate::MetadataAndReasonUpdate {
                 metadata: req.metadata,
                 reason: req.reason,
-                merchant_reference_id: req.merchant_reference_id,
                 updated_by: merchant_account.storage_scheme.to_string(),
             },
             merchant_account.storage_scheme,

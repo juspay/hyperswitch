@@ -269,10 +269,9 @@ pub enum RefundUpdate {
         updated_by: String,
         processor_refund_data: Option<String>,
     },
-    MerchantTriggeredUpdate {
+    MetadataAndReasonUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         reason: Option<String>,
-        merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
         updated_by: String,
     },
     StatusUpdate {
@@ -325,7 +324,6 @@ pub struct RefundUpdateInternal {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
 pub struct RefundUpdateInternal {
-    merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
     connector_refund_id: Option<ConnectorTransactionId>,
     refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
@@ -366,11 +364,7 @@ impl RefundUpdateInternal {
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 impl RefundUpdateInternal {
     pub fn create_refund(self, source: Refund) -> Refund {
-        let merchant_reference_id = self
-            .merchant_reference_id
-            .unwrap_or(source.merchant_reference_id);
         Refund {
-            merchant_reference_id,
             connector_refund_id: self.connector_refund_id,
             refund_status: self.refund_status.unwrap_or_default(),
             sent_to_gateway: self.sent_to_gateway.unwrap_or_default(),
@@ -542,18 +536,15 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 unified_code: None,
                 unified_message: None,
-                merchant_reference_id: None,
             },
-            RefundUpdate::MerchantTriggeredUpdate {
+            RefundUpdate::MetadataAndReasonUpdate {
                 metadata,
                 reason,
-                merchant_reference_id,
                 updated_by,
             } => Self {
                 metadata,
                 refund_reason: reason,
                 updated_by,
-                merchant_reference_id,
                 connector_refund_id: None,
                 refund_status: None,
                 sent_to_gateway: None,
@@ -585,7 +576,6 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 unified_code: None,
                 unified_message: None,
-                merchant_reference_id: None,
             },
             RefundUpdate::ErrorUpdate {
                 refund_status,
@@ -610,7 +600,6 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 unified_code,
                 unified_message,
-                merchant_reference_id: None,
             },
             RefundUpdate::ManualUpdate {
                 refund_status,
@@ -631,7 +620,6 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
-                merchant_reference_id: None,
             },
         }
     }
@@ -682,7 +670,6 @@ impl RefundUpdate {
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
         let RefundUpdateInternal {
-            merchant_reference_id,
             connector_refund_id,
             refund_status,
             sent_to_gateway,
@@ -698,7 +685,6 @@ impl RefundUpdate {
             unified_message,
         } = self.into();
         Refund {
-            merchant_reference_id: merchant_reference_id.unwrap_or(source.merchant_reference_id),
             connector_refund_id: connector_refund_id.or(source.connector_refund_id),
             refund_status: refund_status.unwrap_or(source.refund_status),
             sent_to_gateway: sent_to_gateway.unwrap_or(source.sent_to_gateway),

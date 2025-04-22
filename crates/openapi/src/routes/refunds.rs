@@ -232,14 +232,7 @@ pub async fn refunds_create() {}
                         "reason": "Paid by mistake"
                       })
                 )
-            ),
-            (
-                "Update merchant reference id of a refund" = (
-                    value = json!({
-                        "merchant_reference_id": "ref_123"
-                      })
-                )
-            ),
+            )
         )
     ),
     responses(
