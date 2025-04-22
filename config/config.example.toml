@@ -987,3 +987,7 @@ background_color = "#FFFFFF"                                                    
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List of billing connectors which has payment sync api call
+
+[open_router]
+enabled = true                          # Enable or disable Open Router
+url = "http://localhost:8080"           # Open Router URL
