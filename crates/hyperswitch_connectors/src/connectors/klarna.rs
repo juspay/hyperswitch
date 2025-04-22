@@ -55,8 +55,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        convert_amount, get_http_header,
-        get_unimplemented_payment_method_error_message, missing_field_err, RefundsRequestData,
+        convert_amount, get_http_header, get_unimplemented_payment_method_error_message,
+        missing_field_err, RefundsRequestData,
     },
 };
 
