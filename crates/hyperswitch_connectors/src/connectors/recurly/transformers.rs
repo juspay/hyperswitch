@@ -565,7 +565,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         #[allow(clippy::as_conversions)]
-        // No of retries never exceeds u16 in recurly. So its better to supress the clippy warning
+        // No of retries never exceeds u16 in recurly. So its better to suppress the clippy warning
         let retry_count = item.response.transactions.len() as u16;
         let merchant_reference_id = id_type::PaymentReferenceId::from_str(&item.response.id)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;

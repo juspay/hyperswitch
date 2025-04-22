@@ -557,7 +557,7 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        // the retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to supress this
+        // The retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to suppress this
         #[allow(clippy::as_conversions)]
         let retry_count = item
             .content
