@@ -659,13 +659,33 @@ pub struct NoonCheckoutData {
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
     checkout_data: Option<NoonCheckoutData>,
-    payment_data: Option<NoonPaypalPaymentData>,
     subscription: Option<NoonSubscriptionObject>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NoonAuthPaymentResponse {
+    NoonPaypalResponse(NoonPaypalResponse),
+    NoonPaymentsResponse(NoonPaymentsResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoonPaymentsResponse {
     result: NoonPaymentsResponseResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonPaypalResponse {
+    result: NoonPaypalResponseResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonPaypalResponseResult {
+    order: NoonPaymentsOrderResponse,
+    payment_data: Option<NoonPaypalPaymentData>,
+    subscription: Option<NoonSubscriptionObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -678,6 +698,65 @@ pub struct NoonPaypalPaymentData {
 #[serde(rename_all = "camelCase")]
 pub struct PaypalData {
     url: url::Url,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, NoonPaypalResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let order = item.response.result.order;
+        let status = get_payment_status((order.status, item.data.status));
+        let url = item
+            .response
+            .result
+            .payment_data
+            .map(|redirection_data| redirection_data.data.url);
+        let redirection_data = url.map(|url| RedirectForm::from((url, Method::Get)));
+        let mandate_reference =
+            item.response
+                .result
+                .subscription
+                .map(|subscription_data| MandateReference {
+                    connector_mandate_id: Some(subscription_data.identifier.expose()),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                });
+        Ok(Self {
+            status,
+            response: match order.error_message {
+                Some(error_message) => Err(ErrorResponse {
+                    code: order.error_code.to_string(),
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status: Some(status),
+                    connector_transaction_id: Some(order.id.to_string()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                _ => {
+                    let connector_response_reference_id =
+                        order.reference.or(Some(order.id.to_string()));
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(order.id.to_string()),
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(mandate_reference),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                }
+            },
+            ..item.data
+        })
+    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsResponseData>>
@@ -693,15 +772,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
             item.response
                 .result
                 .checkout_data
-                .map(|checkout_data| RedirectForm::Form {
-                    endpoint: checkout_data.post_url.to_string(),
+                .map(|redirection_data| RedirectForm::Form {
+                    endpoint: redirection_data.post_url.to_string(),
                     method: Method::Post,
                     form_fields: std::collections::HashMap::new(),
-                })
-                .or_else(|| {
-                    item.response.result.payment_data.map(|payment_data| {
-                        RedirectForm::from((payment_data.data.url, Method::Get))
-                    })
                 });
         let mandate_reference =
             item.response
@@ -1103,7 +1177,6 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
                     reference: None,
                 },
                 checkout_data: None,
-                payment_data: None,
                 subscription: None,
             },
         }
