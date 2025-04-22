@@ -227,8 +227,7 @@ impl JWTFlow {
         };
 
         if let Err(e) =
-            utils::user::set_lineage_context_in_cache(&state, lineage_context, user_id.clone())
-                .await
+            utils::user::set_lineage_context_in_cache(state, lineage_context, user_id.clone()).await
         {
             logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
         }
@@ -427,7 +426,7 @@ impl NextFlow {
                 let user_role = state
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                        user_id: user_id,
+                        user_id,
                         tenant_id: self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: None,
                         merchant_id: None,
@@ -444,7 +443,7 @@ impl NextFlow {
                 utils::user_role::set_role_info_in_cache_by_user_role(state, &user_role).await;
 
                 let lineage_context = match utils::user::get_lineage_context_from_cache(
-                    &state,
+                    state,
                     self.user.get_user_id().to_string(),
                 )
                 .await
