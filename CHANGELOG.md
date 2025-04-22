@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.22.0
+
+### Features
+
+- **dynamic_routing:** Add open router integration for success based routing ([#7795](https://github.com/juspay/hyperswitch/pull/7795)) ([`a51c9f0`](https://github.com/juspay/hyperswitch/commit/a51c9f039ffc02f4880a301d8453d98dc90df1e1))
+- **refunds_v2:** Add refund create core flow ([#7619](https://github.com/juspay/hyperswitch/pull/7619)) ([`eabef32`](https://github.com/juspay/hyperswitch/commit/eabef328c665cfbaf953a5eb15bd15484c62dcf7))
+
+### Bug Fixes
+
+- **connector:** [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7832](https://github.com/juspay/hyperswitch/pull/7832)) ([`662e45f`](https://github.com/juspay/hyperswitch/commit/662e45f0037c0aa039c1de72500c6004322f3ffb))
+- **core:** [CARD TESTING GUARD] Added Card Testing Guard Config response in case of NULL ([#7478](https://github.com/juspay/hyperswitch/pull/7478)) ([`73eb467`](https://github.com/juspay/hyperswitch/commit/73eb467d32a0cabb6e27c25dd084aea6bb38e861))
+
+### Refactors
+
+- **middleware:** Add middleware to record metrics for request count and duration ([#7803](https://github.com/juspay/hyperswitch/pull/7803)) ([`54a1719`](https://github.com/juspay/hyperswitch/commit/54a1719fe6aaabf22d5696606c1458ec1f49f037))
+- **required_fields:** Move pm required fields to pm crate ([#7539](https://github.com/juspay/hyperswitch/pull/7539)) ([`103a5c1`](https://github.com/juspay/hyperswitch/commit/103a5c182b9744faf27d367efd58fac669d5c2ba))
+
+### Revert
+
+- Fix(connector): [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7859](https://github.com/juspay/hyperswitch/pull/7859)) ([`c89a412`](https://github.com/juspay/hyperswitch/commit/c89a4121a3450d5c8c613dbcbedb846cb9bfd176))
+
+**Full Changelog:** [`2025.04.18.0...2025.04.22.0`](https://github.com/juspay/hyperswitch/compare/2025.04.18.0...2025.04.22.0)
+
+
+- - -
+
 ## 2025.04.18.0
 
 ### Features
