@@ -825,9 +825,8 @@ pub async fn save_payment_method<FData>(
     _connector_name: String,
     _save_payment_method_data: SavePaymentMethodData<FData>,
     _customer_id: Option<id_type::CustomerId>,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _payment_method_type: Option<storage_enums::PaymentMethodType>,
-    _key_store: &domain::MerchantKeyStore,
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
     _business_profile: &domain::Profile,
@@ -999,7 +998,7 @@ pub async fn save_in_locker(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn save_in_locker(
     _state: &SessionState,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
@@ -1011,7 +1010,7 @@ pub async fn save_in_locker(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn save_network_token_in_locker(
     _state: &SessionState,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _card_data: &domain::Card,
     _payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(

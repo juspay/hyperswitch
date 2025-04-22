@@ -77,9 +77,8 @@ pub async fn retrieve_disputes_list(
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     todo!()
@@ -251,9 +250,8 @@ pub async fn accept_dispute(
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     todo!()

@@ -3290,9 +3290,9 @@ pub async fn make_client_secret(
             db.find_customer_by_global_id(
                 key_manager_state,
                 global_customer_id,
-                merchant_account.get_id(),
-                &key_store,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -3305,10 +3305,14 @@ pub async fn make_client_secret(
         }
     };
 
-    let client_secret = create_client_secret(&state, merchant_account.get_id(), resource_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create client secret")?;
+    let client_secret = create_client_secret(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        resource_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create client secret")?;
 
     let response = ClientSecretResponse::foreign_try_from(client_secret)
         .attach_printable("Only customer is supported as resource_id in response")?;

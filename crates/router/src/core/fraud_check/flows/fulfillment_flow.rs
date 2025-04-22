@@ -21,8 +21,7 @@ pub async fn construct_fulfillment_router_data<'a>(
     _state: &'a SessionState,
     _payment_intent: &'a storage::PaymentIntent,
     _payment_attempt: &storage::PaymentAttempt,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
     _connector: String,
     _fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {

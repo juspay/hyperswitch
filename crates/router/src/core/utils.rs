@@ -56,7 +56,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 pub async fn construct_payout_router_data<'a, F>(
     _state: &SessionState,
     _connector_data: &api::ConnectorData,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     todo!()
@@ -234,8 +234,7 @@ pub async fn construct_payout_router_data<'a, F>(
 pub async fn construct_refund_router_data<'a, F>(
     _state: &'a SessionState,
     _connector_id: &str,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
     _money: (MinorUnit, enums::Currency),
     _payment_intent: &'a storage::PaymentIntent,
     _payment_attempt: &storage::PaymentAttempt,
@@ -1078,8 +1077,7 @@ pub async fn construct_upload_file_router_data<'a>(
 #[cfg(feature = "v2")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {

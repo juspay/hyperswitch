@@ -167,9 +167,8 @@ where
         _req_state: ReqState,
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
-        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
     }

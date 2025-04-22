@@ -65,7 +65,12 @@ pub async fn profile_create(
              key_store,
          },
          req,
-         _| { create_profile(state, req, merchant_account, key_store) },
+         _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account, key_store),
+            ));
+            create_profile(state, req, merchant_context)
+        },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {

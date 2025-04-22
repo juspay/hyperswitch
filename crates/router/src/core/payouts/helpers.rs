@@ -683,8 +683,7 @@ pub async fn save_payout_data_to_locker(
     _customer_id: &id_type::CustomerId,
     _payout_method_data: &api::PayoutMethodData,
     _connector_mandate_details: Option<serde_json::Value>,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -693,8 +692,7 @@ pub async fn save_payout_data_to_locker(
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
 ) -> RouterResult<Option<domain::Customer>> {
     todo!()
 }
@@ -1164,10 +1162,9 @@ pub(super) async fn filter_by_constraints(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn update_payouts_and_payout_attempt(
     _payout_data: &mut PayoutData,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _req: &payouts::PayoutCreateRequest,
     _state: &SessionState,
-    _merchant_key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }

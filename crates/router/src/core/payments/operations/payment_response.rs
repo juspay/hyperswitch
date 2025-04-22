@@ -2636,8 +2636,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
                 payment_methods::update_payment_method_core(
                     state,
-                    merchant_account,
-                    key_store,
+                    merchant_context,
                     payment_method_update_request,
                     &payment_method_id,
                 )

@@ -215,8 +215,7 @@ pub async fn create_link_token(
 #[cfg(feature = "v2")]
 pub async fn create_link_token(
     _state: SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
+    _merchant_context: domain::MerchantContext,
     _payload: api_models::pm_auth::LinkTokenCreateRequest,
     _headers: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
@@ -272,9 +271,9 @@ pub async fn exchange_token_core(
 
     #[cfg(feature = "v2")]
     let merchant_connector_account: domain::MerchantConnectorAccount = {
-        let _ = merchant_account;
+        let _ = merchant_context.get_merchant_account();
         let _ = connector;
-        let _ = key_store;
+        let _ = merchant_context.get_merchant_key_store();
         todo!()
     };
 
@@ -608,9 +607,8 @@ async fn store_bank_details_in_payment_methods(
 
 #[cfg(feature = "v2")]
 async fn store_bank_details_in_payment_methods(
-    _key_store: domain::MerchantKeyStore,
     _payload: api_models::pm_auth::ExchangeTokenCreateRequest,
-    _merchant_account: domain::MerchantAccount,
+    _merchant_context: domain::MerchantContext,
     _state: SessionState,
     _bank_account_details_resp: pm_auth_types::BankAccountCredentialsResponse,
     _connector_details: (&str, Secret<String>),

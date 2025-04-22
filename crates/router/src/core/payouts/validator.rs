@@ -57,9 +57,8 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn validate_create_request(
     _state: &SessionState,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _req: &payouts::PayoutCreateRequest,
-    _merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,

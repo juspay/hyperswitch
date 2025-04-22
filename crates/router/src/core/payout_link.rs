@@ -27,8 +27,7 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn initiate_payout_link(
     _state: SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
+    _merchant_context: domain::MerchantContext,
     _req: payouts::PayoutLinkInitiateRequest,
     _request_headers: &header::HeaderMap,
     _locale: String,

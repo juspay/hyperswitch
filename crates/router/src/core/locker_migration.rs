@@ -238,7 +238,7 @@ pub async fn call_to_locker(
     _payment_methods: Vec<domain::PaymentMethod>,
     _customer_id: &id_type::CustomerId,
     _merchant_id: &id_type::MerchantId,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     todo!()
 }

@@ -53,8 +53,7 @@ pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     state: &SessionState,
     payment_data: &OperationData,
     frm_data: &mut FrmData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     customer: &Option<domain::Customer>,
 ) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
 where
@@ -147,10 +146,9 @@ where
 
 #[cfg(feature = "v2")]
 pub async fn should_call_frm<F, D>(
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _payment_data: &D,
     _state: &SessionState,
-    _key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
     bool,
     Option<FrmRoutingAlgorithm>,
@@ -386,7 +384,7 @@ where
 pub async fn make_frm_data_and_fraud_check_operation<F, D>(
     _db: &dyn StorageInterface,
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     payment_data: D,
     frm_routing_algorithm: FrmRoutingAlgorithm,
     profile_id: common_utils::id_type::ProfileId,

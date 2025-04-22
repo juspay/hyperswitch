@@ -257,7 +257,11 @@ pub async fn relay<T: RelayInterface>(
 
     #[cfg(feature = "v2")]
     let connector_account = db
-        .find_merchant_connector_account_by_id(key_manager_state, connector_id, &key_store)
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            connector_id,
+            merchant_context.get_merchant_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
@@ -369,7 +373,7 @@ pub async fn relay_retrieve(
         .find_merchant_connector_account_by_id(
             key_manager_state,
             &relay_record.connector_id,
-            &key_store,
+            merchant_context.get_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

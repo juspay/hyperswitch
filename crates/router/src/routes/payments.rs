@@ -131,15 +131,22 @@ pub async fn payments_create_intent(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            authorize_verify_select::<_>(
-                payments::PaymentCreate,
+
+            payments::payments_intent_core::<
+                api_types::PaymentCreateIntent,
+                payment_types::PaymentsIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::PaymentCreateIntent>,
+            >(
                 state,
                 req_state,
                 merchant_context,
-                auth.profile_id,
-                header_payload,
+                auth.profile,
+                payments::operations::PaymentIntentCreate,
                 req,
-                api::AuthFlow::Client,
+                global_payment_id.clone(),
+                header_payload.clone(),
             )
         },
         match env::which() {
@@ -235,17 +242,15 @@ pub async fn payments_create_and_confirm_intent(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, request, req_state| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
+                domain::Context(auth.merchant_account, auth.key_store)
             ));
-            authorize_verify_select::<_>(
-                payments::PaymentCreate,
+            payments::payments_create_and_confirm_intent(
                 state,
                 req_state,
                 merchant_context,
-                auth.profile_id,
-                header_payload,
+                auth.profile,
                 request,
-                api::AuthFlow::Client,
+                header_payload.clone(),
             )
         },
         match env::which() {
@@ -295,17 +300,23 @@ pub async fn payments_update_intent(
         internal_payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
+                domain::Context(auth.merchant_account.clone(), auth.key_store.clone()),
             ));
-            authorize_verify_select::<_>(
-                payments::PaymentUpdate,
+            payments::payments_intent_core::<
+                api_types::PaymentUpdateIntent,
+                payment_types::PaymentsIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::PaymentUpdateIntent>,
+            >(
                 state,
                 req_state,
                 merchant_context,
-                auth.profile_id,
-                header_payload,
+                auth.profile,
+                payments::operations::PaymentUpdateIntent,
                 req.payload,
-                api::AuthFlow::Client,
+                global_payment_id.clone(),
+                header_payload.clone(),
             )
         },
         &auth::V2ApiKeyAuth,
@@ -1314,7 +1325,7 @@ pub async fn payments_list(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            payments::list_payments(state, merchant_context, None, req)
+            payments::list_payments(state, merchant_context, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth,

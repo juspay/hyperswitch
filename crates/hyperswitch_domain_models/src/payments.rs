@@ -42,7 +42,7 @@ use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, payment_address, payment_method_data, routing,
+    merchant_connector_account, merchant_context, payment_address, payment_method_data, routing,
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
@@ -534,11 +534,10 @@ impl PaymentIntent {
 
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_context: &merchant_context::MerchantContext,
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
-        platform_merchant_id: Option<&merchant_account::MerchantAccount>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let connector_metadata = request
             .get_connector_metadata_as_value()
@@ -565,7 +564,7 @@ impl PaymentIntent {
 
         Ok(Self {
             id: payment_id.clone(),
-            merchant_id: merchant_account.get_id().clone(),
+            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
             status: common_enums::IntentStatus::RequiresPaymentMethod,
             amount_details: AmountDetails::from(request.amount_details),
@@ -589,7 +588,10 @@ impl PaymentIntent {
             profile_id: profile.get_id().clone(),
             payment_link_id: None,
             frm_merchant_decision: None,
-            updated_by: merchant_account.storage_scheme.to_string(),
+            updated_by: merchant_context
+                .get_merchant_account()
+                .storage_scheme
+                .to_string(),
             request_incremental_authorization,
             // Authorization count is 0 in create intent as no authorization is made yet
             authorization_count: Some(0),
@@ -623,7 +625,10 @@ impl PaymentIntent {
             capture_method: request.capture_method.unwrap_or_default(),
             authentication_type: request.authentication_type,
             prerouting_algorithm: None,
-            organization_id: merchant_account.organization_id.clone(),
+            organization_id: merchant_context
+                .get_merchant_account()
+                .organization_id
+                .clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
             apply_mit_exemption: request.apply_mit_exemption.unwrap_or_default(),
             customer_present: request.customer_present.unwrap_or_default(),
@@ -634,7 +639,7 @@ impl PaymentIntent {
             split_payments: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            processor_merchant_id: merchant_account.get_id().clone(),
+            processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
         })
     }

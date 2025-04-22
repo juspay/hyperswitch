@@ -69,7 +69,7 @@ pub async fn recovery_incoming_webhook_flow(
         BillingConnectorPaymentsSyncResponseData::get_billing_connector_payment_details(
             should_billing_connector_payment_api_called,
             &state,
-            &merchant_account,
+            &merchant_context,
             &billing_connector_account,
             connector_name,
             object_ref_id,
@@ -86,24 +86,12 @@ pub async fn recovery_incoming_webhook_flow(
 
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
-        .get_payment_intent(
-            &state,
-            &req_state,
-            &merchant_account,
-            &business_profile,
-            &key_store,
-        )
+        .get_payment_intent(&state, &req_state, &merchant_context, &business_profile)
         .await
         .transpose()
         .async_unwrap_or_else(|| async {
             invoice_details
-                .create_payment_intent(
-                    &state,
-                    &req_state,
-                    &merchant_account,
-                    &business_profile,
-                    &key_store,
-                )
+                .create_payment_intent(&state, &req_state, &merchant_context, &business_profile)
                 .await
         })
         .await?;
@@ -114,12 +102,11 @@ pub async fn recovery_incoming_webhook_flow(
             is_event_recovery_transaction_event,
             &billing_connector_account,
             &state,
-            &key_store,
             connector_enum,
             &req_state,
             billing_connector_payment_details.as_ref(),
             request_details,
-            &merchant_account,
+            &merchant_context,
             &business_profile,
             &payment_intent,
         )
@@ -153,7 +140,7 @@ pub async fn recovery_incoming_webhook_flow(
                 intent_retry_count,
                 mca_retry_threshold,
                 &state,
-                &merchant_account,
+                &merchant_context,
                 &(
                     recovery_attempt_from_payment_attempt,
                     recovery_intent_from_payment_attempt,
@@ -215,7 +202,7 @@ async fn handle_schedule_failed_payment(
             RevenueRecoveryAttempt::insert_execute_pcr_task(
                 &billing_connector_account.get_id(),
                 &*state.store,
-                merchant_account.get_id().to_owned(),
+                merchant_context.get_merchant_account().get_id().to_owned(),
                 recovery_intent_from_payment_attempt.clone(),
                 business_profile.get_id().to_owned(),
                 intent_retry_count,
@@ -270,13 +257,11 @@ impl RevenueRecoveryInvoice {
     {
         let payment_response = Box::pin(payments::payments_get_intent_using_merchant_reference(
             state.clone(),
-            merchant_account.clone(),
+            merchant_context.clone(),
             profile.clone(),
-            key_store.clone(),
             req_state.clone(),
             &self.0.merchant_reference_id,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
         ))
         .await;
         let response = match payment_response {
@@ -329,14 +314,12 @@ impl RevenueRecoveryInvoice {
         >(
             state.clone(),
             req_state.clone(),
-            merchant_account.clone(),
+            merchant_context.clone(),
             profile.clone(),
-            key_store.clone(),
             payments::operations::PaymentIntentCreate,
             payload,
             global_payment_id,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
         ))
         .await
         .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)?;
@@ -408,9 +391,8 @@ impl RevenueRecoveryAttempt {
         >(
             state.clone(),
             req_state.clone(),
-            merchant_account.clone(),
+            merchant_context.clone(),
             profile.clone(),
-            key_store.clone(),
             payments::operations::PaymentGet,
             api_payments::PaymentsRetrieveRequest {
                 force_sync: false,
@@ -478,13 +460,11 @@ impl RevenueRecoveryAttempt {
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
-            merchant_account.clone(),
+            merchant_context.clone(),
             profile.clone(),
-            key_store.clone(),
             request_payload,
             payment_intent.payment_id.clone(),
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
         ))
         .await;
 
@@ -612,7 +592,7 @@ impl RevenueRecoveryAttempt {
                 let payment_merchant_connector_account = invoice_transaction_details
                     .find_payment_merchant_connector_account(
                         state,
-                        key_store,
+                        merchant_context.get_merchant_key_store(),
                         billing_connector_account,
                     )
                     .await?;
@@ -621,9 +601,8 @@ impl RevenueRecoveryAttempt {
                     .get_payment_attempt(
                         state,
                         req_state,
-                        merchant_account,
+                        merchant_context,
                         business_profile,
-                        key_store,
                         payment_intent,
                     )
                     .await
@@ -633,9 +612,8 @@ impl RevenueRecoveryAttempt {
                             .record_payment_attempt(
                                 state,
                                 req_state,
-                                merchant_account,
+                                merchant_context,
                                 business_profile,
-                                key_store,
                                 payment_intent,
                                 &billing_connector_account.get_id(),
                                 payment_merchant_connector_account,
@@ -760,7 +738,7 @@ impl BillingConnectorPaymentsSyncResponseData {
                 state,
                 connector_name,
                 merchant_connector_account,
-                merchant_account,
+                merchant_context,
                 id,
             )
             .await
@@ -815,7 +793,7 @@ impl BillingConnectorPaymentsSyncResponseData {
                 let billing_connector_payment_details =
                     Self::handle_billing_connector_payment_sync_call(
                         state,
-                        merchant_account,
+                        merchant_context,
                         billing_connector_account,
                         connector_name,
                         &billing_connector_transaction_id,

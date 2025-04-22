@@ -54,8 +54,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -79,10 +78,9 @@ impl
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                key_store,
+                merchant_context,
                 connector,
                 state,
-                merchant_account,
             )
             .await?
         } else {

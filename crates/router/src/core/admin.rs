@@ -2150,10 +2150,9 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
-        key_store: domain::MerchantKeyStore,
         mca: &domain::MerchantConnectorAccount,
         key_manager_state: &KeyManagerState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
         let frm_configs = self.get_frm_config_as_secret();
 
@@ -2192,9 +2191,9 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             connector_type: &self.connector_type,
             pm_auth_config: &self.pm_auth_config,
             db: state.store.as_ref(),
-            merchant_id: merchant_account.get_id(),
+            merchant_id: merchant_context.get_merchant_account().get_id(),
             profile_id: &mca.profile_id.clone(),
-            key_store: &key_store,
+            key_store: merchant_context.get_merchant_key_store(),
             key_manager_state,
         };
 
@@ -2204,7 +2203,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             Some(
                 process_open_banking_connectors(
                     state,
-                    merchant_account.get_id(),
+                    merchant_context.get_merchant_account().get_id(),
                     &auth,
                     &self.connector_type,
                     &mca.connector_name,
@@ -2241,8 +2240,13 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     },
                 ),
             ),
-            km_types::Identifier::Merchant(key_store.merchant_id.clone()),
-            key_store.key.peek(),
+            km_types::Identifier::Merchant(
+                merchant_context
+                    .get_merchant_key_store()
+                    .merchant_id
+                    .clone(),
+            ),
+            merchant_context.get_merchant_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -2624,10 +2628,9 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
     async fn validate_and_get_business_profile(
         self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
-        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::Profile> {
         let profile_id = self.profile_id;
         // Check whether this profile belongs to the merchant
@@ -2635,9 +2638,9 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             key_manager_state,
-            key_store,
+            merchant_context.get_merchant_key_store(),
             Some(&profile_id),
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
         )
         .await?
         .get_required_value("Profile")
@@ -3000,7 +3003,7 @@ pub async fn create_connector(
         merchant_connector_id: &mca.get_id(),
         store,
         business_profile,
-        key_store,
+        key_store: merchant_context.get_merchant_key_store().to_owned(),
         key_manager_state,
     };
 
@@ -3116,17 +3119,20 @@ pub async fn retrieve_connector(
 #[cfg(feature = "v2")]
 pub async fn retrieve_connector(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let merchant_id = merchant_account.get_id();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
 
     let mca = store
-        .find_merchant_connector_account_by_id(key_manager_state, &id, &key_store)
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &id,
+            merchant_context.get_merchant_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -3366,17 +3372,20 @@ pub async fn delete_connector(
 #[cfg(feature = "v2")]
 pub async fn delete_connector(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let merchant_id = merchant_account.get_id();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
 
     let mca = db
-        .find_merchant_connector_account_by_id(key_manager_state, &id, &key_store)
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &id,
+            merchant_context.get_merchant_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -3402,7 +3411,11 @@ pub async fn delete_connector(
         })?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &mca.profile_id)
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &mca.profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: mca.profile_id.get_string_repr().to_owned(),
@@ -3419,7 +3432,7 @@ pub async fn delete_connector(
         merchant_connector_id: &mca.get_id(),
         store: db,
         business_profile,
-        key_store,
+        key_store: merchant_context.get_merchant_key_store().to_owned(),
         key_manager_state,
     };
 
@@ -4030,7 +4043,11 @@ pub async fn create_profile(
 
     #[cfg(feature = "v2")]
     let business_profile = request
-        .create_domain_model_from_request(&state, &key_store, merchant_account.get_id())
+        .create_domain_model_from_request(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().get_id(),
+        )
         .await?;
 
     let profile_id = business_profile.get_id().to_owned();

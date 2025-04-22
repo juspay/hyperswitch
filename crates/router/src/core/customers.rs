@@ -214,16 +214,19 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
         _db: &'a dyn StorageInterface,
-        key_store: &'a domain::MerchantKeyStore,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
         key_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let default_customer_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_customer_billing_address
             .async_map(|billing_address| {
-                create_encrypted_data(key_state, key_store, billing_address)
+                create_encrypted_data(
+                    key_state,
+                    merchant_context.get_merchant_key_store(),
+                    billing_address,
+                )
             })
             .await
             .transpose()
@@ -232,15 +235,23 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let default_customer_shipping_address = self.get_default_customer_shipping_address();
         let encrypted_customer_shipping_address = default_customer_shipping_address
             .async_map(|shipping_address| {
-                create_encrypted_data(key_state, key_store, shipping_address)
+                create_encrypted_data(
+                    key_state,
+                    merchant_context.get_merchant_key_store(),
+                    shipping_address,
+                )
             })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
-        let merchant_id = merchant_account.get_id().clone();
-        let key = key_store.key.get_inner().peek();
+        let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+        let key = merchant_context
+            .get_merchant_key_store()
+            .key
+            .get_inner()
+            .peek();
 
         let encrypted_data = types::crypto_operation(
             key_state,
@@ -254,7 +265,12 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                     },
                 ),
             ),
-            Identifier::Merchant(key_store.merchant_id.clone()),
+            Identifier::Merchant(
+                merchant_context
+                    .get_merchant_key_store()
+                    .merchant_id
+                    .clone(),
+            ),
             key,
         )
         .await
@@ -497,8 +513,7 @@ pub async fn retrieve_customer(
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     id: id_type::GlobalCustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
@@ -508,9 +523,9 @@ pub async fn retrieve_customer(
         .find_customer_by_global_id(
             key_manager_state,
             &id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -570,16 +585,14 @@ pub async fn list_customers(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     id: id_type::GlobalCustomerId,
-    key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     id.redact_customer_details_and_generate_response(
         db,
-        &key_store,
-        &merchant_account,
+        &merchant_context,
         key_manager_state,
         &state,
     )
@@ -596,8 +609,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        key_store: &'a domain::MerchantKeyStore,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
@@ -605,9 +617,9 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_customer_by_global_id(
                 key_manager_state,
                 self,
-                merchant_account.get_id(),
-                key_store,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .switch()?;
@@ -625,7 +637,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         match db
             .find_payment_method_list_by_global_customer_id(
                 key_manager_state,
-                key_store,
+                merchant_context.get_merchant_key_store(),
                 self,
                 None,
             )
@@ -635,9 +647,13 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_by_locker_id(state, self, merchant_account.get_id())
-                            .await
-                            .switch()?;
+                        cards::delete_card_by_locker_id(
+                            state,
+                            self,
+                            merchant_context.get_merchant_account().get_id(),
+                        )
+                        .await
+                        .switch()?;
                     }
                     // No solution as of now, need to discuss this further with payment_method_v2
 
@@ -663,9 +679,18 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             }
         };
 
-        let key = key_store.key.get_inner().peek();
+        let key = merchant_context
+            .get_merchant_key_store()
+            .key
+            .get_inner()
+            .peek();
 
-        let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+        let identifier = Identifier::Merchant(
+            merchant_context
+                .get_merchant_key_store()
+                .merchant_id
+                .clone(),
+        );
         let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
             key_manager_state,
             type_name!(storage::Address),
@@ -704,10 +729,10 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             key_manager_state,
             self,
             customer_orig,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             updated_customer,
-            key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -1302,8 +1327,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        key_store: &'a domain::MerchantKeyStore,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1311,7 +1335,11 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let default_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_billing_address
             .async_map(|billing_address| {
-                create_encrypted_data(key_manager_state, key_store, billing_address)
+                create_encrypted_data(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    billing_address,
+                )
             })
             .await
             .transpose()
@@ -1321,14 +1349,22 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let default_shipping_address = self.get_default_customer_shipping_address();
         let encrypted_customer_shipping_address = default_shipping_address
             .async_map(|shipping_address| {
-                create_encrypted_data(key_manager_state, key_store, shipping_address)
+                create_encrypted_data(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    shipping_address,
+                )
             })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
-        let key = key_store.key.get_inner().peek();
+        let key = merchant_context
+            .get_merchant_key_store()
+            .key
+            .get_inner()
+            .peek();
 
         let encrypted_data = types::crypto_operation(
             key_manager_state,
@@ -1345,7 +1381,12 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     },
                 ),
             ),
-            Identifier::Merchant(key_store.merchant_id.clone()),
+            Identifier::Merchant(
+                merchant_context
+                    .get_merchant_key_store()
+                    .merchant_id
+                    .clone(),
+            ),
             key,
         )
         .await
@@ -1361,7 +1402,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 key_manager_state,
                 &domain_customer.id,
                 domain_customer.to_owned(),
-                merchant_account.get_id(),
+                merchant_context.get_merchant_account().get_id(),
                 storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {
@@ -1382,8 +1423,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
                 })),
-                key_store,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .switch()?;

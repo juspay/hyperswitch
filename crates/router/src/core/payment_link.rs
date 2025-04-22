@@ -764,8 +764,7 @@ fn check_payment_link_invalid_conditions(
 #[cfg(feature = "v2")]
 pub async fn get_payment_link_status(
     _state: SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
+    _merchant_context: domain::MerchantContext,
     _merchant_id: common_utils::id_type::MerchantId,
     _payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {

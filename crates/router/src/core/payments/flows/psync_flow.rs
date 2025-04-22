@@ -79,8 +79,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -92,8 +91,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
     async fn get_merchant_recipient_data<'a>(
         &self,
         _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {

@@ -156,8 +156,7 @@ pub async fn upsert_surcharge_decision_config(
 #[cfg(feature = "v2")]
 pub async fn upsert_surcharge_decision_config(
     _state: SessionState,
-    _key_store: domain::MerchantKeyStore,
-    _merchant_account: domain::MerchantAccount,
+    _merchant_context: domain::MerchantContext,
     _request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
     todo!();
@@ -213,8 +212,7 @@ pub async fn delete_surcharge_decision_config(
 #[cfg(feature = "v2")]
 pub async fn delete_surcharge_decision_config(
     _state: SessionState,
-    _key_store: domain::MerchantKeyStore,
-    _merchant_account: domain::MerchantAccount,
+    _merchant_context: domain::MerchantContext,
 ) -> RouterResponse<()> {
     todo!()
 }

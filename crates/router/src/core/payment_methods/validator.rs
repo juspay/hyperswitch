@@ -18,8 +18,7 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     _state: &SessionState,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
     _req: &PaymentMethodCollectLinkRequest,
 ) -> RouterResult<PaymentMethodCollectLinkData> {
     todo!()

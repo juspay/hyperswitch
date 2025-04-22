@@ -366,9 +366,8 @@ pub async fn get_or_insert_payment_method(
     _state: &routes::SessionState,
     _req: api::PaymentMethodCreate,
     _resp: &mut api::PaymentMethodResponse,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _customer_id: &id_type::CustomerId,
-    _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<domain::PaymentMethod> {
     todo!()
 }
@@ -501,8 +500,7 @@ pub async fn migrate_payment_method(
     _state: routes::SessionState,
     _req: api::PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
 ) -> errors::RouterResponse<api::PaymentMethodMigrateResponse> {
     todo!()
 }
@@ -1004,8 +1002,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     _state: routes::SessionState,
     _req: &api::PaymentMethodMigrate,
     _merchant_id: id_type::MerchantId,
-    _key_store: &domain::MerchantKeyStore,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     _card: api_models::payment_methods::CardDetailFromLocker,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     todo!()
@@ -5212,8 +5209,7 @@ async fn perform_surcharge_ops(
 pub async fn perform_surcharge_ops(
     _payment_intent: Option<storage::PaymentIntent>,
     _state: &routes::SessionState,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
     _business_profile: Option<Profile>,
     _response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
