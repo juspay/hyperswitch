@@ -296,6 +296,124 @@
               "response": []
             },
             {
+              "name": "API Key - Create",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(\"[POST]::/api_keys/:merchant_id - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(",
+                      "  \"[POST]::/api_keys/:merchant_id - Content-Type is application/json\",",
+                      "  function () {",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "      \"application/json\",",
+                      "    );",
+                      "  },",
+                      ");",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set api_key_id as variable for jsonData.key_id",
+                      "if (jsonData?.key_id) {",
+                      "  pm.collectionVariables.set(\"api_key_id\", jsonData.key_id);",
+                      "  console.log(",
+                      "    \"- use {{api_key_id}} as collection variable for value\",",
+                      "    jsonData.key_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{api_key_id}}, as jsonData.key_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// pm.collectionVariables - Set api_key as variable for jsonData.api_key",
+                      "if (jsonData?.api_key) {",
+                      "  pm.collectionVariables.set(\"api_key\", jsonData.api_key);",
+                      "  console.log(",
+                      "    \"- use {{api_key}} as collection variable for value\",",
+                      "    jsonData.api_key,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{api_key}}, as jsonData.api_key is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "pm.test(",
+                      "  \"[POST]::/api_keys/:merchant_id - Validate merchant_id\",",
+                      "  function () {",
+                      "    pm.expect(jsonData.merchant_id).to.equal(",
+                      "      pm.collectionVariables.get(\"merchant_id\"),",
+                      "    );",
+                      "  },",
+                      ");",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "apikey",
+                  "apikey": [
+                    {
+                      "key": "value",
+                      "value": "{{admin_api_key}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "key",
+                      "value": "api-key",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"name\":\"archipel_connector_dev_key\",\"description\":\"Api key used to test payments with archipel connector\",\"expiration\":\"2099-09-23T01:02:03.000Z\"}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api_keys/:merchant_id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api_keys",
+                    ":merchant_id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "merchant_id",
+                      "value": "{{merchant_id}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
               "name": "Business Profile - Create",
               "event": [
                 {
@@ -362,7 +480,7 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "{{api_key}}",
                       "type": "string"
                     },
                     {
@@ -540,7 +658,7 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "{{api_key}}",
                       "type": "string"
                     },
                     {
@@ -594,124 +712,6 @@
                   ]
                 },
                 "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
-              },
-              "response": []
-            },
-            {
-              "name": "API Key - Create",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "// Validate status 2xx",
-                      "pm.test(\"[POST]::/api_keys/:merchant_id - Status code is 2xx\", function () {",
-                      "  pm.response.to.be.success;",
-                      "});",
-                      "",
-                      "// Validate if response header has matching content-type",
-                      "pm.test(",
-                      "  \"[POST]::/api_keys/:merchant_id - Content-Type is application/json\",",
-                      "  function () {",
-                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-                      "      \"application/json\",",
-                      "    );",
-                      "  },",
-                      ");",
-                      "",
-                      "// Set response object as internal variable",
-                      "let jsonData = {};",
-                      "try {",
-                      "  jsonData = pm.response.json();",
-                      "} catch (e) {}",
-                      "",
-                      "// pm.collectionVariables - Set api_key_id as variable for jsonData.key_id",
-                      "if (jsonData?.key_id) {",
-                      "  pm.collectionVariables.set(\"api_key_id\", jsonData.key_id);",
-                      "  console.log(",
-                      "    \"- use {{api_key_id}} as collection variable for value\",",
-                      "    jsonData.key_id,",
-                      "  );",
-                      "} else {",
-                      "  console.log(",
-                      "    \"INFO - Unable to assign variable {{api_key_id}}, as jsonData.key_id is undefined.\",",
-                      "  );",
-                      "}",
-                      "",
-                      "// pm.collectionVariables - Set api_key as variable for jsonData.api_key",
-                      "if (jsonData?.api_key) {",
-                      "  pm.collectionVariables.set(\"api_key\", jsonData.api_key);",
-                      "  console.log(",
-                      "    \"- use {{api_key}} as collection variable for value\",",
-                      "    jsonData.api_key,",
-                      "  );",
-                      "} else {",
-                      "  console.log(",
-                      "    \"INFO - Unable to assign variable {{api_key}}, as jsonData.api_key is undefined.\",",
-                      "  );",
-                      "}",
-                      "",
-                      "pm.test(",
-                      "  \"[POST]::/api_keys/:merchant_id - Validate merchant_id\",",
-                      "  function () {",
-                      "    pm.expect(jsonData.merchant_id).to.equal(",
-                      "      pm.collectionVariables.get(\"merchant_id\"),",
-                      "    );",
-                      "  },",
-                      ");",
-                      ""
-                    ],
-                    "type": "text/javascript"
-                  }
-                }
-              ],
-              "request": {
-                "auth": {
-                  "type": "apikey",
-                  "apikey": [
-                    {
-                      "key": "value",
-                      "value": "{{admin_api_key}}",
-                      "type": "string"
-                    },
-                    {
-                      "key": "key",
-                      "value": "api-key",
-                      "type": "string"
-                    }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"name\":\"archipel_connector_dev_key\",\"description\":\"Api key used to test payments with archipel connector\",\"expiration\":\"2099-09-23T01:02:03.000Z\"}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/api_keys/:merchant_id",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api_keys",
-                    ":merchant_id"
-                  ],
-                  "variable": [
-                    {
-                      "key": "merchant_id",
-                      "value": "{{merchant_id}}"
-                    }
-                  ]
-                }
               },
               "response": []
             },
