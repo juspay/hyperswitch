@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use api_models::payments::QrCodeInformation;
 use common_enums::{enums, BrazilStatesAbbreviation, PaymentMethod};
 use common_utils::{
