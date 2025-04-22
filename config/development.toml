@@ -1016,7 +1016,7 @@ connector_list = "cybersource"
 
 [grpc_client.dynamic_routing_client]
 host = "localhost"
-port = 7000
+port = 8000
 service = "dynamo"
 
 [theme.storage]
@@ -1031,3 +1031,7 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
+
+[open_router]
+enabled = false
+url = "http://localhost:8080"

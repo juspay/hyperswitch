@@ -49,6 +49,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
+    impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -1356,3 +1357,22 @@ where
         self.0.to_sql(out)
     }
 }
+
+impl_enum_str!(
+    tag_delimeter = ":",
+    /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
+    /// trigger (Api, Jwt) of the record.
+    #[derive(Eq, PartialEq, Debug, Clone)]
+    pub enum CreatedBy {
+        /// Api variant
+        Api {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
+        /// Jwt variant
+        Jwt {
+            /// user id of creator.
+            user_id: String,
+        },
+    }
+);
