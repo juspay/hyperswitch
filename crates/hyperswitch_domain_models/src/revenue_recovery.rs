@@ -13,7 +13,7 @@ pub struct RevenueRecoveryAttemptData {
     /// currency of the transaction
     pub currency: common_enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
-    pub merchant_reference_ids: Option<id_type::PaymentReferenceId>,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
     /// transaction id reference at payment connector
     pub connector_transaction_id: Option<util_types::ConnectorTransactionId>,
     /// error code sent by billing connector.
@@ -25,7 +25,7 @@ pub struct RevenueRecoveryAttemptData {
     /// customer id at payment connector for which mandate is attached.
     pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
-    pub connector_account_reference_ids: Option<String>,
+    pub connector_account_reference_id: String,
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
     /// transaction status at billing connector equivalent to payment attempt status.
@@ -225,13 +225,13 @@ impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData 
         Self {
             amount: data.amount,
             currency: data.currency,
-            merchant_reference_ids: Some(data.merchant_reference_id.clone()),
+            merchant_reference_id: data.merchant_reference_id.clone(),
             connector_transaction_id: data.connector_transaction_id.clone(),
             error_code: data.error_code.clone(),
             error_message: data.error_message.clone(),
             processor_payment_method_token: data.processor_payment_method_token.clone(),
             connector_customer_id: data.connector_customer_id.clone(),
-            connector_account_reference_ids: Some(data.connector_account_reference_id.clone()),
+            connector_account_reference_id: data.connector_account_reference_id.clone(),
             transaction_created_at: data.transaction_created_at,
             status: data.status,
             payment_method_type: data.payment_method_type,

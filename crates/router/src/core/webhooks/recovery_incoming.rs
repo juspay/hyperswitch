@@ -388,10 +388,14 @@ impl RevenueRecoveryAttempt {
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
-        Ok(Self(payment_intent.create_revenue_recovery_attempt_data(
-            revenue_recovery_metadata.clone(),
-            billing_connector_account,
-        )))
+        let revenue_recovery_data = payment_intent
+            .create_revenue_recovery_attempt_data(
+                revenue_recovery_metadata.clone(),
+                billing_connector_account,
+            )
+            .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
+            .attach_printable("Failed to build recovery attempt data")?;
+        Ok(Self(revenue_recovery_data))
     }
     async fn get_payment_attempt(
         &self,
@@ -564,7 +568,9 @@ impl RevenueRecoveryAttempt {
             payment_merchant_connector_id: payment_merchant_connector_account_id,
             error,
             description: None,
-            connector_transaction_id: revenue_recovery_attempt_data.connector_transaction_id.clone(),
+            connector_transaction_id: revenue_recovery_attempt_data
+                .connector_transaction_id
+                .clone(),
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
@@ -572,10 +578,12 @@ impl RevenueRecoveryAttempt {
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
-            processor_payment_method_token: revenue_recovery_attempt_data.processor_payment_method_token.clone(),
+            processor_payment_method_token: revenue_recovery_attempt_data
+                .processor_payment_method_token
+                .clone(),
             connector_customer_id: revenue_recovery_attempt_data.connector_customer_id.clone(),
             retry_count: revenue_recovery_attempt_data.retry_count,
-            invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time
+            invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
         }
     }
@@ -588,7 +596,7 @@ impl RevenueRecoveryAttempt {
     ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::RevenueRecoveryError> {
         let payment_merchant_connector_account_id = billing_connector_account
             .get_payment_merchant_connector_account_id_using_account_reference_id(
-                self.0.connector_account_reference_ids.clone(),
+                self.0.connector_account_reference_id.clone(),
             );
         let db = &*state.store;
         let key_manager_state = &(state).into();
