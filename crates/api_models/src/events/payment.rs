@@ -5,14 +5,6 @@ use super::{
     PaymentStartRedirectionRequest, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
     PaymentsIntentResponse, PaymentsRequest,
 };
-#[cfg(any(
-    all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ),
-    all(feature = "v2", feature = "payment_methods_v2")
-))]
-use crate::payment_methods;
 #[cfg(feature = "v1")]
 use crate::payments::{
     ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints, PaymentListResponseV2,
@@ -26,15 +18,14 @@ use crate::payments::{
 };
 use crate::{
     payment_methods::{
-        ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
+        self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
-        PaymentMethodCollectLinkResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
-        PaymentMethodListResponse, PaymentMethodMigrateResponse, PaymentMethodResponse,
-        PaymentMethodUpdate,
+        PaymentMethodCollectLinkResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentListResponse, PaymentsAggregateResponse, PaymentsResponse, PaymentsSessionResponse,
+        PaymentListResponse, PaymentsAggregateResponse, PaymentsSessionResponse,
         RedirectionResponse,
     },
 };
@@ -275,7 +266,7 @@ impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentMethodDeleteResponse {
+impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.id.clone(),
@@ -286,7 +277,7 @@ impl ApiEventMetric for PaymentMethodDeleteResponse {
 }
 
 #[cfg(feature = "v1")]
-impl ApiEventMetric for PaymentMethodDeleteResponse {
+impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),

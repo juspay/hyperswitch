@@ -10,6 +10,7 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -35,7 +36,7 @@ use url::Url;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v2")]
-use crate::mandates::ProcessorPaymentToken;
+use crate::mandates;
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
@@ -5306,7 +5307,7 @@ pub struct ProxyPaymentsRequest {
 
     pub amount: AmountDetails,
 
-    pub recurring_details: ProcessorPaymentToken,
+    pub recurring_details: mandates::ProcessorPaymentToken,
 
     pub shipping: Option<Address>,
 
@@ -8579,8 +8580,8 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
-        ProcessorPaymentToken {
+    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+        mandates::ProcessorPaymentToken {
             processor_payment_token: self
                 .billing_connector_payment_details
                 .payment_processor_token

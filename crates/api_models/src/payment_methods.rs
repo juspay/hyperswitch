@@ -12,10 +12,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::PeekInterface;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::{ExposeInterface, PeekInterface};
 use serde::de;
 use utoipa::{schema, ToSchema};
 
