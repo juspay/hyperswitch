@@ -13,7 +13,6 @@ use common_enums::ProductType;
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
-
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
