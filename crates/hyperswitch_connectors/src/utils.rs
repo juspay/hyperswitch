@@ -6151,3 +6151,21 @@ impl FraudCheckTransactionRequest for FraudCheckTransactionData {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
+
+/// Custom deserializer for Option<Currency> that treats empty strings as None
+pub fn deserialize_optional_currency<'de, D>(
+    deserializer: D,
+) -> Result<Option<enums::Currency>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let string_data: Option<String> = Option::deserialize(deserializer)?;
+    match string_data {
+        Some(ref value) if !value.is_empty() => value
+            .clone()
+            .parse_enum("Currency")
+            .map(Some)
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
+        _ => Ok(None),
+    }
+}
