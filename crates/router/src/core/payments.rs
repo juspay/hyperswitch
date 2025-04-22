@@ -3680,16 +3680,6 @@ where
         &call_connector_action,
     );
 
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
-
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
@@ -3712,6 +3702,7 @@ where
             header_payload.clone(),
         )
         .await?;
+    println!("$$$$$$updated trackers"); 
 
     let router_data = if should_continue_further {
         router_data
