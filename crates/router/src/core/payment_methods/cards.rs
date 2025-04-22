@@ -4328,32 +4328,49 @@ pub async fn call_surcharge_decision_management(
     billing_address: Option<domain::Address>,
     response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
+    use super::surcharge_decision_configs::perform_surcharge_decision_management_for_payment_method_list_profile_level;
+
     #[cfg(feature = "v1")]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
-        .routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("routing algorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode the routing algorithm")?
-        .unwrap_or_default();
+    let (surcharge_results, merchant_surcharge_configs) =
+        if let Some(surcharge_algo_id) = &business_profile.active_surcharge_algorithm_id {
+            perform_surcharge_decision_management_for_payment_method_list_profile_level(
+                &state,
+                surcharge_algo_id.to_owned(),
+                payment_attempt,
+                &payment_intent,
+                billing_address.as_ref().map(Into::into),
+                response_payment_method_types,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decision operation")?
+        } else {
+            let routing_ref = merchant_account
+                .routing_algorithm
+                .clone()
+                .map(|val| val.parse_value("routing algorithm"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode the routing algorithm")?
+                .unwrap_or_default();
+
+            perform_surcharge_decision_management_for_payment_method_list(
+                &state,
+                routing_ref,
+                payment_attempt,
+                &payment_intent,
+                billing_address.as_ref().map(Into::into),
+                response_payment_method_types,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decision operation")?
+        };
 
     // TODO: Move to business profile surcharge decision column
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    let (surcharge_results, merchant_sucharge_configs) =
-        perform_surcharge_decision_management_for_payment_method_list(
-            &state,
-            algorithm_ref,
-            payment_attempt,
-            &payment_intent,
-            billing_address.as_ref().map(Into::into),
-            response_payment_method_types,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(&state, business_profile)
@@ -4374,7 +4391,7 @@ pub async fn call_surcharge_decision_management(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Failed to update surcharge_applicable in Payment Intent");
     }
-    Ok(merchant_sucharge_configs)
+    Ok(merchant_surcharge_configs)
 }
 
 #[cfg(feature = "v1")]
@@ -4387,29 +4404,45 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> errors::RouterResult<()> {
+    use super::surcharge_decision_configs::perform_surcharge_decision_management_for_saved_cards_profile_level;
+
     #[cfg(feature = "v1")]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
-        .routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("routing algorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode the routing algorithm")?
-        .unwrap_or_default();
+    let surcharge_results =
+        if let Some(surcharge_algo_id) = &business_profile.active_surcharge_algorithm_id {
+            perform_surcharge_decision_management_for_saved_cards_profile_level(
+                state,
+                surcharge_algo_id.to_owned(),
+                payment_attempt,
+                &payment_intent,
+                &mut customer_payment_method_response.customer_payment_methods,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decisio operation")?
+        } else {
+            let routing_ref = merchant_account
+                .routing_algorithm
+                .clone()
+                .map(|val| val.parse_value("routing algorithm"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode the routing algorithm")?
+                .unwrap_or_default();
+
+            perform_surcharge_decision_management_for_saved_cards(
+                state,
+                routing_ref,
+                payment_attempt,
+                &payment_intent,
+                &mut customer_payment_method_response.customer_payment_methods,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error performing surcharge decision operation")?
+        };
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    // TODO: Move to business profile surcharge column
-    let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
-        state,
-        algorithm_ref,
-        payment_attempt,
-        &payment_intent,
-        &mut customer_payment_method_response.customer_payment_methods,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(state, business_profile)
