@@ -2,6 +2,7 @@
 
 use hyperswitch_domain_models::{
     router_data::AccessToken,
+    router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Evidence},
@@ -50,7 +51,6 @@ use hyperswitch_domain_models::{
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
-    router_data_v2::flow_common_types
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
@@ -282,4 +282,3 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
 >;
-

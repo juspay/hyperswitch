@@ -21,11 +21,11 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as recovery_flow_common_types,
     router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
-    router_data_v2::flow_common_types as recovery_flow_common_types
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -506,7 +506,7 @@ pub struct RecurlyInvoiceSyncResponse {
     pub total: FloatMajorUnit,
     pub currency: common_enums::Currency,
     pub address: Option<RecurlyInvoiceBillingAdddress>,
-    pub lines: Vec<RecurlyLineItems>,
+    pub line_items: Vec<RecurlyLineItems>,
     pub transactions: Vec<RecurlyInvoiceTransactionsStatus>,
 }
 
@@ -567,9 +567,8 @@ impl
         #[allow(clippy::as_conversions)]
         // No of retries never exceeds u16 in recurly. So its better to supress the clippy warning
         let retry_count = item.response.transactions.len() as u16;
-        let merchant_reference_id =
-            id_type::PaymentReferenceId::from_str(&item.response.id)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = id_type::PaymentReferenceId::from_str(&item.response.id)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             response: Ok(
                 recovery_response_types::BillingConnectorInvoiceSyncResponse {
@@ -583,11 +582,31 @@ impl
                     retry_count: Some(retry_count),
                     billing_address: Some(api_models::payments::Address {
                         address: Some(api_models::payments::AddressDetails {
-                            city: item.response.address.clone().and_then(|address| address.city),
-                            state: item.response.address.clone().and_then(|address| address.region),
-                            country: item.response.address.clone().and_then(|address| address.country),
-                            line1: item.response.address.clone().and_then(|address| address.street1),
-                            line2: item.response.address.clone().and_then(|address| address.street2),
+                            city: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.city),
+                            state: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.region),
+                            country: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.country),
+                            line1: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.street1),
+                            line2: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.street2),
                             line3: None,
                             zip: item
                                 .response
@@ -600,16 +619,8 @@ impl
                         phone: None,
                         email: None,
                     }),
-                    created_at: item
-                        .response
-                        .lines
-                        .first()
-                        .map(|line| line.start_date),
-                    ends_at: item
-                        .response
-                        .lines
-                        .first()
-                        .map(|line| line.end_date),
+                    created_at: item.response.line_items.first().map(|line| line.start_date),
+                    ends_at: item.response.line_items.first().map(|line| line.end_date),
                 },
             ),
             ..item.data

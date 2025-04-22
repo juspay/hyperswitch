@@ -11,34 +11,50 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    revenue_recovery, router_flow_types::revenue_recovery as recovery_router_flows,
+    revenue_recovery, router_data_v2::flow_common_types as recovery_flow_common_types,
+    router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
-    router_data_v2::flow_common_types as recovery_flow_common_types
 };
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_data_v2::{RouterDataV2, UasFlowData}, 
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data_v2::{RouterDataV2, UasFlowData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        unified_authentication_service::{Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate},
-    }, router_request_types::{
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
+    },
+    router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
-        unified_authentication_service::{UasPreAuthenticationRequestData,UasPostAuthenticationRequestData,UasAuthenticationRequestData,UasConfirmationRequestData,UasAuthenticationResponseData}
-    }, router_response_types::{PaymentsResponseData, RefundsResponseData}, types::{
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
-    }
+    },
 };
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
-    }, configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, errors, events::connector_api_logs::ConnectorEvent, types::{self, Response}, webhooks
+    },
+    configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks,
 };
 use masking::{Mask, PeekInterface};
 use transformers as recurly;
@@ -46,8 +62,10 @@ use transformers as recurly;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData};
 use crate::{
-    connectors::recurly::transformers::RecurlyWebhookBody, constants::headers,
-    types::{ResponseRouterData, ResponseRouterDataV2}, utils,
+    connectors::recurly::transformers::RecurlyWebhookBody,
+    constants::headers,
+    types::{ResponseRouterData, ResponseRouterDataV2},
+    utils,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 const STATUS_SUCCESSFUL_ENDPOINT: &str = "mark_successful";
@@ -99,42 +117,50 @@ impl Recurly {
 // impl api::RefundSync for Recurly {}
 // impl api::PaymentToken for Recurly {}
 impl api::PayoutsV2 for Recurly {}
-impl api::UnifiedAuthenticationServiceV2 for Recurly{}
-impl api::UasPreAuthenticationV2 for Recurly{}
-impl  api::UasPostAuthenticationV2 for Recurly{}
-impl  api::UasAuthenticationV2 for Recurly{}
-impl  api::UasAuthenticationConfirmationV2 for Recurly{}
-impl ConnectorIntegrationV2<
-    PreAuthenticate,
-    UasFlowData,
-    UasPreAuthenticationRequestData,
-    UasAuthenticationResponseData,
-> for Recurly {
+impl api::UnifiedAuthenticationServiceV2 for Recurly {}
+impl api::UasPreAuthenticationV2 for Recurly {}
+impl api::UasPostAuthenticationV2 for Recurly {}
+impl api::UasAuthenticationV2 for Recurly {}
+impl api::UasAuthenticationConfirmationV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        PreAuthenticate,
+        UasFlowData,
+        UasPreAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for Recurly
+{
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegrationV2<PostAuthenticate,
-    UasFlowData,
-    UasPostAuthenticationRequestData,
-    UasAuthenticationResponseData
-> 
-for Recurly {
+impl
+    ConnectorIntegrationV2<
+        PostAuthenticate,
+        UasFlowData,
+        UasPostAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for Recurly
+{
     //TODO: implement sessions flow
 }
-impl ConnectorIntegrationV2<AuthenticationConfirmation,
-    UasFlowData,
-    UasConfirmationRequestData,
-    UasAuthenticationResponseData
->
- for Recurly {
+impl
+    ConnectorIntegrationV2<
+        AuthenticationConfirmation,
+        UasFlowData,
+        UasConfirmationRequestData,
+        UasAuthenticationResponseData,
+    > for Recurly
+{
     //TODO: implement sessions flow
 }
-impl ConnectorIntegrationV2<Authenticate,
-    UasFlowData,
-    UasAuthenticationRequestData,
-    UasAuthenticationResponseData
->
-for Recurly {
+impl
+    ConnectorIntegrationV2<
+        Authenticate,
+        UasFlowData,
+        UasAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for Recurly
+{
     //TODO: implement sessions flow
 }
 
@@ -146,8 +172,6 @@ impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 impl api::revenue_recovery_v2::BillingConnectorPaymentsSyncIntegrationV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::BillingConnectorInvoiceSyncIntegrationV2 for Recurly {}
-
-
 
 impl ConnectorCommon for Recurly {
     fn id(&self) -> &'static str {
@@ -266,11 +290,11 @@ impl
         let request = RequestBuilder::new()
             .method(Method::Get)
             .url(&types::BillingConnectorPaymentsSyncTypeV2::get_url(
-                self, req
+                self, req,
             )?)
             .attach_default_headers()
             .headers(types::BillingConnectorPaymentsSyncTypeV2::get_headers(
-                self, req
+                self, req,
             )?)
             .build();
         Ok(Some(request))
@@ -363,12 +387,10 @@ impl
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Put)
-                .url(&types::RevenueRecoveryRecordBackTypeV2::get_url(
-                    self, req
-                )?)
+                .url(&types::RevenueRecoveryRecordBackTypeV2::get_url(self, req)?)
                 .attach_default_headers()
                 .headers(types::RevenueRecoveryRecordBackTypeV2::get_headers(
-                    self, req
+                    self, req,
                 )?)
                 .header("Content-Length", "0")
                 .build(),
@@ -390,11 +412,13 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2::try_from(ResponseRouterDataV2 {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2::try_from(
+            ResponseRouterDataV2 {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+        )
     }
 
     fn get_error_response_v2(
@@ -446,11 +470,11 @@ impl
         let request = RequestBuilder::new()
             .method(Method::Get)
             .url(&types::BillingConnectorInvoiceSyncTypeV2::get_url(
-                self, req
+                self, req,
             )?)
             .attach_default_headers()
             .headers(types::BillingConnectorInvoiceSyncTypeV2::get_headers(
-                self, req
+                self, req,
             )?)
             .build();
         Ok(Some(request))

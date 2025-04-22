@@ -595,5 +595,5 @@ enabled = false
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
-[billing_connectors_with_invoice_sync_call]
+[billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"

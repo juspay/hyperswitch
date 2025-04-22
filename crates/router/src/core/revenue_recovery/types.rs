@@ -392,8 +392,7 @@ impl Action {
             .attach_printable(
                 "Merchant reference id not found while recording back to billing connector",
             )?;
-        let connector_params = 
-            hyperswitch_domain_models::configs::Connectors
+        let connector_params = hyperswitch_domain_models::configs::Connectors
                 ::get_connector_params_using_connector_name(&state.conf.connectors, billing_mca.connector_name.to_string())
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
                 .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",billing_mca.connector_name))?;
@@ -412,7 +411,7 @@ impl Action {
                     .connector_payment_id
                     .as_ref()
                     .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id.clone())),
-                connector_params
+                connector_params,
             },
             response: Err(types::ErrorResponse::default()),
         };

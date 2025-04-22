@@ -865,7 +865,7 @@ pub struct BillingConnectorPaymentsSyncCall {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct BillingConnectorInvoiceSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub billing_connectors_which_require_invoice_sync: HashSet<enums::Connector>,
+    pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

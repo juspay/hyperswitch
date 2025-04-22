@@ -1,18 +1,22 @@
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, RouterData}, router_data_v2::RouterDataV2, router_flow_types::{
+    router_data::{AccessToken, RouterData},
+    router_data_v2::RouterDataV2,
+    router_flow_types::{
         Accept, AccessTokenAuth, Authorize, Capture, Defend, Evidence, PSync, PreProcessing,
         Session, Upload, Void,
-    }, router_request_types::{
+    },
+    router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
         PaymentsSessionData, PaymentsSyncData, RefundsData, SubmitEvidenceRequestData,
         UploadFileRequestData,
-    }, router_response_types::{
+    },
+    router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, PaymentsResponseData, RefundsResponseData,
         SubmitEvidenceResponse, UploadFileResponse,
-    }
+    },
 };
 
 pub(crate) type PaymentsSyncResponseRouterData<R> =
@@ -53,8 +57,8 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub http_code: u16,
 }
 
-pub struct ResponseRouterDataV2<Flow,R,ResourceCommonData,Request,Response> {
-    pub response : R,
-    pub data : RouterDataV2<Flow,ResourceCommonData,Request,Response>,
-    pub http_code : u16
+pub struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
+    pub response: R,
+    pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
+    pub http_code: u16,
 }
