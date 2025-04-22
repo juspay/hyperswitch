@@ -181,6 +181,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             Ok(types::PaymentMethodTokenResult {
                 payment_method_token_result: Ok(None),
                 is_payment_method_tokenization_performed: false,
+                connector_response: None,
             })
         }
     }
@@ -319,6 +320,7 @@ impl<F>
             minor_amount_to_capture: item.request.minor_amount,
             integrity_object: None,
             split_payments: None,
+            webhook_url: None,
         })
     }
 }

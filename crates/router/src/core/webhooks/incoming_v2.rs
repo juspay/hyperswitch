@@ -361,9 +361,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             webhook_details,
                             source_verified,
                             &connector,
+                            merchant_connector_account,
+                            &connector_name,
                             &request_details,
                             event_type,
                             req_state,
+                            &object_ref_id,
                         ))
                         .await
                         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -447,7 +450,7 @@ async fn payments_incoming_webhook_flow(
                     req_state,
                     merchant_account.clone(),
                     key_store.clone(),
-                    profile,
+                    &profile,
                     payments::operations::PaymentGet,
                     api::PaymentsRetrieveRequest {
                         force_sync: true,
@@ -466,6 +469,7 @@ async fn payments_incoming_webhook_flow(
                 external_latency,
                 None,
                 &merchant_account,
+                &profile,
             );
 
             lock_action

@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{ext_traits::OptionExt, request::Method, types::MinorUnit};
+use common_utils::{ext_traits::OptionExt, request::Method, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -22,12 +22,12 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct RapydRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(MinorUnit, T)> for RapydRouterData<T> {
-    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for RapydRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -37,7 +37,7 @@ impl<T> From<(MinorUnit, T)> for RapydRouterData<T> {
 
 #[derive(Default, Debug, Serialize)]
 pub struct RapydPaymentsRequest {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
     pub payment_method_options: Option<PaymentMethodOptions>,
@@ -304,7 +304,7 @@ pub struct DisputeResponseData {
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<FloatMajorUnit>,
     pub currency: Option<enums::Currency>,
 }
 
@@ -409,7 +409,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::Refund
 
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
-    amount: Option<MinorUnit>,
+    amount: Option<FloatMajorUnit>,
     receipt_email: Option<Secret<String>>,
     statement_descriptor: Option<String>,
 }
@@ -451,6 +451,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         }),
                     ),
                     _ => {
@@ -495,6 +498,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                     reason: item.response.status.message,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
             ),
         };

@@ -45,6 +45,7 @@ pub trait PayoutRecipientAccount:
 /// trait PayoutSync
 pub trait PayoutSync: ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> {}
 
+#[cfg(feature = "payouts")]
 /// trait Payouts
 pub trait Payouts:
     ConnectorCommon
@@ -58,3 +59,7 @@ pub trait Payouts:
     + PayoutSync
 {
 }
+
+/// Empty trait for when payouts feature is disabled
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}

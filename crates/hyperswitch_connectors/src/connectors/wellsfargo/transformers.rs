@@ -1708,10 +1708,10 @@ fn get_error_response_if_failure(
 
 fn get_payment_response(
     (info_response, status, http_code): (&WellsfargoPaymentsResponse, enums::AttemptStatus, u16),
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
-        Some(error) => Err(error),
+        Some(error) => Err(Box::new(error)),
         None => {
             let incremental_authorization_allowed =
                 Some(status == enums::AttemptStatus::Authorized);
@@ -1776,7 +1776,8 @@ impl
                 .unwrap_or(WellsfargoPaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let connector_response = item
             .response
             .processor_information
@@ -1802,6 +1803,8 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
         Self::Card {
             authentication_data: None,
             payment_checks,
+            card_network: None,
+            domestic_network: None,
         }
     }
 }
@@ -1832,7 +1835,8 @@ impl<F>
                 .unwrap_or(WellsfargoPaymentStatus::StatusNotReceived),
             true,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -1862,7 +1866,8 @@ impl<F>
                 .unwrap_or(WellsfargoPaymentStatus::StatusNotReceived),
             false,
         );
-        let response = get_payment_response((&item.response, status, item.http_code));
+        let response =
+            get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
             status,
             response,
@@ -2376,6 +2381,9 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 pub fn get_error_reason(

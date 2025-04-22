@@ -28,7 +28,10 @@ pub async fn ephemeral_key_create(
                 auth.merchant_account.get_id().to_owned(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -49,7 +52,10 @@ pub async fn ephemeral_key_delete(
         &req,
         payload,
         |state, _: auth::AuthenticationData, req, _| helpers::delete_ephemeral_key(state, req),
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -64,7 +70,7 @@ pub async fn client_secret_create(
 ) -> HttpResponse {
     let flow = Flow::EphemeralKeyCreate;
     let payload = json_payload.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -78,9 +84,12 @@ pub async fn client_secret_create(
                 req.headers(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -93,14 +102,17 @@ pub async fn client_secret_delete(
 ) -> HttpResponse {
     let flow = Flow::EphemeralKeyDelete;
     let payload = path.into_inner();
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, _: auth::AuthenticationData, req, _| helpers::delete_client_secret(state, req),
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

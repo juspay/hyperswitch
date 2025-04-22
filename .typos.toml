@@ -43,6 +43,7 @@ ws2tcpip = "ws2tcpip" # WinSock Extension
 ZAR = "ZAR"  # South African Rand currency code
 JOD = "JOD" # Jordan currency code
 Payed = "Payed" # Paid status for digital virgo
+SessionConnectorDatas = "SessionConnectorDatas" # Wrapper for List of SessionConnectorData
 Alo = "Alo" # Is iso representation of a state in France
 alo = "alo" # Is iso representation of a state in France
 BRE = "BRE" # Is iso representation of Brittany
@@ -73,6 +74,7 @@ TrnovskaVas = "TrnovskaVas" # Is a state in Slovenia
 Corse-du-Sud = "Corse-du-Sud" # Is a state in France
 Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
+
 
 [default.extend-words]
 aci = "aci" # Name of a connector

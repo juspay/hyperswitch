@@ -113,6 +113,9 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(types::ErrorResponse {
@@ -122,6 +125,9 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 }
             }
@@ -132,6 +138,9 @@ impl ConnectorCommon for Wise {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
         }
     }
@@ -338,6 +347,9 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

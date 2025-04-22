@@ -10,9 +10,8 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::{
-    api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage},
-    StorageError as DataStorageError,
+pub use hyperswitch_domain_models::errors::api_error_response::{
+    ApiErrorResponse, ErrorType, NotImplementedMessage,
 };
 pub use hyperswitch_interfaces::errors::ConnectorError;
 pub use redis_interface::errors::RedisError;
@@ -388,6 +387,18 @@ pub enum RoutingError {
     SuccessRateCalculationError,
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
     SuccessRateClientInitializationError,
+    #[error("Elimination client from dynamic routing gRPC service not initialized")]
+    EliminationClientInitializationError,
+    #[error("Unable to analyze elimination routing config from dynamic routing service")]
+    EliminationRoutingCalculationError,
+    #[error("Params not found in elimination based routing config")]
+    EliminationBasedRoutingParamsNotFoundError,
+    #[error("Unable to retrieve elimination based routing config")]
+    EliminationRoutingConfigError,
+    #[error(
+        "Invalid elimination based connector label received from dynamic routing service: '{0}'"
+    )]
+    InvalidEliminationBasedConnectorLabel(String),
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
@@ -400,12 +411,18 @@ pub enum RoutingError {
     ContractBasedRoutingConfigError,
     #[error("Params not found in contract based routing config")]
     ContractBasedRoutingParamsNotFoundError,
-    #[error("Unable to calculate contract score from dynamic routing service")]
-    ContractScoreCalculationError,
+    #[error("Unable to calculate contract score from dynamic routing service: '{err}'")]
+    ContractScoreCalculationError { err: String },
+    #[error("Unable to update contract score on dynamic routing service")]
+    ContractScoreUpdationError,
     #[error("contract routing client from dynamic routing gRPC service not initialized")]
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
+    #[error("Failed to perform {algo} in open_router")]
+    OpenRouterCallFailed { algo: String },
+    #[error("Error from open_router: {0}")]
+    OpenRouterError(String),
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -444,6 +461,32 @@ pub enum NetworkTokenizationError {
     NetworkTokenizationServiceNotConfigured,
     #[error("Failed while calling Network Token Service API")]
     ApiError,
+    #[error("Network Tokenization is not enabled for profile")]
+    NetworkTokenizationNotEnabledForProfile,
+    #[error("Network Tokenization is not supported for {message}")]
+    NotSupported { message: String },
+    #[error("Failed to encrypt the NetworkToken payment method details")]
+    NetworkTokenDetailsEncryptionFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BulkNetworkTokenizationError {
+    #[error("Failed to validate card details")]
+    CardValidationFailed,
+    #[error("Failed to validate payment method details")]
+    PaymentMethodValidationFailed,
+    #[error("Failed to assign a customer to the card")]
+    CustomerAssignmentFailed,
+    #[error("Failed to perform BIN lookup for the card")]
+    BinLookupFailed,
+    #[error("Failed to tokenize the card details with the network")]
+    NetworkTokenizationFailed,
+    #[error("Failed to store the card details in locker")]
+    VaultSaveFailed,
+    #[error("Failed to create a payment method entry")]
+    PaymentMethodCreationFailed,
+    #[error("Failed to update the payment method")]
+    PaymentMethodUpdationFailed,
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -453,6 +496,8 @@ pub enum RevenueRecoveryError {
     PaymentIntentFetchFailed,
     #[error("Failed to fetch payment attempt")]
     PaymentAttemptFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptIdNotFound,
     #[error("Failed to get revenue recovery invoice webhook")]
     InvoiceWebhookProcessingFailed,
     #[error("Failed to get revenue recovery invoice transaction")]
@@ -461,4 +506,18 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
+    #[error("Payment merchant connector account not found using account reference id")]
+    PaymentMerchantConnectorAccountNotFound,
+    #[error("Failed to fetch primitive date_time")]
+    ScheduleTimeFetchFailed,
+    #[error("Failed to create process tracker")]
+    ProcessTrackerCreationError,
+    #[error("Failed to get the response from process tracker")]
+    ProcessTrackerResponseError,
+    #[error("Billing connector psync call failed")]
+    BillingConnectorPaymentsSyncFailed,
+    #[error("Failed to get the retry count for payment intent")]
+    RetryCountFetchFailed,
+    #[error("Failed to get the billing threshold retry count")]
+    BillingThresholdRetryCountFetchFailed,
 }

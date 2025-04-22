@@ -261,12 +261,56 @@ pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ObjectReferenceId {
+    pub fn get_connector_transaction_id_as_string(
+        self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        match self {
+            Self::PaymentId(
+                payments::PaymentIdType::ConnectorTransactionId(id)
+            ) => Ok(id),
+            Self::PaymentId(_)=>Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "ConnectorTransactionId variant of PaymentId is required but received otherr variant",
+                },
+            ),
+            Self::RefundId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received RefundId",
+                },
+            ),
+            Self::MandateId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received MandateId",
+                },
+            ),
+            Self::ExternalAuthenticationID(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received ExternalAuthenticationID",
+                },
+            ),
+            #[cfg(feature = "payouts")]
+            Self::PayoutId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received PayoutId",
+                },
+            ),
+            Self::InvoiceId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received InvoiceId",
+                },
+            )
+        }
+    }
+}
+
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
     #[schema(value_type = String)]
@@ -304,12 +348,12 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsRetrieveResponse, title = "PaymentsResponse")]
-    PaymentDetails(Box<payments::PaymentsRetrieveResponse>),
+    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    PaymentDetails(Box<payments::PaymentsResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
     #[schema(value_type = DisputeResponse, title = "DisputeResponse")]

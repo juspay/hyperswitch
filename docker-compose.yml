@@ -8,6 +8,15 @@ networks:
 
 services:
   ### Dependencies
+  prestart-hook:
+    image: curlimages/curl-base:latest
+    container_name: prestart-hook
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash && /bin/bash /prestart_hook.sh"]
+    volumes:
+      - ./scripts/prestart_hook.sh:/prestart_hook.sh
+    networks:
+      - router_net
+
   pg:
     image: postgres:latest
     ports:
@@ -62,7 +71,7 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: juspaydotin/hyperswitch-router:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-router:standalone
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
@@ -86,8 +95,20 @@ services:
       start_period: 5s
       timeout: 5s
 
+  poststart-hook:
+    image: curlimages/curl-base:latest
+    container_name: poststart-hook
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy  # Ensures it only starts when `hyperswitch-server` is healthy
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh"]
+    volumes:
+      - ./scripts/poststart_hook.sh:/poststart_hook.sh
+    networks:
+      - router_net 
+      
   hyperswitch-producer:
-    image: juspaydotin/hyperswitch-producer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-producer:standalone
     pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
@@ -105,7 +126,7 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: juspaydotin/hyperswitch-consumer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-consumer:standalone
     pull_policy: always
     command: /local/bin/scheduler -f /local/config/docker_compose.toml
     networks:
@@ -129,7 +150,7 @@ services:
       timeout: 10s
 
   hyperswitch-drainer:
-    image: juspaydotin/hyperswitch-drainer:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-drainer:standalone
     pull_policy: always
     command: /local/bin/drainer -f /local/config/docker_compose.toml
     deploy:
@@ -149,15 +170,14 @@ services:
 
   ### Web Client
   hyperswitch-web:
+    image: docker.juspay.io/juspaydotin/hyperswitch-web:latest
+    pull_policy: always
     ports:
       - "9050:9050"
       - "9060:9060"
       - "5252:5252"
     networks:
       - router_net
-    build:
-      context: ./docker
-      dockerfile: web.Dockerfile
     depends_on:
       hyperswitch-server:
         condition: service_healthy
@@ -176,7 +196,7 @@ services:
 
   ### Control Center
   hyperswitch-control-center:
-    image: juspaydotin/hyperswitch-control-center:latest
+    image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
     pull_policy: always
     ports:
       - "9000:9000"

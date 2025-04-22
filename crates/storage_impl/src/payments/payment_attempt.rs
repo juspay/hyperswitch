@@ -25,7 +25,6 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use hyperswitch_domain_models::{
-    errors,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
@@ -38,15 +37,17 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{self, RedisErrorExt},
+    kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
-    DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
+    DataModelExt, DatabaseStore, RouterStore,
 };
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -213,6 +214,33 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_last_successful_or_partially_captured_attempt_by_payment_id(
+            &conn, payment_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?
+        .convert(
+            key_manager_state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -549,6 +577,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    type Error = errors::StorageError;
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -646,6 +675,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
+                    issuer_error_code: None,
+                    issuer_error_message: None,
+                    setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1044,6 +1076,26 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .await
             }
         }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+                key_manager_state,
+                merchant_key_store,
+                payment_id,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(feature = "v2")]
@@ -1647,6 +1699,9 @@ impl DataModelExt for PaymentAttempt {
             processor_transaction_data,
             card_discovery: self.card_discovery,
             charges: self.charges,
+            issuer_error_code: self.issuer_error_code,
+            issuer_error_message: self.issuer_error_message,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
         }
@@ -1730,6 +1785,9 @@ impl DataModelExt for PaymentAttempt {
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
             charges: storage_model.charges,
+            issuer_error_code: storage_model.issuer_error_code,
+            issuer_error_message: storage_model.issuer_error_message,
+            setup_future_usage_applied: storage_model.setup_future_usage_applied,
         }
     }
 }
@@ -1816,6 +1874,7 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            setup_future_usage_applied: self.setup_future_usage_applied,
         }
     }
 
@@ -1891,6 +1950,7 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
+            setup_future_usage_applied: storage_model.setup_future_usage_applied,
         }
     }
 }
