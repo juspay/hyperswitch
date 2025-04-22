@@ -2090,18 +2090,23 @@ Cypress.Commands.add(
     } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
-    const merchant_connector_id = globalState.get(
+    const merchantConnectorId = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const paymentIntentID = globalState.get("paymentID");
-    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`;
 
     if (reqData.setup_future_usage === "on_session") {
       saveCardConfirmBody.card_cvc = reqData.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
-    saveCardConfirmBody.profile_id = profile_id;
+    saveCardConfirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      saveCardConfirmBody[key] = reqData[key];
+    }
 
     if (reqData.billing === null) {
       saveCardConfirmBody.billing = null;
@@ -2109,7 +2114,7 @@ Cypress.Commands.add(
 
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      url: url,
       headers: {
         "Content-Type": "application/json",
         "api-key": globalState.get("publishableKey"),
@@ -2123,8 +2128,6 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
-
-          globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
@@ -2134,40 +2137,48 @@ Cypress.Commands.add(
           );
           expect(response.body.payment_method_data, "payment_method_data").to
             .not.be.empty;
-          expect(merchant_connector_id, "connector_id").to.equal(
+          expect(merchantConnectorId, "connector_id").to.equal(
             response.body.merchant_connector_id
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           if (reqData.billing !== null) {
             expect(response.body.billing, "billing_address").to.not.be.empty;
           }
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
+          expect(response.body.profile_id, "profile_id").to.equal(profileId).and
+            .to.not.be.null;
           expect(response.body.payment_token, "payment_token").to.not.be.null;
 
           validateErrorMessage(response, resData);
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
 
-              if (
-                response.body?.payment_method_id &&
-                response.body.payment_method_id !== null
-              ) {
-                expect(
-                  response.body.payment_method_status,
-                  "payment_method_status"
-                ).to.equal("active");
+                if (
+                  response.body?.payment_method_id &&
+                  response.body.payment_method_id !== null
+                ) {
+                  expect(
+                    response.body.payment_method_status,
+                    "payment_method_status"
+                  ).to.equal("active");
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId")
@@ -2205,13 +2216,20 @@ Cypress.Commands.add(
               expect(response.body)
                 .to.have.property("next_action")
                 .to.have.property("redirect_to_url");
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
+              }
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId")
@@ -2601,11 +2619,11 @@ Cypress.Commands.add(
               );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key]).to.deep.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key]).to.deep.equal(response.body[key]);
                 if (setupFutureUsage === "off_session") {
                   expect(
                     response.body.connector_mandate_id,
@@ -2630,11 +2648,11 @@ Cypress.Commands.add(
               );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key]).to.deep.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key]).to.equal(response.body[key]);
+                expect(resData.body[key]).to.deep.equal(response.body[key]);
                 if (setupFutureUsage === "off_session") {
                   expect(
                     response.body.connector_mandate_id,

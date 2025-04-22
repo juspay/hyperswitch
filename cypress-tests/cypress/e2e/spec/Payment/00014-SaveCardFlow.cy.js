@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
-import State from "../../../utils/State";
 import { generateRandomName } from "../../../utils/RequestBodyUtils";
+import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -719,8 +719,22 @@ describe("Card - SaveCard payment flow test", () => {
               },
             },
           },
+          Response: {
+            // Copy all top-level properties from the original 'data'.
+            ...data.Response,
+            body: {
+              payment_method_data: {
+                ...data.Response.body.payment_method_data,
+                card: {
+                  ...data.Response.body.payment_method_data.card,
+                  // Override the 'card_holder_name' field in the response.
+                  card_exp_year: "55", // Update expiry year.
+                  card_holder_name: card_holder_name, // Update card holder name.
+                },
+              },
+            },
+          },
         };
-
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           newData,

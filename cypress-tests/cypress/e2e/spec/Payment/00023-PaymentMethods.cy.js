@@ -199,7 +199,7 @@ describe("Payment Methods Tests", () => {
       it("confirm-save-card-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["SaveCardUseNo3DSAutoCapture"];
+        ]["SaveCardUse3DSAutoCaptureOffSession"];
 
         const newData = {
           ...data,
