@@ -128,7 +128,7 @@ pub struct BankInfo {
     pub name: Option<String>,
     #[serde(rename = "id")]
     pub bank_id: Secret<String>,
-    pub code: Option<String>,
+    pub code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
