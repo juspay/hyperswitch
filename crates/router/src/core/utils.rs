@@ -1,6 +1,9 @@
+pub mod refunds_transformers;
+pub mod refunds_validator;
+
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
@@ -16,6 +19,8 @@ use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+use masking::ExposeOptionInterface;
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
@@ -232,18 +237,155 @@ pub async fn construct_payout_router_data<'a, F>(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
-    _state: &'a SessionState,
-    _connector_id: &str,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
-    _money: (MinorUnit, enums::Currency),
-    _payment_intent: &'a storage::PaymentIntent,
-    _payment_attempt: &storage::PaymentAttempt,
-    _refund: &'a storage::Refund,
-    _creds_identifier: Option<String>,
-    _split_refunds: Option<router_request_types::SplitRefundsRequest>,
+    state: &'a SessionState,
+    connector_enum: Connector,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    refund: &'a storage::Refund,
+    merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    todo!()
+    let auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let status = payment_attempt.status;
+
+    let payment_amount = payment_attempt.get_total_amount();
+    let currency = payment_intent.amount_details.currency;
+
+    let payment_method_type = payment_attempt.payment_method_type;
+
+    let merchant_connector_account_id = &merchant_connector_account.id;
+
+    let webhook_url = Some(helpers::create_webhook_url(
+        &state.base_url.clone(),
+        merchant_account.get_id(),
+        merchant_connector_account_id.get_string_repr(),
+    ));
+
+    let supported_connector = &state
+        .conf
+        .multiple_api_version_supported_connectors
+        .supported_connectors;
+
+    let connector_api_version = if supported_connector.contains(&connector_enum) {
+        state
+            .store
+            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
+            .await
+            .map(|value| value.config)
+            .ok()
+    } else {
+        None
+    };
+
+    let browser_info = payment_attempt
+        .browser_info
+        .clone()
+        .map(types::BrowserInformation::from);
+
+    let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+    let capture_method = payment_intent.capture_method;
+
+    let customer_id = payment_intent
+        .get_optional_customer_id()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get optional customer id")?;
+
+    let braintree_metadata = payment_intent
+        .get_optional_connector_metadata()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed parsing ConnectorMetadata")?
+        .and_then(|cm| cm.braintree);
+
+    let merchant_account_id = braintree_metadata
+        .as_ref()
+        .and_then(|braintree| braintree.merchant_account_id.clone());
+
+    let merchant_config_currency =
+        braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector: connector_enum.to_string(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
+        attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
+        status,
+        payment_method: payment_method_type,
+        connector_auth_type: auth_type,
+        description: None,
+        // Does refund need shipping/billing address ?
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type,
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        amount_captured: payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        payment_method_status: None,
+        minor_amount_captured: payment_intent.amount_captured,
+        request: types::RefundsData {
+            refund_id: refund.id.get_string_repr().to_string(),
+            connector_transaction_id: refund.get_connector_transaction_id().clone(),
+            refund_amount: refund.refund_amount.get_amount_as_i64(),
+            minor_refund_amount: refund.refund_amount,
+            currency,
+            payment_amount: payment_amount.get_amount_as_i64(),
+            minor_payment_amount: payment_amount,
+            webhook_url,
+            connector_metadata: payment_attempt.connector_metadata.clone().expose_option(),
+            reason: refund.refund_reason.clone(),
+            connector_refund_id: connector_refund_id.clone(),
+            browser_info,
+            split_refunds: None,
+            integrity_object: None,
+            refund_status: refund.refund_status,
+            merchant_account_id,
+            merchant_config_currency,
+            refund_connector_metadata: refund.metadata.clone(),
+            capture_method: Some(capture_method),
+        },
+
+        response: Ok(types::RefundsResponseData {
+            connector_refund_id: connector_refund_id.unwrap_or_default(),
+            refund_status: refund.refund_status,
+        }),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        connector_customer: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        connector_request_reference_id: refund.id.get_string_repr().to_string().clone(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        payment_method_balance: None,
+        connector_api_version,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: Some(refund.id.get_string_repr().to_string().clone()),
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+    };
+
+    Ok(router_data)
 }
 
 #[cfg(feature = "v1")]
@@ -309,7 +451,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .conf
         .multiple_api_version_supported_connectors
         .supported_connectors;
-    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+    let connector_enum = Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -485,7 +627,7 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
 
 #[cfg(feature = "v1")]
 pub fn get_split_refunds(
-    split_refund_input: super::refunds::transformers::SplitRefundInput,
+    split_refund_input: refunds_transformers::SplitRefundInput,
 ) -> RouterResult<Option<router_request_types::SplitRefundsRequest>> {
     match split_refund_input.split_payment_request.as_ref() {
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
@@ -515,7 +657,7 @@ pub fn get_split_refunds(
             };
 
             if let Some(charge_id) = charge_id_option {
-                let options = super::refunds::validator::validate_stripe_charge_refund(
+                let options = refunds_validator::validate_stripe_charge_refund(
                     charge_type_option,
                     &split_refund_input.refund_request,
                 )?;
@@ -543,7 +685,7 @@ pub fn get_split_refunds(
                         split_refund_request,
                     )) = split_refund_input.refund_request.clone()
                     {
-                        super::refunds::validator::validate_adyen_charge_refund(
+                        refunds_validator::validate_adyen_charge_refund(
                             adyen_split_payment_response,
                             &split_refund_request,
                         )?;
@@ -573,7 +715,7 @@ pub fn get_split_refunds(
                         split_refund_request,
                     )),
                 ) => {
-                    let user_id = super::refunds::validator::validate_xendit_charge_refund(
+                    let user_id = refunds_validator::validate_xendit_charge_refund(
                         xendit_split_payment_response,
                         split_refund_request,
                     )?;
@@ -1472,7 +1614,7 @@ pub async fn validate_and_get_business_profile(
 }
 
 fn connector_needs_business_sub_label(connector_name: &str) -> bool {
-    let connectors_list = [api_models::enums::Connector::Cybersource];
+    let connectors_list = [Connector::Cybersource];
     connectors_list
         .map(|connector| connector.to_string())
         .contains(&connector_name.to_string())
