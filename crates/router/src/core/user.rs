@@ -3169,7 +3169,7 @@ pub async fn switch_org_for_user(
         }
     };
 
-    let lineage_context = user_api::LineageContext {
+    let lineage_context = domain::LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3383,7 +3383,7 @@ pub async fn switch_merchant_for_user_in_org(
         }
     };
 
-    let lineage_context = user_api::LineageContext {
+    let lineage_context = domain::LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3518,7 +3518,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         }
     };
 
-    let lineage_context = user_api::LineageContext {
+    let lineage_context = domain::LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: user_from_token.merchant_id.clone(),
         role_id: role_id.clone(),

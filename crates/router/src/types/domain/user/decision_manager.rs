@@ -1,4 +1,3 @@
-use api_models::user::LineageContext;
 use common_enums::TokenPurpose;
 use common_utils::id_type;
 use diesel_models::{
@@ -15,6 +14,7 @@ use crate::{
     db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authentication as auth,
+    types::domain::LineageContext,
     utils,
 };
 

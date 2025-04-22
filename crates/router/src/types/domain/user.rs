@@ -1458,3 +1458,13 @@ where
             .change_context(UserErrors::InternalServerError)
     }
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct LineageContext {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub role_id: String,
+    pub org_id: id_type::OrganizationId,
+    pub profile_id: id_type::ProfileId,
+    pub tenant_id: Option<id_type::TenantId>,
+}

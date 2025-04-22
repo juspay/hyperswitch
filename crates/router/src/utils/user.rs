@@ -23,7 +23,7 @@ use crate::{
         authorization::roles::RoleInfo,
     },
     types::{
-        domain::{self, MerchantAccount, UserFromStorage},
+        domain::{self, LineageContext, MerchantAccount, UserFromStorage},
         transformers::ForeignFrom,
     },
 };
@@ -345,7 +345,7 @@ pub async fn validate_email_domain_auth_type_using_db(
 
 pub async fn set_lineage_context_in_cache(
     state: &SessionState,
-    lineage_context: user_api::LineageContext,
+    lineage_context: LineageContext,
     user_id: String,
 ) -> UserResult<()> {
     let connection = get_redis_connection(state)?;
@@ -367,7 +367,7 @@ pub async fn set_lineage_context_in_cache(
 pub async fn get_lineage_context_from_cache(
     state: &SessionState,
     user_id: String,
-) -> UserResult<Option<user_api::LineageContext>> {
+) -> UserResult<Option<LineageContext>> {
     let connection = get_redis_connection(state)?;
     let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
     let lineage_context = connection
@@ -377,7 +377,7 @@ pub async fn get_lineage_context_from_cache(
         .attach_printable("Failed to get lineage context from redis")?;
 
     match lineage_context {
-        Some(json_str) => match serde_json::from_str::<user_api::LineageContext>(&json_str) {
+        Some(json_str) => match serde_json::from_str::<LineageContext>(&json_str) {
             Ok(ctx) => Ok(Some(ctx)),
             Err(err) => {
                 logger::error!("Failed to deserialize LineageContext: {:?}", err);
