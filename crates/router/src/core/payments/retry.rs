@@ -46,7 +46,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
-    _is_debit_routing_performed: bool,
+    is_debit_routing_performed: bool,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -71,6 +71,8 @@ where
         Some(domain::PaymentMethodData::Card(card)) => card.card_network.clone(),
         _ => None,
     };
+
+    let mut previous_connector: api::ConnectorData = original_connector_data.clone();
 
     loop {
         // Use initial_gsm for first time alone
@@ -172,6 +174,8 @@ where
 
                         previous_network = Some(new_network);
 
+                        previous_connector = new_connector.clone();
+
                         router_data = do_retry(
                             &state.clone(),
                             req_state.clone(),
@@ -205,6 +209,8 @@ where
                         payment_data.set_network(new_network.clone());
 
                         previous_network = Some(new_network);
+
+                        previous_connector = new_connector.clone();
 
                         router_data = do_retry(
                             &state.clone(),
@@ -264,7 +270,22 @@ where
                             // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
                             original_connector_data.clone()
                         } else {
-                            super::get_connector_data(&mut connector_routing_data)?.connector_data
+
+                            if is_debit_routing_performed {
+                                
+                                let (new_connector, new_network) = super::get_new_connector(
+                                    &mut connector_routing_data,
+                                    previous_connector,
+                                )?;
+
+                                previous_network = Some(new_network.clone());
+                                
+                                previous_connector = new_connector.clone();
+
+                                new_connector
+                            }else{
+                                super::get_connector_data(&mut connector_routing_data)?.connector_data
+                            }  
                         };
 
                         router_data = do_retry(

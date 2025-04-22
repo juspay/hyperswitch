@@ -1503,6 +1503,27 @@ pub fn get_next_connector_with_diff_network(
         .attach_printable("Connector with different network not found in connectors iterator")
 }
 
+pub fn get_new_connector(
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+    prev_connector: api::ConnectorData,
+) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
+    let filtered_prev_connector_newtwork_pairs: Vec<_> = connectors
+    .by_ref()
+    .filter(|connector| connector.connector_data.connector_name != prev_connector.connector_name)
+    .collect();
+
+    *connectors = filtered_prev_connector_newtwork_pairs.into_iter();
+
+    connectors
+    .find_map(|connector_data| {
+        connector_data
+            .network
+            .map(|network| (connector_data.connector_data, network))
+    })
+    .ok_or(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Connector with different network not found in connectors iterator")
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow(
