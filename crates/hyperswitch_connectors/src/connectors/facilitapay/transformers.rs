@@ -1,5 +1,5 @@
 use api_models::payments::QrCodeInformation;
-use common_enums::{enums, BrazilStatesAbbreviation, PaymentMethod};
+use common_enums::{enums, PaymentMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, Encode},
@@ -29,15 +29,12 @@ use super::{
     },
     responses::{
         FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentStatus,
-        FacilitapayPaymentsResponse, FacilitapayRefundResponse, SubjectKycStatus,
+        FacilitapayPaymentsResponse, FacilitapayRefundResponse,
     },
 };
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        is_payment_failure, missing_field_err, ForeignTryFrom, QrImage,
-        RouterData as OtherRouterData,
-    },
+    utils::{is_payment_failure, missing_field_err, QrImage, RouterData as OtherRouterData},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -346,8 +343,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
     fn try_from(
         item: ResponseRouterData<F, FacilitapayCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let response_data = item.response.data.clone();
-
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.data.customer_id.expose(),
