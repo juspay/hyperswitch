@@ -1,8 +1,6 @@
 pub mod transformers;
 use std::{collections::HashMap, str, sync::LazyLock};
-use crate::utils::PaymentMethodDataType;
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
-use crate::utils::is_mandate_supported;
+
 use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
@@ -11,6 +9,7 @@ use common_utils::{
 };
 use error_stack::report;
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -46,7 +45,12 @@ use masking::{Secret, WithoutType};
 use serde::Serialize;
 use transformers as elavon;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils,
+    utils::{is_mandate_supported, PaymentMethodDataType},
+};
 
 pub fn struct_to_xml<T: Serialize>(
     item: &T,
@@ -591,7 +595,6 @@ impl ConnectorValidation for Elavon {
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
-
 
 static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
