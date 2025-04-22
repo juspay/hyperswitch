@@ -60,6 +60,8 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
@@ -150,6 +152,8 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
@@ -340,6 +344,8 @@ pub struct PaymentIntentNew {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
@@ -412,6 +418,8 @@ pub struct PaymentIntentNew {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 

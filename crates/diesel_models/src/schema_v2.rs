@@ -875,6 +875,10 @@ diesel::table! {
         capture_before -> Nullable<Timestamp>,
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
         #[max_length = 32]
         overcapture_status -> Nullable<Varchar>,
         payment_method_type_v2 -> Varchar,
@@ -956,6 +960,10 @@ diesel::table! {
         platform_merchant_id -> Nullable<Varchar>,
         force_3ds_challenge -> Nullable<Bool>,
         force_3ds_challenge_trigger -> Nullable<Bool>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
         #[max_length = 32]
         request_overcapture -> Nullable<Varchar>,
         #[max_length = 64]

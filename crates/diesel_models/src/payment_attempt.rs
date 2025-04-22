@@ -89,6 +89,8 @@ pub struct PaymentAttempt {
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -198,6 +200,8 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
@@ -336,6 +340,8 @@ pub struct PaymentAttemptNew {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -413,6 +419,8 @@ pub struct PaymentAttemptNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }

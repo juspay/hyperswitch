@@ -14,7 +14,7 @@ use common_utils::{
     type_name,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
-        MinorUnit,
+        CreatedBy, MinorUnit,
     },
 };
 #[cfg(feature = "v2")]
@@ -1608,10 +1608,11 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
-            platform_merchant_id,
             split_payments,
             force_3ds_challenge,
             force_3ds_challenge_trigger,
+            processor_merchant_id,
+            created_by,
             request_overcapture,
         } = self;
         Ok(DieselPaymentIntent {
@@ -1691,10 +1692,12 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
             request_extended_authorization: None,
-            platform_merchant_id,
+            platform_merchant_id: None,
             split_payments,
             force_3ds_challenge,
             force_3ds_challenge_trigger,
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
             request_overcapture,
         })
     }
@@ -1769,7 +1772,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 status: storage_model.status,
                 amount_details,
                 amount_captured: storage_model.amount_captured,
@@ -1827,10 +1830,15 @@ impl behaviour::Conversion for PaymentIntent {
                 customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
-                platform_merchant_id: storage_model.platform_merchant_id,
                 split_payments: storage_model.split_payments,
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 request_overcapture: storage_model.request_overcapture,
             })
         }
@@ -1912,9 +1920,11 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
             request_overcapture: self.request_overcapture,
         })
     }
@@ -1983,7 +1993,9 @@ impl behaviour::Conversion for PaymentIntent {
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             request_overcapture: self.request_overcapture,
@@ -2022,7 +2034,7 @@ impl behaviour::Conversion for PaymentIntent {
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 status: storage_model.status,
                 amount: storage_model.amount,
                 currency: storage_model.currency,
@@ -2076,7 +2088,12 @@ impl behaviour::Conversion for PaymentIntent {
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 request_extended_authorization: storage_model.request_extended_authorization,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
-                platform_merchant_id: storage_model.platform_merchant_id,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 request_overcapture: storage_model.request_overcapture,
@@ -2145,7 +2162,9 @@ impl behaviour::Conversion for PaymentIntent {
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             request_overcapture: self.request_overcapture,

@@ -276,7 +276,8 @@ pub async fn generate_sample_data(
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: merchant_id.clone(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             request_overcapture: None,
@@ -369,6 +370,8 @@ pub async fn generate_sample_data(
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            processor_merchant_id: Some(merchant_id.clone()),
+            created_by: None,
             setup_future_usage_applied: None,
             overcapture_status: None,
         };

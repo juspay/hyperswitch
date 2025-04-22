@@ -3,7 +3,7 @@ use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
     errors::CustomResult,
     fallback_reverse_lookup_not_found,
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait},
+    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy},
 };
 use diesel_models::{
     enums::{
@@ -677,6 +677,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
+                    created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                     overcapture_status: None,
                 };
@@ -1705,6 +1707,8 @@ impl DataModelExt for PaymentAttempt {
             setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             overcapture_status: self.overcapture_status,
         }
     }
@@ -1722,7 +1726,7 @@ impl DataModelExt for PaymentAttempt {
                 storage_model.tax_amount,
             ),
             payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
+            merchant_id: storage_model.merchant_id.clone(),
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             currency: storage_model.currency,
@@ -1789,6 +1793,12 @@ impl DataModelExt for PaymentAttempt {
             charges: storage_model.charges,
             issuer_error_code: storage_model.issuer_error_code,
             issuer_error_message: storage_model.issuer_error_message,
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             overcapture_status: storage_model.overcapture_status,
         }
@@ -1877,6 +1887,8 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
             overcapture_status: self.overcapture_status,
         }
@@ -1892,7 +1904,7 @@ impl DataModelExt for PaymentAttemptNew {
                 storage_model.tax_amount,
             ),
             payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
+            merchant_id: storage_model.merchant_id.clone(),
             attempt_id: storage_model.attempt_id,
             status: storage_model.status,
             currency: storage_model.currency,
@@ -1954,6 +1966,12 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
+            processor_merchant_id: storage_model
+                .processor_merchant_id
+                .unwrap_or(storage_model.merchant_id),
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             overcapture_status: storage_model.overcapture_status,
         }
