@@ -712,6 +712,9 @@ pub async fn payments_update_metadata(
         &req,
         payload,
         |state, auth, req, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::UpdateMetadata,
                 payment_types::PaymentsUpdateMetadataResponse,
@@ -722,16 +725,14 @@ pub async fn payments_update_metadata(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile_id,
-                auth.key_store,
                 payments::PaymentUpdateMetadata,
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
                 None,
                 header_payload.clone(),
-                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
