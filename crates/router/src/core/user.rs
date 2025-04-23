@@ -3169,22 +3169,17 @@ pub async fn switch_org_for_user(
         }
     };
 
-    let tenant_id = match &user_from_token.tenant_id {
-        Some(id) => id.clone(),
-        None => common_utils::id_type::TenantId::try_from_string(
-            common_utils::consts::DEFAULT_TENANT.to_owned(),
-        )
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Unable to parse default tenant id")?,
-    };
-
     let lineage_context = domain::LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
         org_id: request.org_id.clone(),
         profile_id: profile_id.clone(),
-        tenant_id,
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
     };
 
     lineage_context
@@ -3386,22 +3381,17 @@ pub async fn switch_merchant_for_user_in_org(
         }
     };
 
-    let tenant_id = match &user_from_token.tenant_id {
-        Some(id) => id.clone(),
-        None => common_utils::id_type::TenantId::try_from_string(
-            common_utils::consts::DEFAULT_TENANT.to_owned(),
-        )
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Unable to parse default tenant id")?,
-    };
-
     let lineage_context = domain::LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
         org_id: org_id.clone(),
         profile_id: profile_id.clone(),
-        tenant_id,
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
     };
 
     lineage_context
@@ -3524,22 +3514,17 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         }
     };
 
-    let tenant_id = match &user_from_token.tenant_id {
-        Some(id) => id.clone(),
-        None => common_utils::id_type::TenantId::try_from_string(
-            common_utils::consts::DEFAULT_TENANT.to_owned(),
-        )
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Unable to parse default tenant id")?,
-    };
-
     let lineage_context = domain::LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: user_from_token.merchant_id.clone(),
         role_id: role_id.clone(),
         org_id: user_from_token.org_id.clone(),
         profile_id: profile_id.clone(),
-        tenant_id,
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
     };
 
     lineage_context

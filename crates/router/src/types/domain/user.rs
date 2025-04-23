@@ -1474,6 +1474,8 @@ impl LineageContext {
         state: &SessionState,
         user_id: String,
     ) -> Option<LineageContext> {
+        // The errors are not handled here because we don't want to fail the request if the cache operation fails.
+        // The errors are logged for debugging purposes.
         match utils::user::get_lineage_context_from_cache(state, user_id.clone()).await {
             Ok(Some(ctx)) => Some(ctx),
             Ok(None) => {
@@ -1492,6 +1494,8 @@ impl LineageContext {
     }
 
     pub async fn try_set_lineage_context_in_cache(&self, state: &SessionState, user_id: String) {
+        // The errors are not handled here because we don't want to fail the request if the cache operation fails.
+        // The errors are logged for debugging purposes.
         if let Err(e) =
             utils::user::set_lineage_context_in_cache(state, user_id.clone(), self.clone()).await
         {
