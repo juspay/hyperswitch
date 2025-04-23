@@ -4567,12 +4567,12 @@ pub async fn update_revenue_recovery_algorithm_under_profile(
     merchant_key_store: &domain::MerchantKeyStore,
     revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
 ) -> RouterResult<()> {
-    let data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+    let recovery_algorithm_data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
         monitoring_configured_timestamp: date_time::now(),
     };
     let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
         revenue_recovery_retry_algorithm_type,
-        revenue_recovery_retry_algorithm_data: Some(data),
+        revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
     };
 
     db.update_profile_by_profile_id(
