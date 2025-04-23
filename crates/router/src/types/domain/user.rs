@@ -1459,7 +1459,7 @@ where
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct LineageContext {
     pub user_id: String,
     pub merchant_id: id_type::MerchantId,

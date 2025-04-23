@@ -396,7 +396,7 @@ pub async fn try_get_lineage_context_from_cache(
     state: &SessionState,
     user_id: String,
 ) -> Option<LineageContext> {
-    match get_lineage_context_from_cache(state, user_id).await {
+    match get_lineage_context_from_cache(state, user_id.clone()).await {
         Ok(Some(ctx)) => Some(ctx),
         _ => {
             logger::warn!("Lineage context not found or failed for user {}", user_id);
