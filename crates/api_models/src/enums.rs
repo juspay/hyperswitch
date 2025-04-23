@@ -241,6 +241,8 @@ pub enum FieldType {
     UserBlikCode,
     UserBank,
     UserBankAccountNumber,
+    UserSourceBankAccountId,
+    UserDestinationBankAccountId,
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
