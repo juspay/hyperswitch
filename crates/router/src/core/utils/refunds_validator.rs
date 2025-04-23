@@ -110,6 +110,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn validate_for_valid_refunds(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,
@@ -129,6 +130,38 @@ pub fn validate_for_valid_refunds(
             utils::when(
                 matches!(
                     (connector, payment_method_type),
+                    (
+                        api_models::enums::Connector::Braintree,
+                        diesel_models::enums::PaymentMethodType::Paypal,
+                    )
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::RefundNotPossible {
+                        connector: connector.to_string(),
+                    }
+                    .into())
+                },
+            )
+        }
+        _ => Ok(()),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn validate_for_valid_refunds(
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    connector: api_models::enums::Connector,
+) -> RouterResult<()> {
+    let payment_method_type = payment_attempt.payment_method_type;
+
+    match payment_method_type {
+        diesel_models::enums::PaymentMethod::PayLater
+        | diesel_models::enums::PaymentMethod::Wallet => {
+            let payment_method_subtype = payment_attempt.payment_method_subtype;
+
+            utils::when(
+                matches!(
+                    (connector, payment_method_subtype),
                     (
                         api_models::enums::Connector::Braintree,
                         diesel_models::enums::PaymentMethodType::Paypal,

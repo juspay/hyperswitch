@@ -32,7 +32,6 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{convert_uppercase, PaymentsAuthorizeRequestData},
 };
-
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
     pub const STRIPE_VERSION: &str = "2022-11-15";
@@ -341,6 +340,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             amount: item.data.object.amount,
             currency: item.data.object.currency,
             merchant_reference_id,
+            billing_address: None,
         })
     }
 }
