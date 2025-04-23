@@ -78,7 +78,10 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_create_core(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_create_core(state, merchant_context, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {

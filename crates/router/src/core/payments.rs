@@ -3030,8 +3030,7 @@ where
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
-        merchant_account,
-        key_store,
+        merchant_context,
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
