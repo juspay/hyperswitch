@@ -363,6 +363,8 @@ impl ConnectorConfig {
             Connector::Cryptopay => Ok(connector_data.cryptopay),
             Connector::CtpVisa => Ok(connector_data.ctp_visa),
             Connector::Cybersource => Ok(connector_data.cybersource),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyBillingConnector => Ok(connector_data.dummy_connector),
             Connector::Iatapay => Ok(connector_data.iatapay),
             Connector::Itaubank => Ok(connector_data.itaubank),
             Connector::Opennode => Ok(connector_data.opennode),

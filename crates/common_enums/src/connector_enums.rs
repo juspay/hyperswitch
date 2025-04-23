@@ -27,6 +27,10 @@ pub use crate::PaymentMethodType;
 pub enum RoutableConnectors {
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_billing_test")]
+    #[strum(serialize = "stripe_billing_test")]
+    DummyBillingConnector,
+    #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
     DummyConnector1,
@@ -169,6 +173,10 @@ pub enum RoutableConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
     Adyenplatform,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_billing_test")]
+    #[strum(serialize = "stripe_billing_test")]
+    DummyBillingConnector,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -355,6 +363,8 @@ impl Connector {
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
             #[cfg(feature = "dummy_connector")]
+            Self::DummyBillingConnector => false,
+            #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
@@ -500,6 +510,8 @@ impl From<RoutableConnectors> for Connector {
         match routable_connector {
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
+            RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
+            #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector2 => Self::DummyConnector2,
@@ -607,6 +619,8 @@ impl TryFrom<Connector> for RoutableConnectors {
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
+            #[cfg(feature = "dummy_connector")]
+            Connector::DummyBillingConnector => Ok(Self::DummyBillingConnector),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(Self::DummyConnector1),
             #[cfg(feature = "dummy_connector")]
