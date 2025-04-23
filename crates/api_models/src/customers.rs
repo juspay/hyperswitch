@@ -313,9 +313,6 @@ impl CustomerUpdateRequest {
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CustomerUpdateRequest {
-    /// The merchant identifier for the customer object.
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_reference_id: Option<id_type::CustomerId>,
     /// The customer's name
     #[schema(max_length = 255, value_type = String, example = "Jon Test")]
     pub name: Option<Secret<String>>,
@@ -349,9 +346,6 @@ pub struct CustomerUpdateRequest {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl CustomerUpdateRequest {
-    pub fn get_merchant_reference_id(&self) -> Option<id_type::CustomerId> {
-        self.merchant_reference_id.clone()
-    }
 
     pub fn get_default_customer_billing_address(&self) -> Option<payments::AddressDetails> {
         self.default_billing_address.clone()

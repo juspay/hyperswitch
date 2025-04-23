@@ -9362,14 +9362,6 @@
           "email"
         ],
         "properties": {
-          "merchant_reference_id": {
-            "type": "string",
-            "description": "The merchant identifier for the customer object.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 64,
-            "minLength": 1
-          },
           "name": {
             "type": "string",
             "description": "The customer's name",
