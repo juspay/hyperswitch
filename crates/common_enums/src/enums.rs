@@ -216,7 +216,6 @@ pub enum CardDiscovery {
     Clone,
     Copy,
     Debug,
-    Default,
     Hash,
     Eq,
     PartialEq,
