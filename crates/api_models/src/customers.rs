@@ -346,7 +346,6 @@ pub struct CustomerUpdateRequest {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl CustomerUpdateRequest {
-
     pub fn get_default_customer_billing_address(&self) -> Option<payments::AddressDetails> {
         self.default_billing_address.clone()
     }
