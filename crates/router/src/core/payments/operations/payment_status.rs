@@ -218,7 +218,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
-        get_tracker_for_sync(
+        Box::pin(get_tracker_for_sync(
             payment_id,
             merchant_account,
             key_store,
@@ -227,7 +227,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
             self,
             merchant_account.storage_scheme,
             platform_merchant_account,
-        )
+        ))
         .await
     }
 }
