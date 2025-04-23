@@ -130,6 +130,12 @@ pub struct UserOrgMerchantCreateRequest {
     pub merchant_name: Secret<String>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PlatformAccountCreateRequest {
+    pub organization_name: Secret<String>,
+    pub merchant_name: Option<Secret<String>>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
@@ -381,6 +387,7 @@ pub struct UserTransferKeyResponse {
 pub struct ListOrgsForUserResponse {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
+    pub org_type: common_enums::OrganizationType,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -388,6 +395,7 @@ pub struct UserMerchantAccountResponse {
     pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
     pub version: common_enums::ApiVersion,
 }
 

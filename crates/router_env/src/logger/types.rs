@@ -407,6 +407,8 @@ pub enum Flow {
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Platform
+    CreatePlatformAccount,
     /// Create Org in a given tenancy
     UserOrgMerchantCreate,
     /// Generate Sample Data

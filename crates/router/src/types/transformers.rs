@@ -1812,7 +1812,7 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
-        Self::new(item.org_id, item.org_name)
+        Self::new(item.org_id, item.org_type, item.org_name)
     }
 }
 
@@ -1820,13 +1820,16 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationCreateRequest) -> Self {
-        let org_new = api_models::organization::OrganizationNew::new(None);
+        let org_new = api_models::organization::OrganizationNew::new(
+            common_enums::OrganizationType::Standard,
+            None,
+        );
         let api_models::organization::OrganizationCreateRequest {
             organization_name,
             organization_details,
             metadata,
         } = item;
-        let mut org_new_db = Self::new(org_new.org_id, Some(organization_name));
+        let mut org_new_db = Self::new(org_new.org_id, org_new.org_type, Some(organization_name));
         org_new_db.organization_details = organization_details;
         org_new_db.metadata = metadata;
         org_new_db

@@ -4,6 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
+use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -142,6 +143,7 @@ pub async fn update_organization(
         organization_name: req.organization_name,
         organization_details: req.organization_details,
         metadata: req.metadata,
+        platform_merchant_id: req.platform_merchant_id,
     };
     state
         .accounts_store
@@ -336,6 +338,27 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
+        let merchant_account_type = match organization.organization_type {
+            OrganizationType::Standard => MerchantAccountType::Standard,
+
+            OrganizationType::Platform => {
+                let accounts = state
+                    .store
+                    .list_merchant_accounts_by_organization_id(
+                        &state.into(),
+                        &organization.get_organization_id(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+                if accounts.is_empty() {
+                    MerchantAccountType::Platform
+                } else {
+                    MerchantAccountType::Connected
+                }
+            }
+        };
+
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
 
@@ -405,6 +428,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     is_platform_account: false,
                     product_type: self.product_type,
+                    merchant_account_type,
                 },
             )
         }
@@ -461,7 +485,10 @@ impl CreateOrValidateOrganization {
         match self {
             #[cfg(feature = "v1")]
             Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(None);
+                let new_organization = api_models::organization::OrganizationNew::new(
+                    OrganizationType::Standard,
+                    None,
+                );
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await

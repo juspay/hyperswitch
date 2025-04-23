@@ -49,6 +49,7 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v1")]
@@ -85,6 +86,7 @@ pub struct MerchantAccountSetter {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v1")]
@@ -121,6 +123,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version: item.version,
             is_platform_account: item.is_platform_account,
             product_type: item.product_type,
+            merchant_account_type: item.merchant_account_type,
         }
     }
 }
@@ -703,6 +706,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             version: self.version,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
+            merchant_account_type: self.merchant_account_type,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -782,6 +786,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 version: item.version,
                 is_platform_account: item.is_platform_account,
                 product_type: item.product_type,
+                merchant_account_type: item.merchant_account_type,
             })
         }
         .await
@@ -825,6 +830,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             product_type: self
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
+            merchant_account_type: self.merchant_account_type,
         })
     }
 }

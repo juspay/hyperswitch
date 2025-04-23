@@ -1,14 +1,17 @@
+use common_enums::OrganizationType;
 use common_utils::{id_type, pii};
 use utoipa::ToSchema;
 pub struct OrganizationNew {
     pub org_id: id_type::OrganizationId,
+    pub org_type: OrganizationType,
     pub org_name: Option<String>,
 }
 
 impl OrganizationNew {
-    pub fn new(org_name: Option<String>) -> Self {
+    pub fn new(org_type: OrganizationType, org_name: Option<String>) -> Self {
         Self {
             org_id: id_type::OrganizationId::default(),
+            org_type,
             org_name,
         }
     }
@@ -47,6 +50,9 @@ pub struct OrganizationUpdateRequest {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Platform merchant id is unique distiguisher for special merchant in the platform org
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
