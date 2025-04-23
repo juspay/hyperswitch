@@ -741,12 +741,19 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
     }
 }
 
-// what to do with merchant id for production
 impl TryFrom<user_api::PlatformAccountCreateRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::PlatformAccountCreateRequest) -> UserResult<Self> {
-        let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
+        let merchant_id = if matches!(env::which(), env::Env::Production) {
+            // For production constructing platform merchant id using organization name
+            id_type::MerchantId::try_from(MerchantId::new(
+                value.organization_name.clone().expose(),
+            )?)?
+        } else {
+            id_type::MerchantId::new_from_unix_timestamp()
+        };
+
         let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,

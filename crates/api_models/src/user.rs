@@ -133,7 +133,6 @@ pub struct UserOrgMerchantCreateRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PlatformAccountCreateRequest {
     pub organization_name: Secret<String>,
-    pub merchant_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
