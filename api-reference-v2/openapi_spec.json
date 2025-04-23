@@ -3775,6 +3775,17 @@
         },
         "additionalProperties": false
       },
+      "AdyenConnectorMetadata": {
+        "type": "object",
+        "required": [
+          "testing"
+        ],
+        "properties": {
+          "testing": {
+            "$ref": "#/components/schemas/AdyenTestingData"
+          }
+        }
+      },
       "AdyenSplitData": {
         "type": "object",
         "description": "Fee information for Split Payments to be charged on the payment being collected for Adyen",
@@ -3847,6 +3858,18 @@
           "TopUp",
           "Vat"
         ]
+      },
+      "AdyenTestingData": {
+        "type": "object",
+        "required": [
+          "holder_name"
+        ],
+        "properties": {
+          "holder_name": {
+            "type": "string",
+            "description": "Holder name to be sent to Adyen for a card payment(CIT) or a generic payment(MIT). This value overrides the values for card.card_holder_name and applies during both CIT and MIT payment transcations."
+          }
+        }
       },
       "AirwallexData": {
         "type": "object",
@@ -7957,6 +7980,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BraintreeData"
+              }
+            ],
+            "nullable": true
+          },
+          "adyen": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdyenConnectorMetadata"
               }
             ],
             "nullable": true

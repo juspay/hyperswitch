@@ -307,6 +307,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_payment_method_data: None,
         merchant_account_id: None,
         merchant_config_currency: None,
+        connector_testing_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -960,6 +961,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         capture_method: Some(payment_data.payment_intent.capture_method),
         complete_authorize_url,
+        connector_testing_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
