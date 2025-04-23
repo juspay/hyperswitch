@@ -282,11 +282,19 @@ pub struct AuthenticationConnectorDetails {
     pub three_ds_requestor_app_url: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct VaultConnectorDetails {
     /// Vault Connector
     #[schema(value_type = VaultConnectors)]
     pub vault_connector: common_enums::VaultConnectors,
+
+    /// Merchant Connector id to be stored for vault connector
+    #[schema(value_type = Option<String>)]
+    pub vault_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// SDK used for vault connector
+    #[schema(value_type = VaultSdk)]
+    pub vault_sdk: common_enums::VaultSdk,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

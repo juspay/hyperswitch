@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultConnectors};
+use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -632,10 +632,14 @@ pub struct AuthenticationConnectorDetails {
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct VaultConnectorDetails {
-    pub vault_connector: VaultConnectors,
+    pub vault_connector: common_enums::VaultConnectors,
+
+    pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+
+    pub vault_sdk: common_enums::VaultSdk,
 }
 
 common_utils::impl_to_sql_from_sql_json!(VaultConnectorDetails);

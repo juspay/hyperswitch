@@ -2045,6 +2045,8 @@ impl ForeignFrom<api_models::admin::VaultConnectorDetails>
     fn foreign_from(item: api_models::admin::VaultConnectorDetails) -> Self {
         Self {
             vault_connector: item.vault_connector,
+            vault_connector_id: item.vault_connector_id,
+            vault_sdk: item.vault_sdk,
         }
     }
 }
@@ -2055,6 +2057,8 @@ impl ForeignFrom<diesel_models::business_profile::VaultConnectorDetails>
     fn foreign_from(item: diesel_models::business_profile::VaultConnectorDetails) -> Self {
         Self {
             vault_connector: item.vault_connector,
+            vault_connector_id: item.vault_connector_id,
+            vault_sdk: item.vault_sdk,
         }
     }
 }
