@@ -6368,6 +6368,7 @@ where
     payment_data.set_connector_in_payment_attempt(routing_data.routed_through);
 
     payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
+    payment_data.set_straight_through_algorithm_in_payment_attempt(encoded_info);
 
     Ok(decided_connector)
 }

@@ -19,7 +19,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data::{NetworkTokenDetails, PaymentMethodsData};
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 
