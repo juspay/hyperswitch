@@ -1466,5 +1466,5 @@ pub struct LineageContext {
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<id_type::TenantId>,
+    pub tenant_id: id_type::TenantId,
 }

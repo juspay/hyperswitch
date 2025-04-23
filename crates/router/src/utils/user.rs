@@ -345,22 +345,26 @@ pub async fn validate_email_domain_auth_type_using_db(
 
 pub async fn set_lineage_context_in_cache(
     state: &SessionState,
-    lineage_context: LineageContext,
     user_id: String,
+    lineage_context: LineageContext,
 ) -> UserResult<()> {
     let connection = get_redis_connection(state)?;
     let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
+    let serialized_lineage_context = serde_json::to_string(&lineage_context)
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to serialize LineageContext")?;
     connection
         .set_key_with_expiry(
             &key.into(),
-            serde_json::to_string(&lineage_context)
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to serialize LineageContext")?,
+            serialized_lineage_context,
             LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS,
         )
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to set lineage context in redis")?;
+
+    logger::debug!("Lineage context cached for user {}", user_id);
+
     Ok(())
 }
 
@@ -385,5 +389,18 @@ pub async fn get_lineage_context_from_cache(
             }
         },
         None => Ok(None),
+    }
+}
+
+pub async fn try_get_lineage_context_from_cache(
+    state: &SessionState,
+    user_id: String,
+) -> Option<LineageContext> {
+    match get_lineage_context_from_cache(state, user_id).await {
+        Ok(Some(ctx)) => Some(ctx),
+        _ => {
+            logger::warn!("Lineage context not found or failed for user {}", user_id);
+            None
+        }
     }
 }

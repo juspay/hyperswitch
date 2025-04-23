@@ -128,8 +128,10 @@ impl JWTFlow {
         state: &SessionState,
         next_flow: &NextFlow,
         user_role: &UserRole,
-        lineage_context: Option<LineageContext>,
     ) -> UserResult<Secret<String>> {
+        let user_id = next_flow.user.get_user_id().to_string();
+        let lineage_context = utils::user::try_get_lineage_context_from_cache(state, user_id).await;
+
         let (user_id, org_id, merchant_id, profile_id, role_id, tenant_id) = match lineage_context {
             Some(ctx) => {
                 let tenant_id = ctx
@@ -227,7 +229,7 @@ impl JWTFlow {
         };
 
         if let Err(e) =
-            utils::user::set_lineage_context_in_cache(state, lineage_context, user_id.clone()).await
+            utils::user::set_lineage_context_in_cache(state, user_id.clone(), lineage_context).await
         {
             logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
         }
@@ -239,7 +241,7 @@ impl JWTFlow {
             &state.conf,
             org_id,
             profile_id,
-            tenant_id,
+            Some(tenant_id),
         )
         .await
         .map(|token| token.into())
@@ -442,29 +444,7 @@ impl NextFlow {
                     .ok_or(UserErrors::InternalServerError)?;
                 utils::user_role::set_role_info_in_cache_by_user_role(state, &user_role).await;
 
-                let lineage_context = match utils::user::get_lineage_context_from_cache(
-                    state,
-                    self.user.get_user_id().to_string(),
-                )
-                .await
-                {
-                    Ok(Some(ctx)) => Some(ctx),
-                    Ok(None) => {
-                        logger::info!(
-                            "No lineage context found in cache for user {}",
-                            user_id.to_string()
-                        );
-                        None
-                    }
-                    Err(err) => {
-                        logger::error!("Failed to fetch lineage context from Redis: {:?}", err);
-                        None
-                    }
-                };
-
-                jwt_flow
-                    .generate_jwt(state, self, &user_role, lineage_context)
-                    .await
+                jwt_flow.generate_jwt(state, self, &user_role).await
             }
         }
     }
@@ -483,7 +463,7 @@ impl NextFlow {
                 }
                 utils::user_role::set_role_info_in_cache_by_user_role(state, user_role).await;
 
-                jwt_flow.generate_jwt(state, self, user_role, None).await
+                jwt_flow.generate_jwt(state, self, user_role).await
             }
         }
     }
