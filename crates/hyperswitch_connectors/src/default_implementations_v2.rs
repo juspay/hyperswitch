@@ -234,6 +234,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -338,6 +339,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
+    connectors::Adyenplatform,
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,
@@ -441,6 +443,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -548,6 +551,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -653,6 +657,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -758,6 +763,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -874,6 +880,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -982,6 +989,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1090,6 +1098,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1198,6 +1207,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1306,6 +1316,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1414,6 +1425,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1522,6 +1534,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1630,6 +1643,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1738,6 +1752,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1844,6 +1859,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -1952,6 +1968,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2060,6 +2077,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2168,6 +2186,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2276,6 +2295,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2384,6 +2404,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -2489,6 +2510,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,

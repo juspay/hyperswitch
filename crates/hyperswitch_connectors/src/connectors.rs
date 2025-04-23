@@ -1,5 +1,6 @@
 pub mod aci;
 pub mod adyen;
+pub mod adyenplatform;
 pub mod airwallex;
 pub mod amazonpay;
 pub mod authorizedotnet;
@@ -85,16 +86,17 @@ pub mod worldpay;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
+
 pub use self::{
-    aci::Aci, adyen::Adyen, airwallex::Airwallex, amazonpay::Amazonpay,
-    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
-    bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap,
-    boku::Boku, braintree::Braintree, cashtocode::Cashtocode, chargebee::Chargebee,
-    checkout::Checkout, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
-    ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
-    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,
-    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
-    getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    amazonpay::Amazonpay, authorizedotnet::Authorizedotnet, bambora::Bambora,
+    bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
+    bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
+    chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
+    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
+    datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
+    elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu,
+    forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
