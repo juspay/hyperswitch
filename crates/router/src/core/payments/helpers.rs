@@ -2642,7 +2642,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                     payment_data.set_vault_operation(vault_operation);
                 }
 
-                /// Temporarily store payment method data along with the cvc in redis for saved card payments, if required by the connector based on its configs
+                // Temporarily store payment method data along with the cvc in redis for saved card payments, if required by the connector based on its configs
                 if payment_data.token.is_none() {
                     let (_, payment_token) = payment_methods::retrieve_payment_method_core(
                         &Some(payment_method_data.clone()),
