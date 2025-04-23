@@ -105,8 +105,7 @@ pub async fn recovery_incoming_webhook_flow(
         billing_connector_invoice_details.as_ref(),
     )?;
 
-
-    println!("{:?}",invoice_details);
+    println!("{:?}", invoice_details);
 
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
