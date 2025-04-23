@@ -6855,8 +6855,7 @@ where
             Some(true),
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
-        |
-        (None, Some(_), None, Some(true), _) => {
+        | (None, Some(_), None, Some(true), _) => {
             logger::debug!("performing routing for token-based MIT flow");
 
             let payment_method_info = payment_data
