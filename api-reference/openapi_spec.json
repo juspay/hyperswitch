@@ -9792,6 +9792,7 @@
         "type": "string",
         "enum": [
           "adyenplatform",
+          "stripe_billing_test",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -25541,6 +25542,7 @@
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
+          "stripe_billing_test",
           "phonypay",
           "fauxpay",
           "pretendpay",
