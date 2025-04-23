@@ -49,7 +49,7 @@ pub struct MerchantAccountCreate {
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
     #[serde(skip)]
@@ -316,7 +316,7 @@ pub struct MerchantAccountUpdate {
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
     #[serde(skip)]
@@ -508,7 +508,7 @@ pub struct MerchantAccountResponse {
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[serde(skip)]
@@ -663,7 +663,15 @@ pub struct PrimaryBusinessDetails {
 pub struct WebhookDetails {
     ///The version for Webhook
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
-    pub webhook_endpoint_id: Option<id_type::WebhookEndpointId>,
+    pub webhook_version: Option<String>,
+
+    ///The user name for Webhook login
+    #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
+    pub webhook_username: Option<String>,
+
+    ///The password for Webhook login
+    #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
+    pub webhook_password: Option<Secret<String>>,
 
     ///The url for the webhook endpoint
     #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
@@ -671,10 +679,26 @@ pub struct WebhookDetails {
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
     #[schema(example = true)]
-    pub events: Vec<common_enums::EventType>,
+    pub payment_created_enabled: Option<bool>,
+
+    /// If this property is true, a webhook message is posted whenever a payment is successful
+    #[schema(example = true)]
+    pub payment_succeeded_enabled: Option<bool>,
 
     /// If this property is true, a webhook message is posted whenever a payment fails
     #[schema(example = true)]
+    pub payment_failed_enabled: Option<bool>,
+
+    #[schema(value_type = Option<Vec<MultipleWebhookDetail>>)]
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: Option<id_type::WebhookEndpointId>,
+    pub webhook_url: Option<Secret<String>>,
+    pub events: Vec<common_enums::EventType>,
     pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
 }
 
@@ -1865,7 +1889,7 @@ pub struct ProfileCreate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2019,7 +2043,7 @@ pub struct ProfileCreate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2158,7 +2182,7 @@ pub struct ProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2317,7 +2341,7 @@ pub struct ProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2456,7 +2480,7 @@ pub struct ProfileUpdate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2604,7 +2628,7 @@ pub struct ProfileUpdate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<Vec<Option<WebhookDetails>>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]

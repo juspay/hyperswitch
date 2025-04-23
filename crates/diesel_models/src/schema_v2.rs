@@ -185,7 +185,7 @@ diesel::table! {
         #[max_length = 255]
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        webhook_details -> Nullable<Array<Nullable<Json>>>,
+        webhook_details -> Nullable<Json>,
         metadata -> Nullable<Json>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
