@@ -204,3 +204,5 @@ The core team of 150+ engineers building Hyperswitch. Keep up the great work! ðŸ
 <a href="https://github.com/juspay/hyperswitch/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=juspay/hyperswitch" alt="Contributors"/>
 </a>
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/AkshayaFoiger/hyperswitch?utm_source=oss&utm_medium=github&utm_campaign=AkshayaFoiger%2Fhyperswitch&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
