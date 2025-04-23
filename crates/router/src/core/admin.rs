@@ -1253,7 +1253,8 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             // api_enums::Connector::Payone => {payone::transformers::PayoneAuthType::try_from(val)?;Ok(())} Added as a template code for future usage
             #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector1
+            api_enums::Connector::DummyBillingConnector
+            | api_enums::Connector::DummyConnector1
             | api_enums::Connector::DummyConnector2
             | api_enums::Connector::DummyConnector3
             | api_enums::Connector::DummyConnector4
@@ -1377,10 +1378,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Facilitapay => {
-            //     facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Facilitapay => {
+                facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Fiserv => {
                 fiserv::transformers::FiservAuthType::try_from(self.auth_type)?;
                 fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;
