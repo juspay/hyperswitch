@@ -4249,6 +4249,7 @@ pub async fn get_session_token_for_click_to_pay(
     )))
 }
 
+#[cfg(feature = "v1")]
 async fn get_card_brands_based_on_active_merchant_connector_account(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
