@@ -3940,6 +3940,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
+            vault_connector_details: self.vault_connector_details.map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4363,6 +4364,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
+                vault_connector_details: self
+                    .vault_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }

@@ -282,6 +282,12 @@ pub struct AuthenticationConnectorDetails {
     pub three_ds_requestor_app_url: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
+pub struct VaultConnectorDetails {
+    /// Vault Connector
+    pub vault_connector: common_enums::VaultConnectors,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
@@ -2125,6 +2131,9 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Vault Connector Details
+    pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2424,6 +2433,9 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Vault Connector Details
+    pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2698,6 +2710,9 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Vault Connector Details
+    pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

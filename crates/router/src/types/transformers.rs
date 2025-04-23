@@ -2039,6 +2039,26 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
     }
 }
 
+impl ForeignFrom<api_models::admin::VaultConnectorDetails>
+    for diesel_models::business_profile::VaultConnectorDetails
+{
+    fn foreign_from(item: api_models::admin::VaultConnectorDetails) -> Self {
+        Self {
+            vault_connector: item.vault_connector,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::VaultConnectorDetails>
+    for api_models::admin::VaultConnectorDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::VaultConnectorDetails) -> Self {
+        Self {
+            vault_connector: item.vault_connector,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     for diesel_models::business_profile::CardTestingGuardConfig
 {

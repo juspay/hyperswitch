@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
+use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultConnectors};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -364,6 +364,7 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
 impl Profile {
@@ -432,6 +433,7 @@ pub struct ProfileNew {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
+    pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -484,6 +486,7 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -533,6 +536,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
+            vault_connector_details,
         } = self;
         Profile {
             id: source.id,
@@ -613,6 +617,7 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            vault_connector_details: vault_connector_details.or(source.vault_connector_details),
         }
     }
 }
@@ -626,6 +631,14 @@ pub struct AuthenticationConnectorDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct VaultConnectorDetails {
+    pub vault_connector: VaultConnectors,
+}
+
+common_utils::impl_to_sql_from_sql_json!(VaultConnectorDetails);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]

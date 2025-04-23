@@ -232,6 +232,7 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
+        vault_connector_details -> Nullable<Jsonb>,
     }
 }
 

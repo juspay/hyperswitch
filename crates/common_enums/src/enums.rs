@@ -6889,6 +6889,28 @@ impl AuthenticationConnectors {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultConnectors {
+    Vgs,
+    #[default]
+    HyperswitchVault,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     Default,
