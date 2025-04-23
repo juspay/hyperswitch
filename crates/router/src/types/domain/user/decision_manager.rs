@@ -147,19 +147,17 @@ impl JWTFlow {
                 .await
                 .ok()
                 .or_else(|| {
-                    Some(
-                        futures::executor::block_on(
-                            state.global_store.find_user_role_by_user_id_and_lineage(
-                                &ctx.user_id,
-                                &tenant_id,
-                                &ctx.org_id,
-                                &ctx.merchant_id,
-                                &ctx.profile_id,
-                                UserRoleVersion::V2,
-                            ),
-                        )
-                        .ok()?,
+                    futures::executor::block_on(
+                        state.global_store.find_user_role_by_user_id_and_lineage(
+                            &ctx.user_id,
+                            &tenant_id,
+                            &ctx.org_id,
+                            &ctx.merchant_id,
+                            &ctx.profile_id,
+                            UserRoleVersion::V2,
+                        ),
                     )
+                    .ok()
                 });
 
             if matched_user_role.is_some() {

@@ -1473,7 +1473,7 @@ impl LineageContext {
     pub async fn try_get_lineage_context_from_cache(
         state: &SessionState,
         user_id: String,
-    ) -> Option<LineageContext> {
+    ) -> Option<Self> {
         // The errors are not handled here because we don't want to fail the request if the cache operation fails.
         // The errors are logged for debugging purposes.
         match utils::user::get_lineage_context_from_cache(state, user_id.clone()).await {
