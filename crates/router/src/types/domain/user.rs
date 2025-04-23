@@ -23,7 +23,7 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
-use router_env::env;
+use router_env::{env, logger};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
@@ -39,7 +39,7 @@ use crate::{
     routes::SessionState,
     services::{self, authentication::UserFromToken},
     types::{domain, transformers::ForeignFrom},
-    utils::user::password,
+    utils::{self, user::password},
 };
 
 pub mod dashboard_metadata;
@@ -1467,4 +1467,41 @@ pub struct LineageContext {
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
     pub tenant_id: id_type::TenantId,
+}
+
+impl LineageContext {
+    pub async fn try_get_lineage_context_from_cache(
+        state: &SessionState,
+        user_id: String,
+    ) -> Option<LineageContext> {
+        match utils::user::get_lineage_context_from_cache(state, user_id.clone()).await {
+            Ok(Some(ctx)) => Some(ctx),
+            Ok(None) => {
+                logger::debug!("Lineage context not found in Redis for user {}", user_id);
+                None
+            }
+            Err(e) => {
+                logger::error!(
+                    "Failed to retrieve lineage context from Redis for user {}: {:?}",
+                    user_id,
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    pub async fn try_set_lineage_context_in_cache(&self, state: &SessionState, user_id: String) {
+        if let Err(e) =
+            utils::user::set_lineage_context_in_cache(state, user_id.clone(), self.clone()).await
+        {
+            logger::error!(
+                "Failed to set lineage context in Redis for user {}: {:?}",
+                user_id,
+                e
+            );
+        } else {
+            logger::debug!("Lineage context cached for user {}", user_id);
+        }
+    }
 }

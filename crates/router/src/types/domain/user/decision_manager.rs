@@ -6,7 +6,6 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use masking::Secret;
-use router_env::logger;
 
 use super::UserFromStorage;
 use crate::{
@@ -131,17 +130,7 @@ impl JWTFlow {
     ) -> UserResult<Secret<String>> {
         let user_id = next_flow.user.get_user_id().to_string();
         let cached_lineage_context =
-            match utils::user::try_get_lineage_context_from_cache(state, &user_id).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    logger::error!(
-                        "Failed to get lineage context from Redis cache for user {}: {:?}",
-                        user_id.clone(),
-                        e
-                    );
-                    None
-                }
-            };
+            LineageContext::try_get_lineage_context_from_cache(state, user_id.clone()).await;
 
         let new_lineage_context = if let Some(ctx) = cached_lineage_context {
             let tenant_id = ctx.tenant_id.clone();
@@ -184,15 +173,9 @@ impl JWTFlow {
             Self::resolve_lineage_from_user_role(state, user_role, user_id.clone()).await?
         };
 
-        if let Err(e) = utils::user::set_lineage_context_in_cache(
-            state,
-            user_id.clone(),
-            new_lineage_context.clone(),
-        )
-        .await
-        {
-            logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
-        }
+        new_lineage_context
+            .try_set_lineage_context_in_cache(state, user_id.clone())
+            .await;
 
         auth::AuthToken::new_token(
             new_lineage_context.user_id,

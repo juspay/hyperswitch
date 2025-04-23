@@ -3187,15 +3187,9 @@ pub async fn switch_org_for_user(
         tenant_id,
     };
 
-    if let Err(e) = utils::user::set_lineage_context_in_cache(
-        &state,
-        user_from_token.user_id.clone(),
-        lineage_context,
-    )
-    .await
-    {
-        logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
-    }
+    lineage_context
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.clone())
+        .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3410,15 +3404,9 @@ pub async fn switch_merchant_for_user_in_org(
         tenant_id,
     };
 
-    if let Err(e) = utils::user::set_lineage_context_in_cache(
-        &state,
-        user_from_token.user_id.clone(),
-        lineage_context,
-    )
-    .await
-    {
-        logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
-    }
+    lineage_context
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.clone())
+        .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3554,15 +3542,9 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         tenant_id,
     };
 
-    if let Err(e) = utils::user::set_lineage_context_in_cache(
-        &state,
-        user_from_token.user_id.clone(),
-        lineage_context,
-    )
-    .await
-    {
-        logger::error!("Failed to set lineage context in Redis cache: {:?}", e);
-    }
+    lineage_context
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.clone())
+        .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
