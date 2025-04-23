@@ -297,7 +297,7 @@ pub struct StripebillingWebhookObject {
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
     pub customer_address: Option<StripebillingInvoiceBillingAddress>,
-    pub attempt_count: u8,
+    pub attempt_count: u16,
     pub lines: StripebillingWebhookLinesObject,
 }
 
@@ -394,13 +394,24 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let next_billing_at = item
+            .data
+            .object
+            .lines
+            .data
+            .first()
+            .map(|linedata| linedata.period.end);
         Ok(Self {
             amount: item.data.object.amount,
             currency: item.data.object.currency,
             merchant_reference_id,
-            billing_address: None,
-            retry_count: None,
-            next_billing_at: None,
+            billing_address: item
+                .data
+                .object
+                .customer_address
+                .map(api_models::payments::Address::from),
+            retry_count: Some(item.data.object.attempt_count),
+            next_billing_at,
         })
     }
 }
