@@ -285,6 +285,7 @@ pub struct AuthenticationConnectorDetails {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, ToSchema)]
 pub struct VaultConnectorDetails {
     /// Vault Connector
+    #[schema(value_type = VaultConnectors)]
     pub vault_connector: common_enums::VaultConnectors,
 }
 

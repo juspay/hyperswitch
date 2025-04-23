@@ -19740,6 +19740,14 @@
               }
             ],
             "nullable": true
+          },
+          "vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19987,6 +19995,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultConnectorDetails"
               }
             ],
             "nullable": true
@@ -23167,6 +23183,24 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "VaultConnectorDetails": {
+        "type": "object",
+        "required": [
+          "vault_connector"
+        ],
+        "properties": {
+          "vault_connector": {
+            "$ref": "#/components/schemas/VaultConnectors"
+          }
+        }
+      },
+      "VaultConnectors": {
+        "type": "string",
+        "enum": [
+          "vgs",
+          "hyperswitch_vault"
+        ]
       },
       "Venmo": {
         "type": "object",
