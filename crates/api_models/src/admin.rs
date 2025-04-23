@@ -1697,7 +1697,7 @@ impl PaymentMethodsEnabled {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         Some(self.payment_method)
     }
-    /// Get payment_method_typesis_aut
+    /// Get payment_method_types
     #[cfg(feature = "v1")]
     pub fn get_payment_method_type(
         &self,
