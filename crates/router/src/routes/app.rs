@@ -1383,14 +1383,7 @@ impl Tokenization {
             web::resource("")
                 .route(web::post().to(tokenization_routes::create_token_vault_api)),
         );
-
         token_route
-        // web::scope("/v2/tokenize")
-        //     .app_data(web::Data::new(state))
-        //     .service(
-        //         web::resource("")
-        //             .route(web::post().to(tokenization_routes::create_token_vault_api)),
-        //     )
     }
 }
 
