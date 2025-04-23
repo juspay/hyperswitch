@@ -5543,10 +5543,11 @@ pub struct AdyenTestingData {
     holder_name: Option<Secret<String>>,
 }
 
-impl TryFrom<serde_json::Value> for AdyenTestingData {
+impl TryFrom<pii::SecretSerdeValue> for AdyenTestingData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(testing_data: serde_json::Value) -> Result<Self, Self::Error> {
+    fn try_from(testing_data: pii::SecretSerdeValue) -> Result<Self, Self::Error> {
         let testing_data = testing_data
+            .expose()
             .parse_value::<Self>("AdyenTestingData")
             .change_context(errors::ConnectorError::InvalidDataFormat {
                 field_name: "connector_metadata.adyen.testing",

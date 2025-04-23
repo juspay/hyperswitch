@@ -3319,7 +3319,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     }),
                 _ => None,
             })
-            .transpose()?;
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -4158,7 +4159,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     }),
                 _ => None,
             })
-            .transpose()?;
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
 
         Ok(Self {
             currency: payment_data.currency,

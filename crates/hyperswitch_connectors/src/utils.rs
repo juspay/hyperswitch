@@ -1685,7 +1685,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_network_from_additional_payment_method_data(
         &self,
     ) -> Result<enums::CardNetwork, Error>;
-    fn get_connector_testing_data(&self) -> Option<Value>;
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1906,7 +1906,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .into()),
         }
     }
-    fn get_connector_testing_data(&self) -> Option<Value> {
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
         self.connector_testing_data.clone()
     }
 }
@@ -6002,7 +6002,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         shipping_cost: data.request.shipping_cost,
         merchant_account_id: None,
         merchant_config_currency: None,
-        connector_testing_data: None,
+        connector_testing_data: data.connector_testing_data,
     }
 }
 
