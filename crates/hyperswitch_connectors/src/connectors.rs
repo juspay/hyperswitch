@@ -24,6 +24,7 @@ pub mod datatrans;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
+pub mod ebanx;
 pub mod elavon;
 pub mod facilitapay;
 pub mod fiserv;
@@ -95,13 +96,13 @@ pub use self::{
     chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
     cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
     datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
-    elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu,
-    forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
-    helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
-    jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
-    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
-    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon,
-    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
+    ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea,
+    fiuu::Fiuu, forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay,
+    gocardless::Gocardless, helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay,
+    itaubank::Itaubank, jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver,
+    klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
+    multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
+    noon::Noon, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
     payeezy::Payeezy, payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu,
     placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd,
     razorpay::Razorpay, recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4,
