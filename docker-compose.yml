@@ -446,24 +446,24 @@ services:
       - ./config/vector.yaml:/etc/vector/vector.yaml
       - /var/run/docker.sock:/var/run/docker.sock
 
-hyperswitch-demo:
-  image: docker.juspay.io/juspaydotin/hyperswitch-react-demo-app:latest
-  pull_policy: always
-  ports:
-    - "9060:9060"
-    - "5252:5252"
-  networks:
-    - router_net
-  depends_on:
-    hyperswitch-server:
-      condition: service_healthy
-    hyperswitch-web:
-      condition: service_healthy
-  environment:
-    - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
-    - HYPERSWITCH_SECRET_KEY=placeholder_api_key
-    - PROFILE_ID=placeholder_profile_id
-    - HYPERSWITCH_CLIENT_URL=http://localhost:9050
-    - HYPERSWITCH_SERVER_URL=http://localhost:8080
-  labels:
-    logs: "promtail"
+  hyperswitch-demo:
+    image: docker.juspay.io/juspaydotin/hyperswitch-react-demo-app:latest
+    pull_policy: always
+    ports:
+      - "9060:9060"
+      - "5252:5252"
+    networks:
+      - router_net
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+      hyperswitch-web:
+        condition: service_healthy
+    environment:
+      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
+      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
+      - PROFILE_ID=placeholder_profile_id
+      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
+      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+    labels:
+      logs: "promtail"
