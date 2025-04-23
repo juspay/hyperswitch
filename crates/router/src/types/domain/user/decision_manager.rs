@@ -131,7 +131,17 @@ impl JWTFlow {
     ) -> UserResult<Secret<String>> {
         let user_id = next_flow.user.get_user_id().to_string();
         let cached_lineage_context =
-            utils::user::try_get_lineage_context_from_cache(state, user_id.clone()).await;
+            match utils::user::try_get_lineage_context_from_cache(state, &user_id).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    logger::error!(
+                        "Failed to get lineage context from Redis cache for user {}: {:?}",
+                        user_id.clone(),
+                        e
+                    );
+                    None
+                }
+            };
 
         let new_lineage_context = if let Some(ctx) = cached_lineage_context {
             let tenant_id = ctx.tenant_id.clone();
@@ -166,7 +176,7 @@ impl JWTFlow {
             if matched_user_role.is_some() {
                 ctx
             } else {
-                // fallback to fresh lineage if cached context is invalid
+                // fallback to default lineage if cached context is invalid
                 Self::resolve_lineage_from_user_role(state, user_role, user_id.clone()).await?
             }
         } else {
