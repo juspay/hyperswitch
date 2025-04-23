@@ -145,6 +145,7 @@ pub struct MerchantAccountSetter {
     pub is_platform_account: bool,
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v2")]
@@ -164,6 +165,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             is_platform_account,
             version,
             product_type,
+            merchant_account_type,
         } = item;
         Self {
             id,
@@ -179,6 +181,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             is_platform_account,
             version,
             product_type,
+            merchant_account_type,
         }
     }
 }
@@ -199,6 +202,7 @@ pub struct MerchantAccount {
     pub is_platform_account: bool,
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 impl MerchantAccount {
@@ -578,6 +582,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             version: common_types::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
+            merchant_account_type: self.merchant_account_type,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -640,6 +645,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 is_platform_account: item.is_platform_account,
                 version: item.version,
                 product_type: item.product_type,
+                merchant_account_type: item.merchant_account_type,
             })
         }
         .await
@@ -665,6 +671,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             product_type: self
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
+            merchant_account_type: self.merchant_account_type,
         })
     }
 }

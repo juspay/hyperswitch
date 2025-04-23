@@ -656,6 +656,27 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
+        let merchant_account_type = match organization.organization_type {
+            OrganizationType::Standard => MerchantAccountType::Standard,
+
+            OrganizationType::Platform => {
+                let accounts = state
+                    .store
+                    .list_merchant_accounts_by_organization_id(
+                        &state.into(),
+                        &organization.get_organization_id(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+                if accounts.is_empty() {
+                    MerchantAccountType::Platform
+                } else {
+                    MerchantAccountType::Connected
+                }
+            }
+        };
+
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
         let key_manager_state = state.into();
@@ -702,6 +723,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     is_platform_account: false,
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
+                    merchant_account_type,
                 }),
             )
         }
