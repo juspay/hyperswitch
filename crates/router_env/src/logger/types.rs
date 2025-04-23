@@ -583,7 +583,9 @@ pub enum Flow {
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
     /// Tokenization flow
-    TokenizationFlow,
+    TokenizationCreate,
+    /// Tokenization retrieve flow
+    TokenizationRetrieve,
 }
 
 /// Trait for providing generic behaviour to flow metric

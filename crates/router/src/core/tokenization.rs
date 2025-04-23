@@ -17,7 +17,7 @@ use crate::{
     },
     routes::{app::StorageInterface, SessionState, AppState},
 };
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, Flow, logger};
 use hyperswitch_domain_models;
 use api_models;
 use common_utils::{
@@ -50,13 +50,11 @@ pub async fn create_vault_token_core<T: Serialize +  std::fmt::Debug>(
     .encode_to_vec()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encode Request")?;
-
     // Call the vault service
-    let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload)
+    let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Call to vault failed")?;
-
     // Parse the response
     let stored_resp: pm_types::AddVaultResponse = resp
         .parse_struct("AddVaultResponse")

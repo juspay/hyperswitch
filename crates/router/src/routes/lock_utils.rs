@@ -43,7 +43,7 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
-    Tokenization,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -339,7 +339,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
 
-            Flow::TokenizationFlow => Self::Tokenization,
+            Flow::TokenizationCreate
+            | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

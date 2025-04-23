@@ -21,14 +21,14 @@ use api_models;
 use common_utils::ext_traits::{BytesExt, Encode};
 
 
-#[instrument(skip_all, fields(flow = ?Flow::TokenizationFlow))]
+#[instrument(skip_all, fields(flow = ?Flow::TokenizationCreate))]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub async fn create_token_vault_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<serde_json::Value>,
 ) -> HttpResponse {
-    let flow = Flow::TokenizationFlow;
+    let flow = Flow::TokenizationCreate;
     let payload = json_payload.into_inner();
 
     Box::pin(api_service::server_wrap(
@@ -45,7 +45,10 @@ pub async fn create_token_vault_api(
             )
             .await
         },
-        &auth::V2ApiKeyAuth,
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
