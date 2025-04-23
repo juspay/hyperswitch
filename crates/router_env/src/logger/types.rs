@@ -536,6 +536,8 @@ pub enum Flow {
     ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
+    /// Payments Update Metadata
+    PaymentsUpdateMetadata,
     /// Payments start redirection flow
     PaymentStartRedirection,
     /// Volume split on the routing type

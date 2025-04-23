@@ -3816,7 +3816,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -3890,7 +3891,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -3962,7 +3964,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -4509,6 +4512,9 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            processor_merchant_id: old_payment_attempt.processor_merchant_id,
+            created_by: old_payment_attempt.created_by,
+            setup_future_usage_applied: None,
         }
     }
 
@@ -6487,16 +6493,19 @@ pub fn get_key_params_for_surcharge_details(
 }
 
 pub fn validate_payment_link_request(
-    confirm: Option<bool>,
+    request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(cnf) = confirm {
-        if !cnf {
-            return Ok(());
-        } else {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "cannot confirm a payment while creating a payment link".to_string(),
-            });
-        }
+    #[cfg(feature = "v1")]
+    if request.confirm == Some(true) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "cannot confirm a payment while creating a payment link".to_string(),
+        });
+    }
+
+    if request.return_url.is_none() {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "return_url must be sent while creating a payment link".to_string(),
+        });
     }
     Ok(())
 }

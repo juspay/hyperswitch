@@ -1,7 +1,10 @@
 mod accounts;
 mod payments;
 mod ui;
-use std::num::{ParseFloatError, TryFromIntError};
+use std::{
+    collections::HashSet,
+    num::{ParseFloatError, TryFromIntError},
+};
 
 pub use accounts::MerchantProductType;
 pub use payments::ProductType;
@@ -331,9 +334,15 @@ pub enum AuthorizationStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum SessionUpdateStatus {
+pub enum PaymentResourceUpdateStatus {
     Success,
     Failure,
+}
+
+impl PaymentResourceUpdateStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Success)
+    }
 }
 
 #[derive(
@@ -1358,6 +1367,7 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1378,10 +1388,49 @@ pub enum EventClass {
     Payouts,
 }
 
+impl EventClass {
+    #[inline]
+    pub fn event_types(self) -> HashSet<EventType> {
+        match self {
+            Self::Payments => HashSet::from([
+                EventType::PaymentSucceeded,
+                EventType::PaymentFailed,
+                EventType::PaymentProcessing,
+                EventType::PaymentCancelled,
+                EventType::PaymentAuthorized,
+                EventType::PaymentCaptured,
+                EventType::ActionRequired,
+            ]),
+            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Disputes => HashSet::from([
+                EventType::DisputeOpened,
+                EventType::DisputeExpired,
+                EventType::DisputeAccepted,
+                EventType::DisputeCancelled,
+                EventType::DisputeChallenged,
+                EventType::DisputeWon,
+                EventType::DisputeLost,
+            ]),
+            Self::Mandates => HashSet::from([EventType::MandateActive, EventType::MandateRevoked]),
+            #[cfg(feature = "payouts")]
+            Self::Payouts => HashSet::from([
+                EventType::PayoutSuccess,
+                EventType::PayoutFailed,
+                EventType::PayoutInitiated,
+                EventType::PayoutProcessing,
+                EventType::PayoutCancelled,
+                EventType::PayoutExpired,
+                EventType::PayoutReversed,
+            ]),
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1393,6 +1442,7 @@ pub enum EventClass {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+// Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
 pub enum EventType {
     /// Authorize + Capture success
     PaymentSucceeded,
@@ -1414,12 +1464,19 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    #[cfg(feature = "payouts")]
     PayoutSuccess,
+    #[cfg(feature = "payouts")]
     PayoutFailed,
+    #[cfg(feature = "payouts")]
     PayoutInitiated,
+    #[cfg(feature = "payouts")]
     PayoutProcessing,
+    #[cfg(feature = "payouts")]
     PayoutCancelled,
+    #[cfg(feature = "payouts")]
     PayoutExpired,
+    #[cfg(feature = "payouts")]
     PayoutReversed,
 }
 
@@ -6551,6 +6608,66 @@ pub enum RomaniaStatesAbbreviation {
 }
 
 #[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BrazilStatesAbbreviation {
+    #[strum(serialize = "AC")]
+    Acre,
+    #[strum(serialize = "AL")]
+    Alagoas,
+    #[strum(serialize = "AP")]
+    Amapá,
+    #[strum(serialize = "AM")]
+    Amazonas,
+    #[strum(serialize = "BA")]
+    Bahia,
+    #[strum(serialize = "CE")]
+    Ceará,
+    #[strum(serialize = "DF")]
+    DistritoFederal,
+    #[strum(serialize = "ES")]
+    EspíritoSanto,
+    #[strum(serialize = "GO")]
+    Goiás,
+    #[strum(serialize = "MA")]
+    Maranhão,
+    #[strum(serialize = "MT")]
+    MatoGrosso,
+    #[strum(serialize = "MS")]
+    MatoGrossoDoSul,
+    #[strum(serialize = "MG")]
+    MinasGerais,
+    #[strum(serialize = "PA")]
+    Pará,
+    #[strum(serialize = "PB")]
+    Paraíba,
+    #[strum(serialize = "PR")]
+    Paraná,
+    #[strum(serialize = "PE")]
+    Pernambuco,
+    #[strum(serialize = "PI")]
+    Piauí,
+    #[strum(serialize = "RJ")]
+    RioDeJaneiro,
+    #[strum(serialize = "RN")]
+    RioGrandeDoNorte,
+    #[strum(serialize = "RS")]
+    RioGrandeDoSul,
+    #[strum(serialize = "RO")]
+    Rondônia,
+    #[strum(serialize = "RR")]
+    Roraima,
+    #[strum(serialize = "SC")]
+    SantaCatarina,
+    #[strum(serialize = "SP")]
+    SãoPaulo,
+    #[strum(serialize = "SE")]
+    Sergipe,
+    #[strum(serialize = "TO")]
+    Tocantins,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -7736,6 +7853,17 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+}
+
+impl ErrorCategory {
+    pub fn should_perform_elimination_routing(self) -> bool {
+        match self {
+            Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline => false,
+        }
+    }
 }
 
 #[derive(

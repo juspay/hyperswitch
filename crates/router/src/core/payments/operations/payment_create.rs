@@ -979,7 +979,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if let Some(payment_link) = &request.payment_link {
             if *payment_link {
-                helpers::validate_payment_link_request(request.confirm)?;
+                helpers::validate_payment_link_request(request)?;
             }
         };
 
@@ -1366,6 +1366,9 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                processor_merchant_id: merchant_id.to_owned(),
+                created_by: None,
+                setup_future_usage_applied: request.setup_future_usage,
             },
             additional_pm_data,
 
@@ -1387,7 +1390,7 @@ impl PaymentCreate {
         active_attempt_id: String,
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
+        _platform_merchant_account: Option<&domain::MerchantAccount>,
         business_profile: &domain::Profile,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
@@ -1579,8 +1582,8 @@ impl PaymentCreate {
             skip_external_tax_calculation,
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
-            platform_merchant_id: platform_merchant_account
-                .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
+            processor_merchant_id: merchant_account.get_id().to_owned(),
+            created_by: None,
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
         })

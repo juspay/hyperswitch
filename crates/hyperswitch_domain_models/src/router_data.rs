@@ -624,7 +624,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -834,7 +836,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -1062,7 +1066,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -1318,7 +1324,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },

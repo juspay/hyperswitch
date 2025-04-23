@@ -941,8 +941,6 @@ pub struct ProfileSetter {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
-    pub is_auto_retries_enabled: Option<bool>,
-    pub max_auto_retries_enabled: Option<i16>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
