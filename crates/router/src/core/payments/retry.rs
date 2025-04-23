@@ -702,7 +702,6 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-// #[cfg(feature = "v1")]
 pub async fn get_merchant_config_for_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
