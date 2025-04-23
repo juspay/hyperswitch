@@ -51,7 +51,10 @@ pub async fn retrieve_dispute(
             disputes::retrieve_dispute(state, merchant_context, auth.profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
             },
@@ -105,7 +108,10 @@ pub async fn retrieve_disputes_list(
             disputes::retrieve_disputes_list(state, merchant_context, None, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
             },
@@ -166,7 +172,10 @@ pub async fn retrieve_disputes_list_profile(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
             },
@@ -204,7 +213,10 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
             disputes::get_filters_for_disputes(state, merchant_context, None)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
             },
@@ -249,7 +261,10 @@ pub async fn get_disputes_filters_profile(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
             },
@@ -298,7 +313,10 @@ pub async fn accept_dispute(
             disputes::accept_dispute(state, merchant_context, auth.profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
             },
@@ -342,7 +360,10 @@ pub async fn submit_dispute_evidence(
             disputes::submit_evidence(state, merchant_context, auth.profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
             },
@@ -393,7 +414,10 @@ pub async fn attach_dispute_evidence(
             disputes::attach_evidence(state, merchant_context, auth.profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
             },
@@ -442,7 +466,10 @@ pub async fn retrieve_dispute_evidence(
             disputes::retrieve_dispute_evidence(state, merchant_context, auth.profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
             },
@@ -487,7 +514,10 @@ pub async fn delete_dispute_evidence(
             disputes::delete_evidence(state, merchant_context, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
             },
@@ -519,7 +549,10 @@ pub async fn get_disputes_aggregate(
             disputes::get_aggregates_for_disputes(state, merchant_context, None, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
             },
@@ -557,7 +590,10 @@ pub async fn get_disputes_aggregate_profile(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
             },

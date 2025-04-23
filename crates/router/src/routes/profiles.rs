@@ -351,7 +351,10 @@ pub async fn toggle_connector_agnostic_mit(
             connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,
             },

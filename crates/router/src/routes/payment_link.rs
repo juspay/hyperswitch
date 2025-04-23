@@ -35,10 +35,14 @@ pub async fn payment_link_retrieve(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkRetrieve;
     let payload = json_payload.into_inner();
-    let (auth_type, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-    };
+    let api_auth = auth::ApiKeyAuth::default();
+
+    let (auth_type, _) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+        };
+
     api::server_wrap(
         flow,
         state,
@@ -165,7 +169,10 @@ pub async fn payments_link_list(
         |state, auth: auth::AuthenticationData, payload, _| {
             list_payment_link(state, auth.merchant_account, payload)
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await

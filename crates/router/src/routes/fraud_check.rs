@@ -26,7 +26,10 @@ pub async fn frm_fulfillment(
             ));
             frm_core::frm_fulfillment_core(state, merchant_context, req)
         },
-        &services::authentication::ApiKeyAuth,
+        &services::authentication::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -195,6 +195,8 @@ impl<F: Send + Clone + Sync>
             billing_connector_id: request.billing_connector_id.clone(),
             processor_payment_method_token: request.processor_payment_method_token.clone(),
             connector_customer_id: request.connector_customer_id.clone(),
+            retry_count: request.retry_count,
+            invoice_next_billing_time: request.invoice_next_billing_time,
         };
 
         let payment_data = PaymentAttemptRecordData {

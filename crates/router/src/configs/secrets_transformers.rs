@@ -225,25 +225,6 @@ impl SecretsHandler for settings::ApplepayMerchantConfigs {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::PaymentMethodAuth {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let payment_method_auth = value.get_inner();
-
-        let pm_auth_key = secret_management_client
-            .get_secret(payment_method_auth.pm_auth_key.clone())
-            .await?;
-
-        Ok(value.transition_state(|payment_method_auth| Self {
-            pm_auth_key,
-            ..payment_method_auth
-        }))
-    }
-}
-
-#[async_trait::async_trait]
 impl SecretsHandler for settings::KeyManagerConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -502,6 +483,7 @@ pub(crate) async fn fetch_raw_secrets(
         email: conf.email,
         user: conf.user,
         mandates: conf.mandates,
+        zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         required_fields: conf.required_fields,

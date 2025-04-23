@@ -4,7 +4,7 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
-use common_enums::{AuthorizationStatus, SessionUpdateStatus};
+use common_enums::AuthorizationStatus;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
@@ -61,7 +61,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data"
 )]
 pub struct PaymentResponse;
 
@@ -97,6 +97,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
+
+        // update setup_future_usage incase it is downgraded to on-session
+        payment_data.payment_attempt.setup_future_usage_applied =
+            router_data.request.setup_future_usage;
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
@@ -696,8 +700,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         // For PayPal, if we call TaxJar for tax calculation, we need to call the connector again to update the order amount so that we can confirm the updated amount and order details. Therefore, we will store the required changes in the database during the post_update_tracker call.
         if payment_data.should_update_in_post_update_tracker() {
             match router_data.response.clone() {
-                Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
-                    if status == SessionUpdateStatus::Success {
+                Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { status }) => {
+                    if status.is_success() {
                         let shipping_address = payment_data
                             .tax_data
                             .clone()
@@ -842,6 +846,100 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                     .attach_printable("Unexpected response in PostSessionTokens flow")?;
             }
         }
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadataData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsUpdateMetadataData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        let connector = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("connector not found in payment_attempt")?;
+
+        match router_data.response.clone() {
+            Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { status, .. }) => {
+                if status.is_success() {
+                    let m_db = db.clone().store;
+                    let payment_intent = payment_data.payment_intent.clone();
+                    let key_manager_state: KeyManagerState = db.into();
+
+                    let payment_intent_update =
+                        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
+                            metadata: payment_data
+                                .payment_intent
+                                .metadata
+                                .clone()
+                                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("payment_intent.metadata not found")?,
+                            updated_by: payment_data.payment_intent.updated_by.clone(),
+                        };
+
+                    let updated_payment_intent = m_db
+                        .update_payment_intent(
+                            &key_manager_state,
+                            payment_intent,
+                            payment_intent_update,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                    payment_data.payment_intent = updated_payment_intent;
+                } else {
+                    router_data.response.map_err(|err| {
+                        errors::ApiErrorResponse::ExternalConnectorError {
+                            code: err.code,
+                            message: err.message,
+                            connector,
+                            status_code: err.status_code,
+                            reason: err.reason,
+                        }
+                    })?;
+                }
+            }
+            Err(err) => {
+                Err(errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector,
+                    status_code: err.status_code,
+                    reason: err.reason,
+                })?;
+            }
+            _ => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unexpected response in Update Metadata flow")?;
+            }
+        }
+
         Ok(payment_data)
     }
 }
@@ -1738,6 +1836,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .connector_mandate_detail
                                             .clone(),
                                         charges,
+                                        setup_future_usage_applied: payment_data
+                                            .payment_attempt
+                                            .setup_future_usage_applied,
                                     }),
                                 ),
                             };
@@ -1785,7 +1886,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
-                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
+                        types::PaymentsResponseData::PaymentResourceUpdateResponse { .. } => {
+                            (None, None)
+                        }
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {

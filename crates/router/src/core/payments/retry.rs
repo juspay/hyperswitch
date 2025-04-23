@@ -419,6 +419,7 @@ where
         payment_data.get_payment_attempt().clone(),
         new_attempt_count,
         is_step_up,
+        payment_data.get_payment_intent().setup_future_usage,
     );
 
     let db = &*state.store;
@@ -489,6 +490,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
+                setup_future_usage_applied: None,
             };
 
             #[cfg(feature = "v1")]
@@ -613,6 +615,7 @@ pub fn make_new_payment_attempt(
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
     is_step_up: bool,
+    setup_futture_usage_intent: Option<storage_enums::FutureUsage>,
 ) -> storage::PaymentAttemptNew {
     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
     storage::PaymentAttemptNew {
@@ -683,6 +686,7 @@ pub fn make_new_payment_attempt(
         card_discovery: old_payment_attempt.card_discovery,
         processor_merchant_id: old_payment_attempt.processor_merchant_id,
         created_by: old_payment_attempt.created_by,
+        setup_future_usage_applied: setup_futture_usage_intent, // setup future usage is picked from intent for new payment attempt
     }
 }
 

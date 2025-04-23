@@ -652,6 +652,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     issuer_error_message: None,
                     processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
                     created_by: payment_attempt.created_by.clone(),
+                    setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1655,6 +1656,7 @@ impl DataModelExt for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -1748,6 +1750,7 @@ impl DataModelExt for PaymentAttempt {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            setup_future_usage_applied: storage_model.setup_future_usage_applied,
         }
     }
 }
@@ -1836,6 +1839,7 @@ impl DataModelExt for PaymentAttemptNew {
             card_discovery: self.card_discovery,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            setup_future_usage_applied: self.setup_future_usage_applied,
         }
     }
 
@@ -1917,6 +1921,7 @@ impl DataModelExt for PaymentAttemptNew {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            setup_future_usage_applied: storage_model.setup_future_usage_applied,
         }
     }
 }

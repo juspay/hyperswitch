@@ -4,6 +4,9 @@ use std::{
     str::FromStr,
 };
 
+use ::payment_methods::configs::payment_connector_required_fields::{
+    get_billing_required_fields, get_shipping_required_fields,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -48,6 +51,7 @@ use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -90,10 +94,7 @@ use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
-    configs::{
-        defaults::{get_billing_required_fields, get_shipping_required_fields},
-        settings,
-    },
+    configs::settings,
     consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
@@ -3419,7 +3420,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -3474,7 +3475,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -4484,7 +4485,7 @@ pub async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&domain::Address>,
     connector: String,
-    saved_payment_methods: &settings::EligiblePaymentMethods,
+    configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -4566,6 +4567,9 @@ pub async fn filter_payment_methods(
                         payment_method_object.payment_method_type,
                     );
 
+                    // Filter logic for payment method types based on the below conditions
+                    // Case 1: If the payment method type support Zero Mandate flow, filter only payment method type that support it
+                    // Case 2: Whether the payment method type support Mandates or not, list all the payment method types
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
@@ -4576,10 +4580,60 @@ pub async fn filter_payment_methods(
                             })
                             .unwrap_or(false)
                     {
+                        payment_intent.map(|intent| intent.amount).map(|amount| {
+                            if amount == MinorUnit::zero() {
+                                if configs
+                                    .zero_mandates
+                                    .supported_payment_methods
+                                    .0
+                                    .get(&payment_method)
+                                    .and_then(|supported_pm_for_mandates| {
+                                        supported_pm_for_mandates
+                                            .0
+                                            .get(&payment_method_type_info.payment_method_type)
+                                            .map(|supported_connector_for_mandates| {
+                                                supported_connector_for_mandates
+                                                    .connector_list
+                                                    .contains(&connector_variant)
+                                            })
+                                    })
+                                    .unwrap_or(false)
+                                {
+                                    context_values.push(dir::DirValue::PaymentType(
+                                        euclid::enums::PaymentType::SetupMandate,
+                                    ));
+                                }
+                            } else if configs
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&payment_method)
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates
+                                        .0
+                                        .get(&payment_method_type_info.payment_method_type)
+                                        .map(|supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector_variant)
+                                        })
+                                })
+                                .unwrap_or(false)
+                            {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NewMandate,
+                                ));
+                            } else {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NonMandate,
+                                ));
+                            }
+                        });
+                    } else {
                         context_values.push(dir::DirValue::PaymentType(
-                            euclid::enums::PaymentType::NewMandate,
+                            euclid::enums::PaymentType::NonMandate,
                         ));
-                    };
+                    }
 
                     payment_attempt
                         .and_then(|attempt| attempt.mandate_data.as_ref())
@@ -4589,25 +4643,6 @@ pub async fn filter_payment_methods(
                                     euclid::enums::PaymentType::UpdateMandate,
                                 ));
                             }
-                        });
-
-                    payment_attempt
-                        .map(|attempt| {
-                            attempt.mandate_data.is_none()
-                                && attempt.mandate_details.is_none()
-                                && payment_intent
-                                    .and_then(|intent| intent.setup_future_usage)
-                                    .map(|future_usage| {
-                                        future_usage == common_enums::FutureUsage::OnSession
-                                    })
-                                    .unwrap_or(true)
-                        })
-                        .and_then(|res| {
-                            res.then(|| {
-                                context_values.push(dir::DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NonMandate,
-                                ))
-                            })
                         });
 
                     payment_attempt
@@ -4627,7 +4662,8 @@ pub async fn filter_payment_methods(
                         .as_ref()
                         .map(|cs| {
                             if cs.starts_with("pm_") {
-                                saved_payment_methods
+                                configs
+                                    .saved_payment_methods
                                     .sdk_eligible_payment_methods
                                     .contains(payment_method.to_string().as_str())
                             } else {
@@ -4689,7 +4725,7 @@ pub async fn filter_payment_methods(
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
     _connector: String,
-    _saved_payment_methods: &settings::EligiblePaymentMethods,
+    _configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }

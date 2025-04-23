@@ -502,33 +502,38 @@ impl RevenueRecoveryAttempt {
         billing_merchant_connector_account_id: &id_type::MerchantConnectorAccountId,
         payment_merchant_connector_account: Option<domain::MerchantConnectorAccount>,
     ) -> api_payments::PaymentsAttemptRecordRequest {
-        let amount_details = api_payments::PaymentAttemptAmountDetails::from(&self.0);
+        let revenue_recovery_attempt_data = &self.0;
+        let amount_details =
+            api_payments::PaymentAttemptAmountDetails::from(revenue_recovery_attempt_data);
         let feature_metadata = api_payments::PaymentAttemptFeatureMetadata {
             revenue_recovery: Some(api_payments::PaymentAttemptRevenueRecoveryData {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: common_enums::TriggeredBy::External,
             }),
         };
-        let error = Option::<api_payments::RecordAttemptErrorDetails>::from(&self.0);
+        let error =
+            Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
         api_payments::PaymentsAttemptRecordRequest {
             amount_details,
-            status: self.0.status,
+            status: revenue_recovery_attempt_data.status,
             billing: None,
             shipping: None,
             connector : payment_merchant_connector_account.as_ref().map(|account| account.connector_name),
             payment_merchant_connector_id: payment_merchant_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone()),
             error,
             description: None,
-            connector_transaction_id: self.0.connector_transaction_id.clone(),
-            payment_method_type: self.0.payment_method_type,
+            connector_transaction_id: revenue_recovery_attempt_data.connector_transaction_id.clone(),
+            payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
-            payment_method_subtype: self.0.payment_method_sub_type,
+            payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
             payment_method_data: None,
             metadata: None,
             feature_metadata: Some(feature_metadata),
-            transaction_created_at: self.0.transaction_created_at,
-            processor_payment_method_token: self.0.processor_payment_method_token.clone(),
-            connector_customer_id: self.0.connector_customer_id.clone(),
+            transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
+            processor_payment_method_token: revenue_recovery_attempt_data.processor_payment_method_token.clone(),
+            connector_customer_id: revenue_recovery_attempt_data.connector_customer_id.clone(),
+            retry_count: revenue_recovery_attempt_data.retry_count,
+            invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time
         }
     }
 

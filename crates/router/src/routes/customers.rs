@@ -28,7 +28,10 @@ pub async fn customers_create(
             create_customer(state, merchant_context, req)
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -58,7 +61,10 @@ pub async fn customers_create(
             create_customer(state, merchant_context, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -85,7 +91,8 @@ pub async fn customers_retrieve(
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        match auth::is_ephemeral_auth(req.headers()) {
+        let api_auth = auth::ApiKeyAuth::default();
+        match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         }
@@ -129,7 +136,14 @@ pub async fn customers_retrieve(
             permission: Permission::MerchantCustomerRead,
         }
     } else {
-        api_or_client_auth(&auth::V2ApiKeyAuth, &v2_client_auth, req.headers())
+        api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &v2_client_auth,
+            req.headers(),
+        )
     };
 
     Box::pin(api::server_wrap(
@@ -173,7 +187,10 @@ pub async fn customers_list(
             )
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
             },
@@ -208,7 +225,10 @@ pub async fn customers_list(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
             },
@@ -247,7 +267,10 @@ pub async fn customers_update(
             update_customer(state, merchant_context, request_internal)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -283,7 +306,10 @@ pub async fn customers_update(
             update_customer(state, merchant_context, request_internal)
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -316,7 +342,10 @@ pub async fn customers_delete(
             delete_customer(state, merchant_context, id)
         },
         auth::auth_type(
-            &auth::V2ApiKeyAuth,
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -349,7 +378,10 @@ pub async fn customers_delete(
             delete_customer(state, merchant_context, customer_id)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -382,7 +414,10 @@ pub async fn get_customer_mandates(
             crate::core::mandate::get_customer_mandates(state, merchant_context, customer_id)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
             },
