@@ -48,6 +48,8 @@ use super::pm_auth;
 use super::poll;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -118,7 +120,7 @@ pub struct SessionState {
     pub base_url: String,
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
-    pub opensearch_client: Arc<OpenSearchClient>,
+    pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
@@ -223,7 +225,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pools: HashMap<id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
-    pub opensearch_client: Arc<OpenSearchClient>,
+    pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
@@ -342,12 +344,12 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = Arc::new(
-                conf.opensearch
-                    .get_opensearch_client()
-                    .await
-                    .expect("Failed to create opensearch client"),
-            );
+            let opensearch_client = conf
+                .opensearch
+                .get_opensearch_client()
+                .await
+                .expect("Failed to initialize OpenSearch client.")
+                .map(Arc::new);
 
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -501,7 +503,7 @@ impl AppState {
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
-            opensearch_client: Arc::clone(&self.opensearch_client),
+            opensearch_client: self.opensearch_client.clone(),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
@@ -777,6 +779,10 @@ impl Payments {
                 .service(
                 web::resource("{payment_id}/calculate_tax")
                     .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                )
+                .service(
+                    web::resource("{payment_id}/update_metadata")
+                        .route(web::post().to(payments::payments_update_metadata)),
                 );
         }
         route
@@ -1155,6 +1161,17 @@ impl Refunds {
                         .route(web::post().to(refunds_update)),
                 );
         }
+        route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2", feature = "oltp"))]
+impl Refunds {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
+
+        route = route.service(web::resource("").route(web::post().to(refunds::refunds_create)));
+
         route
     }
 }

@@ -344,6 +344,37 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     )
                     .to_payment_failed_response()?;
 
+                // Check if the connector supports mandate payment
+                // if the payment_method_type does not support mandate for the given connector, downgrade the setup future usage to on session
+                if self.request.setup_future_usage
+                    == Some(diesel_models::enums::FutureUsage::OffSession)
+                    && !self
+                        .request
+                        .payment_method_type
+                        .and_then(|payment_method_type| {
+                            state
+                                .conf
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&enums::PaymentMethod::from(payment_method_type))
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates.0.get(&payment_method_type).map(
+                                        |supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector.connector_name)
+                                        },
+                                    )
+                                })
+                        })
+                        .unwrap_or(false)
+                {
+                    // downgrade the setup future usage to on session
+                    self.request.setup_future_usage =
+                        Some(diesel_models::enums::FutureUsage::OnSession);
+                };
+
                 if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
                 ) {
@@ -354,7 +385,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             self.request.payment_method_data.clone(),
                         )
                         .to_payment_failed_response()?;
-                }
+                };
 
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Authorize,
