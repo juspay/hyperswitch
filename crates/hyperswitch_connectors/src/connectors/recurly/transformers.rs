@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as recovery_flow_common_types,
     router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
@@ -34,7 +35,7 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::utils;
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{RefundsResponseRouterData, ResponseRouterData, ResponseRouterDataV2},
     utils::PaymentsAuthorizeRequestData,
 };
 
@@ -333,19 +334,21 @@ pub struct PaymentGateway {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
-        ResponseRouterData<
+        ResponseRouterDataV2<
             recovery_router_flows::BillingConnectorPaymentsSync,
             RecurlyRecoveryDetailsData,
+            recovery_flow_common_types::BillingConnectorPaymentsSyncFlowData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
-    > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterData
+    > for recovery_router_data_types::BillingConnectorPaymentsSyncRouterDataV2
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
+        item: ResponseRouterDataV2<
             recovery_router_flows::BillingConnectorPaymentsSync,
             RecurlyRecoveryDetailsData,
+            recovery_flow_common_types::BillingConnectorPaymentsSyncFlowData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
@@ -468,19 +471,21 @@ pub struct RecurlyRecordBackResponse {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
-        ResponseRouterData<
+        ResponseRouterDataV2<
             recovery_router_flows::RecoveryRecordBack,
             RecurlyRecordBackResponse,
+            recovery_flow_common_types::RevenueRecoveryRecordBackData,
             recovery_request_types::RevenueRecoveryRecordBackRequest,
             recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
-    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
+    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
+        item: ResponseRouterDataV2<
             recovery_router_flows::RecoveryRecordBack,
             RecurlyRecordBackResponse,
+            recovery_flow_common_types::RevenueRecoveryRecordBackData,
             recovery_request_types::RevenueRecoveryRecordBackRequest,
             recovery_response_types::RevenueRecoveryRecordBackResponse,
         >,
@@ -490,6 +495,134 @@ impl
             response: Ok(recovery_response_types::RevenueRecoveryRecordBackResponse {
                 merchant_reference_id,
             }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RecurlyInvoiceSyncResponse {
+    pub id: String,
+    pub total: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    pub address: Option<RecurlyInvoiceBillingAddress>,
+    pub line_items: Vec<RecurlyLineItems>,
+    pub transactions: Vec<RecurlyInvoiceTransactionsStatus>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RecurlyInvoiceBillingAddress {
+    pub street1: Option<Secret<String>>,
+    pub street2: Option<Secret<String>>,
+    pub region: Option<Secret<String>>,
+    pub country: Option<enums::CountryAlpha2>,
+    pub postal_code: Option<Secret<String>>,
+    pub city: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RecurlyLineItems {
+    #[serde(rename = "type")]
+    pub invoice_type: RecurlyInvoiceLineItemType,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub start_date: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub end_date: PrimitiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum RecurlyInvoiceLineItemType {
+    Credit,
+    Charge,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct RecurlyInvoiceTransactionsStatus {
+    pub status: String,
+}
+
+impl
+    TryFrom<
+        ResponseRouterDataV2<
+            recovery_router_flows::BillingConnectorInvoiceSync,
+            RecurlyInvoiceSyncResponse,
+            recovery_flow_common_types::BillingConnectorInvoiceSyncFlowData,
+            recovery_request_types::BillingConnectorInvoiceSyncRequest,
+            recovery_response_types::BillingConnectorInvoiceSyncResponse,
+        >,
+    > for recovery_router_data_types::BillingConnectorInvoiceSyncRouterDataV2
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterDataV2<
+            recovery_router_flows::BillingConnectorInvoiceSync,
+            RecurlyInvoiceSyncResponse,
+            recovery_flow_common_types::BillingConnectorInvoiceSyncFlowData,
+            recovery_request_types::BillingConnectorInvoiceSyncRequest,
+            recovery_response_types::BillingConnectorInvoiceSyncResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        #[allow(clippy::as_conversions)]
+        // No of retries never exceeds u16 in recurly. So its better to suppress the clippy warning
+        let retry_count = item.response.transactions.len() as u16;
+        let merchant_reference_id = id_type::PaymentReferenceId::from_str(&item.response.id)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Self {
+            response: Ok(
+                recovery_response_types::BillingConnectorInvoiceSyncResponse {
+                    amount: utils::convert_back_amount_to_minor_units(
+                        &FloatMajorUnitForConnector,
+                        item.response.total,
+                        item.response.currency,
+                    )?,
+                    currency: item.response.currency,
+                    merchant_reference_id,
+                    retry_count: Some(retry_count),
+                    billing_address: Some(api_models::payments::Address {
+                        address: Some(api_models::payments::AddressDetails {
+                            city: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.city),
+                            state: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.region),
+                            country: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.country),
+                            line1: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.street1),
+                            line2: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.street2),
+                            line3: None,
+                            zip: item
+                                .response
+                                .address
+                                .clone()
+                                .and_then(|address| address.postal_code),
+                            first_name: None,
+                            last_name: None,
+                        }),
+                        phone: None,
+                        email: None,
+                    }),
+                    created_at: item.response.line_items.first().map(|line| line.start_date),
+                    ends_at: item.response.line_items.first().map(|line| line.end_date),
+                },
+            ),
             ..item.data
         })
     }

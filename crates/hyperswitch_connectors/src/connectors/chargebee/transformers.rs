@@ -266,6 +266,7 @@ pub struct ChargebeeInvoiceBody {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeInvoiceContent {
     pub invoice: ChargebeeInvoiceData,
+    pub subscription: Option<ChargebeeSubscriptionData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -426,7 +427,7 @@ impl ChargebeeCustomer {
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 let mandate_id = parts
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 Ok(ChargebeeMandateDetails {
@@ -473,12 +474,13 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_method_sub_type =
             enums::PaymentMethodType::from(payment_method_details.card.funding_type);
+        // Chargebee retry count will always be less than u16 always. Chargebee can have maximum 12 retry attempts
         #[allow(clippy::as_conversions)]
         let retry_count = item
             .content
             .invoice
             .linked_payments
-            .map(|linked_payments| linked_payments.len() as u16); // Chargbee retry count will always be less than u16 always.
+            .map(|linked_payments| linked_payments.len() as u16);
         let invoice_next_billing_time = item
             .content
             .subscription
@@ -554,11 +556,27 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
         let merchant_reference_id =
             common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        // The retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to suppress this
+        #[allow(clippy::as_conversions)]
+        let retry_count = item
+            .content
+            .invoice
+            .linked_payments
+            .as_ref()
+            .map(|linked_payments| linked_payments.len() as u16);
+        let invoice_next_billing_time = item
+            .content
+            .subscription
+            .as_ref()
+            .and_then(|subscription| subscription.next_billing_at);
         Ok(Self {
             amount: item.content.invoice.total,
             currency: item.content.invoice.currency_code,
             merchant_reference_id,
             billing_address: Some(api_models::payments::Address::from(item.content.invoice)),
+            retry_count,
+            next_billing_at: invoice_next_billing_time,
         })
     }
 }

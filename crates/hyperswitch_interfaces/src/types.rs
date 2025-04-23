@@ -2,6 +2,7 @@
 
 use hyperswitch_domain_models::{
     router_data::AccessToken,
+    router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Evidence},
@@ -11,7 +12,7 @@ use hyperswitch_domain_models::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
-            Session, SetupMandate, Void,
+            Session, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
@@ -19,9 +20,13 @@ use hyperswitch_domain_models::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
         webhooks::VerifyWebhookSource,
+        BillingConnectorInvoiceSync,
     },
     router_request_types::{
-        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        revenue_recovery::{
+            BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -32,13 +37,15 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
-            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+            BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -55,7 +62,7 @@ use hyperswitch_domain_models::{
     router_response_types::PayoutsResponseData,
 };
 
-use crate::api::ConnectorIntegration;
+use crate::{api::ConnectorIntegration, connector_integration_v2::ConnectorIntegrationV2};
 /// struct Response
 #[derive(Clone, Debug)]
 pub struct Response {
@@ -79,6 +86,9 @@ pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
     PaymentsPostSessionTokensData,
     PaymentsResponseData,
 >;
+/// Type alias for `ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>`
+pub type PaymentsUpdateMetadataType =
+    dyn ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>`
 pub type SdkSessionUpdateType =
     dyn ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
@@ -240,4 +250,35 @@ pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
     BillingConnectorPaymentsSync,
     BillingConnectorPaymentsSyncRequest,
     BillingConnectorPaymentsSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
+pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
+    BillingConnectorInvoiceSync,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<RecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    RecoveryRecordBack,
+    flow_common_types::RevenueRecoveryRecordBackData,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
+pub type BillingConnectorPaymentsSyncTypeV2 = dyn ConnectorIntegrationV2<
+    BillingConnectorPaymentsSync,
+    flow_common_types::BillingConnectorPaymentsSyncFlowData,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
+pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
+    BillingConnectorInvoiceSync,
+    flow_common_types::BillingConnectorInvoiceSyncFlowData,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
 >;

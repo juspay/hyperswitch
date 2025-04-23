@@ -73,7 +73,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -2040,9 +2040,6 @@ pub(crate) async fn payments_create_and_confirm_intent(
         .get_json_body()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unexpected response from payments core")?;
-
-    // Adding client secret to ensure client secret validation passes during confirm intent step
-    header_payload.client_secret = Some(create_intent_response.client_secret.clone());
 
     let payload = payments_api::PaymentsConfirmIntentRequest::from(&request);
 
@@ -5550,6 +5547,7 @@ where
         "PaymentSession" => true,
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
+        "PaymentUpdateMetadata" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -7268,6 +7266,9 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let payment_attempt = transaction_data.payment_attempt.clone();
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -7282,33 +7283,42 @@ where
 
     // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let connectors = {
-        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
-            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-                .parse_value("DynamicRoutingAlgorithmRef")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-            let dynamic_split = api_models::routing::RoutingVolumeSplit {
-                routing_type: api_models::routing::RoutingType::Dynamic,
-                split: dynamic_routing_config
-                    .dynamic_routing_volume_split
-                    .unwrap_or_default(),
+    let connectors = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+        let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+            .parse_value("DynamicRoutingAlgorithmRef")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
+        let dynamic_split = api_models::routing::RoutingVolumeSplit {
+            routing_type: api_models::routing::RoutingType::Dynamic,
+            split: dynamic_routing_config
+                .dynamic_routing_volume_split
+                .unwrap_or_default(),
+        };
+        let static_split: api_models::routing::RoutingVolumeSplit =
+            api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Static,
+                split: consts::DYNAMIC_ROUTING_MAX_VOLUME
+                    - dynamic_routing_config
+                        .dynamic_routing_volume_split
+                        .unwrap_or_default(),
             };
-            let static_split: api_models::routing::RoutingVolumeSplit =
-                api_models::routing::RoutingVolumeSplit {
-                    routing_type: api_models::routing::RoutingType::Static,
-                    split: consts::DYNAMIC_ROUTING_MAX_VOLUME
-                        - dynamic_routing_config
-                            .dynamic_routing_volume_split
-                            .unwrap_or_default(),
-                };
-            let volume_split_vec = vec![dynamic_split, static_split];
-            let routing_choice =
-                routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to perform volume split on routing type")?;
+        let volume_split_vec = vec![dynamic_split, static_split];
+        let routing_choice = routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to perform volume split on routing type")?;
 
-            if routing_choice.routing_type.is_dynamic_routing() {
+        if routing_choice.routing_type.is_dynamic_routing() {
+            if state.conf.open_router.enabled {
+                routing::perform_open_routing(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    payment_attempt,
+                )
+                .await
+                .map_err(|e| logger::error!(open_routing_error=?e))
+                .unwrap_or(connectors)
+            } else {
                 let dynamic_routing_config_params_interpolator =
                     routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
@@ -7350,12 +7360,12 @@ where
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
                 .unwrap_or(connectors)
-            } else {
-                connectors
             }
         } else {
             connectors
         }
+    } else {
+        connectors
     };
 
     let connector_data = connectors
@@ -8013,6 +8023,8 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
+    #[cfg(feature = "v2")]
+    fn get_client_secret(&self) -> &Option<Secret<String>>;
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod>;
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds>;
     fn get_address(&self) -> &PaymentAddress;
@@ -8054,6 +8066,8 @@ pub trait OperationSessionGetters<F> {
 pub trait OperationSessionSetters<F> {
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
+    #[cfg(feature = "v2")]
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_email_if_not_present(&mut self, email: pii::Email);
@@ -8361,6 +8375,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        &self.client_secret
+    }
+
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
     }
@@ -8493,7 +8511,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        self.client_secret = client_secret;
+    }
     fn set_payment_attempt(&mut self, _payment_attempt: storage::PaymentAttempt) {
         todo!()
     }
@@ -8576,6 +8596,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
+    }
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        todo!()
     }
 
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
@@ -8709,7 +8732,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        todo!()
+    }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = payment_attempt;
     }
@@ -8795,7 +8820,9 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         todo!()
     }
-
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        todo!()
+    }
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
     }
@@ -8926,7 +8953,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        todo!()
+    }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = Some(payment_attempt);
     }
@@ -9012,7 +9041,9 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
     }
-
+    fn get_client_secret(&self) -> &Option<Secret<String>> {
+        todo!()
+    }
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
     }
@@ -9145,7 +9176,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
-
+    fn set_client_secret(&mut self, client_secret: Option<Secret<String>>) {
+        todo!()
+    }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = payment_attempt;
     }

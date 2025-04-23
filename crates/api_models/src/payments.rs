@@ -483,8 +483,8 @@ pub struct PaymentsIntentResponse {
     pub amount_details: AmountDetailsResponse,
 
     /// It's a token used for client side verification.
-    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: common_utils::types::ClientSecret,
+    #[schema(value_type = String, example = "cs_0195b34da95d75239c6a4bf514458896")]
+    pub client_secret: Option<Secret<String>>,
 
     /// The identifier for the profile. This is inferred from the `x-profile-id` header
     #[schema(value_type = String)]
@@ -5607,10 +5607,6 @@ pub struct PaymentsResponse {
     #[schema(example = "stripe")]
     pub connector: Option<String>,
 
-    /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: common_utils::types::ClientSecret,
-
     /// Time when the payment was created
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -6444,6 +6440,28 @@ pub struct PaymentsSessionRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsUpdateMetadataRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: pii::SecretSerdeValue,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsUpdateMetadataResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

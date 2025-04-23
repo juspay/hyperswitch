@@ -10,11 +10,12 @@ pub mod reject_flow;
 pub mod session_flow;
 pub mod session_update_flow;
 pub mod setup_mandate_flow;
+pub mod update_metadata_flow;
 
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -1700,6 +1701,46 @@ default_imp_for_post_session_tokens!(
     connector::Wise
 );
 
+macro_rules! default_imp_for_update_metadata {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentUpdateMetadata for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::UpdateMetadata,
+                types::PaymentsUpdateMetadataData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_update_metadata!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
 macro_rules! default_imp_for_uas_pre_authentication {
     ($($path:ident::$connector:ident),*) => {
         $( impl UnifiedAuthenticationService for $path::$connector {}
@@ -2080,6 +2121,51 @@ impl<const T: u8>
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Nmi,
+    connector::Payone,
+    connector::Plaid,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+macro_rules! default_imp_for_billing_connector_payment_sync {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::BillingConnectorInvoiceSyncIntegration for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                BillingConnectorInvoiceSync,
+                types::BillingConnectorInvoiceSyncRequest,
+                types::BillingConnectorInvoiceSyncResponse,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::BillingConnectorInvoiceSyncIntegration for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        BillingConnectorInvoiceSync,
+        types::BillingConnectorInvoiceSyncRequest,
+        types::BillingConnectorInvoiceSyncResponse,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+default_imp_for_billing_connector_payment_sync!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,

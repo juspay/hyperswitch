@@ -310,7 +310,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_billing_address_for_invoice(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Option<api_models::payments::Address>, errors::ConnectorError> {
+    ) -> CustomResult<api_models::payments::Address, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented(
             "get_billing_address_for_invoice method".to_string(),
         )

@@ -1,8 +1,13 @@
 //! Configs interface
+use api_models::errors;
 use common_enums::ApplicationError;
+use common_types::consts::API_VERSION;
+use common_utils::errors::CustomResult;
 use masking::Secret;
 use router_derive;
 use serde::Deserialize;
+
+use crate::errors::api_error_response;
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -109,6 +114,20 @@ pub struct Connectors {
     pub xendit: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
+}
+
+impl Connectors {
+    pub fn get_connector_params_using_connector_name(
+        &self,
+        connector_name: String,
+    ) -> CustomResult<ConnectorParams, api_error_response::ApiErrorResponse> {
+        match connector_name.as_str() {
+            "recurly" => Ok(self.recurly.clone()),
+            "stripebilling" => Ok(self.stripebilling.clone()),
+            "chargebee" => Ok(self.chargebee.clone()),
+            _ => Err(api_error_response::ApiErrorResponse::IncorrectConnectorNameGiven.into()),
+        }
+    }
 }
 
 /// struct ConnectorParams
