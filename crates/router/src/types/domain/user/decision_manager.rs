@@ -128,51 +128,59 @@ impl JWTFlow {
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
-        let user_id = next_flow.user.get_user_id().to_string();
+        let user_id = next_flow.user.get_user_id();
         let cached_lineage_context =
-            LineageContext::try_get_lineage_context_from_cache(state, user_id.clone()).await;
+            LineageContext::try_get_lineage_context_from_cache(state, user_id).await;
 
-        let new_lineage_context = if let Some(ctx) = cached_lineage_context {
-            let tenant_id = ctx.tenant_id.clone();
-            let matched_user_role = state
-                .global_store
-                .find_user_role_by_user_id_and_lineage(
-                    &ctx.user_id,
-                    &tenant_id,
-                    &ctx.org_id,
-                    &ctx.merchant_id,
-                    &ctx.profile_id,
-                    UserRoleVersion::V1,
-                )
-                .await
-                .ok()
-                .or_else(|| {
-                    futures::executor::block_on(
-                        state.global_store.find_user_role_by_user_id_and_lineage(
+        let new_lineage_context = match cached_lineage_context {
+            Some(ctx) => {
+                let tenant_id = ctx.tenant_id.clone();
+                let user_role_match_v1 = state
+                    .global_store
+                    .find_user_role_by_user_id_and_lineage(
+                        &ctx.user_id,
+                        &tenant_id,
+                        &ctx.org_id,
+                        &ctx.merchant_id,
+                        &ctx.profile_id,
+                        UserRoleVersion::V1,
+                    )
+                    .await
+                    .is_ok();
+
+                if user_role_match_v1 {
+                    ctx
+                } else {
+                    let user_role_match_v2 = state
+                        .global_store
+                        .find_user_role_by_user_id_and_lineage(
                             &ctx.user_id,
                             &tenant_id,
                             &ctx.org_id,
                             &ctx.merchant_id,
                             &ctx.profile_id,
                             UserRoleVersion::V2,
-                        ),
-                    )
-                    .ok()
-                });
+                        )
+                        .await
+                        .is_ok();
 
-            if matched_user_role.is_some() {
-                ctx
-            } else {
-                // fallback to default lineage if cached context is invalid
-                Self::resolve_lineage_from_user_role(state, user_role, user_id.clone()).await?
+                    if user_role_match_v2 {
+                        ctx
+                    } else {
+                        // fallback to default lineage if cached context is invalid
+                        Self::resolve_lineage_from_user_role(state, user_role, user_id).await?
+                    }
+                }
             }
-        } else {
+            None =>
             // no cached context found
-            Self::resolve_lineage_from_user_role(state, user_role, user_id.clone()).await?
+            {
+                Self::resolve_lineage_from_user_role(state, user_role, user_id).await?
+            }
         };
 
         new_lineage_context
-            .try_set_lineage_context_in_cache(state, user_id.clone())
+            .try_set_lineage_context_in_cache(state, user_id)
             .await;
 
         auth::AuthToken::new_token(
@@ -191,7 +199,7 @@ impl JWTFlow {
     pub async fn resolve_lineage_from_user_role(
         state: &SessionState,
         user_role: &UserRole,
-        user_id: String,
+        user_id: &str,
     ) -> UserResult<LineageContext> {
         let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
         let merchant_id =
@@ -200,7 +208,7 @@ impl JWTFlow {
             utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
 
         Ok(LineageContext {
-            user_id,
+            user_id: user_id.to_string(),
             org_id,
             merchant_id,
             profile_id,

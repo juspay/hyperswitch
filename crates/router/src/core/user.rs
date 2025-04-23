@@ -3183,7 +3183,7 @@ pub async fn switch_org_for_user(
     };
 
     lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.clone())
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
         .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
@@ -3395,7 +3395,7 @@ pub async fn switch_merchant_for_user_in_org(
     };
 
     lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.clone())
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
         .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
@@ -3528,7 +3528,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     };
 
     lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.clone())
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
         .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(

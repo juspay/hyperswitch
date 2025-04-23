@@ -345,7 +345,7 @@ pub async fn validate_email_domain_auth_type_using_db(
 
 pub async fn get_lineage_context_from_cache(
     state: &SessionState,
-    user_id: String,
+    user_id: &str,
 ) -> UserResult<Option<LineageContext>> {
     let connection = get_redis_connection(state)?;
     let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
@@ -368,7 +368,7 @@ pub async fn get_lineage_context_from_cache(
 
 pub async fn set_lineage_context_in_cache(
     state: &SessionState,
-    user_id: String,
+    user_id: &str,
     lineage_context: LineageContext,
 ) -> UserResult<()> {
     let connection = get_redis_connection(state)?;

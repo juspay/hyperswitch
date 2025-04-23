@@ -1472,11 +1472,11 @@ pub struct LineageContext {
 impl LineageContext {
     pub async fn try_get_lineage_context_from_cache(
         state: &SessionState,
-        user_id: String,
+        user_id: &str,
     ) -> Option<Self> {
         // The errors are not handled here because we don't want to fail the request if the cache operation fails.
         // The errors are logged for debugging purposes.
-        match utils::user::get_lineage_context_from_cache(state, user_id.clone()).await {
+        match utils::user::get_lineage_context_from_cache(state, user_id).await {
             Ok(Some(ctx)) => Some(ctx),
             Ok(None) => {
                 logger::debug!("Lineage context not found in Redis for user {}", user_id);
@@ -1493,11 +1493,11 @@ impl LineageContext {
         }
     }
 
-    pub async fn try_set_lineage_context_in_cache(&self, state: &SessionState, user_id: String) {
+    pub async fn try_set_lineage_context_in_cache(&self, state: &SessionState, user_id: &str) {
         // The errors are not handled here because we don't want to fail the request if the cache operation fails.
         // The errors are logged for debugging purposes.
         if let Err(e) =
-            utils::user::set_lineage_context_in_cache(state, user_id.clone(), self.clone()).await
+            utils::user::set_lineage_context_in_cache(state, user_id, self.clone()).await
         {
             logger::error!(
                 "Failed to set lineage context in Redis for user {}: {:?}",
