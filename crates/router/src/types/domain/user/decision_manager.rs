@@ -386,11 +386,10 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                let user_id = self.user.get_user_id();
                 let user_role = state
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                        user_id,
+                        user_id: self.user.get_user_id(),
                         tenant_id: self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: None,
                         merchant_id: None,
