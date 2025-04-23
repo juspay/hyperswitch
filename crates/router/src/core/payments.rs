@@ -73,7 +73,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -5547,6 +5547,7 @@ where
         "PaymentSession" => true,
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
+        "PaymentUpdateMetadata" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -7265,6 +7266,9 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let payment_attempt = transaction_data.payment_attempt.clone();
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -7279,33 +7283,42 @@ where
 
     // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let connectors = {
-        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
-            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-                .parse_value("DynamicRoutingAlgorithmRef")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-            let dynamic_split = api_models::routing::RoutingVolumeSplit {
-                routing_type: api_models::routing::RoutingType::Dynamic,
-                split: dynamic_routing_config
-                    .dynamic_routing_volume_split
-                    .unwrap_or_default(),
+    let connectors = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+        let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+            .parse_value("DynamicRoutingAlgorithmRef")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
+        let dynamic_split = api_models::routing::RoutingVolumeSplit {
+            routing_type: api_models::routing::RoutingType::Dynamic,
+            split: dynamic_routing_config
+                .dynamic_routing_volume_split
+                .unwrap_or_default(),
+        };
+        let static_split: api_models::routing::RoutingVolumeSplit =
+            api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Static,
+                split: consts::DYNAMIC_ROUTING_MAX_VOLUME
+                    - dynamic_routing_config
+                        .dynamic_routing_volume_split
+                        .unwrap_or_default(),
             };
-            let static_split: api_models::routing::RoutingVolumeSplit =
-                api_models::routing::RoutingVolumeSplit {
-                    routing_type: api_models::routing::RoutingType::Static,
-                    split: consts::DYNAMIC_ROUTING_MAX_VOLUME
-                        - dynamic_routing_config
-                            .dynamic_routing_volume_split
-                            .unwrap_or_default(),
-                };
-            let volume_split_vec = vec![dynamic_split, static_split];
-            let routing_choice =
-                routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to perform volume split on routing type")?;
+        let volume_split_vec = vec![dynamic_split, static_split];
+        let routing_choice = routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to perform volume split on routing type")?;
 
-            if routing_choice.routing_type.is_dynamic_routing() {
+        if routing_choice.routing_type.is_dynamic_routing() {
+            if state.conf.open_router.enabled {
+                routing::perform_open_routing(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    payment_attempt,
+                )
+                .await
+                .map_err(|e| logger::error!(open_routing_error=?e))
+                .unwrap_or(connectors)
+            } else {
                 let dynamic_routing_config_params_interpolator =
                     routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
@@ -7347,12 +7360,12 @@ where
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
                 .unwrap_or(connectors)
-            } else {
-                connectors
             }
         } else {
             connectors
         }
+    } else {
+        connectors
     };
 
     let connector_data = connectors

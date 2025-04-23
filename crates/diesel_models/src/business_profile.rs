@@ -653,6 +653,25 @@ pub struct CardTestingGuardConfig {
 
 common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
 
+impl Default for CardTestingGuardConfig {
+    fn default() -> Self {
+        Self {
+            is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+            card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+            is_guest_user_card_blocking_enabled:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+            guest_user_card_blocking_threshold:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+            is_customer_id_blocking_enabled:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+            customer_id_blocking_threshold:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+            card_testing_guard_expiry:
+                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+        }
+    }
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct WebhookDetails {

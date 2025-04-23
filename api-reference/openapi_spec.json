@@ -950,6 +950,45 @@
         ]
       }
     },
+    "/payments/{payment_id}/update_metadata": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Update Metadata",
+        "operationId": "Update Metadata for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsUpdateMetadataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Metadata updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsUpdateMetadataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -5307,7 +5346,7 @@
       }
     },
     "/events/{merchant_id}": {
-      "get": {
+      "post": {
         "tags": [
           "Event"
         ],
@@ -5323,82 +5362,39 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "created_after",
-            "in": "query",
-            "description": "Only include Events created after the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "created_before",
-            "in": "query",
-            "description": "Only include Events created before the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of Events to include in the response. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "description": "The number of Events to skip when retrieving the list of Events.\n                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "object_id",
-            "in": "query",
-            "description": "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "profile_id",
-            "in": "query",
-            "description": "Only include Events associated with the Profile identified by the specified Profile ID.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "is_delivered",
-            "in": "query",
-            "description": "Only include Events which are ultimately delivered to the merchant.",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "nullable": true
-            }
           }
         ],
+        "requestBody": {
+          "description": "The constraints that can be applied when listing Events.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventListConstraints"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "created_after": "2023-01-01T00:00:00",
+                    "created_before": "2023-01-31T23:59:59",
+                    "event_classes": [
+                      "payments",
+                      "refunds"
+                    ],
+                    "event_types": [
+                      "payment_succeeded"
+                    ],
+                    "is_delivered": true,
+                    "limit": 5,
+                    "object_id": "{{object_id}}",
+                    "offset": 0,
+                    "profile_id": "{{profile_id}}"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "List of Events retrieved successfully",
@@ -5419,79 +5415,51 @@
       }
     },
     "/events/profile/list": {
-      "get": {
+      "post": {
         "tags": [
           "Event"
         ],
         "summary": "Events - List",
         "description": "List all Events associated with a Profile.",
         "operationId": "List all Events associated with a Profile",
-        "parameters": [
-          {
-            "name": "created_after",
-            "in": "query",
-            "description": "Only include Events created after the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
+        "requestBody": {
+          "description": "The constraints that can be applied when listing Events.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventListConstraints"
+              },
+              "examples": {
+                "example": {
+                  "value": {
+                    "created_after": "2023-01-01T00:00:00",
+                    "created_before": "2023-01-31T23:59:59",
+                    "event_classes": [
+                      "payments",
+                      "refunds"
+                    ],
+                    "event_types": [
+                      "payment_succeeded"
+                    ],
+                    "is_delivered": true,
+                    "limit": 5,
+                    "object_id": "{{object_id}}",
+                    "offset": 0,
+                    "profile_id": "{{profile_id}}"
+                  }
+                }
+              }
             }
           },
-          {
-            "name": "created_before",
-            "in": "query",
-            "description": "Only include Events created before the specified time. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "nullable": true
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of Events to include in the response. Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "description": "The number of Events to skip when retrieving the list of Events.\n                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "object_id",
-            "in": "query",
-            "description": "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "List of Events retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EventListItemResponse"
-                  }
+                  "$ref": "#/components/schemas/TotalEventsResponse"
                 }
               }
             }
@@ -9824,6 +9792,7 @@
         "type": "string",
         "enum": [
           "adyenplatform",
+          "stripe_billing_test",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -12024,6 +11993,71 @@
           "mandates",
           "payouts"
         ]
+      },
+      "EventListConstraints": {
+        "type": "object",
+        "description": "The constraints to apply when filtering events.",
+        "properties": {
+          "created_after": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Filter events created after the specified time.",
+            "nullable": true
+          },
+          "created_before": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Filter events created before the specified time.",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Include at most the specified number of events.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Include events after the specified offset.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "object_id": {
+            "type": "string",
+            "description": "Filter all events associated with the specified object identifier (Payment Intent ID,\nRefund ID, etc.)",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Filter all events associated with the specified business profile ID.",
+            "nullable": true
+          },
+          "event_classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventClass"
+            },
+            "description": "Filter events by their class.",
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "event_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventType"
+            },
+            "description": "Filter events by their type.",
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "is_delivered": {
+            "type": "boolean",
+            "description": "Filter all events by `is_overall_delivery_successful` field of the event.",
+            "nullable": true
+          }
+        }
       },
       "EventListItemResponse": {
         "type": "object",
@@ -21650,6 +21684,36 @@
           }
         }
       },
+      "PaymentsUpdateMetadataRequest": {
+        "type": "object",
+        "required": [
+          "metadata"
+        ],
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentsUpdateMetadataResponse": {
+        "type": "object",
+        "required": [
+          "payment_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          }
+        }
+      },
       "PaymentsUpdateRequest": {
         "type": "object",
         "properties": {
@@ -25478,6 +25542,7 @@
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
+          "stripe_billing_test",
           "phonypay",
           "fauxpay",
           "pretendpay",
