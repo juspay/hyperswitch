@@ -345,4 +345,26 @@ impl PaymentAttemptInterface for MockDb {
             .cloned()
             .unwrap())
     }
+
+    #[cfg(feature = "v2")]
+    #[allow(clippy::unwrap_used)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        let payment_attempts = self.payment_attempts.lock().await;
+
+        Ok(payment_attempts
+            .iter()
+            .find(|payment_attempt| {
+                payment_attempt.payment_id == *payment_id
+                    && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
+                        || payment_attempt.status == storage_enums::AttemptStatus::Charged)
+            })
+            .cloned()
+            .unwrap())
+    }
 }

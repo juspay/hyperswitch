@@ -1205,6 +1205,14 @@ impl ConnectorTransactionId {
         }
     }
 
+    /// Implementation for extracting hashed data
+    pub fn extract_hashed_data(&self) -> Option<String> {
+        match self {
+            Self::TxnId(_) => None,
+            Self::HashedData(src) => Some(src.clone()),
+        }
+    }
+
     /// Implementation for retrieving
     pub fn get_txn_id<'a>(
         &'a self,

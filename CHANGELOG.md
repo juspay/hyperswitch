@@ -4,6 +4,57 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.23.0
+
+### Features
+
+- **dynamic_routing:** Integration of elimination routing for core flows ([#6816](https://github.com/juspay/hyperswitch/pull/6816)) ([`82bc461`](https://github.com/juspay/hyperswitch/commit/82bc46166b6157c43116e97a4b9bda8ecfd6285c))
+- **vsaas:** Add processor_merchant_id and created_by column in payment_intents and payments_attempts for v1 ([#7768](https://github.com/juspay/hyperswitch/pull/7768)) ([`6281ae0`](https://github.com/juspay/hyperswitch/commit/6281ae067aa8d09000c6370693417c8d4c22d919))
+
+### Bug Fixes
+
+- **connector:** Revert noon-paypal ([#7864](https://github.com/juspay/hyperswitch/pull/7864)) ([`776bde0`](https://github.com/juspay/hyperswitch/commit/776bde00efce8be35e0c63c1bdc6215921babddf))
+
+### Refactors
+
+- **cypress:** Do not update `card_expiry` while updating card info ([#7834](https://github.com/juspay/hyperswitch/pull/7834)) ([`55209d0`](https://github.com/juspay/hyperswitch/commit/55209d004dcb0532ca717eb91ed1c4abef4d3fd5))
+
+### Miscellaneous Tasks
+
+- **dynamic-fields:** Remove billing details as required fields for Worldpay connector ([#7853](https://github.com/juspay/hyperswitch/pull/7853)) ([`8a68cc7`](https://github.com/juspay/hyperswitch/commit/8a68cc7c6bd8f6f98fbe22a6940ef6b45f562874))
+- **payments:** Filter NO_ERROR_CODE and NO_ERROR_MESSAGE from payments API response ([#7801](https://github.com/juspay/hyperswitch/pull/7801)) ([`7b3c33c`](https://github.com/juspay/hyperswitch/commit/7b3c33c81c8f896847a3a0bb0ead90a6a67f8e61))
+
+**Full Changelog:** [`2025.04.22.0...2025.04.23.0`](https://github.com/juspay/hyperswitch/compare/2025.04.22.0...2025.04.23.0)
+
+
+- - -
+
+## 2025.04.22.0
+
+### Features
+
+- **dynamic_routing:** Add open router integration for success based routing ([#7795](https://github.com/juspay/hyperswitch/pull/7795)) ([`a51c9f0`](https://github.com/juspay/hyperswitch/commit/a51c9f039ffc02f4880a301d8453d98dc90df1e1))
+- **refunds_v2:** Add refund create core flow ([#7619](https://github.com/juspay/hyperswitch/pull/7619)) ([`eabef32`](https://github.com/juspay/hyperswitch/commit/eabef328c665cfbaf953a5eb15bd15484c62dcf7))
+
+### Bug Fixes
+
+- **connector:** [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7832](https://github.com/juspay/hyperswitch/pull/7832)) ([`662e45f`](https://github.com/juspay/hyperswitch/commit/662e45f0037c0aa039c1de72500c6004322f3ffb))
+- **core:** [CARD TESTING GUARD] Added Card Testing Guard Config response in case of NULL ([#7478](https://github.com/juspay/hyperswitch/pull/7478)) ([`73eb467`](https://github.com/juspay/hyperswitch/commit/73eb467d32a0cabb6e27c25dd084aea6bb38e861))
+
+### Refactors
+
+- **middleware:** Add middleware to record metrics for request count and duration ([#7803](https://github.com/juspay/hyperswitch/pull/7803)) ([`54a1719`](https://github.com/juspay/hyperswitch/commit/54a1719fe6aaabf22d5696606c1458ec1f49f037))
+- **required_fields:** Move pm required fields to pm crate ([#7539](https://github.com/juspay/hyperswitch/pull/7539)) ([`103a5c1`](https://github.com/juspay/hyperswitch/commit/103a5c182b9744faf27d367efd58fac669d5c2ba))
+
+### Revert
+
+- Fix(connector): [noon] address `next_action_url` being `null` for cards in 3ds payment ([#7859](https://github.com/juspay/hyperswitch/pull/7859)) ([`c89a412`](https://github.com/juspay/hyperswitch/commit/c89a4121a3450d5c8c613dbcbedb846cb9bfd176))
+
+**Full Changelog:** [`2025.04.18.0...2025.04.22.0`](https://github.com/juspay/hyperswitch/compare/2025.04.18.0...2025.04.22.0)
+
+
+- - -
+
 ## 2025.04.18.0
 
 ### Features

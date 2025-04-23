@@ -48,6 +48,8 @@ use super::pm_auth;
 use super::poll;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -1159,6 +1161,17 @@ impl Refunds {
                         .route(web::post().to(refunds_update)),
                 );
         }
+        route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2", feature = "oltp"))]
+impl Refunds {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
+
+        route = route.service(web::resource("").route(web::post().to(refunds::refunds_create)));
+
         route
     }
 }

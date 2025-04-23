@@ -117,6 +117,15 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
@@ -1029,7 +1038,7 @@ impl PaymentAttempt {
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
-        todo!();
+        self.amount_details.surcharge_amount
     }
 }
 
