@@ -707,8 +707,9 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -761,8 +762,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -1373,7 +1375,7 @@ pub fn construct_file_upload_request(
                 .file_type
                 .as_ref()
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or_default()
         ))
         .mime_str(request.file_type.as_ref())

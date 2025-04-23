@@ -56,7 +56,9 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
-        revenue_recovery::{AdditionalRevenueRecovery, RevenueRecovery, RevenueRecoveryRecordBack},
+        revenue_recovery::{
+            BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack,
+        },
         revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
@@ -345,6 +347,9 @@ impl ConnectorData {
                 enums::Connector::CtpMastercard => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::CtpMastercard)))
                 }
+                enums::Connector::CtpVisa => Ok(ConnectorEnum::Old(Box::new(
+                    connector::UnifiedAuthenticationService::new(),
+                ))),
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
                 }
@@ -386,12 +391,19 @@ impl ConnectorData {
                 enums::Connector::DummyConnector7 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<7>,
                 ))),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
+                    &connector::DummyConnector::<8>,
+                ))),
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
+                // enums::Connector::Facilitapay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay)))
+                // }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
@@ -500,9 +512,9 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                // enums::Connector::Stripebilling =>{
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Stripebilling::new())))
-                // },
+                enums::Connector::Stripebilling => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Stripebilling::new(),
+                ))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))

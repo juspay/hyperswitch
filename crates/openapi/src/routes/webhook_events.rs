@@ -2,7 +2,7 @@
 ///
 /// List all Events associated with a Merchant Account or Profile.
 #[utoipa::path(
-    get,
+    post,
     path = "/events/{merchant_id}",
     params(
         (
@@ -10,41 +10,25 @@
             Path,
             description = "The unique identifier for the Merchant Account."
         ),
-        (
-            "created_after" = Option<PrimitiveDateTime>,
-            Query,
-            description = "Only include Events created after the specified time. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "created_before" = Option<PrimitiveDateTime>,
-            Query,
-            description = "Only include Events created before the specified time. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "limit" = Option<i64>,
-            Query,
-            description = "The maximum number of Events to include in the response. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "offset" = Option<i64>,
-            Query,
-            description = "The number of Events to skip when retrieving the list of Events.
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "object_id" = Option<String>,
-            Query,
-            description = "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "profile_id" = Option<String>,
-            Query,
-            description = "Only include Events associated with the Profile identified by the specified Profile ID."
-        ),
+    ),
+    request_body(
+        content = EventListConstraints,
+        description = "The constraints that can be applied when listing Events.",
+        examples (
+            ("example" = (
+                value = json!({
+                    "created_after": "2023-01-01T00:00:00",
+                    "created_before": "2023-01-31T23:59:59",
+                    "limit": 5,
+                    "offset": 0,
+                    "object_id": "{{object_id}}",
+                    "profile_id": "{{profile_id}}",
+                    "event_classes": ["payments", "refunds"],
+                    "event_types": ["payment_succeeded"],
+                    "is_delivered": true
+                })
+            )),
+        )
     ),
     responses(
         (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
@@ -59,42 +43,29 @@ pub fn list_initial_webhook_delivery_attempts() {}
 ///
 /// List all Events associated with a Profile.
 #[utoipa::path(
-    get,
+    post,
     path = "/events/profile/list",
-    params(
-        (
-            "created_after" = Option<PrimitiveDateTime>,
-            Query,
-            description = "Only include Events created after the specified time. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "created_before" = Option<PrimitiveDateTime>,
-            Query,
-            description = "Only include Events created before the specified time. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "limit" = Option<i64>,
-            Query,
-            description = "The maximum number of Events to include in the response. \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "offset" = Option<i64>,
-            Query,
-            description = "The number of Events to skip when retrieving the list of Events.
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
-        (
-            "object_id" = Option<String>,
-            Query,
-            description = "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). \
-                           Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
-        ),
+    request_body(
+        content = EventListConstraints,
+        description = "The constraints that can be applied when listing Events.",
+        examples (
+            ("example" = (
+                value = json!({
+                    "created_after": "2023-01-01T00:00:00",
+                    "created_before": "2023-01-31T23:59:59",
+                    "limit": 5,
+                    "offset": 0,
+                    "object_id": "{{object_id}}",
+                    "profile_id": "{{profile_id}}",
+                    "event_classes": ["payments", "refunds"],
+                    "event_types": ["payment_succeeded"],
+                    "is_delivered": true
+                })
+            )),
+        )
     ),
     responses(
-        (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
+        (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
     ),
     tag = "Event",
     operation_id = "List all Events associated with a Profile",

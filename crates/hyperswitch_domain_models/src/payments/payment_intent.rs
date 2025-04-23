@@ -14,7 +14,7 @@ use common_utils::{
     type_name,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
-        MinorUnit,
+        CreatedBy, MinorUnit,
     },
 };
 #[cfg(feature = "v2")]
@@ -208,6 +208,7 @@ pub struct PaymentIntentUpdateFields {
     pub active_attempt_id: Option<Option<id_type::GlobalAttemptId>>,
     // updated_by is set internally, field not present in request
     pub updated_by: String,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -240,6 +241,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -358,7 +360,6 @@ pub enum PaymentIntentUpdate {
     RecordUpdate {
         status: common_enums::IntentStatus,
         feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
-        active_attempt_id: id_type::GlobalAttemptId,
         updated_by: String,
     },
     /// UpdateIntent
@@ -407,6 +408,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
+    pub force_3ds_challenge: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -455,6 +457,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                force_3ds_challenge: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -498,6 +501,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                force_3ds_challenge: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -539,6 +543,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                force_3ds_challenge: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -580,6 +585,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                force_3ds_challenge: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -624,6 +630,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                force_3ds_challenge: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -658,6 +665,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     request_external_three_ds_authentication,
                     active_attempt_id,
                     updated_by,
+                    force_3ds_challenge,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -702,17 +710,17 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
 
                     updated_by,
+                    force_3ds_challenge,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
                 status,
                 feature_metadata,
-                active_attempt_id,
                 updated_by,
             } => Ok(Self {
                 status: Some(status),
                 amount_captured: None,
-                active_attempt_id: Some(Some(active_attempt_id)),
+                active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
@@ -745,6 +753,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                force_3ds_challenge: None,
             }),
         }
     }
@@ -1020,6 +1029,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     shipping_details: value.shipping_details.map(Encryption::from),
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
+                    force_3ds_challenge: value.force_3ds_challenge,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1176,6 +1186,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_details,
             is_payment_processor_token_flow,
             tax_details,
+            force_3ds_challenge,
         } = value;
         Self {
             amount,
@@ -1214,6 +1225,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_details: shipping_details.map(Encryption::from),
             is_payment_processor_token_flow,
             tax_details,
+            force_3ds_challenge,
         }
     }
 }
@@ -1561,7 +1573,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at,
             last_synced,
             setup_future_usage,
-            client_secret,
             active_attempt_id,
             order_details,
             allowed_payment_method_types,
@@ -1591,8 +1602,11 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
-            platform_merchant_id,
             split_payments,
+            force_3ds_challenge,
+            force_3ds_challenge_trigger,
+            processor_merchant_id,
+            created_by,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1611,7 +1625,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at,
             last_synced,
             setup_future_usage: Some(setup_future_usage),
-            client_secret,
             active_attempt_id,
             order_details: order_details.map(|order_details| {
                 order_details
@@ -1672,8 +1685,12 @@ impl behaviour::Conversion for PaymentIntent {
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
             request_extended_authorization: None,
-            platform_merchant_id,
+            platform_merchant_id: None,
             split_payments,
+            force_3ds_challenge,
+            force_3ds_challenge_trigger,
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
         })
     }
     async fn convert_back(
@@ -1747,7 +1764,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 status: storage_model.status,
                 amount_details,
                 amount_captured: storage_model.amount_captured,
@@ -1760,7 +1777,6 @@ impl behaviour::Conversion for PaymentIntent {
                 modified_at: storage_model.modified_at,
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
-                client_secret: storage_model.client_secret,
                 active_attempt_id: storage_model.active_attempt_id,
                 order_details: storage_model.order_details.map(|order_details| {
                     order_details
@@ -1806,8 +1822,15 @@ impl behaviour::Conversion for PaymentIntent {
                 customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
-                platform_merchant_id: storage_model.platform_merchant_id,
                 split_payments: storage_model.split_payments,
+                force_3ds_challenge: storage_model.force_3ds_challenge,
+                force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             })
         }
         .await
@@ -1836,7 +1859,6 @@ impl behaviour::Conversion for PaymentIntent {
             modified_at: self.modified_at,
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
-            client_secret: self.client_secret,
             active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self
@@ -1889,7 +1911,11 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            force_3ds_challenge: self.force_3ds_challenge,
+            force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
         })
     }
 }
@@ -1957,7 +1983,11 @@ impl behaviour::Conversion for PaymentIntent {
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
+            force_3ds_challenge: self.force_3ds_challenge,
+            force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
         })
     }
 
@@ -1993,7 +2023,7 @@ impl behaviour::Conversion for PaymentIntent {
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 status: storage_model.status,
                 amount: storage_model.amount,
                 currency: storage_model.currency,
@@ -2047,7 +2077,14 @@ impl behaviour::Conversion for PaymentIntent {
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 request_extended_authorization: storage_model.request_extended_authorization,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
-                platform_merchant_id: storage_model.platform_merchant_id,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                force_3ds_challenge: storage_model.force_3ds_challenge,
+                force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
             })
         }
         .await
@@ -2113,7 +2150,11 @@ impl behaviour::Conversion for PaymentIntent {
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             request_extended_authorization: self.request_extended_authorization,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            platform_merchant_id: self.platform_merchant_id,
+            platform_merchant_id: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
+            force_3ds_challenge: self.force_3ds_challenge,
+            force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
         })
     }
 }

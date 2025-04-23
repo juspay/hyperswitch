@@ -5487,10 +5487,15 @@ checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 name = "payment_methods"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-trait",
  "common_utils",
  "dyn-clone",
  "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking",
+ "serde",
+ "serde_json",
  "storage_impl",
 ]
 
@@ -6970,6 +6975,7 @@ name = "scheduler"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "common_types",
  "common_utils",
  "diesel_models",
  "error-stack",

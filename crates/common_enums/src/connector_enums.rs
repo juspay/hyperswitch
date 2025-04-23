@@ -27,6 +27,10 @@ pub use crate::PaymentMethodType;
 pub enum RoutableConnectors {
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_billing_test")]
+    #[strum(serialize = "stripe_billing_test")]
+    DummyBillingConnector,
+    #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
     DummyConnector1,
@@ -80,6 +84,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -128,7 +133,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
-    //Stripebilling,
+    Stripebilling,
     // Taxjar,
     Trustpay,
     // Thunes
@@ -168,6 +173,10 @@ pub enum RoutableConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
     Adyenplatform,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_billing_test")]
+    #[strum(serialize = "stripe_billing_test")]
+    DummyBillingConnector,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -216,6 +225,7 @@ pub enum Connector {
     Coingate,
     Cryptopay,
     CtpMastercard,
+    CtpVisa,
     Cybersource,
     Datatrans,
     Deutschebank,
@@ -223,6 +233,7 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Elavon,
+    // Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -272,7 +283,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
-    // Stripebilling,
+    Stripebilling,
     Taxjar,
     Threedsecureio,
     //Thunes,
@@ -352,6 +363,8 @@ impl Connector {
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
             #[cfg(feature = "dummy_connector")]
+            Self::DummyBillingConnector => false,
+            #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
             | Self::DummyConnector2
             | Self::DummyConnector3
@@ -377,13 +390,14 @@ impl Connector {
             | Self::Cashtocode
             | Self::Chargebee
             | Self::Coinbase
-            |Self::Coingate
+            | Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Elavon
+            // | Self::Facilitapay
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -426,7 +440,7 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
-            // | Self::Stripebilling
+            | Self::Stripebilling
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
@@ -448,6 +462,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
             | Self::Datatrans => false,
@@ -495,6 +510,8 @@ impl From<RoutableConnectors> for Connector {
         match routable_connector {
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
+            RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
+            #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector2 => Self::DummyConnector2,
@@ -533,6 +550,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dlocal => Self::Dlocal,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
+            // RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -577,7 +595,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Square => Self::Square,
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
-            // RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
@@ -603,6 +621,8 @@ impl TryFrom<Connector> for RoutableConnectors {
         match connector {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
+            Connector::DummyBillingConnector => Ok(Self::DummyBillingConnector),
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(Self::DummyConnector1),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector2 => Ok(Self::DummyConnector2),
@@ -619,6 +639,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Aci => Ok(Self::Aci),
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Airwallex => Ok(Self::Airwallex),
+            Connector::Amazonpay => Ok(Self::Amazonpay),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
             Connector::Billwerk => Ok(Self::Billwerk),
@@ -641,6 +662,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Dlocal => Ok(Self::Dlocal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
+            // Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
@@ -682,6 +704,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Square => Ok(Self::Square),
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
@@ -703,7 +726,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
-            | Connector::Threedsecureio => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Threedsecureio
+            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }

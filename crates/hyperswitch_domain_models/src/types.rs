@@ -4,16 +4,14 @@ use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
-        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken, CalculateTax,
-        Capture, CompleteAuthorize, CreateConnectorCustomer, Execute,
-        GetAdditionalRevenueRecoveryDetails, IncrementalAuthorization, PSync, PaymentMethodToken,
+        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
+        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, VerifyWebhookSource, Void,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
-        revenue_recovery::{
-            GetAdditionalRevenueRecoveryRequestData, RevenueRecoveryRecordBackRequest,
-        },
+        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -24,12 +22,12 @@ use crate::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
-            GetAdditionalRevenueRecoveryResponseData, RevenueRecoveryRecordBackResponse,
+            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
         },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VerifyWebhookSourceResponseData,
@@ -64,6 +62,8 @@ pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequest
 pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsUpdateMetadataRouterData =
+    RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
@@ -104,8 +104,8 @@ pub type RevenueRecoveryRecordBackRouterData = RouterData<
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
 
-pub type AdditionalRevenueRecoveryDetailsRouterData = RouterData<
-    GetAdditionalRevenueRecoveryDetails,
-    GetAdditionalRevenueRecoveryRequestData,
-    GetAdditionalRevenueRecoveryResponseData,
+pub type BillingConnectorPaymentsSyncRouterData = RouterData<
+    BillingConnectorPaymentsSync,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
 >;

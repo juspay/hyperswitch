@@ -2,7 +2,8 @@ use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_data_v2::{
         flow_common_types::{
-            DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            BillingConnectorPaymentsSyncFlowData, DisputesFlowData, MandateRevokeFlowData,
+            PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
             WebhookSourceVerifyData,
         },
         AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
@@ -18,24 +19,31 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
             PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SetupMandate, Void,
+            SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
+        revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
         webhooks::VerifyWebhookSource,
         AccessTokenAuth,
     },
     router_request_types::{
-        authentication, AcceptDisputeRequestData, AccessTokenRequestData,
-        AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        authentication,
+        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::{
+            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+        },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
@@ -84,10 +92,15 @@ use hyperswitch_interfaces::{
             ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
             PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
             PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
-            PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
-            PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
+            PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+            TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
+        revenue_recovery_v2::{
+            BillingConnectorPaymentsSyncIntegrationV2, RevenueRecoveryRecordBackV2,
+            RevenueRecoveryV2,
+        },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
@@ -117,6 +130,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
+            impl PaymentUpdateMetadataV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -208,6 +222,13 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             PaymentsPostSessionTokensData,
             PaymentsResponseData,
             > for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            UpdateMetadata,
+            PaymentFlowData,
+            PaymentsUpdateMetadataData,
+            PaymentsResponseData,
+            > for $path::$connector{}
     )*
     };
 }
@@ -237,6 +258,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -339,6 +361,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -436,6 +459,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -538,6 +562,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -639,6 +664,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -741,6 +767,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -853,6 +880,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -957,6 +985,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1061,6 +1090,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1165,6 +1195,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1269,6 +1300,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1373,6 +1405,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1477,6 +1510,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1581,6 +1615,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1685,6 +1720,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1787,6 +1823,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1891,6 +1928,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1995,6 +2033,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2099,6 +2138,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2203,6 +2243,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2307,6 +2348,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2408,6 +2450,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2494,6 +2537,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
+    connectors::Facilitapay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -2579,6 +2623,91 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::Inespay,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Worldpay,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
+    ($($path:ident::$connector:ident),*) => {
+        $(  impl RevenueRecoveryV2 for $path::$connector {}
+            impl BillingConnectorPaymentsSyncIntegrationV2 for $path::$connector {}
+            impl RevenueRecoveryRecordBackV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            RecoveryRecordBack,
+            RevenueRecoveryRecordBackData,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                BillingConnectorPaymentsSync,
+                BillingConnectorPaymentsSyncFlowData,
+                BillingConnectorPaymentsSyncRequest,
+                BillingConnectorPaymentsSyncResponse,
+            > for $path::$connector
+            {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,

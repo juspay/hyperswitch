@@ -94,6 +94,12 @@ pub struct PaymentsPostSessionTokensData {
     pub router_return_url: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct PaymentsUpdateMetadataData {
+    pub metadata: pii::SecretSerdeValue,
+    pub connector_transaction_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AuthoriseIntegrityObject {
     /// Authorise amount

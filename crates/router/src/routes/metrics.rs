@@ -1,6 +1,5 @@
 pub mod bg_metrics_collector;
 pub mod request;
-pub mod utils;
 
 use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
@@ -11,7 +10,6 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
-counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
 histogram_metric_f64!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
