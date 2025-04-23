@@ -13,10 +13,10 @@ use common_enums::{
     enums::{
         AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
         AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
-        BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
-        CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
-        DenmarkStatesAbbreviation, FinlandStatesAbbreviation, FranceStatesAbbreviation,
-        FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
+        BosniaAndHerzegovinaStatesAbbreviation, BrazilStatesAbbreviation,
+        BulgariaStatesAbbreviation, CanadaStatesAbbreviation, CroatiaStatesAbbreviation,
+        CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation, FinlandStatesAbbreviation,
+        FranceStatesAbbreviation, FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
         HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
         ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
         LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
@@ -5118,6 +5118,52 @@ impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
     }
 }
 
+impl ForeignTryFrom<String> for BrazilStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.clone(), "BrazilStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => match value.as_str() {
+                "Acre" => Ok(Self::Acre),
+                "Alagoas" => Ok(Self::Alagoas),
+                "Amapá" => Ok(Self::Amapá),
+                "Amazonas" => Ok(Self::Amazonas),
+                "Bahia" => Ok(Self::Bahia),
+                "Ceará" => Ok(Self::Ceará),
+                "Distrito Federal" => Ok(Self::DistritoFederal),
+                "Espírito Santo" => Ok(Self::EspíritoSanto),
+                "Goiás" => Ok(Self::Goiás),
+                "Maranhão" => Ok(Self::Maranhão),
+                "Mato Grosso" => Ok(Self::MatoGrosso),
+                "Mato Grosso do Sul" => Ok(Self::MatoGrossoDoSul),
+                "Minas Gerais" => Ok(Self::MinasGerais),
+                "Pará" => Ok(Self::Pará),
+                "Paraíba" => Ok(Self::Paraíba),
+                "Paraná" => Ok(Self::Paraná),
+                "Pernambuco" => Ok(Self::Pernambuco),
+                "Piauí" => Ok(Self::Piauí),
+                "Rio de Janeiro" => Ok(Self::RioDeJaneiro),
+                "Rio Grande do Norte" => Ok(Self::RioGrandeDoNorte),
+                "Rio Grande do Sul" => Ok(Self::RioGrandeDoSul),
+                "Rondônia" => Ok(Self::Rondônia),
+                "Roraima" => Ok(Self::Roraima),
+                "Santa Catarina" => Ok(Self::SantaCatarina),
+                "São Paulo" => Ok(Self::SãoPaulo),
+                "Sergipe" => Ok(Self::Sergipe),
+                "Tocantins" => Ok(Self::Tocantins),
+                _ => Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "address.state",
+                }
+                .into()),
+            },
+        }
+    }
+}
+
 pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
@@ -6072,4 +6118,22 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let regex = REGEX.as_ref().map_err(|e| e.clone())?;
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
+}
+
+/// Custom deserializer for Option<Currency> that treats empty strings as None
+pub fn deserialize_optional_currency<'de, D>(
+    deserializer: D,
+) -> Result<Option<enums::Currency>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let string_data: Option<String> = Option::deserialize(deserializer)?;
+    match string_data {
+        Some(ref value) if !value.is_empty() => value
+            .clone()
+            .parse_enum("Currency")
+            .map(Some)
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
+        _ => Ok(None),
+    }
 }
