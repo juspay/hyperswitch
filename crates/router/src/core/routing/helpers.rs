@@ -8,6 +8,8 @@ use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
@@ -729,20 +731,27 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 },
             )?;
 
-            let payment_status_attribute =
-                get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
+            let routable_connector = routing_types::RoutableConnectorChoice {
+                choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+            };
 
             let should_route_to_open_router = state.conf.open_router.enabled;
 
             if should_route_to_open_router {
+                logger::debug!(
+                    "performing update-gateway-score for gateway with id {} in open router for profile: {}",
+                    routable_connector, profile_id.get_string_repr()
+                );
                 routing::payments_routing::update_success_rate_score_with_open_router(
                     state,
-                    common_enums::RoutableConnectors::from_str(payment_connector.as_str())
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to infer routable_connector from connector")?,
+                    routable_connector.clone(),
                     profile_id,
                     &payment_attempt.payment_id,
-                    payment_status_attribute == common_enums::AttemptStatus::Charged,
+                    payment_attempt.status,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -750,6 +759,9 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
                 return Ok(());
             }
+
+            let payment_status_attribute =
+                get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
 
             let success_based_routing_configs = fetch_dynamic_routing_configs::<
                 routing_types::SuccessBasedRoutingConfig,
@@ -972,17 +984,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     success_based_routing_configs,
                     success_based_routing_config_params,
                     vec![routing_types::RoutableConnectorChoiceWithStatus::new(
-                        routing_types::RoutableConnectorChoice {
-                            choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                            connector: common_enums::RoutableConnectors::from_str(
-                                payment_connector.as_str(),
-                            )
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "unable to infer routable_connector from connector",
-                            )?,
-                            merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                        },
+                        routable_connector,
                         payment_status_attribute == common_enums::AttemptStatus::Charged,
                     )],
                     state.get_grpc_headers(),
@@ -1347,6 +1349,46 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::DeviceDataCollectionPending => {
             common_enums::AttemptStatus::Pending
         }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub fn get_txn_status_from_attempt_status(
+    attempt_status: common_enums::AttemptStatus,
+) -> open_router::TxnStatus {
+    match attempt_status {
+        common_enums::AttemptStatus::Started => open_router::TxnStatus::Started,
+        common_enums::AttemptStatus::AuthenticationFailed => {
+            open_router::TxnStatus::AuthenticationFailed
+        }
+        common_enums::AttemptStatus::RouterDeclined => open_router::TxnStatus::JuspayDeclined,
+        common_enums::AttemptStatus::AuthenticationPending => open_router::TxnStatus::PendingVbv,
+        common_enums::AttemptStatus::AuthenticationSuccessful => {
+            open_router::TxnStatus::VBVSuccessful
+        }
+        common_enums::AttemptStatus::Authorized => open_router::TxnStatus::Authorized,
+        common_enums::AttemptStatus::AuthorizationFailed => {
+            open_router::TxnStatus::AuthorizationFailed
+        }
+        common_enums::AttemptStatus::Charged => open_router::TxnStatus::Charged,
+        common_enums::AttemptStatus::Authorizing => open_router::TxnStatus::Authorizing,
+        common_enums::AttemptStatus::CodInitiated => open_router::TxnStatus::CODInitiated,
+        common_enums::AttemptStatus::Voided => open_router::TxnStatus::Voided,
+        common_enums::AttemptStatus::VoidInitiated => open_router::TxnStatus::VoidInitiated,
+        common_enums::AttemptStatus::CaptureInitiated => open_router::TxnStatus::CaptureInitiated,
+        common_enums::AttemptStatus::CaptureFailed => open_router::TxnStatus::CaptureFailed,
+        common_enums::AttemptStatus::VoidFailed => open_router::TxnStatus::VoidFailed,
+        common_enums::AttemptStatus::AutoRefunded => open_router::TxnStatus::AutoRefunded,
+        common_enums::AttemptStatus::PartialCharged => open_router::TxnStatus::PartialCharged,
+        common_enums::AttemptStatus::PartialChargedAndChargeable => {
+            open_router::TxnStatus::ToBeCharged
+        }
+        common_enums::AttemptStatus::Unresolved => open_router::TxnStatus::Pending,
+        common_enums::AttemptStatus::Pending => open_router::TxnStatus::Pending,
+        common_enums::AttemptStatus::Failure => open_router::TxnStatus::Failure,
+        common_enums::AttemptStatus::PaymentMethodAwaited => open_router::TxnStatus::Pending,
+        common_enums::AttemptStatus::ConfirmationAwaited => open_router::TxnStatus::Pending,
+        common_enums::AttemptStatus::DeviceDataCollectionPending => open_router::TxnStatus::Pending,
     }
 }
 
