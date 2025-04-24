@@ -86,22 +86,24 @@ fn fetch_payment_instrument(
             },
             cvc: card.card_cvc,
             card_holder_name: billing_address.and_then(|address| address.get_optional_full_name()),
-            billing_address: billing_address.and_then(|addr| addr.address.clone()).and_then(
-                |address| match (address.line1, address.city, address.zip, address.country) {
-                    (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
-                        Some(BillingAddress {
-                            address1,
-                            address2: address.line2,
-                            address3: address.line3,
-                            city,
-                            state: address.state,
-                            postal_code,
-                            country_code,
-                        })
+            billing_address: billing_address
+                .and_then(|addr| addr.address.clone())
+                .and_then(|address| {
+                    match (address.line1, address.city, address.zip, address.country) {
+                        (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
+                            Some(BillingAddress {
+                                address1,
+                                address2: address.line2,
+                                address3: address.line3,
+                                city,
+                                state: address.state,
+                                postal_code,
+                                country_code,
+                            })
+                        }
+                        _ => None,
                     }
-                    _ => None,
-                },
-            ),
+                }),
         })),
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
             Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
@@ -252,7 +254,7 @@ impl WorldpayPaymentsRequestData
     for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
 {
     fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.request.get_router_return_url()
+        self.request.get_complete_authorize_url()
     }
 
     fn get_auth_type(&self) -> &enums::AuthenticationType {
@@ -669,6 +671,7 @@ impl<F, T>
     ForeignTryFrom<(
         ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
         Option<String>,
+        i64,
     )> for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -676,9 +679,10 @@ impl<F, T>
         item: (
             ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
             Option<String>,
+            i64,
         ),
     ) -> Result<Self, Self::Error> {
-        let (router_data, optional_correlation_id) = item;
+        let (router_data, optional_correlation_id, amount) = item;
         let (description, redirection_data, mandate_reference, network_txn_id, error) = router_data
             .response
             .other_fields
@@ -758,7 +762,13 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = enums::AttemptStatus::from(worldpay_status.clone());
+        let status = if amount == 0
+            && worldpay_status == PaymentOutcome::Authorized
+        {
+            enums::AttemptStatus::Charged
+        } else {
+            enums::AttemptStatus::from(worldpay_status.clone())
+        };
         let response = match (optional_error_message, error) {
             (None, None) => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::foreign_try_from((
