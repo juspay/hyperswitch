@@ -57,7 +57,7 @@ detect_docker_compose() {
         DOCKER_COMPOSE="docker compose"
         echo_success "Docker Compose is installed."
     else
-        echo_error "Docker Compose is not installed. Please install Docker Compose(Alternatively use Orbstack) first."
+        echo_error "Docker Compose is not installed. Please install Docker Compose (Or use alternatives like Orbstack/Podman)."
         echo_info "Visit https://docs.docker.com/compose/install/ for installation instructions."
         exit 1
     fi
@@ -72,7 +72,7 @@ check_prerequisites() {
     echo_success "curl is installed."
     
     # Check ports
-    required_ports=(8080 9000 9050 5432 6379)
+    required_ports=(8080 9000 9050 5432 6379 9060)
     unavailable_ports=()
     
     for port in "${required_ports[@]}"; do
@@ -105,16 +105,8 @@ check_prerequisites() {
 
 setup_config() {
     if [ ! -f "config/docker_compose.toml" ]; then
-        if [ -f "config/config.example.toml" ]; then
-            echo "Creating docker_compose.toml from example config..."
-            cp config/config.example.toml config/docker_compose.toml
-            echo_success "Configuration file created."
-        else
-            echo_error "Example configuration file not found."
-            exit 1
-        fi
-    else
-        echo_success "Configuration file already exists."
+        echo_error "Configuration file 'config/docker_compose.toml' not found. Please ensure the file exists and is correctly configured."
+        exit 1
     fi
 }
 
@@ -203,14 +195,14 @@ print_access_info() {
     
     echo "Setup complete! You can access Hyperswitch services at:"
     
-    if [ "$PROFILE" != "minimal" ]; then
+    if [ "$PROFILE" != "standalone" ]; then
         echo -e "  • ${GREEN}Control Center${NC}: ${BLUE}http://localhost:9000${NC}"
     fi
     
-    echo -e "  • ${GREEN}API Server${NC}: ${BLUE}http://localhost:8080${NC}"
+    echo -e "  • ${GREEN}App Server${NC}: ${BLUE}http://localhost:8080${NC}"
     
-    if [ "$PROFILE" != "minimal" ]; then
-        echo -e "  • ${GREEN}Web SDK Demo${NC}: ${BLUE}http://localhost:9050${NC}"
+    if [ "$PROFILE" != "standalone" ]; then
+        echo -e "  • ${GREEN}Sample Unified Checkout Demo{NC}: ${BLUE}http://localhost:9050${NC}"
     fi
     
     if [ "$PROFILE" = "full" ] || [ "$PROFILE" = "development" ]; then

@@ -1,6 +1,6 @@
 # One-Click Docker Setup Guide
 
-This document provides detailed information about the updated one-click setup script for Hyperswitch.
+This document provides detailed information about the one-click setup script for Hyperswitch.
 
 ## Overview
 
