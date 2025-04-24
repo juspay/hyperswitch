@@ -551,8 +551,8 @@ async fn handle_successful_delivery(
     update_overall_delivery_status_in_storage(
         state.clone(),
         merchant_key_store.clone(),
-        &merchant_id,
-        &updated_event,
+        merchant_id,
+        updated_event,
     )
     .await?;
 
@@ -706,9 +706,8 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
         errors::WebhooksFlowError,
     > {
         let schedule_webhook_retry = match self {
-            enums::WebhookDeliveryAttempt::InitialAttempt
-            | enums::WebhookDeliveryAttempt::ManualRetry => types::ScheduleWebhookRetry::NoSchedule,
-            enums::WebhookDeliveryAttempt::AutomaticRetry => {
+            Self::InitialAttempt | Self::ManualRetry => types::ScheduleWebhookRetry::NoSchedule,
+            Self::AutomaticRetry => {
                 // ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker))
                 todo!()
             }
@@ -717,8 +716,8 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
         api_client_error_handler(
             state,
             merchant_key_store,
-            &merchant_id,
-            &event_id,
+            merchant_id,
+            event_id,
             client_error,
             *self,
             schedule_webhook_retry,
@@ -749,8 +748,8 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
             is_webhook_notified,
             outgoing_webhook_response,
             merchant_key_store.clone(),
-            &merchant_id,
-            &event_id,
+            merchant_id,
+            event_id,
         )
         .await?;
 
