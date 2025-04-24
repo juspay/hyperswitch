@@ -1,18 +1,22 @@
 use std::collections::HashMap;
+
+use api_models::{webhook_events, webhooks};
+use common_utils::{ext_traits, request, type_name, types::keymanager};
+use diesel_models::process_tracker::business_status;
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use hyperswitch_interfaces::consts;
+use masking;
 use router_env::{
     instrument,
     tracing::{self, Instrument},
 };
 
-use api_models::{webhook_events, webhooks};
-use common_utils::{ext_traits, request, type_name, types::keymanager};
-use diesel_models::process_tracker::business_status;
-use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use hyperswitch_interfaces::consts;
-use masking;
-
-use super::{types, utils::{self, increment_webhook_outgoing_received_count}, MERCHANT_ID};
+use super::{
+    types,
+    utils::{self, increment_webhook_outgoing_received_count},
+    MERCHANT_ID,
+};
 use crate::{
     core::{
         errors::{self, CustomResult},
@@ -215,25 +219,27 @@ async fn trigger_webhook_to_merchant(
 
     match response {
         Ok(response) => {
-            delivery_attempt.handle_success_response(
-                state,
-                merchant_key_store.clone(),
-                &business_profile.merchant_id,
-                &event.event_id,
-                None,
-                response,
-            )
-            .await
+            delivery_attempt
+                .handle_success_response(
+                    state,
+                    merchant_key_store.clone(),
+                    &business_profile.merchant_id,
+                    &event.event_id,
+                    None,
+                    response,
+                )
+                .await
         }
         Err(client_error) => {
-            delivery_attempt.handle_error_response(
-                state,
-                merchant_key_store.clone(),
-                &business_profile.merchant_id,
-                &event.event_id,
-                client_error,
-            )
-            .await
+            delivery_attempt
+                .handle_error_response(
+                    state,
+                    merchant_key_store.clone(),
+                    &business_profile.merchant_id,
+                    &event.event_id,
+                    client_error,
+                )
+                .await
         }
     }
 }
@@ -369,9 +375,9 @@ pub(crate) fn get_outgoing_webhook_request(
 }
 
 async fn build_and_send_request(
-    state: &SessionState, 
-    request_content: webhook_events::OutgoingWebhookRequestContent, 
-    webhook_url: String
+    state: &SessionState,
+    request_content: webhook_events::OutgoingWebhookRequestContent,
+    webhook_url: String,
 ) -> Result<reqwest::Response, Report<common_enums::ApiClientError>> {
     let headers = request_content
         .headers
@@ -670,7 +676,8 @@ trait OutgoingWebhookResponseHandler {
         client_error: Report<errors::ApiClientError>,
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
-        errors::WebhooksFlowError>;
+        errors::WebhooksFlowError,
+    >;
 
     async fn handle_success_response(
         &self,
@@ -682,7 +689,8 @@ trait OutgoingWebhookResponseHandler {
         response: reqwest::Response,
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
-        errors::WebhooksFlowError>;
+        errors::WebhooksFlowError,
+    >;
 }
 
 impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
@@ -694,12 +702,12 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
         event_id: &str,
         client_error: Report<errors::ApiClientError>,
     ) -> CustomResult<
-    (domain::Event, Option<Report<errors::WebhooksFlowError>>),
-    errors::WebhooksFlowError,
-    >{
+        (domain::Event, Option<Report<errors::WebhooksFlowError>>),
+        errors::WebhooksFlowError,
+    > {
         let schedule_webhook_retry = match self {
-            enums::WebhookDeliveryAttempt::InitialAttempt |
-            enums::WebhookDeliveryAttempt::ManualRetry => types::ScheduleWebhookRetry::NoSchedule,
+            enums::WebhookDeliveryAttempt::InitialAttempt
+            | enums::WebhookDeliveryAttempt::ManualRetry => types::ScheduleWebhookRetry::NoSchedule,
             enums::WebhookDeliveryAttempt::AutomaticRetry => {
                 // ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker))
                 todo!()
@@ -716,7 +724,7 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
             schedule_webhook_retry,
         )
         .await
-    }       
+    }
 
     async fn handle_success_response(
         &self,
@@ -729,7 +737,7 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
         errors::WebhooksFlowError,
-    >{
+    > {
         let status_code = response.status();
         let is_webhook_notified = status_code.is_success();
         let response_struct = types::WebhookResponse { response };
@@ -799,7 +807,7 @@ impl WebhookNotificationHandler for InitialAttempt {
         updated_event: &domain::Event,
         merchant_id: &common_utils::id_type::MerchantId,
         process_tracker: Option<storage::ProcessTracker>,
-    ) -> Option<Report<errors::WebhooksFlowError>>{
+    ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_successful_delivery(
             state,
             merchant_key_store,
@@ -818,7 +826,7 @@ impl WebhookNotificationHandler for InitialAttempt {
         state: SessionState,
         merchant_id: &common_utils::id_type::MerchantId,
         status_code: u16,
-    ) -> Option<Report<errors::WebhooksFlowError>>{
+    ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_failed_delivery(
             state.clone(),
             merchant_id,
@@ -842,7 +850,7 @@ impl WebhookNotificationHandler for AutomaticRetry {
         _updated_event: &domain::Event,
         _merchant_id: &common_utils::id_type::MerchantId,
         _process_tracker: Option<storage::ProcessTracker>,
-    ) -> Option<Report<errors::WebhooksFlowError>>{
+    ) -> Option<Report<errors::WebhooksFlowError>> {
         todo!()
     }
 
@@ -851,7 +859,7 @@ impl WebhookNotificationHandler for AutomaticRetry {
         _state: SessionState,
         _merchant_id: &common_utils::id_type::MerchantId,
         _status_code: u16,
-    ) -> Option<Report<errors::WebhooksFlowError>>{
+    ) -> Option<Report<errors::WebhooksFlowError>> {
         todo!()
     }
 }
@@ -865,7 +873,7 @@ impl WebhookNotificationHandler for ManualRetry {
         _updated_event: &domain::Event,
         merchant_id: &common_utils::id_type::MerchantId,
         _process_tracker: Option<storage::ProcessTracker>,
-    ) -> Option<Report<errors::WebhooksFlowError>>{
+    ) -> Option<Report<errors::WebhooksFlowError>> {
         increment_webhook_outgoing_received_count(merchant_id);
         None
     }
@@ -875,7 +883,7 @@ impl WebhookNotificationHandler for ManualRetry {
         state: SessionState,
         merchant_id: &common_utils::id_type::MerchantId,
         status_code: u16,
-    ) -> Option<Report<errors::WebhooksFlowError>>{
+    ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_failed_delivery(
             state.clone(),
             merchant_id,

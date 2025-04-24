@@ -4,12 +4,11 @@ use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::{Report, ResultExt};
 
 use super::MERCHANT_ID;
-
 use crate::{
     core::{
         errors::{self},
-        payments::helpers,
         metrics,
+        payments::helpers,
     },
     db::{get_and_deserialize_key, StorageInterface},
     services::logger,
@@ -165,7 +164,9 @@ pub fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_
     )
 }
 
-pub fn increment_webhook_outgoing_not_received_count(merchant_id: &common_utils::id_type::MerchantId) {
+pub fn increment_webhook_outgoing_not_received_count(
+    merchant_id: &common_utils::id_type::MerchantId,
+) {
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
         1,
         router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
