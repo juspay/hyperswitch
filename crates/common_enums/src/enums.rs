@@ -6608,6 +6608,66 @@ pub enum RomaniaStatesAbbreviation {
 }
 
 #[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BrazilStatesAbbreviation {
+    #[strum(serialize = "AC")]
+    Acre,
+    #[strum(serialize = "AL")]
+    Alagoas,
+    #[strum(serialize = "AP")]
+    Amapá,
+    #[strum(serialize = "AM")]
+    Amazonas,
+    #[strum(serialize = "BA")]
+    Bahia,
+    #[strum(serialize = "CE")]
+    Ceará,
+    #[strum(serialize = "DF")]
+    DistritoFederal,
+    #[strum(serialize = "ES")]
+    EspíritoSanto,
+    #[strum(serialize = "GO")]
+    Goiás,
+    #[strum(serialize = "MA")]
+    Maranhão,
+    #[strum(serialize = "MT")]
+    MatoGrosso,
+    #[strum(serialize = "MS")]
+    MatoGrossoDoSul,
+    #[strum(serialize = "MG")]
+    MinasGerais,
+    #[strum(serialize = "PA")]
+    Pará,
+    #[strum(serialize = "PB")]
+    Paraíba,
+    #[strum(serialize = "PR")]
+    Paraná,
+    #[strum(serialize = "PE")]
+    Pernambuco,
+    #[strum(serialize = "PI")]
+    Piauí,
+    #[strum(serialize = "RJ")]
+    RioDeJaneiro,
+    #[strum(serialize = "RN")]
+    RioGrandeDoNorte,
+    #[strum(serialize = "RS")]
+    RioGrandeDoSul,
+    #[strum(serialize = "RO")]
+    Rondônia,
+    #[strum(serialize = "RR")]
+    Roraima,
+    #[strum(serialize = "SC")]
+    SantaCatarina,
+    #[strum(serialize = "SP")]
+    SãoPaulo,
+    #[strum(serialize = "SE")]
+    Sergipe,
+    #[strum(serialize = "TO")]
+    Tocantins,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -7793,6 +7853,17 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+}
+
+impl ErrorCategory {
+    pub fn should_perform_elimination_routing(self) -> bool {
+        match self {
+            Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline => false,
+        }
+    }
 }
 
 #[derive(
