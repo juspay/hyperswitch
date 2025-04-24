@@ -19741,6 +19741,11 @@
             ],
             "nullable": true
           },
+          "is_external_vault_enabled": {
+            "type": "boolean",
+            "description": "Indicates if external vault is enabled or not.",
+            "nullable": true
+          },
           "vault_connector_details": {
             "allOf": [
               {
@@ -19997,6 +20002,11 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "type": "boolean",
+            "description": "Indicates if external vault is enabled or not.",
             "nullable": true
           },
           "vault_connector_details": {
@@ -23186,20 +23196,19 @@
       },
       "VaultConnectorDetails": {
         "type": "object",
-        "required": [
-          "vault_connector"
-        ],
         "properties": {
-          "vault_connector": {
-            "$ref": "#/components/schemas/VaultConnectors"
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
           }
         }
       },
       "VaultConnectors": {
         "type": "string",
         "enum": [
-          "vgs",
-          "hyperswitch_vault"
+          "hyperswitch_vault",
+          "vgs"
         ]
       },
       "Venmo": {

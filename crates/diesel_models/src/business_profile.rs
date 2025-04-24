@@ -364,6 +364,7 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
@@ -433,6 +434,7 @@ pub struct ProfileNew {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
+    pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
@@ -486,6 +488,7 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
@@ -536,6 +539,7 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
+            is_external_vault_enabled,
             vault_connector_details,
         } = self;
         Profile {
@@ -617,6 +621,8 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            is_external_vault_enabled: is_external_vault_enabled
+                .or(source.is_external_vault_enabled),
             vault_connector_details: vault_connector_details.or(source.vault_connector_details),
         }
     }
@@ -636,8 +642,6 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct VaultConnectorDetails {
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-
-    pub vault_sdk: common_enums::VaultSdk,
 }
 
 common_utils::impl_to_sql_from_sql_json!(VaultConnectorDetails);

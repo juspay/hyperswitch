@@ -287,10 +287,6 @@ pub struct VaultConnectorDetails {
     /// Merchant Connector id to be stored for vault connector
     #[schema(value_type = Option<String>)]
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
-
-    /// SDK used for vault connector
-    #[schema(value_type = VaultSdk)]
-    pub vault_sdk: common_enums::VaultSdk,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -2137,6 +2133,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
     /// Vault Connector Details
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
@@ -2439,6 +2438,9 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
     /// Vault Connector Details
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
@@ -2715,6 +2717,9 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
 
     /// Vault Connector Details
     pub vault_connector_details: Option<VaultConnectorDetails>,

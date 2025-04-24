@@ -274,6 +274,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
+            is_external_vault_enabled: item.is_external_vault_enabled,
             vault_connector_details: item.vault_connector_details.map(ForeignInto::foreign_into),
         })
     }

@@ -903,6 +903,7 @@ pub struct Profile {
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
@@ -954,6 +955,7 @@ pub struct ProfileSetter {
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
@@ -1010,6 +1012,7 @@ impl From<ProfileSetter> for Profile {
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
+            is_external_vault_enabled: value.is_external_vault_enabled,
             vault_connector_details: value.vault_connector_details,
         }
     }
@@ -1069,6 +1072,7 @@ pub struct ProfileGeneralUpdate {
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
 
@@ -1141,6 +1145,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_secret_key,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_external_vault_enabled,
                     vault_connector_details,
                 } = *update;
                 Self {
@@ -1188,6 +1193,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_clear_pan_retries_enabled: None,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_external_vault_enabled,
                     vault_connector_details,
                 }
             }
@@ -1238,6 +1244,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -1286,6 +1293,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -1334,6 +1342,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
@@ -1382,6 +1391,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
@@ -1430,6 +1440,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
@@ -1478,6 +1489,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
@@ -1526,6 +1538,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
@@ -1574,6 +1587,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_external_vault_enabled: None,
                 vault_connector_details: None,
             },
         }
@@ -1644,6 +1658,7 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: None,
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            is_external_vault_enabled: self.is_external_vault_enabled,
             vault_connector_details: self.vault_connector_details,
         })
     }
@@ -1734,6 +1749,7 @@ impl super::behaviour::Conversion for Profile {
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,
+                is_external_vault_enabled: item.is_external_vault_enabled,
                 vault_connector_details: item.vault_connector_details,
             })
         }
@@ -1798,6 +1814,7 @@ impl super::behaviour::Conversion for Profile {
             is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            is_external_vault_enabled: self.is_external_vault_enabled,
             vault_connector_details: self.vault_connector_details,
         })
     }
