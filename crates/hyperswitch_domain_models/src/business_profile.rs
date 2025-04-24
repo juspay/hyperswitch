@@ -1,5 +1,5 @@
 use common_enums::enums as api_enums;
-use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_types::primitive_wrappers;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -58,7 +58,8 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -108,7 +109,8 @@ pub struct ProfileSetter {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -885,7 +887,8 @@ pub struct Profile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
@@ -935,7 +938,8 @@ pub struct ProfileSetter {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
@@ -1092,7 +1096,7 @@ pub enum ProfileUpdate {
         is_network_tokenization_enabled: bool,
     },
     CollectCvvDuringPaymentUpdate {
-        should_collect_cvv_during_payment: bool,
+        should_collect_cvv_during_payment: primitive_wrappers::ShouldCollectCvvDuringPayment,
     },
     DecisionManagerRecordUpdate {
         three_ds_decision_manager_config: common_types::payments::DecisionManagerRecord,

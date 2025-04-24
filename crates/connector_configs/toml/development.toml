@@ -3975,8 +3975,6 @@ merchant_secret="Source verification key"
 [[stripe.bank_redirect]]
   payment_method_type = "giropay"
 [[stripe.bank_redirect]]
-  payment_method_type = "sofort"
-[[stripe.bank_redirect]]
   payment_method_type = "eps"
 [[stripe.bank_redirect]]
   payment_method_type = "bancontact_card"
@@ -5830,3 +5828,10 @@ type="Text"
 api_key="Merchant ID"
 key1="Terminal ID"
 api_secret="Secret Key"
+
+[facilitapay]
+[[facilitapay.bank_transfer]]
+  payment_method_type = "pix"
+[facilitapay.connector_auth.Bodykey]
+  api_key="Password"
+  key1="Username"
