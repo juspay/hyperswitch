@@ -166,7 +166,7 @@ force_cookies = true
 enabled = true
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe"
+connector_list = "gocardless,stax,stripe,facilitapay"
 payout_connector_list = "nomupay,stripe,wise"
 
 [delayed_session_response]
@@ -358,6 +358,9 @@ paypal.currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,N
 [pm_filters.forte]
 credit.currency = "USD"
 debit.currency = "USD"
+
+[pm_filters.facilitapay]
+pix = { country = "BR", currency = "BRL" }
 
 [pm_filters.helcim]
 credit = { country = "US, CA", currency = "USD, CAD" }

@@ -6386,6 +6386,18 @@
                     "description": "CNPJ is a Brazilian company tax identification number",
                     "example": "74469027417312",
                     "nullable": true
+                  },
+                  "source_bank_account_id": {
+                    "type": "string",
+                    "description": "Source bank account number",
+                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "nullable": true
+                  },
+                  "destination_bank_account_id": {
+                    "type": "string",
+                    "description": "Destination bank account number",
+                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "nullable": true
                   }
                 }
               }
@@ -7934,6 +7946,7 @@
           "dlocal",
           "ebanx",
           "elavon",
+          "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -10604,6 +10617,18 @@
             "type": "string",
             "enum": [
               "user_bank_account_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_source_bank_account_id"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_destination_bank_account_id"
             ]
           },
           {
@@ -19591,6 +19616,18 @@
             "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
             "example": "**** 417312",
             "nullable": true
+          },
+          "source_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked source bank account number",
+            "example": "********-****-4073-****-9fa964d08bc5",
+            "nullable": true
+          },
+          "destination_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked destination bank account number",
+            "example": "********-****-460b-****-f23b4e71c97b",
+            "nullable": true
           }
         }
       },
@@ -21247,6 +21284,7 @@
           "dlocal",
           "ebanx",
           "elavon",
+          "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",

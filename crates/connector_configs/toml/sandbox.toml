@@ -5818,3 +5818,10 @@ payment_method_type = "UnionPay"
 api_key = "Merchant ID"
 key1 = "Terminal ID"
 api_secret = "Secret Key"
+
+[facilitapay]
+[[facilitapay.bank_transfer]]
+  payment_method_type = "pix"
+[facilitapay.connector_auth.Bodykey]
+  api_key="Password"
+  key1="Username"

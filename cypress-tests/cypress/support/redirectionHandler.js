@@ -96,6 +96,17 @@ function bankTransferRedirection(
       break;
     case "image_data_url":
       switch (connectorId) {
+        case "facilitapay":
+          switch (paymentMethodType) {
+            case "pix":
+              fetchAndParseImageData(redirectionUrl).then((qrCodeData) => {
+                expect(qrCodeData).to.contains("FacilitaPay"); // image data contains the following value
+              });
+              break;
+            default:
+              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          }
+          break;
         case "itaubank":
           switch (paymentMethodType) {
             case "pix":

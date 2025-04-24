@@ -48,6 +48,10 @@ key1 = "key1"
 api_key = "access_key"
 key1 = "secret_key"
 
+[facilitapay]
+api_key = "password"
+key1 = "username" # email id
+
 [fiserv]
 api_key = "MyApiKey"
 key1 = "MerchantID"
