@@ -242,6 +242,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -409,6 +410,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -800,6 +802,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                request_overcapture: value.request_overcapture,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1030,6 +1033,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
+                    request_overcapture: value.request_overcapture,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1187,6 +1191,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            request_overcapture,
         } = value;
         Self {
             amount,
@@ -1226,6 +1231,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            request_overcapture,
         }
     }
 }
@@ -1607,6 +1613,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger,
             processor_merchant_id,
             created_by,
+            request_overcapture,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1691,6 +1698,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger,
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
+            request_overcapture,
         })
     }
     async fn convert_back(
@@ -1831,6 +1839,7 @@ impl behaviour::Conversion for PaymentIntent {
                 created_by: storage_model
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                request_overcapture: storage_model.request_overcapture,
             })
         }
         .await
@@ -1916,6 +1925,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
+            request_overcapture: self.request_overcapture,
         })
     }
 }
@@ -1988,6 +1998,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            request_overcapture: self.request_overcapture,
         })
     }
 
@@ -2085,6 +2096,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                request_overcapture: storage_model.request_overcapture,
             })
         }
         .await
@@ -2155,6 +2167,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            request_overcapture: self.request_overcapture,
         })
     }
 }

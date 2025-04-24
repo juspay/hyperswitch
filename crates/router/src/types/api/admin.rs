@@ -195,6 +195,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             force_3ds_challenge: item.force_3ds_challenge,
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
+            always_request_overcapture: item.always_request_overcapture,
         })
     }
 }
@@ -437,5 +438,6 @@ pub async fn create_profile_from_merchant_account(
         force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
         is_debit_routing_enabled: request.is_debit_routing_enabled.unwrap_or_default(),
         merchant_business_country: request.merchant_business_country,
+        always_request_overcapture: request.always_request_overcapture,
     }))
 }

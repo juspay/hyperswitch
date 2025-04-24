@@ -1,6 +1,6 @@
 use common_enums::{
-    AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
-    PaymentMethodType,
+    AttemptStatus, AuthenticationType, CaptureMethod, Currency, OverCaptureStatus,
+    PaymentExperience, PaymentMethod, PaymentMethodType,
 };
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -213,6 +213,7 @@ pub struct PaymentAttemptBatchNew {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub overcapture_status: Option<OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -298,6 +299,7 @@ impl PaymentAttemptBatchNew {
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            overcapture_status: self.overcapture_status,
         }
     }
 }

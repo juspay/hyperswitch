@@ -680,6 +680,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+                    overcapture_status: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1708,6 +1709,7 @@ impl DataModelExt for PaymentAttempt {
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            overcapture_status: self.overcapture_status,
         }
     }
 
@@ -1798,6 +1800,7 @@ impl DataModelExt for PaymentAttempt {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
+            overcapture_status: storage_model.overcapture_status,
         }
     }
 }
@@ -1887,6 +1890,7 @@ impl DataModelExt for PaymentAttemptNew {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
+            overcapture_status: self.overcapture_status,
         }
     }
 
@@ -1969,6 +1973,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
+            overcapture_status: storage_model.overcapture_status,
         }
     }
 }

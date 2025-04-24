@@ -1993,6 +1993,10 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[serde(default)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2284,6 +2288,10 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(default = false, example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2572,6 +2580,10 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the overcapture is always requested or not.
+    #[schema(example = false)]
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

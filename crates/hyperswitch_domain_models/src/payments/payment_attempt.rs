@@ -467,6 +467,8 @@ pub struct PaymentAttempt {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+    /// Whether overcapture was applied
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 impl PaymentAttempt {
@@ -598,6 +600,7 @@ impl PaymentAttempt {
             feature_metadata: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
+            overcapture_status: None,
         })
     }
 
@@ -687,6 +690,7 @@ impl PaymentAttempt {
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
+            overcapture_status: None,
         })
     }
 
@@ -786,6 +790,7 @@ impl PaymentAttempt {
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
+            overcapture_status: None,
         })
     }
 
@@ -883,6 +888,7 @@ pub struct PaymentAttempt {
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -1137,6 +1143,7 @@ pub struct PaymentAttemptNew {
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 
 #[cfg(feature = "v1")]
@@ -1158,6 +1165,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1204,6 +1212,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1255,6 +1264,7 @@ pub enum PaymentAttemptUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
+        overcapture_status: Option<storage_enums::OverCaptureStatus>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1361,6 +1371,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1379,6 +1390,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
+                overcapture_status,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -1462,6 +1474,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 card_discovery,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1497,6 +1510,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
+                overcapture_status,
             },
             Self::VoidUpdate {
                 status,
@@ -1532,6 +1546,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                overcapture_status,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1557,6 +1572,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 charges,
                 setup_future_usage_applied,
+                overcapture_status,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1888,6 +1904,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
+            overcapture_status: self.overcapture_status,
         })
     }
 
@@ -1983,6 +2000,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
+                overcapture_status: storage_model.overcapture_status,
             })
         }
         .await
@@ -2071,6 +2089,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
+            overcapture_status: self.overcapture_status,
         })
     }
 }
@@ -2142,8 +2161,8 @@ impl behaviour::Conversion for PaymentAttempt {
             feature_metadata,
             processor_merchant_id,
             created_by,
+            overcapture_status,
         } = self;
-
         let AttemptAmountDetails {
             net_amount,
             tax_on_surcharge,
@@ -2236,6 +2255,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
+            overcapture_status,
         })
     }
 
@@ -2358,6 +2378,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 created_by: storage_model
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                overcapture_status: storage_model.overcapture_status,
             })
         }
         .await
@@ -2416,6 +2437,7 @@ impl behaviour::Conversion for PaymentAttempt {
             feature_metadata,
             processor_merchant_id,
             created_by,
+            overcapture_status,
         } = self;
 
         let card_network = payment_method_data

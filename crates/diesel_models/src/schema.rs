@@ -225,6 +225,7 @@ diesel::table! {
         merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        always_request_overcapture -> Nullable<Bool>,
     }
 }
 
@@ -938,6 +939,8 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         setup_future_usage_applied -> Nullable<FutureUsage>,
+        #[max_length = 32]
+        overcapture_status -> Nullable<Varchar>,
     }
 }
 
@@ -1029,6 +1032,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 32]
+        request_overcapture -> Nullable<Varchar>,
     }
 }
 

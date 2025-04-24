@@ -449,6 +449,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .force_3ds_challenge
             .or(payment_intent.force_3ds_challenge);
 
+        payment_intent.request_overcapture = request
+            .request_overcapture
+            .or(payment_intent.request_overcapture);
+
+        payment_attempt.overcapture_status = helpers::validate_and_get_overcapture_status(
+            &payment_attempt.capture_method,
+            &request.request_overcapture,
+            &business_profile,
+            request.confirm.unwrap_or_default(),
+        )?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -784,7 +795,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .attach_printable("Failed to encode additional pm data")?;
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
-
+        let overcapture_status = payment_data.payment_attempt.overcapture_status;
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
@@ -829,6 +840,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             surcharge_amount,
                             tax_amount,
                         ),
+                    overcapture_status,
                 },
                 storage_scheme,
             )
@@ -897,6 +909,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
+        let request_overcapture = payment_data.payment_intent.request_overcapture;
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id
@@ -937,6 +950,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_payment_processor_token_flow: None,
                     tax_details: None,
                     force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                    request_overcapture,
                 })),
                 key_store,
                 storage_scheme,

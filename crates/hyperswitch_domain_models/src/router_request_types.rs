@@ -76,6 +76,7 @@ pub struct PaymentsAuthorizeData {
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub overcapture_status: Option<storage_enums::OverCaptureStatus>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {

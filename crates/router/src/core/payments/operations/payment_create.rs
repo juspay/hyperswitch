@@ -337,6 +337,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id,
             &customer_acceptance,
             merchant_account.storage_scheme,
+            &business_profile,
         )
         .await?;
 
@@ -1009,6 +1010,8 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
+        helpers::validate_overcapture_request(request.capture_method, request.request_overcapture)?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let mandate_type =
@@ -1125,6 +1128,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
+        business_profile: &domain::Profile,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1291,6 +1295,13 @@ impl PaymentCreate {
             address_id => address_id,
         };
 
+        let overcapture_status = helpers::validate_and_get_overcapture_status(
+            &request.capture_method,
+            &request.request_overcapture,
+            business_profile,
+            request.confirm.unwrap_or_default(),
+        )?;
+
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),
@@ -1369,6 +1380,7 @@ impl PaymentCreate {
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
+                overcapture_status,
             },
             additional_pm_data,
 
@@ -1586,6 +1598,7 @@ impl PaymentCreate {
             created_by: None,
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
+            request_overcapture: request.request_overcapture,
         })
     }
 

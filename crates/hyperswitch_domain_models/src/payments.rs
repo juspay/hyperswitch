@@ -119,6 +119,7 @@ pub struct PaymentIntent {
     pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub request_overcapture: Option<storage_enums::OverCaptureRequest>,
 }
 
 impl PaymentIntent {
@@ -496,13 +497,14 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<id_type::RoutingId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+    /// Denotes whether to request for overcapture
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v2")]
@@ -663,6 +665,7 @@ impl PaymentIntent {
             force_3ds_challenge_trigger: None,
             processor_merchant_id: merchant_account.get_id().clone(),
             created_by: None,
+            request_overcapture: None,
         })
     }
 

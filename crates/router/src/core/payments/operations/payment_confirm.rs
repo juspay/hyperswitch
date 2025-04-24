@@ -784,6 +784,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )),
         );
 
+        payment_attempt.overcapture_status = helpers::validate_and_get_overcapture_status(
+            &payment_attempt.capture_method,
+            &request.request_overcapture,
+            &business_profile,
+            request.confirm.unwrap_or_default(),
+        )?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -1717,6 +1724,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
+        let overcapture_status = payment_data.payment_attempt.overcapture_status;
 
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -1766,6 +1774,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .connector_mandate_detail,
                         card_discovery,
+                        overcapture_status,
                     },
                     storage_scheme,
                 )
@@ -1850,6 +1859,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         is_payment_processor_token_flow,
                         tax_details: None,
                         force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                        request_overcapture: None,
                     })),
                     &m_key_store,
                     storage_scheme,

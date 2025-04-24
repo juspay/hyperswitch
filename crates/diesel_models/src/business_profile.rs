@@ -70,6 +70,7 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -123,6 +124,7 @@ pub struct ProfileNew {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -174,6 +176,7 @@ pub struct ProfileUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub always_request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -222,6 +225,7 @@ impl ProfileUpdateInternal {
             force_3ds_challenge,
             is_debit_routing_enabled,
             merchant_business_country,
+            always_request_overcapture,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -297,6 +301,8 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            always_request_overcapture: always_request_overcapture
+                .or(source.always_request_overcapture),
         }
     }
 }
@@ -355,6 +361,7 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: common_utils::id_type::ProfileId,
+    pub always_request_overcapture: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -613,6 +620,7 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            always_request_overcapture: source.always_request_overcapture,
         }
     }
 }
