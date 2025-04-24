@@ -762,9 +762,7 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = if amount == 0
-            && worldpay_status == PaymentOutcome::Authorized
-        {
+        let status = if amount == 0 && worldpay_status == PaymentOutcome::Authorized {
             enums::AttemptStatus::Charged
         } else {
             enums::AttemptStatus::from(worldpay_status.clone())
