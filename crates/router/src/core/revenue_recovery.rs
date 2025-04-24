@@ -87,7 +87,8 @@ pub async fn perform_execute_payment(
                     ))
                     .await?;
                 }
-                Err(_) => {
+                Err(err) => {
+                    logger::error!("Error while recording attempt: {:?}", err);
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                         status: enums::ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(
