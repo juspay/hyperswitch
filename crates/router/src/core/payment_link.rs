@@ -142,6 +142,7 @@ pub async fn form_payment_link_data(
                 payment_form_header_text: None,
                 payment_form_label_type: None,
                 show_card_terms: None,
+                is_setup_mandate_flow: None,
             }
         };
 
@@ -207,6 +208,17 @@ pub async fn form_payment_link_data(
             storage_enums::IntentStatus::RequiresCustomerAction,
         ],
     );
+
+    let attempt_id = payment_intent.active_attempt.get_id().clone();
+    let payment_attempt = db
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_intent.payment_id,
+            &merchant_id,
+            &attempt_id.clone(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     if is_payment_link_terminal_state
         || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
@@ -230,16 +242,6 @@ pub async fn form_payment_link_data(
             }
         };
 
-        let attempt_id = payment_intent.active_attempt.get_id().clone();
-        let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &merchant_id,
-                &attempt_id.clone(),
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let payment_details = api_models::payments::PaymentLinkStatusDetails {
             amount,
             currency,
@@ -257,6 +259,7 @@ pub async fn form_payment_link_data(
             transaction_details: payment_link_config.transaction_details.clone(),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            capture_method: payment_attempt.capture_method,
         };
 
         return Ok((
@@ -302,6 +305,8 @@ pub async fn form_payment_link_data(
         payment_form_header_text: payment_link_config.payment_form_header_text.clone(),
         payment_form_label_type: payment_link_config.payment_form_label_type,
         show_card_terms: payment_link_config.show_card_terms,
+        is_setup_mandate_flow: payment_link_config.is_setup_mandate_flow,
+        capture_method: payment_attempt.capture_method,
     };
 
     Ok((
@@ -365,6 +370,7 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_form_header_text: payment_link_config.payment_form_header_text,
                 payment_form_label_type: payment_link_config.payment_form_label_type,
                 show_card_terms: payment_link_config.show_card_terms,
+                is_setup_mandate_flow: payment_link_config.is_setup_mandate_flow,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -686,6 +692,7 @@ pub fn get_payment_link_config_based_on_priority(
         payment_form_header_text,
         payment_form_label_type,
         show_card_terms,
+        is_setup_mandate_flow,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -703,6 +710,7 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_form_header_text),
         (payment_form_label_type),
         (show_card_terms),
+        (is_setup_mandate_flow),
     );
 
     let payment_link_config =
@@ -734,6 +742,7 @@ pub fn get_payment_link_config_based_on_priority(
             payment_form_header_text,
             payment_form_label_type,
             show_card_terms,
+            is_setup_mandate_flow,
         };
 
     Ok((payment_link_config, domain_name))
@@ -848,6 +857,7 @@ pub async fn get_payment_link_status(
             payment_form_header_text: None,
             payment_form_label_type: None,
             show_card_terms: None,
+            is_setup_mandate_flow: None,
         }
     };
 
@@ -930,6 +940,7 @@ pub async fn get_payment_link_status(
         transaction_details: payment_link_config.transaction_details,
         unified_code: Some(unified_code),
         unified_message: unified_translated_message,
+        capture_method: payment_attempt.capture_method,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,
