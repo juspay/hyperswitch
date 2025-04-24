@@ -1,10 +1,23 @@
-use api_models::webhooks;
+use api_models::{webhook_events, webhooks};
 use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 
-use crate::{core::errors, headers, services::request::Maskable, types::storage::enums};
+use crate::{
+    core::errors,
+    headers, logger,
+    services::request::Maskable,
+    types::storage::{self, enums},
+};
+
+pub const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
+
+#[derive(Debug)]
+pub enum ScheduleWebhookRetry {
+    WithProcessTracker(Box<storage::ProcessTracker>),
+    NoSchedule,
+}
 
 pub struct OutgoingWebhookPayloadWithSignature {
     pub payload: Secret<String>,
@@ -65,4 +78,51 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
     pub(crate) initial_attempt_id: Option<String>,
+}
+
+pub struct WebhookResponse {
+    pub response: reqwest::Response,
+}
+
+impl WebhookResponse {
+    pub async fn get_outgoing_webhook_response_content(
+        self,
+    ) -> webhook_events::OutgoingWebhookResponseContent {
+        let status_code = self.response.status();
+        let response_headers = self
+            .response
+            .headers()
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_owned(),
+                    value
+                        .to_str()
+                        .map(|s| Secret::from(String::from(s)))
+                        .unwrap_or_else(|error| {
+                            logger::warn!(
+                                "Response header {} contains non-UTF-8 characters: {error:?}",
+                                name.as_str()
+                            );
+                            Secret::from(String::from("Non-UTF-8 header value"))
+                        }),
+                )
+            })
+            .collect::<Vec<_>>();
+        let response_body = self
+            .response
+            .text()
+            .await
+            .map(Secret::from)
+            .unwrap_or_else(|error| {
+                logger::warn!("Response contains non-UTF-8 characters: {error:?}");
+                Secret::from(String::from("Non-UTF-8 response body"))
+            });
+        webhook_events::OutgoingWebhookResponseContent {
+            body: Some(response_body),
+            headers: Some(response_headers),
+            status_code: Some(status_code.as_u16()),
+            error_message: None,
+        }
+    }
 }

@@ -1,12 +1,15 @@
 use std::marker::PhantomData;
 
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
+
+use super::MERCHANT_ID;
 
 use crate::{
     core::{
         errors::{self},
         payments::helpers,
+        metrics,
     },
     db::{get_and_deserialize_key, StorageInterface},
     services::logger,
@@ -153,4 +156,39 @@ pub(crate) fn get_idempotent_event_id(
 #[inline]
 pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
+}
+
+pub fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
+    metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+        1,
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
+    )
+}
+
+pub fn increment_webhook_outgoing_not_received_count(merchant_id: &common_utils::id_type::MerchantId) {
+    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+        1,
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
+    );
+}
+
+pub fn is_outgoing_webhook_disabled(
+    state: &SessionState,
+    webhook_url_result: &Result<String, Report<errors::WebhooksFlowError>>,
+    business_profile: &domain::Profile,
+    idempotent_event_id: &str,
+) -> bool {
+    if !state.conf.webhooks.outgoing_enabled
+        || webhook_url_result.is_err()
+        || webhook_url_result.as_ref().is_ok_and(String::is_empty)
+    {
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            %idempotent_event_id,
+            "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
+             could not be obtained; skipping outgoing webhooks for event"
+        );
+        return true;
+    }
+    false
 }

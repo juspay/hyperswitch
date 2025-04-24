@@ -26,7 +26,9 @@ use crate::{
             self,
             transformers::{GenerateResponse, ToResponse},
         },
-        webhooks::utils::construct_webhook_router_data,
+        webhooks::{
+            create_event_and_trigger_outgoing_webhook, utils::construct_webhook_router_data,
+        },
     },
     db::StorageInterface,
     events::api_logs::ApiEvent,
@@ -519,7 +521,7 @@ async fn payments_incoming_webhook_flow(
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
                 // TODO: trigger an outgoing webhook to merchant
-                Box::pin(super::create_event_and_trigger_outgoing_webhook(
+                Box::pin(create_event_and_trigger_outgoing_webhook(
                     state,
                     profile,
                     &key_store,
