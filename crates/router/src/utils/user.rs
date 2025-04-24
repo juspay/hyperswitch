@@ -143,6 +143,27 @@ pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnect
         .attach_printable("Failed to get redis connection")
 }
 
+pub fn get_redis_connection_for_global_tenant(
+    state: &SessionState,
+) -> UserResult<Arc<RedisConnectionPool>> {
+    let redis_connection_pool = state
+        .store
+        .get_redis_conn()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let global_tenant_prefix = &state.conf.multitenancy.global_tenant.redis_key_prefix;
+
+    Ok(Arc::new(RedisConnectionPool {
+        pool: Arc::clone(&redis_connection_pool.pool),
+        key_prefix: global_tenant_prefix.to_string(),
+        config: Arc::clone(&redis_connection_pool.config),
+        subscriber: Arc::clone(&redis_connection_pool.subscriber),
+        publisher: Arc::clone(&redis_connection_pool.publisher),
+        is_redis_available: Arc::clone(&redis_connection_pool.is_redis_available),
+    }))
+}
+
 impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
     fn foreign_from(from: &user_api::AuthConfig) -> Self {
         match *from {
@@ -347,7 +368,7 @@ pub async fn get_lineage_context_from_cache(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<Option<LineageContext>> {
-    let connection = get_redis_connection(state)?;
+    let connection = get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
     let lineage_context = connection
         .get_key::<Option<String>>(&key.into())
@@ -371,7 +392,7 @@ pub async fn set_lineage_context_in_cache(
     user_id: &str,
     lineage_context: LineageContext,
 ) -> UserResult<()> {
-    let connection = get_redis_connection(state)?;
+    let connection = get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
     let serialized_lineage_context: String = serde_json::to_string(&lineage_context)
         .change_context(UserErrors::InternalServerError)
