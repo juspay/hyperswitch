@@ -23204,13 +23204,6 @@
           }
         }
       },
-      "VaultConnectors": {
-        "type": "string",
-        "enum": [
-          "hyperswitch_vault",
-          "vgs"
-        ]
-      },
       "Venmo": {
         "type": "object",
         "required": [
