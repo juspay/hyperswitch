@@ -1264,31 +1264,16 @@ fn create_amazon_pay_session_token(
         .connector_wallets_details
         .clone()
         .parse_value::<payment_types::AmazonPaySessionTokenData>("AmazonPaySessionTokenData")
-        .change_context(errors::ConnectorError::NoConnectorWalletDetails)
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_wallets_details".to_string(),
-            expected_format: "amazon_pay_metadata_format".to_string(),
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_id or store_id",
         })?;
     let amazon_pay_metadata = amazon_pay_session_token_data.data;
     let merchant_id = amazon_pay_metadata.merchant_id;
     let store_id = amazon_pay_metadata.store_id;
-    let amazonpay_supported_currencies =
-        &state
-            .conf
-            .pm_filters
-            .0
-            .get("amazonpay")
-            .and_then(|payment_method_filters| {
-                payment_method_filters
-                    .0
-                    .iter()
-                    .find_map(|(key, currency_country_filter)| match key {
-                        settings::PaymentMethodFilterKey::PaymentMethodType(
-                            enums::PaymentMethodType::AmazonPay,
-                        ) => currency_country_filter.currency.as_ref(),
-                        _ => None,
-                    })
-            });
+    let amazonpay_supported_currencies = state
+        .conf
+        .pm_filters
+        .supported_currencies_for(enums::PaymentMethodType::AmazonPay);
     // currently supports only the US region hence USD is the only supported currency
     payment_types::AmazonPayDeliveryOptions::validate_currency(
         router_data.request.currency,
@@ -1336,7 +1321,7 @@ fn create_amazon_pay_session_token(
                 .and_then(|value| value.as_array())
         })
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "delivery_options",
+            field_name: "metadata.delivery_options",
         })?;
 
     let mut delivery_options =
@@ -1345,7 +1330,7 @@ fn create_amazon_pay_session_token(
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "delivery_options".to_string(),
-            expected_format: "Valid AmazonPayDeliveryOptions JSON".to_string(),
+            expected_format: r#""delivery_options": [{"id": String, "price": {"amount": Number, "currency_code": String}, "shipping_method":{"shipping_method_name": String, "shipping_method_code": String}, "is_default": Boolean}]"#.to_string(),
         })?;
 
     payment_types::AmazonPayDeliveryOptions::validate_is_default_count(delivery_options.clone())

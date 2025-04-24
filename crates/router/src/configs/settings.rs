@@ -586,6 +586,31 @@ pub struct BanksVector {
 #[serde(transparent)]
 pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
+impl ConnectorFilters {
+    pub fn supported_currencies_for(
+        &self,
+        payment_method_type: enums::PaymentMethodType,
+    ) -> Option<&HashSet<enums::Currency>> {
+        let payment_method_type_string = payment_method_type
+            .to_string()
+            .to_lowercase()
+            .replace('_', "");
+        self.0
+            .get(&payment_method_type_string)
+            .and_then(|payment_method_filters| {
+                payment_method_filters
+                    .0
+                    .iter()
+                    .find_map(|(key, currency_country_filter)| match key {
+                        PaymentMethodFilterKey::PaymentMethodType(_)
+                        | PaymentMethodFilterKey::CardNetwork(_) => {
+                            currency_country_filter.currency.as_ref()
+                        }
+                    })
+            })
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFlowFilter>);
