@@ -5,67 +5,52 @@ use common_utils::{
     consts,
     errors::CustomResult,
     ext_traits::BytesExt,
-    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    revenue_recovery, router_data_v2::flow_common_types as recovery_flow_common_types,
+    revenue_recovery, 
+    router_data_v2::flow_common_types as recovery_flow_common_types,
     router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
 };
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_data_v2::{RouterDataV2, UasFlowData},
-    router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync},
+    router_data::{ ConnectorAuthType, ErrorResponse},
+    router_data_v2::UasFlowData,
+    router_flow_types::
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
-    },
-    router_request_types::{
+    router_request_types::
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
-        },
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
-    },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        self, ConnectorCommon, ConnectorSpecifications,
         ConnectorValidation,
-    },
-    configs::Connectors,
-    connector_integration_v2::ConnectorIntegrationV2,
-    errors,
-    events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
-    webhooks,
+    }, configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, errors, events::connector_api_logs::ConnectorEvent, types::Response, webhooks
 };
 use masking::{Mask, PeekInterface};
 use transformers as recurly;
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData};
+use crate::{
+    connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData},
+    types::ResponseRouterDataV2,
+    utils,
+};
 use crate::{
     connectors::recurly::transformers::RecurlyWebhookBody,
     constants::headers,
-    types::{ResponseRouterData, ResponseRouterDataV2},
-    utils,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 const STATUS_SUCCESSFUL_ENDPOINT: &str = "mark_successful";
@@ -104,18 +89,6 @@ impl Recurly {
     }
 }
 
-// impl api::Payment for Recurly {}
-// impl api::PaymentSession for Recurly {}
-// impl api::ConnectorAccessToken for Recurly {}
-// impl api::MandateSetup for Recurly {}
-// impl api::PaymentAuthorize for Recurly {}
-// impl api::PaymentSync for Recurly {}
-// impl api::PaymentCapture for Recurly {}
-// impl api::PaymentVoid for Recurly {}
-// impl api::Refund for Recurly {}
-// impl api::RefundExecute for Recurly {}
-// impl api::RefundSync for Recurly {}
-// impl api::PaymentToken for Recurly {}
 impl api::PayoutsV2 for Recurly {}
 impl api::UnifiedAuthenticationServiceV2 for Recurly {}
 impl api::UasPreAuthenticationV2 for Recurly {}
