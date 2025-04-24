@@ -223,6 +223,8 @@ diesel::table! {
         force_3ds_challenge -> Nullable<Bool>,
         is_debit_routing_enabled -> Bool,
         merchant_business_country -> Nullable<CountryAlpha2>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -788,6 +790,8 @@ diesel::table! {
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
         version -> ApiVersion,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -929,6 +933,11 @@ diesel::table! {
         #[max_length = 64]
         issuer_error_code -> Nullable<Varchar>,
         issuer_error_message -> Nullable<Text>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        setup_future_usage_applied -> Nullable<FutureUsage>,
     }
 }
 
@@ -1014,6 +1023,12 @@ diesel::table! {
         split_payments -> Nullable<Jsonb>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
+        force_3ds_challenge -> Nullable<Bool>,
+        force_3ds_challenge_trigger -> Nullable<Bool>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1346,7 +1361,7 @@ diesel::table! {
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         org_id -> Varchar,
         groups -> Array<Nullable<Text>>,

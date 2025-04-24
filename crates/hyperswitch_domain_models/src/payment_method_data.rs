@@ -18,6 +18,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
+
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -89,8 +90,8 @@ pub struct Card {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -103,8 +104,8 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -117,8 +118,8 @@ pub struct CardDetail {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -414,7 +415,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
-        card_holder_name: Option<common_utils::types::NameType>,
+        card_holder_name: Option<Secret<String>>,
     },
     Bizum {},
     Blik {
@@ -557,7 +558,7 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct CardToken {
     /// The card holder's name
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<Secret<String>>,
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
@@ -569,25 +570,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<common_utils::types::NameType>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        card_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
-        bank_account_holder_name: Option<common_utils::types::NameType>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
@@ -612,6 +613,10 @@ pub enum BankTransferData {
         cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
         cnpj: Option<Secret<String>>,
+        /// Source bank account UUID
+        source_bank_account_id: Option<MaskedBankAccount>,
+        /// Destination bank account UUID.
+        destination_bank_account_id: Option<MaskedBankAccount>,
     },
     Pse {},
     LocalBankTransfer {
@@ -643,7 +648,7 @@ pub struct NetworkTokenData {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub nick_name: Option<common_utils::types::NameType>,
+    pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
 }
 
@@ -1450,9 +1455,19 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Self::MandiriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::Pix { pix_key, cpf, cnpj } => {
-                Self::Pix { pix_key, cpf, cnpj }
-            }
+            api_models::payments::BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            } => Self::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
@@ -1478,11 +1493,19 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
             BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
-            BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
+            BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
+                    source_bank_account_id,
+                    destination_bank_account_id,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
@@ -1561,10 +1584,10 @@ pub struct TokenizedCardValue1 {
     pub card_number: String,
     pub exp_year: String,
     pub exp_month: String,
-    pub nickname: Option<common_utils::types::NameType>,
+    pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1896,8 +1919,8 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),
-            card_holder_name: item.card_holder_name.map(From::from),
-            nick_name: item.nick_name.map(From::from),
+            card_holder_name: item.card_holder_name,
+            nick_name: item.nick_name,
             card_isin: None,
             card_issuer: item.card_issuer,
             card_network: item.card_network,

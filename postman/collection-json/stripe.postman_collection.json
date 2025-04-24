@@ -1012,87 +1012,6 @@
             }
           },
           "response": []
-        },
-        {
-          "name": "Delete API Key",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Validate status 2xx",
-                  "pm.test(",
-                  "  \"[DELETE]::/api_keys/:merchant_id/:api-key - Status code is 2xx\",",
-                  "  function () {",
-                  "    pm.response.to.be.success;",
-                  "  },",
-                  ");",
-                  "",
-                  "// Validate if response header has matching content-type",
-                  "pm.test(",
-                  "  \"[DELETE]::/api_keys/:merchant_id/:api-key - Content-Type is application/json\",",
-                  "  function () {",
-                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-                  "      \"application/json\",",
-                  "    );",
-                  "  },",
-                  ");",
-                  ""
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "apikey",
-              "apikey": [
-                {
-                  "key": "value",
-                  "value": "{{admin_api_key}}",
-                  "type": "string"
-                },
-                {
-                  "key": "key",
-                  "value": "api-key",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api_keys/:merchant_id/:api-key",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api_keys",
-                ":merchant_id",
-                ":api-key"
-              ],
-              "variable": [
-                {
-                  "key": "merchant_id",
-                  "value": "{{merchant_id}}"
-                },
-                {
-                  "key": "api-key",
-                  "value": "{{api_key_id}}"
-                }
-              ]
-            }
-          },
-          "response": []
         }
       ]
     },
@@ -1167,7 +1086,7 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "{{api_key}}",
                       "type": "string"
                     },
                     {
@@ -1289,7 +1208,7 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "{{api_key}}",
                       "type": "string"
                     },
                     {
@@ -1413,7 +1332,7 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "{{api_key}}",
                   "type": "string"
                 },
                 {
@@ -1528,7 +1447,7 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "{{api_key}}",
                   "type": "string"
                 },
                 {
@@ -1647,7 +1566,7 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "{{api_key}}",
                   "type": "string"
                 },
                 {
@@ -1748,7 +1667,7 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "{{api_key}}",
                   "type": "string"
                 },
                 {
@@ -1996,6 +1915,87 @@
               ]
             },
             "description": "Delete a Merchant Account"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(",
+                  "  \"[DELETE]::/api_keys/:merchant_id/:api-key - Status code is 2xx\",",
+                  "  function () {",
+                  "    pm.response.to.be.success;",
+                  "  },",
+                  ");",
+                  "",
+                  "// Validate if response header has matching content-type",
+                  "pm.test(",
+                  "  \"[DELETE]::/api_keys/:merchant_id/:api-key - Content-Type is application/json\",",
+                  "  function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                  "      \"application/json\",",
+                  "    );",
+                  "  },",
+                  ");",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "value",
+                  "value": "{{admin_api_key}}",
+                  "type": "string"
+                },
+                {
+                  "key": "key",
+                  "value": "api-key",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api_keys/:merchant_id/:api-key",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api_keys",
+                ":merchant_id",
+                ":api-key"
+              ],
+              "variable": [
+                {
+                  "key": "merchant_id",
+                  "value": "{{merchant_id}}"
+                },
+                {
+                  "key": "api-key",
+                  "value": "{{api_key_id}}"
+                }
+              ]
+            }
           },
           "response": []
         }
@@ -2300,7 +2300,7 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "{{api_key}}",
                   "type": "string"
                 },
                 {
@@ -2587,7 +2587,7 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "{{api_key}}",
                   "type": "string"
                 },
                 {
@@ -5906,7 +5906,7 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "{{api_key}}",
                       "type": "string"
                     },
                     {
@@ -14738,21 +14738,21 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"requires_customer_action\" for \"status\"",
+                          "// Response body should have value \"failed\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'requires_customer_action'\",",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'failed'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
+                          "      pm.expect(jsonData.status).to.eql(\"failed\");",
                           "    },",
                           "  );",
                           "}",
                           "",
-                          "// Response body should have \"next_action.redirect_to_url\"",
+                          "// Response body should have \"next_action\"",
                           "pm.test(",
-                          "  \"[POST]::/payments - Content check if 'next_action.redirect_to_url' exists\",",
+                          "  \"[POST]::/payments - Content check if 'next_action' exists\",",
                           "  function () {",
-                          "    pm.expect(typeof jsonData.next_action.redirect_to_url !== \"undefined\").to.be",
+                          "    pm.expect(typeof jsonData.next_action !== \"undefined\").to.be",
                           "      .true;",
                           "  },",
                           ");",
@@ -14763,6 +14763,26 @@
                           "    \"[POST]::/payments/:id/confirm - Content check if value for 'payment_method_type' matches 'sofort'\",",
                           "    function () {",
                           "      pm.expect(jsonData.payment_method_type).to.eql(\"sofort\");",
+                          "    },",
+                          "  );",
+                          "}",
+                          "",
+                          "// Response body should have value \"payment_method_not_available\" for \"error_code\"",
+                          "if (jsonData?.error_code) {",
+                          "  pm.test(",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'error_code' matches 'payment_method_not_available'\",",
+                          "    function () {",
+                          "      pm.expect(jsonData.error_code).to.eql(\"payment_method_not_available\");",
+                          "    },",
+                          "  );",
+                          "}",
+                          "",
+                          "// Response body should have value \"Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort\" for \"error_message\"",
+                          "if (jsonData?.error_message) {",
+                          "  pm.test(",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'error_message' matches 'Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort'\",",
+                          "    function () {",
+                          "      pm.expect(jsonData.error_message).to.eql(\"Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort\");",
                           "    },",
                           "  );",
                           "}",
@@ -14923,16 +14943,35 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"requires_customer_action\" for \"status\"",
+                          "// Response body should have value \"failed\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments:id - Content check if value for 'status' matches 'requires_customer_action'\",",
+                          "    \"[POST]::/payments:id - Content check if value for 'status' matches 'failed'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
+                          "      pm.expect(jsonData.status).to.eql(\"failed\");",
                           "    },",
                           "  );",
                           "}",
-                          ""
+                          "",
+                          "// Response body should have value \"payment_method_not_available\" for \"error_code\"",
+                          "if (jsonData?.error_code) {",
+                          "  pm.test(",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'error_code' matches 'payment_method_not_available'\",",
+                          "    function () {",
+                          "      pm.expect(jsonData.error_code).to.eql(\"payment_method_not_available\");",
+                          "    },",
+                          "  );",
+                          "}",
+                          "",
+                          "// Response body should have value \"Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort\" for \"error_message\"",
+                          "if (jsonData?.error_message) {",
+                          "  pm.test(",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'error_message' matches 'Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort'\",",
+                          "    function () {",
+                          "      pm.expect(jsonData.error_message).to.eql(\"Sofort is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/sofort\");",
+                          "    },",
+                          "  );",
+                          "}"
                         ],
                         "type": "text/javascript"
                       }

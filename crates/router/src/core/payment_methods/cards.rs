@@ -4,6 +4,9 @@ use std::{
     str::FromStr,
 };
 
+use ::payment_methods::configs::payment_connector_required_fields::{
+    get_billing_required_fields, get_shipping_required_fields,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -48,6 +51,7 @@ use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -90,10 +94,7 @@ use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
-    configs::{
-        defaults::{get_billing_required_fields, get_shipping_required_fields},
-        settings,
-    },
+    configs::settings,
     consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
@@ -2326,15 +2327,21 @@ pub fn validate_payment_method_update(
             })
         || card_updation_obj
             .card_holder_name
-            .map(String::from)
+            .map(|name| name.expose())
             .is_some_and(|new_card_holder_name| {
-                existing_card_data.card_holder_name.map(String::from) != Some(new_card_holder_name)
+                existing_card_data
+                    .card_holder_name
+                    .map(|name| name.expose())
+                    != Some(new_card_holder_name)
             })
         || card_updation_obj
             .nick_name
-            .map(String::from)
+            .map(|nick_name| nick_name.expose())
             .is_some_and(|new_nick_name| {
-                existing_card_data.nick_name.map(String::from) != Some(new_nick_name)
+                existing_card_data
+                    .nick_name
+                    .map(|nick_name| nick_name.expose())
+                    != Some(new_nick_name)
             })
 }
 
@@ -2567,7 +2574,7 @@ pub async fn add_card_hs(
             card_exp_year: card.card_exp_year.to_owned(),
             card_brand: card.card_network.as_ref().map(ToString::to_string),
             card_isin: None,
-            nick_name: card.nick_name.to_owned(),
+            nick_name: card.nick_name.as_ref().map(Secret::peek).cloned(),
         },
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
@@ -2990,12 +2997,8 @@ pub async fn mock_call_to_locker_hs(
             card_number: store_card_req.card.card_number.peek().to_string(),
             card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
             card_exp_month: store_card_req.card.card_exp_month.peek().to_string(),
-            name_on_card: store_card_req
-                .card
-                .name_on_card
-                .to_owned()
-                .map(String::from),
-            nickname: store_card_req.card.nick_name.to_owned().map(String::from),
+            name_on_card: store_card_req.card.name_on_card.to_owned().expose_option(),
+            nickname: store_card_req.card.nick_name.to_owned(),
             ..locker_mock_up
         },
         payment_methods::StoreLockerReq::LockerGeneric(store_generic_req) => {
@@ -3046,16 +3049,8 @@ pub async fn mock_get_card<'a>(
             .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: locker_mock_up
-            .name_on_card
-            .map(common_utils::types::NameType::try_from)
-            .transpose()
-            .change_context(errors::VaultError::ResponseDeserializationFailed)?,
-        nickname: locker_mock_up
-            .nickname
-            .map(common_utils::types::NameType::try_from)
-            .transpose()
-            .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+        name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
+        nickname: locker_mock_up.nickname,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
     };
@@ -3399,7 +3394,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -3454,7 +3449,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -4454,7 +4449,7 @@ pub async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&domain::Address>,
     connector: String,
-    saved_payment_methods: &settings::EligiblePaymentMethods,
+    configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -4536,6 +4531,9 @@ pub async fn filter_payment_methods(
                         payment_method_object.payment_method_type,
                     );
 
+                    // Filter logic for payment method types based on the below conditions
+                    // Case 1: If the payment method type support Zero Mandate flow, filter only payment method type that support it
+                    // Case 2: Whether the payment method type support Mandates or not, list all the payment method types
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
@@ -4546,10 +4544,60 @@ pub async fn filter_payment_methods(
                             })
                             .unwrap_or(false)
                     {
+                        payment_intent.map(|intent| intent.amount).map(|amount| {
+                            if amount == MinorUnit::zero() {
+                                if configs
+                                    .zero_mandates
+                                    .supported_payment_methods
+                                    .0
+                                    .get(&payment_method)
+                                    .and_then(|supported_pm_for_mandates| {
+                                        supported_pm_for_mandates
+                                            .0
+                                            .get(&payment_method_type_info.payment_method_type)
+                                            .map(|supported_connector_for_mandates| {
+                                                supported_connector_for_mandates
+                                                    .connector_list
+                                                    .contains(&connector_variant)
+                                            })
+                                    })
+                                    .unwrap_or(false)
+                                {
+                                    context_values.push(dir::DirValue::PaymentType(
+                                        euclid::enums::PaymentType::SetupMandate,
+                                    ));
+                                }
+                            } else if configs
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&payment_method)
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates
+                                        .0
+                                        .get(&payment_method_type_info.payment_method_type)
+                                        .map(|supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector_variant)
+                                        })
+                                })
+                                .unwrap_or(false)
+                            {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NewMandate,
+                                ));
+                            } else {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NonMandate,
+                                ));
+                            }
+                        });
+                    } else {
                         context_values.push(dir::DirValue::PaymentType(
-                            euclid::enums::PaymentType::NewMandate,
+                            euclid::enums::PaymentType::NonMandate,
                         ));
-                    };
+                    }
 
                     payment_attempt
                         .and_then(|attempt| attempt.mandate_data.as_ref())
@@ -4559,25 +4607,6 @@ pub async fn filter_payment_methods(
                                     euclid::enums::PaymentType::UpdateMandate,
                                 ));
                             }
-                        });
-
-                    payment_attempt
-                        .map(|attempt| {
-                            attempt.mandate_data.is_none()
-                                && attempt.mandate_details.is_none()
-                                && payment_intent
-                                    .and_then(|intent| intent.setup_future_usage)
-                                    .map(|future_usage| {
-                                        future_usage == common_enums::FutureUsage::OnSession
-                                    })
-                                    .unwrap_or(true)
-                        })
-                        .and_then(|res| {
-                            res.then(|| {
-                                context_values.push(dir::DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NonMandate,
-                                ))
-                            })
                         });
 
                     payment_attempt
@@ -4597,7 +4626,8 @@ pub async fn filter_payment_methods(
                         .as_ref()
                         .map(|cs| {
                             if cs.starts_with("pm_") {
-                                saved_payment_methods
+                                configs
+                                    .saved_payment_methods
                                     .sdk_eligible_payment_methods
                                     .contains(payment_method.to_string().as_str())
                             } else {
@@ -4659,7 +4689,7 @@ pub async fn filter_payment_methods(
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
     _connector: String,
-    _saved_payment_methods: &settings::EligiblePaymentMethods,
+    _configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }
@@ -5682,12 +5712,16 @@ impl TempLockerCardSupport {
             .clone()
             .expose_option()
             .get_required_value("expiry_year")?;
-        let card_holder_name = card.card_holder_name.clone();
+        let card_holder_name = card
+            .card_holder_name
+            .clone()
+            .expose_option()
+            .unwrap_or_default();
         let value1 = payment_methods::mk_card_value1(
             card_number,
             card_exp_year,
             card_exp_month,
-            card_holder_name,
+            Some(card_holder_name),
             None,
             None,
             None,
@@ -6154,7 +6188,7 @@ pub async fn execute_payment_method_tokenization(
             &network_token_details,
             &customer.id,
             card_details.name_on_card.clone(),
-            card_details.nick_name.clone(),
+            card_details.nick_name.clone().map(Secret::new),
         )
         .await?;
     let builder = builder.set_stored_token_response(&store_token_resp);

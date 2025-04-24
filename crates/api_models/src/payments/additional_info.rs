@@ -27,11 +27,11 @@ pub struct AchBankDebitAdditionalData {
 
     /// Card holder's name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<Secret<String>>,
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<common_utils::types::NameType>,
+    pub bank_account_holder_name: Option<Secret<String>>,
 
     /// Name of the bank
     #[schema(value_type = Option<BankNames>, example = "ach")]
@@ -58,7 +58,7 @@ pub struct BacsBankDebitAdditionalData {
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<common_utils::types::NameType>,
+    pub bank_account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -73,7 +73,7 @@ pub struct BecsBankDebitAdditionalData {
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<common_utils::types::NameType>,
+    pub bank_account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -84,7 +84,7 @@ pub struct SepaBankDebitAdditionalData {
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub bank_account_holder_name: Option<common_utils::types::NameType>,
+    pub bank_account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -110,7 +110,7 @@ pub struct BancontactBankRedirectAdditionalData {
 
     /// The card holder's name
     #[schema(value_type = Option<String>, example = "John Test")]
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -167,6 +167,14 @@ pub struct PixBankTransferAdditionalData {
     /// Partially masked CNPJ - CNPJ is a Brazilian company tax identification number
     #[schema(value_type = Option<String>, example = "**** 417312")]
     pub cnpj: Option<MaskedBankAccount>,
+
+    /// Partially masked source bank account number
+    #[schema(value_type = Option<String>, example = "********-****-4073-****-9fa964d08bc5")]
+    pub source_bank_account_id: Option<MaskedBankAccount>,
+
+    /// Partially masked destination bank account number
+    #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b")]
+    pub destination_bank_account_id: Option<MaskedBankAccount>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -194,7 +202,7 @@ pub struct GivexGiftCardAdditionalData {
 pub struct CardTokenAdditionalData {
     /// The card holder's name
     #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<common_utils::types::NameType>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
