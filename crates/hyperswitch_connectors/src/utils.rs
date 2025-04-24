@@ -13,10 +13,10 @@ use common_enums::{
     enums::{
         AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
         AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
-        BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
-        CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
-        DenmarkStatesAbbreviation, FinlandStatesAbbreviation, FranceStatesAbbreviation,
-        FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
+        BosniaAndHerzegovinaStatesAbbreviation, BrazilStatesAbbreviation,
+        BulgariaStatesAbbreviation, CanadaStatesAbbreviation, CroatiaStatesAbbreviation,
+        CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation, FinlandStatesAbbreviation,
+        FranceStatesAbbreviation, FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
         HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
         ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
         LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
@@ -38,6 +38,10 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::router_request_types::fraud_check::{
+    FraudCheckCheckoutData, FraudCheckTransactionData,
+};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
@@ -69,6 +73,8 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
 
+#[cfg(feature = "frm")]
+use crate::types::FrmTransactionRouterData;
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -2478,6 +2484,15 @@ macro_rules! capture_method_not_supported {
         }
         .into())
     };
+}
+#[macro_export]
+macro_rules! get_formatted_date_time {
+    ($date_format:tt) => {{
+        let format = time::macros::format_description!($date_format);
+        time::OffsetDateTime::now_utc()
+            .format(&format)
+            .change_context(ConnectorError::InvalidDateFormat)
+    }};
 }
 
 #[macro_export]
@@ -5118,6 +5133,52 @@ impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
     }
 }
 
+impl ForeignTryFrom<String> for BrazilStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.clone(), "BrazilStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => match value.as_str() {
+                "Acre" => Ok(Self::Acre),
+                "Alagoas" => Ok(Self::Alagoas),
+                "Amapá" => Ok(Self::Amapá),
+                "Amazonas" => Ok(Self::Amazonas),
+                "Bahia" => Ok(Self::Bahia),
+                "Ceará" => Ok(Self::Ceará),
+                "Distrito Federal" => Ok(Self::DistritoFederal),
+                "Espírito Santo" => Ok(Self::EspíritoSanto),
+                "Goiás" => Ok(Self::Goiás),
+                "Maranhão" => Ok(Self::Maranhão),
+                "Mato Grosso" => Ok(Self::MatoGrosso),
+                "Mato Grosso do Sul" => Ok(Self::MatoGrossoDoSul),
+                "Minas Gerais" => Ok(Self::MinasGerais),
+                "Pará" => Ok(Self::Pará),
+                "Paraíba" => Ok(Self::Paraíba),
+                "Paraná" => Ok(Self::Paraná),
+                "Pernambuco" => Ok(Self::Pernambuco),
+                "Piauí" => Ok(Self::Piauí),
+                "Rio de Janeiro" => Ok(Self::RioDeJaneiro),
+                "Rio Grande do Norte" => Ok(Self::RioGrandeDoNorte),
+                "Rio Grande do Sul" => Ok(Self::RioGrandeDoSul),
+                "Rondônia" => Ok(Self::Rondônia),
+                "Roraima" => Ok(Self::Roraima),
+                "Santa Catarina" => Ok(Self::SantaCatarina),
+                "São Paulo" => Ok(Self::SãoPaulo),
+                "Sergipe" => Ok(Self::Sergipe),
+                "Tocantins" => Ok(Self::Tocantins),
+                _ => Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "address.state",
+                }
+                .into()),
+            },
+        }
+    }
+}
+
 pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
@@ -6072,4 +6133,85 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let regex = REGEX.as_ref().map_err(|e| e.clone())?;
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
+}
+#[cfg(feature = "frm")]
+pub trait FrmTransactionRouterDataRequest {
+    fn is_payment_successful(&self) -> Option<bool>;
+}
+
+#[cfg(feature = "frm")]
+impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
+    fn is_payment_successful(&self) -> Option<bool> {
+        match self.status {
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::Failure
+            | AttemptStatus::AutoRefunded => Some(false),
+
+            AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Authorized
+            | AttemptStatus::Charged => Some(true),
+
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending => None,
+        }
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckCheckoutRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+
+#[cfg(feature = "frm")]
+impl FraudCheckCheckoutRequest for FraudCheckCheckoutData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckTransactionRequest {
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckTransactionRequest for FraudCheckTransactionData {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+/// Custom deserializer for Option<Currency> that treats empty strings as None
+pub fn deserialize_optional_currency<'de, D>(
+    deserializer: D,
+) -> Result<Option<enums::Currency>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let string_data: Option<String> = Option::deserialize(deserializer)?;
+    match string_data {
+        Some(ref value) if !value.is_empty() => value
+            .clone()
+            .parse_enum("Currency")
+            .map(Some)
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
+        _ => Ok(None),
+    }
 }

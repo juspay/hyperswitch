@@ -41,8 +41,8 @@ Single API to access the payments ecosystem and its features
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Architectural Overview](#architectural-overview) 
-3. [Try Hyperswitch](#try-hyperswitch)  
+2. [Try Hyperswitch](#try-hyperswitch)
+3. [Architectural Overview](#architectural-overview) 
 4. [Support, Feature requests & Bugs](#support-feature-requests)  
 5. [Our Vision](#our-vision)  
 6. [Versioning](#versioning)  
@@ -62,14 +62,6 @@ Here are the key components of Hyperswitch that deliver the whole solution:
 * [Control Center](https://github.com/juspay/hyperswitch-control-center): The Control Center enables users to manage the entire payments stack without any coding. It allows the creation of workflows for routing, payment retries, and defining conditions to invoke 3DS, fraud risk management (FRM), and surcharge modules. The Control Center provides access to transaction, refund, and chargeback operations across all integrated PSPs, transaction-level logs for initial debugging, and detailed analytics and insights into payment performance.
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
-
-<a href="#architectural-overview">
-  <h2 id="architectural-overview">Architectural Overview</h2>
-</a>
-<img src="./docs/imgs/features.png" />
-<img src="./docs/imgs/non-functional-features.png" />
-
-<img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
 <a href="#try-hyperswitch">
   <h2 id="try-hyperswitch">Try Hyperswitch</h2>
@@ -130,6 +122,14 @@ We support deployment on GCP and Azure via Helm charts which takes 30-45mins. Yo
 ### 3. Hosted Sandbox
 
 You can experience the product by signing up for our [hosted sandbox](https://app.hyperswitch.io/). The signup process accepts any email ID and provides access to the entire Control Center. You can set up connectors, define workflows for routing and retries, and even try payments from the dashboard.
+
+<a href="#architectural-overview">
+  <h2 id="architectural-overview">Architectural Overview</h2>
+</a>
+<img src="./docs/imgs/features.png" />
+<img src="./docs/imgs/non-functional-features.png" />
+
+<img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
 [docs-link-for-enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview

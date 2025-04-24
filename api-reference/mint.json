@@ -10,7 +10,7 @@
       "name": "Contact Us",
       "url": "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw"
     }
-  ], 
+  ],
   "topbarCtaButton": {
     "type": "link",
     "url": "https://docs.hyperswitch.io/hyperswitch-open-source/overview",
@@ -41,7 +41,9 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": ["introduction"]
+      "pages": [
+        "introduction"
+      ]
     },
     {
       "group": "Essentials",
@@ -69,7 +71,8 @@
             "api-reference/payments/payments-link--retrieve",
             "api-reference/payments/payments--list",
             "api-reference/payments/payments--external-3ds-authentication",
-            "api-reference/payments/payments--complete-authorize"
+            "api-reference/payments/payments--complete-authorize",
+            "api-reference/payments/payments--update-metadata"
           ]
         },
         {
@@ -144,7 +147,9 @@
         },
         {
           "group": "Poll",
-          "pages": ["api-reference/poll/poll--retrieve-poll-status"]
+          "pages": [
+            "api-reference/poll/poll--retrieve-poll-status"
+          ]
         },
         {
           "group": "Blocklist",
@@ -179,7 +184,9 @@
         },
         {
           "group": "Schemas",
-          "pages": ["api-reference/schemas/outgoing--webhook"]
+          "pages": [
+            "api-reference/schemas/outgoing--webhook"
+          ]
         }
       ]
     },
@@ -255,14 +262,18 @@
     },
     {
       "group": "Hyperswitch Card Vault",
-      "pages": ["locker-api-reference/overview"]
+      "pages": [
+        "locker-api-reference/overview"
+      ]
     },
     {
       "group": "API Reference",
       "pages": [
         {
           "group": "Locker - Health",
-          "pages": ["locker-api-reference/locker-health/get-health"]
+          "pages": [
+            "locker-api-reference/locker-health/get-health"
+          ]
         },
         {
           "group": "Locker - Key Custodian",
@@ -285,7 +296,9 @@
     },
     {
       "group": "Hyperswitch Intelligent Router",
-      "pages": ["intelligent-router-api-reference/overview"]
+      "pages": [
+        "intelligent-router-api-reference/overview"
+      ]
     },
     {
       "group": "API Reference",
@@ -306,6 +319,21 @@
             "intelligent-router-api-reference/elimination/update-elimination-bucket",
             "intelligent-router-api-reference/elimination/invalidate-elimination-bucket"
           ]
+        },
+        {
+          "group": "Contract Routing",
+          "pages": [
+            "intelligent-router-api-reference/contract-routing/fetch-contract-scores-for-an-entity",
+            "intelligent-router-api-reference/contract-routing/update-contract-information-for-an-entity",
+            "intelligent-router-api-reference/contract-routing/invalidate-contract-information-for-an-entity"
+          ]
+        },
+        {
+          "group": "Static Routing",
+          "pages": [
+            "intelligent-router-api-reference/static-routing/create-a-routing-rule",
+            "intelligent-router-api-reference/static-routing/evaluate-routing-rule"
+          ]
         }
       ]
     }
@@ -314,7 +342,10 @@
     "github": "https://github.com/juspay/hyperswitch",
     "linkedin": "https://www.linkedin.com/company/hyperswitch"
   },
-  "openapi": ["openapi_spec.json", "rust_locker_open_api_spec.yml"],
+  "openapi": [
+    "openapi_spec.json",
+    "rust_locker_open_api_spec.yml"
+  ],
   "api": {
     "maintainOrder": true
   },
