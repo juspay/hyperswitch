@@ -101,7 +101,6 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
         optional_card_info: Option<diesel_models::CardInfo>,
     ) -> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
         let card = domain::CardDetail {
-            supported_card_networks: None,
             card_number: card_req.raw_card_number.clone(),
             card_exp_month: card_req.card_expiry_month.clone(),
             card_exp_year: card_req.card_expiry_year.clone(),

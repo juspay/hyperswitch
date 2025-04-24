@@ -43,7 +43,6 @@ async fn should_only_authorize_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: domain::PaymentMethodData::Card(domain::Card {
-                    supported_card_networks: None,
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
@@ -72,7 +71,6 @@ async fn should_authorize_and_capture_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: domain::PaymentMethodData::Card(domain::Card {
-                    supported_card_networks: None,
                     card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),

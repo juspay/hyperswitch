@@ -108,7 +108,6 @@ impl Vaultable for domain::Card {
             .attach_printable("Could not deserialize into card value2")?;
 
         let card = Self {
-            supported_card_networks: None,
             card_number: cards::CardNumber::try_from(value1.card_number)
                 .change_context(errors::VaultError::ResponseDeserializationFailed)
                 .attach_printable("Invalid card number format from the mock locker")?,

@@ -92,7 +92,6 @@ pub struct Card {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
-    pub supported_card_networks: Option<Vec<common_enums::CardNetwork>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -121,7 +120,6 @@ pub struct CardDetail {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
-    pub supported_card_networks: Option<Vec<common_enums::CardNetwork>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -164,7 +162,6 @@ impl From<&Card> for CardDetail {
             bank_code: item.bank_code.to_owned(),
             nick_name: item.nick_name.to_owned(),
             card_holder_name: item.card_holder_name.to_owned(),
-            supported_card_networks: None,
         }
     }
 }
@@ -813,7 +810,6 @@ impl From<api_models::payments::Card> for Card {
             bank_code,
             nick_name,
             card_holder_name,
-            supported_card_networks: None,
         }
     }
 }
@@ -1890,7 +1886,6 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
-    pub supported_card_networks: Option<Vec<api_enums::CardNetwork>>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
@@ -1911,7 +1906,6 @@ pub struct CardDetailsPaymentMethod {
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
-    pub supported_card_networks: Option<Vec<api_enums::CardNetwork>>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
@@ -1932,7 +1926,6 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
-            supported_card_networks: None,
         }
     }
 }
@@ -1952,7 +1945,6 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
-            supported_card_networks: None,
         }
     }
 }

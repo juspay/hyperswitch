@@ -41,7 +41,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             amount: 1000,
             currency: enums::Currency::USD,
             payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
-                supported_card_networks: None,
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
@@ -292,7 +291,6 @@ async fn payments_create_failure() {
         let mut request = construct_payment_router_data();
         request.request.payment_method_data =
             types::domain::PaymentMethodData::Card(types::domain::Card {
-                supported_card_networks: None,
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
