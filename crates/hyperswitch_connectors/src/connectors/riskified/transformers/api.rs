@@ -1,4 +1,5 @@
-use api_models::payments::AdditionalPaymentData;
+use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent};
+use common_enums::{Currency, FraudCheckStatus};
 use common_utils::{
     ext_traits::ValueExt,
     id_type,
@@ -6,26 +7,32 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{self, ResultExt};
+use hyperswitch_domain_models::{
+    router_data::RouterData,
+    router_flow_types::Fulfillment,
+    router_request_types::{
+        fraud_check::{FraudCheckFulfillmentData, FulfillmentStatus},
+        BrowserInformation, ResponseId,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::{
-        convert_amount, AddressDetailsData, FraudCheckCheckoutRequest,
-        FraudCheckTransactionRequest, RouterData,
-    },
-    core::{errors, fraud_check::types as core_types},
     types::{
-        self,
-        api::{self, Fulfillment},
-        fraud_check as frm_types,
-        storage::enums as storage_enums,
-        ResponseId, ResponseRouterData,
+        FrmCheckoutRouterData, FrmFulfillmentRouterData, FrmTransactionRouterData,
+        ResponseRouterData,
+    },
+    utils::{
+        convert_amount, AddressDetailsData as _, FraudCheckCheckoutRequest,
+        FraudCheckTransactionRequest, RouterData as _,
     },
 };
 
-type Error = error_stack::Report<errors::ConnectorError>;
+type Error = error_stack::Report<ConnectorError>;
 
 pub struct RiskifiedRouterData<T> {
     pub amount: StringMajorUnit,
@@ -55,7 +62,7 @@ pub struct CheckoutRequest {
     email: Option<Email>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
-    currency: Option<common_enums::Currency>,
+    currency: Option<Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     updated_at: PrimitiveDateTime,
     gateway: Option<String>,
@@ -157,22 +164,20 @@ pub struct RiskifiedMetadata {
     shipping_lines: Vec<ShippingLines>,
 }
 
-impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
-    for RiskifiedPaymentsCheckoutRequest
-{
+impl TryFrom<&RiskifiedRouterData<&FrmCheckoutRouterData>> for RiskifiedPaymentsCheckoutRequest {
     type Error = Error;
     fn try_from(
-        payment: &RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>,
+        payment: &RiskifiedRouterData<&FrmCheckoutRouterData>,
     ) -> Result<Self, Self::Error> {
         let payment_data = payment.router_data.clone();
         let metadata: RiskifiedMetadata = payment_data
             .frm_metadata
             .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "frm_metadata",
             })?
             .parse_value("Riskified Metadata")
-            .change_context(errors::ConnectorError::InvalidDataFormat {
+            .change_context(ConnectorError::InvalidDataFormat {
                 field_name: "frm_metadata",
             })?;
         let billing_address = payment_data.get_billing()?;
@@ -187,7 +192,7 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                     payment.amount_converter,
                     order_detail.amount,
                     payment_data.request.currency.ok_or_else(|| {
-                        errors::ConnectorError::MissingRequiredField {
+                        ConnectorError::MissingRequiredField {
                             field_name: "currency",
                         }
                     })?,
@@ -251,7 +256,7 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                         .as_ref()
                         .and_then(|browser_info| browser_info.user_agent.clone()),
                     accept_language: payment_data.request.browser_info.as_ref().and_then(
-                        |browser_info: &types::BrowserInformation| browser_info.language.clone(),
+                        |browser_info: &BrowserInformation| browser_info.language.clone(),
                     ),
                 },
                 note: payment_data.description.clone(),
@@ -312,23 +317,17 @@ pub enum PaymentStatus {
     Processing,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, RiskifiedPaymentsResponse, T, frm_types::FraudCheckResponseData>>
-    for types::RouterData<F, T, frm_types::FraudCheckResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, RiskifiedPaymentsResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            RiskifiedPaymentsResponse,
-            T,
-            frm_types::FraudCheckResponseData,
-        >,
+        item: ResponseRouterData<F, RiskifiedPaymentsResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(frm_types::FraudCheckResponseData::TransactionResponse {
+            response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
-                status: storage_enums::FraudCheckStatus::from(item.response.order.status),
+                status: FraudCheckStatus::from(item.response.order.status),
                 connector_metadata: None,
                 score: None,
                 reason: item.response.order.description.map(serde_json::Value::from),
@@ -338,7 +337,7 @@ impl<F, T>
     }
 }
 
-impl From<PaymentStatus> for storage_enums::FraudCheckStatus {
+impl From<PaymentStatus> for FraudCheckStatus {
     fn from(item: PaymentStatus) -> Self {
         match item {
             PaymentStatus::Approved => Self::Legit,
@@ -372,9 +371,9 @@ pub struct AuthorizationError {
     message: Option<String>,
 }
 
-impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionFailedRequest {
+impl TryFrom<&FrmTransactionRouterData> for TransactionFailedRequest {
     type Error = Error;
-    fn try_from(item: &frm_types::FrmTransactionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &FrmTransactionRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             checkout: FailedTransactionData {
                 id: item.attempt_id.clone(),
@@ -404,28 +403,17 @@ pub enum RiskifiedTransactionResponse {
 }
 
 impl<F, T>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            RiskifiedFailedTransactionResponse,
-            T,
-            frm_types::FraudCheckResponseData,
-        >,
-    > for types::RouterData<F, T, frm_types::FraudCheckResponseData>
+    TryFrom<ResponseRouterData<F, RiskifiedFailedTransactionResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            RiskifiedFailedTransactionResponse,
-            T,
-            frm_types::FraudCheckResponseData,
-        >,
+        item: ResponseRouterData<F, RiskifiedFailedTransactionResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(frm_types::FraudCheckResponseData::TransactionResponse {
+            response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.checkout.id),
-                status: storage_enums::FraudCheckStatus::from(item.response.checkout.status),
+                status: FraudCheckStatus::from(item.response.checkout.status),
                 connector_metadata: None,
                 score: None,
                 reason: item
@@ -455,7 +443,7 @@ pub struct TransactionDecisionData {
     external_status: TransactionStatus,
     reason: Option<String>,
     amount: StringMajorUnit,
-    currency: storage_enums::Currency,
+    currency: Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     decided_at: PrimitiveDateTime,
     payment_details: Vec<TransactionPaymentDetails>,
@@ -472,12 +460,10 @@ pub enum TransactionStatus {
     Approved,
 }
 
-impl TryFrom<&RiskifiedRouterData<&frm_types::FrmTransactionRouterData>>
-    for TransactionSuccessRequest
-{
+impl TryFrom<&RiskifiedRouterData<&FrmTransactionRouterData>> for TransactionSuccessRequest {
     type Error = Error;
     fn try_from(
-        item_data: &RiskifiedRouterData<&frm_types::FrmTransactionRouterData>,
+        item_data: &RiskifiedRouterData<&FrmTransactionRouterData>,
     ) -> Result<Self, Self::Error> {
         let item = item_data.router_data.clone();
         Ok(Self {
@@ -530,16 +516,16 @@ pub struct FulfilmentData {
     tracking_url: Option<String>,
 }
 
-impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
+impl TryFrom<&FrmFulfillmentRouterData> for RiskifiedFulfillmentRequest {
     type Error = Error;
-    fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
         let tracking_number = item
             .request
             .fulfillment_req
             .tracking_numbers
             .as_ref()
             .and_then(|numbers| numbers.first().cloned())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "tracking_number",
             })?;
         let tracking_url = item
@@ -565,7 +551,7 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for RiskifiedFulfillmentReque
                         .fulfillment_req
                         .tracking_company
                         .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                        .ok_or(ConnectorError::MissingRequiredField {
                             field_name: "tracking_company",
                         })?,
                     tracking_number,
@@ -581,27 +567,22 @@ impl
         ResponseRouterData<
             Fulfillment,
             RiskifiedFulfilmentResponse,
-            frm_types::FraudCheckFulfillmentData,
-            frm_types::FraudCheckResponseData,
+            FraudCheckFulfillmentData,
+            FraudCheckResponseData,
         >,
-    >
-    for types::RouterData<
-        Fulfillment,
-        frm_types::FraudCheckFulfillmentData,
-        frm_types::FraudCheckResponseData,
-    >
+    > for RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
 {
     type Error = Error;
     fn try_from(
         item: ResponseRouterData<
             Fulfillment,
             RiskifiedFulfilmentResponse,
-            frm_types::FraudCheckFulfillmentData,
-            frm_types::FraudCheckResponseData,
+            FraudCheckFulfillmentData,
+            FraudCheckResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(frm_types::FraudCheckResponseData::FulfillmentResponse {
+            response: Ok(FraudCheckResponseData::FulfillmentResponse {
                 order_id: item.response.order.id,
                 shipment_ids: Vec::new(),
             }),
@@ -625,13 +606,12 @@ impl TryFrom<&hyperswitch_domain_models::address::Address> for OrderAddress {
     fn try_from(
         address_info: &hyperswitch_domain_models::address::Address,
     ) -> Result<Self, Self::Error> {
-        let address =
-            address_info
-                .clone()
-                .address
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address",
-                })?;
+        let address = address_info
+            .clone()
+            .address
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "address",
+            })?;
         Ok(Self {
             first_name: address.first_name.clone(),
             last_name: address.last_name.clone(),
@@ -648,13 +628,11 @@ impl TryFrom<&hyperswitch_domain_models::address::Address> for OrderAddress {
     }
 }
 
-fn get_fulfillment_status(
-    status: core_types::FulfillmentStatus,
-) -> Option<FulfillmentRequestStatus> {
+fn get_fulfillment_status(status: FulfillmentStatus) -> Option<FulfillmentRequestStatus> {
     match status {
-        core_types::FulfillmentStatus::COMPLETE => Some(FulfillmentRequestStatus::Success),
-        core_types::FulfillmentStatus::CANCELED => Some(FulfillmentRequestStatus::Cancelled),
-        core_types::FulfillmentStatus::PARTIAL | core_types::FulfillmentStatus::REPLACEMENT => None,
+        FulfillmentStatus::COMPLETE => Some(FulfillmentRequestStatus::Success),
+        FulfillmentStatus::CANCELED => Some(FulfillmentRequestStatus::Cancelled),
+        FulfillmentStatus::PARTIAL | FulfillmentStatus::REPLACEMENT => None,
     }
 }
 
@@ -670,7 +648,7 @@ pub enum RiskifiedWebhookStatus {
     Declined,
 }
 
-impl From<RiskifiedWebhookStatus> for api::IncomingWebhookEvent {
+impl From<RiskifiedWebhookStatus> for IncomingWebhookEvent {
     fn from(value: RiskifiedWebhookStatus) -> Self {
         match value {
             RiskifiedWebhookStatus::Declined => Self::FrmRejected,

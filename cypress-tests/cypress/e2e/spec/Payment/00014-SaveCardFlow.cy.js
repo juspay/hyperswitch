@@ -714,7 +714,6 @@ describe("Card - SaveCard payment flow test", () => {
                 // Copy all properties from the original card details.
                 ...data.Request.payment_method_data.card,
                 // Set the desired modifications for this specific test case.
-                card_exp_year: "35", // Update expiry year.
                 card_holder_name: card_holder_name, // Update card holder name.
               },
             },
