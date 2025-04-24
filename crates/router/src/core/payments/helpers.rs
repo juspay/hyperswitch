@@ -7037,6 +7037,34 @@ where
     Ok(())
 }
 
+pub async fn validate_routing_id_with_profile_id(
+    db: &dyn StorageInterface,
+    routing_id: &id_type::RoutingId,
+    profile_id: &id_type::ProfileId,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let _routing_id = db
+        .find_routing_algorithm_metadata_by_algorithm_id_profile_id(routing_id, profile_id)
+        .await
+        .map_err(|err| {
+            if err.current_context().is_db_not_found() {
+                logger::warn!(
+                    "Routing id not found for routing id - {:?} and profile id - {:?}",
+                    routing_id,
+                    profile_id
+                );
+                err.change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "routing_algorithm_id".to_string(),
+                    expected_format: "A valid routing_id that belongs to the business_profile"
+                        .to_string(),
+                })
+            } else {
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to validate routing id")
+            }
+        })?;
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
