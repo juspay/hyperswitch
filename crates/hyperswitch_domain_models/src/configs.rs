@@ -1,7 +1,5 @@
 //! Configs interface
-use api_models::errors;
 use common_enums::ApplicationError;
-use common_types::consts::API_VERSION;
 use common_utils::errors::CustomResult;
 use masking::Secret;
 use router_derive;

@@ -2,14 +2,13 @@
 use std::str::FromStr;
 
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use common_utils::types::{ConnectorTransactionId, FloatMajorUnitForConnector};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     id_type,
-    types::FloatMajorUnit,
+    types::{FloatMajorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
@@ -29,10 +28,7 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::utils;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::{
-    types::ResponseRouterDataV2,
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::{types::ResponseRouterDataV2, utils::PaymentsAuthorizeRequestData};
 
 pub struct RecurlyRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -65,7 +61,6 @@ impl TryFrom<&ConnectorAuthType> for RecurlyAuthType {
         }
     }
 }
-
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
