@@ -5543,9 +5543,9 @@ pub struct AdyenTestingData {
     holder_name: Option<Secret<String>>,
 }
 
-impl TryFrom<pii::SecretSerdeValue> for AdyenTestingData {
+impl TryFrom<common_utils::pii::SecretSerdeValue> for AdyenTestingData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(testing_data: pii::SecretSerdeValue) -> Result<Self, Self::Error> {
+    fn try_from(testing_data: common_utils::pii::SecretSerdeValue) -> Result<Self, Self::Error> {
         let testing_data = testing_data
             .expose()
             .parse_value::<Self>("AdyenTestingData")
