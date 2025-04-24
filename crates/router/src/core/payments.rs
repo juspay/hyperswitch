@@ -7402,14 +7402,17 @@ pub async fn route_connector_v2_for_payments(
     key_store: &domain::MerchantKeyStore,
     transaction_data: core_routing::PaymentsDslInput<'_>,
     routing_data: &mut storage::RoutingData,
-    mandate_type: Option<api::MandateTransactionType>,
+    _mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType> {
-    let routing_algorithm_id = business_profile.routing_algorithm_id.clone();
+    let routing_algorithm_id = routing_data
+        .algorithm_requested
+        .as_ref()
+        .or(business_profile.routing_algorithm_id.as_ref());
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
-        routing_algorithm_id.as_ref(),
+        routing_algorithm_id,
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
     )
