@@ -260,6 +260,7 @@ pub async fn form_payment_link_data(
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             capture_method: payment_attempt.capture_method,
+            setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
         };
 
         return Ok((
@@ -307,6 +308,7 @@ pub async fn form_payment_link_data(
         show_card_terms: payment_link_config.show_card_terms,
         is_setup_mandate_flow: payment_link_config.is_setup_mandate_flow,
         capture_method: payment_attempt.capture_method,
+        setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
     };
 
     Ok((
@@ -370,7 +372,6 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_form_header_text: payment_link_config.payment_form_header_text,
                 payment_form_label_type: payment_link_config.payment_form_label_type,
                 show_card_terms: payment_link_config.show_card_terms,
-                is_setup_mandate_flow: payment_link_config.is_setup_mandate_flow,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -941,6 +942,7 @@ pub async fn get_payment_link_status(
         unified_code: Some(unified_code),
         unified_message: unified_translated_message,
         capture_method: payment_attempt.capture_method,
+        setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

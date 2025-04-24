@@ -349,7 +349,7 @@ function initializeEventListeners(paymentDetails) {
   if (payNowButtonText) {
     if (paymentDetails.payment_button_text) {
       payNowButtonText.textContent = paymentDetails.payment_button_text;
-    } else if (paymentDetails.is_setup_mandate_flow) {
+    } else if (paymentDetails.is_setup_mandate_flow || (paymentDetails.amount==="0.00" && paymentDetails.setup_future_usage_applied ==="off_session")) {
       payNowButtonText.textContent = translations.addPaymentMethod;
     } else {
       payNowButtonText.textContent = capture_type === "manual" ? translations.authorizePayment: translations.payNow;
