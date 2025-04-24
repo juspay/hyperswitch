@@ -574,6 +574,9 @@ paypal = { country = "AD,AE,AL,AM,AR,AT,AU,AZ,BA,BB,BD,BE,BG,BH,BI,BM,BN,BO,BR,B
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
 
+[pm_filters.facilitapay]
+pix = { country = "BR", currency = "BRL" }
+
 [pm_filters.helcim]
 credit = { country = "US, CA", currency = "USD, CAD" }
 debit = { country = "US, CA", currency = "USD, CAD" }
@@ -751,7 +754,7 @@ nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe"
+connector_list = "gocardless,stax,stripe,facilitapay"
 payout_connector_list = "nomupay,stripe,wise"
 
 [dummy_connector]
