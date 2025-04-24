@@ -33,6 +33,12 @@ use crate::{
         TaxCalculationResponseData, VerifyWebhookSourceResponseData,
     },
 };
+#[cfg(feature = "v2")]
+pub use crate::{
+    router_flow_types::{VaultDelete, VaultInsert, VaultRetrieve},
+    router_request_types::VaultRequestData,
+    router_response_types::VaultResponseData,
+};
 #[cfg(feature = "payouts")]
 pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
 
@@ -109,3 +115,6 @@ pub type BillingConnectorPaymentsSyncRouterData = RouterData<
     BillingConnectorPaymentsSyncRequest,
     BillingConnectorPaymentsSyncResponse,
 >;
+
+#[cfg(feature = "v2")]
+pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;

@@ -10,7 +10,8 @@ use masking::Secret;
 use serde::Serialize;
 use serde_with::serde_as;
 
-use super::payment_method_data::PaymentMethodData;
+#[cfg(feature = "v2")]
+use super::{payment_method_data::PaymentMethodData, vault::PaymentMethodVaultingData};
 use crate::{
     address,
     errors::api_error_response::ApiErrorResponse,
@@ -935,4 +936,11 @@ pub struct SetupMandateRequestData {
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone)]
+pub struct VaultRequestData {
+    payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
+    connector_vault_id: Option<String>,
 }

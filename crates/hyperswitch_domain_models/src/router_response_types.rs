@@ -10,6 +10,10 @@ use crate::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::{authentication::AuthNFlowType, ResponseId},
 };
+
+#[cfg(feature = "v2")]
+use super::vault::PaymentMethodVaultingData;
+
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
@@ -608,4 +612,21 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
             self.insert(payment_method, payment_method_type_metadata);
         }
     }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone)]
+pub enum VaultResponseData {
+    VaultInsertResponse {
+        connector_vault_id: String,
+    },
+    VaultRetrieveResponse {
+        vault_data: PaymentMethodVaultingData,
+    },
+    VaultDeleteResponse {
+        connector_vault_id: Option<String>,
+    },
+    VaultFingerprintResponse {
+        fingerprint_id: String,
+    },
 }

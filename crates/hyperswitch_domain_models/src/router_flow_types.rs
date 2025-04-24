@@ -9,6 +9,8 @@ pub mod payouts;
 pub mod refunds;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
+#[cfg(feature = "v2")]
+pub mod vault;
 pub mod webhooks;
 
 pub use access_token_auth::*;
@@ -20,4 +22,6 @@ pub use payouts::*;
 pub use refunds::*;
 pub use revenue_recovery::*;
 pub use unified_authentication_service::*;
+#[cfg(feature = "v2")]
+pub use vault::*;
 pub use webhooks::*;
