@@ -355,6 +355,11 @@ pub async fn construct_refund_router_data<'a, F>(
         .and_then(|braintree| braintree.merchant_account_id.clone());
     let merchant_config_currency =
         braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+        payment_attempt
+            .payment_method_data
+            .clone()
+            .and_then(|value| serde_json::from_value(value).ok());
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -398,6 +403,7 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_account_id,
             merchant_config_currency,
             capture_method,
+            additional_payment_method_data,
         },
 
         response: Ok(types::RefundsResponseData {
