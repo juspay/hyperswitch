@@ -284,10 +284,6 @@ pub struct AuthenticationConnectorDetails {
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct VaultConnectorDetails {
-    /// Vault Connector
-    #[schema(value_type = VaultConnectors)]
-    pub vault_connector: common_enums::VaultConnectors,
-
     /// Merchant Connector id to be stored for vault connector
     #[schema(value_type = Option<String>)]
     pub vault_connector_id: id_type::MerchantConnectorAccountId,

@@ -635,8 +635,6 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct VaultConnectorDetails {
-    pub vault_connector: common_enums::VaultConnectors,
-
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 
     pub vault_sdk: common_enums::VaultSdk,
