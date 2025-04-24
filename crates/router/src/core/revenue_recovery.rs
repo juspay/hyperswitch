@@ -1,6 +1,8 @@
 pub mod transformers;
 pub mod types;
+pub mod utils;
 use api_models::{
+    enums,
     payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest},
     process_tracker::revenue_recovery,
 };
@@ -11,7 +13,7 @@ use common_utils::{
     id_type,
     types::keymanager::KeyManagerState,
 };
-use diesel_models::process_tracker::business_status;
+use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
@@ -157,6 +159,7 @@ async fn insert_psync_pcr_task(
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
+    revenue_recovery_retry: diesel_enum::RecoveryAlgorithm,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -167,6 +170,7 @@ async fn insert_psync_pcr_task(
         merchant_id,
         profile_id,
         payment_attempt_id,
+        //: revenue_recovery_retry,
     };
     let tag = ["PCR"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(

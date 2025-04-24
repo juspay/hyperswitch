@@ -1035,3 +1035,6 @@ enabled = true
 [open_router]
 enabled = false
 url = "http://localhost:8080"
+
+[revenue_recovery]
+monitoring_threshold_in_seconds = 2592000

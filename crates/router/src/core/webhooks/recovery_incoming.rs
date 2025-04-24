@@ -20,6 +20,7 @@ use crate::{
     core::{
         errors::{self, CustomResult},
         payments::{self, helpers},
+        revenue_recovery::utils,
     },
     db::{errors::RevenueRecoveryError, StorageInterface},
     routes::{app::ReqState, metrics, SessionState},
@@ -149,6 +150,7 @@ pub async fn recovery_incoming_webhook_flow(
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
         revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
+            //: match if the business profile entry is a Monitoring job return Noaffect(Discuss this) or some other job and then do this
             handle_schedule_failed_payment(
                 &billing_connector_account,
                 intent_retry_count,
@@ -160,6 +162,7 @@ pub async fn recovery_incoming_webhook_flow(
                     recovery_intent_from_payment_attempt,
                 ),
                 &business_profile,
+                //:retry algo will be passed here
             )
             .await
         }
@@ -224,6 +227,8 @@ async fn handle_schedule_failed_payment(
                     .as_ref()
                     .map(|attempt| attempt.attempt_id.clone()),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                //: collect it from the argument
+                api_models::enums::RecoveryAlgorithm::Smart,
             )
             .await
         })
@@ -673,6 +678,7 @@ impl RevenueRecoveryAttempt {
         intent_retry_count: u16,
         payment_attempt_id: Option<id_type::GlobalAttemptId>,
         runner: storage::ProcessTrackerRunner,
+        revenue_recovery_retry: api_models::enums::RecoveryAlgorithm,
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
         let task = "EXECUTE_WORKFLOW";
 
@@ -706,6 +712,7 @@ impl RevenueRecoveryAttempt {
             merchant_id,
             profile_id,
             payment_attempt_id,
+            revenue_recovery_retry,
         };
 
         let tag = ["PCR"];
