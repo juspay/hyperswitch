@@ -1,6 +1,6 @@
 import {
-    connectorDetails as commonConnectorDetails,
-    customerAcceptance,
+  connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 

@@ -736,7 +736,7 @@ describe("Card - SaveCard payment flow test", () => {
       cy.listCustomerPMCallTest(globalState);
     });
   });
-  
+
   context(
     "Check if card fields are populated when saving card again after a metadata update",
     () => {
