@@ -216,7 +216,7 @@ wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 
-bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets, aci"   
+bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets,aci"   
 bank_redirect.sofort.connector_list = "globalpay,aci"  
 bank_redirect.giropay.connector_list = "globalpay,multisafepay,nexinets,aci"        
 bank_redirect.bancontact_card.connector_list="adyen,stripe"
