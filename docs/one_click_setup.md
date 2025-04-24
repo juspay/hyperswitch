@@ -1,59 +1,60 @@
 # One-Click Docker Setup Guide
 
-This document provides detailed information about the one-click setup script for Hyperswitch.
+This document provides detailed information about the updated one-click setup script for Hyperswitch.
 
 ## Overview
 
-The `setup.sh` script is designed to simplify the process of setting up Hyperswitch in a local development or testing environment. It provides a guided, interactive setup experience that handles checking prerequisites, configuring the environment, and starting the necessary services.
+The `setup.sh` script simplifies the process of setting up Hyperswitch in a local development or testing environment. It provides an interactive setup experience that handles checking prerequisites, configuring the environment, and starting the necessary services.
 
 ## Features
 
-- **Prerequisite Checking**: Automatically verifies Docker and Docker Compose installation
-- **Port Availability Check**: Ensures required ports are available
-- **Configuration Management**: Sets up necessary configuration files
-- **Multiple Deployment Profiles**: Choose the right setup for your needs
-- **Health Checking**: Verifies services are properly running
-- **Detailed Feedback**: Clear output and helpful error messages
+- **Prerequisite Checking**: Verifies Docker and Docker Compose installation.
+- **Port Availability Check**: Ensures required ports are available to avoid conflicts.
+- **Configuration Management**: Automatically sets up necessary configuration files.
+- **Multiple Deployment Profiles**: Choose the right setup for your needs.
+- **Health Checking**: Verifies services are running and healthy.
+- **Detailed Feedback**: Provides clear output and helpful error messages.
 
 ## Deployment Profiles
 
-The script offers four different deployment profiles to match your needs:
+The script offers four deployment profiles to match your needs:
 
-### 1. Minimal
-- **Services**: Hyperswitch server, PostgreSQL, Redis
-- **Best for**: Testing basic API functionality
-- **Resources required**: Lower
-
-### 2. Standard (Default)
-- **Services**: Minimal + Control Center + Web SDK
+### 1. Standard (Recommended)
+- **Services**: App server + Control Center + Web SDK (includes PostgreSQL, Redis)
 - **Best for**: General development and testing
 - **Resources required**: Medium
 
-### 3. Full
+### 2. Full
 - **Services**: Standard + Monitoring (Grafana, Prometheus) + Scheduler
 - **Best for**: Complete system testing
 - **Resources required**: Higher
 
-### 4. Development
+### 3. Development
 - **Services**: Complete environment built from source
 - **Best for**: Active development on Hyperswitch
 - **Resources required**: Highest
+
+### 4. Standalone App Server
+- **Services**: Hyperswitch server, PostgreSQL, Redis
+- **Best for**: Testing basic API functionality
+- **Resources required**: Lower
+
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Docker not running**
-   - Error: "Cannot connect to the Docker daemon"
-   - Solution: Start the Docker daemon/Docker Desktop
+   - **Error**: "Cannot connect to the Docker daemon"
+   - **Solution**: Start the Docker daemon/Docker Desktop or Use Orbstack.
 
 2. **Port conflicts**
-   - Error: "The following ports are already in use: [port list]"
-   - Solution: Stop services using those ports or choose different ports
+   - **Error**: "The following ports are already in use: [port list]"
+   - **Solution**: Stop services using those ports or choose different ports.
 
-3. **Server not becoming healthy**
-   - Error: "Hyperswitch server did not become healthy in the expected time"
-   - Solution: Check logs with `docker compose logs hyperswitch-server`
+4. **Server not becoming healthy**
+   - **Error**: "Hyperswitch server did not become healthy in the expected time."
+   - **Solution**: Check logs with `docker compose logs hyperswitch-server`.
 
 ### Viewing Logs
 
@@ -95,7 +96,7 @@ After setup, you can manually control services:
 
 After running the setup script:
 
-1. Verify the server is running: `curl --head --request GET 'http://localhost:8080/health'`
-2. Access the Control Center at `http://localhost:9000`
-3. Configure payment connectors in the Control Center
-4. Try a test payment using the demo store
+1. Verify the server is running: `curl --head --request GET 'http://localhost:8080/health'`.
+2. Access the Control Center at `http://localhost:9000`.
+3. Configure payment connectors in the Control Center.
+4. Try a test payment using the demo store.

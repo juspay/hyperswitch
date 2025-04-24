@@ -84,54 +84,25 @@ You can run Hyperswitch on your system with a single command using our one-click
 ```shell
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
-./setup.sh
+scripts/setup.sh
 ```
 
-The script will:
-- Check for prerequisites (Docker, Docker Compose)
+The above script will:
+- Check for prerequisites (Docker Compose/Orbstack)
 - Set up necessary configurations
 - Let you select a deployment profile:
-  - **Minimal**: Core services only (Hyperswitch server, PostgreSQL, Redis)
-  - **Standard**: Minimal + Control Center + Web SDK
-  - **Full**: Standard + Monitoring + Scheduler
-  - **Development**: Build from source environment
+  - **Standard**: Recommended - App server + Control Center + Web SDK.
+  - **Full**: Standard + Monitoring + Scheduler.
+  - **Development**: Build from source environment- may take up to 30 minutes.
+  - **Standalone App Server**: Core services only (Hyperswitch server, PostgreSQL, Redis)
 - Start the selected services
 - Check service health
 - Provide access information
 
-#### Manual Setup
+The next step is to [configure a connector][configure-a-connector] with the Hyperswitch Control Center and [try a payment][try-a-payment].
 
-If you prefer to set up manually, you can use Docker compose directly:
+Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
 
-```shell
-git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
-cd hyperswitch
-docker compose up -d
-```
-
-Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise. This takes 15-mins and gives the following output 
-```shell
-[+] Running 2/2
-✔ hyperswitch-control-center Pulled 2.9s
-✔ hyperswitch-server Pulled 3.0s
-[+] Running 6/0
-
-✔ Container hyperswitch-pg-1 Created 0.0s
-✔ Container hyperswitch-redis-standalone-1 Created 0.0s
-✔ Container hyperswitch-migration_runner-1 Created 0.0s
-✔ Container hyperswitch-hyperswitch-server-1 Created 0.0s
-✔ Container hyperswitch-hyperswitch-web-1 Created 0.0s
-✔ Container hyperswitch-hyperswitch-control-center-1 Created 0.0s
-
-Attaching to hyperswitch-control-center-1, hyperswitch-server-1, hyperswitch-web-1, migration_runner-1, pg-1, redis-standalone-1
-```
-You've now setup Hyperswitch in your local machine. In order to verify that the server is up and running hit the health endpoint:
-```shell
-curl --head --request GET 'http://localhost:8080/health'
-```
-The expected response here is a `200 OK` status code. This indicates that the server and all of its dependent services are functioning correctly.
-Now, you can access the Control Center in your browser at `http://localhost:9000`.
-The next step is to configure a connector with the Hyperswitch Control Center and try a payment.
 
 ### 2. Deployment on cloud
 
@@ -168,7 +139,8 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#running-additional-services
-
+[configure-a-connector]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor
+[try-a-payment]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment
 
 <a href="support-feature-requests">
   <h2 id="support-feature-requests">Support, Feature requests & Bugs</h2>
