@@ -28,6 +28,10 @@ pub enum RoutableConnectors {
     Vgs,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_billing_test")]
+    #[strum(serialize = "stripe_billing_test")]
+    DummyBillingConnector,
+    #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
     DummyConnector1,
@@ -81,7 +85,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Elavon,
-    // Facilitapay,
+    Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -171,6 +175,10 @@ pub enum RoutableConnectors {
 pub enum Connector {
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_billing_test")]
+    #[strum(serialize = "stripe_billing_test")]
+    DummyBillingConnector,
+    #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
     DummyConnector1,
@@ -226,7 +234,7 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Elavon,
-    // Facilitapay,
+    Facilitapay,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -346,6 +354,7 @@ impl Connector {
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
+                | (Self::Facilitapay, _)
         )
     }
     pub fn supports_file_storage_module(self) -> bool {
@@ -356,6 +365,8 @@ impl Connector {
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
+            #[cfg(feature = "dummy_connector")]
+            Self::DummyBillingConnector => false,
             #[cfg(feature = "dummy_connector")]
             Self::DummyConnector1
             | Self::DummyConnector2
@@ -389,7 +400,7 @@ impl Connector {
             | Self::Dlocal
             | Self::Ebanx
             | Self::Elavon
-            // | Self::Facilitapay
+            | Self::Facilitapay
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -504,6 +515,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
+            RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
+            #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyConnector2 => Self::DummyConnector2,
@@ -541,7 +554,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Dlocal => Self::Dlocal,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
-            // RoutableConnectors::Facilitapay => Self::Facilitapay,
+            RoutableConnectors::Facilitapay => Self::Facilitapay,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -612,6 +625,8 @@ impl TryFrom<Connector> for RoutableConnectors {
         match connector {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
+            Connector::DummyBillingConnector => Ok(Self::DummyBillingConnector),
+            #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(Self::DummyConnector1),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector2 => Ok(Self::DummyConnector2),
@@ -650,7 +665,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Dlocal => Ok(Self::Dlocal),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
-            // Connector::Facilitapay => Ok(Self::Facilitapay),
+            Connector::Facilitapay => Ok(Self::Facilitapay),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),

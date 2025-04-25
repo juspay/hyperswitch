@@ -15,7 +15,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ValueExt,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -115,7 +115,8 @@ pub struct PaymentIntent {
     pub skip_external_tax_calculation: Option<bool>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub platform_merchant_id: Option<id_type::MerchantId>,
+    pub processor_merchant_id: id_type::MerchantId,
+    pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
 }
@@ -224,6 +225,33 @@ impl PaymentIntent {
             .clone()
             .map(|metadata| metadata.parse_value(type_name))
             .transpose()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn merge_metadata(
+        &self,
+        request_metadata: Value,
+    ) -> Result<Value, common_utils::errors::ParsingError> {
+        if !request_metadata.is_null() {
+            match (&self.metadata, &request_metadata) {
+                (Some(Value::Object(existing_map)), Value::Object(req_map)) => {
+                    let mut merged = existing_map.clone();
+                    merged.extend(req_map.clone());
+                    Ok(Value::Object(merged))
+                }
+                (None, Value::Object(_)) => Ok(request_metadata),
+                _ => {
+                    router_env::logger::error!(
+                        "Expected metadata to be an object, got: {:?}",
+                        request_metadata
+                    );
+                    Err(common_utils::errors::ParsingError::UnknownError)
+                }
+            }
+        } else {
+            router_env::logger::error!("Metadata does not contain any key");
+            Err(common_utils::errors::ParsingError::UnknownError)
+        }
     }
 }
 
@@ -466,13 +494,15 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
-    /// Identifier for the platform merchant.
-    pub platform_merchant_id: Option<id_type::MerchantId>,
     /// Split Payment Data
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
+    pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    pub created_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v2")]
@@ -628,11 +658,11 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
-            platform_merchant_id: platform_merchant_id
-                .map(|merchant_account| merchant_account.get_id().to_owned()),
             split_payments: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
+            processor_merchant_id: merchant_account.get_id().clone(),
+            created_by: None,
         })
     }
 
@@ -646,6 +676,29 @@ impl PaymentIntent {
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
         self.feature_metadata.clone()
+    }
+
+    pub fn get_optional_customer_id(
+        &self,
+    ) -> CustomResult<Option<id_type::CustomerId>, common_utils::errors::ValidationError> {
+        self.customer_id
+            .as_ref()
+            .map(|customer_id| id_type::CustomerId::try_from(customer_id.clone()))
+            .transpose()
+    }
+
+    pub fn get_optional_connector_metadata(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::ConnectorMetadata>,
+        common_utils::errors::ParsingError,
+    > {
+        self.connector_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+            })
+            .transpose()
     }
 }
 
@@ -803,6 +856,8 @@ pub struct RevenueRecoveryData {
     pub billing_connector_id: id_type::MerchantConnectorAccountId,
     pub processor_payment_method_token: String,
     pub connector_customer_id: String,
+    pub retry_count: Option<u16>,
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -820,10 +875,13 @@ where
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
-                total_retry_count: revenue_recovery
-                    .as_ref()
-                    .map_or(1, |data| (data.total_retry_count + 1)),
-                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallUnsuccessful.
+                total_retry_count: revenue_recovery.as_ref().map_or(
+                    self.revenue_recovery_data
+                        .retry_count
+                        .map_or_else(|| 1, |retry_count| retry_count),
+                    |data| (data.total_retry_count + 1),
+                ),
+                // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
                 billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
@@ -847,6 +905,7 @@ where
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
+                invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

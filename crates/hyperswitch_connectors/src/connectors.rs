@@ -47,6 +47,7 @@ pub mod moneris;
 pub mod multisafepay;
 pub mod nexinets;
 pub mod nexixpay;
+pub mod nmi;
 pub mod nomupay;
 pub mod noon;
 pub mod novalnet;
@@ -56,6 +57,7 @@ pub mod opennode;
 pub mod paybox;
 pub mod payeezy;
 pub mod payme;
+pub mod payone;
 pub mod paypal;
 pub mod paystack;
 pub mod payu;
@@ -66,6 +68,7 @@ pub mod rapyd;
 pub mod razorpay;
 pub mod recurly;
 pub mod redsys;
+pub mod riskified;
 pub mod shift4;
 pub mod square;
 pub mod stax;
@@ -83,7 +86,6 @@ pub mod worldpay;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
-
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, amazonpay::Amazonpay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
@@ -97,13 +99,13 @@ pub use self::{
     helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
-    nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, noon::Noon, novalnet::Novalnet,
-    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
-    paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
-    shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
-    thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
-    unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
-    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
-    zsl::Zsl,
+    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon,
+    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
+    payeezy::Payeezy, payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu,
+    placetopay::Placetopay, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd,
+    razorpay::Razorpay, recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4,
+    square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes,
+    trustpay::Trustpay, tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService,
+    vgs::Vgs, volt::Volt, wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay,
+    xendit::Xendit, zen::Zen, zsl::Zsl,
 };
