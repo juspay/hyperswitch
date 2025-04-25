@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::{payments as api_payments, webhooks};
+use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     id_type,
@@ -18,9 +18,9 @@ use serde_with::rust::unwrap_or_skip;
 
 use crate::{
     core::{
+        admin,
         errors::{self, CustomResult},
         payments::{self, helpers},
-        revenue_recovery::utils,
     },
     db::{errors::RevenueRecoveryError, StorageInterface},
     routes::{app::ReqState, metrics, SessionState},
@@ -57,7 +57,7 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
-    let connector = api_models::enums::Connector::from_str(connector_name)
+    let connector = api_enums::Connector::from_str(connector_name)
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
 
@@ -151,20 +151,32 @@ pub async fn recovery_incoming_webhook_flow(
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
         revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
             //: match if the business profile entry is a Monitoring job return Noaffect(Discuss this) or some other job and then do this
-            handle_schedule_failed_payment(
-                &billing_connector_account,
-                intent_retry_count,
-                mca_retry_threshold,
-                &state,
-                &merchant_account,
-                &(
-                    recovery_attempt_from_payment_attempt,
-                    recovery_intent_from_payment_attempt,
-                ),
-                &business_profile,
-                //:retry algo will be passed here
-            )
-            .await
+            let recovery_algorithm_type = business_profile
+                .revenue_recovery_retry_algorithm_type
+                .ok_or(report!(
+                    errors::RevenueRecoveryError::RetryAlgorithmTypeNotFound
+                ))?;
+            match recovery_algorithm_type {
+                api_enums::RevenueRecoveryAlgorithmType::Monitoring => {
+                    handle_monitoring_threshold(&state, &business_profile, &key_store).await
+                }
+                revenue_recovery_retry_type => {
+                    handle_schedule_failed_payment(
+                        &billing_connector_account,
+                        intent_retry_count,
+                        mca_retry_threshold,
+                        &state,
+                        &merchant_account,
+                        &(
+                            recovery_attempt_from_payment_attempt,
+                            recovery_intent_from_payment_attempt,
+                        ),
+                        &business_profile,
+                        revenue_recovery_retry_type,
+                    )
+                    .await
+                }
+            }
         }
         revenue_recovery::RecoveryAction::SuccessPaymentExternal => {
             // Need to add recovery stop flow for this scenario
@@ -192,6 +204,36 @@ pub async fn recovery_incoming_webhook_flow(
     }
 }
 
+async fn handle_monitoring_threshold(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
+    let db = &*state.store;
+    let key_manager_state = &(state).into();
+    let monitoring_threshold_config = state.conf.revenue_recovery.monitoring_threshold_in_seconds;
+    let revenue_recovery_retry_algorithm_data = business_profile
+        .revenue_recovery_retry_algorithm_data
+        .ok_or(report!(
+            errors::RevenueRecoveryError::RetryAlgorithmTypeNotFound
+        ))?;
+    if revenue_recovery_retry_algorithm_data
+        .calculate_monitorig_threshold(monitoring_threshold_config)
+    {
+        let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
+        profile_wrapper
+            .update_revenue_recovery_algorithm_under_profile(
+                db,
+                key_manager_state,
+                key_store,
+                api_enums::RevenueRecoveryAlgorithmType::Smart,
+            )
+            .await
+            .change_context(errors::RevenueRecoveryError::RetryAlgorithmUpdationFailed)?;
+    }
+    Ok(webhooks::WebhookResponseTracker::NoEffect)
+}
+
 async fn handle_schedule_failed_payment(
     billing_connector_account: &domain::MerchantConnectorAccount,
     intent_retry_count: u16,
@@ -203,6 +245,7 @@ async fn handle_schedule_failed_payment(
         revenue_recovery::RecoveryPaymentIntent,
     ),
     business_profile: &domain::Profile,
+    revenue_recovery_retry: api_enums::RevenueRecoveryAlgorithmType,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
@@ -227,8 +270,7 @@ async fn handle_schedule_failed_payment(
                     .as_ref()
                     .map(|attempt| attempt.attempt_id.clone()),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
-                //: collect it from the argument
-                api_models::enums::RecoveryAlgorithm::Smart,
+                revenue_recovery_retry,
             )
             .await
         })
@@ -678,7 +720,7 @@ impl RevenueRecoveryAttempt {
         intent_retry_count: u16,
         payment_attempt_id: Option<id_type::GlobalAttemptId>,
         runner: storage::ProcessTrackerRunner,
-        revenue_recovery_retry: api_models::enums::RecoveryAlgorithm,
+        revenue_recovery_retry: api_enums::RevenueRecoveryAlgorithmType,
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
         let task = "EXECUTE_WORKFLOW";
 

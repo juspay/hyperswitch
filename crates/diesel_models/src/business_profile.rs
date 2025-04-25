@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "v1")]
+use crate::schema::business_profile;
+#[cfg(feature = "v2")]
+use crate::schema_v2::business_profile;
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
-
-#[cfg(feature = "v1")]
-use crate::schema::business_profile;
-#[cfg(feature = "v2")]
-use crate::schema_v2::business_profile;
+use time::Duration;
 
 /// Note: The order of fields in the struct is important.
 /// This should be in the same order as the fields in the schema.rs file, otherwise the code will
@@ -755,6 +755,14 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+impl RevenueRecoveryAlgorithmData {
+    pub fn calculate_monitorig_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
+        let total_threshold_time = self.monitoring_configured_timestamp
+            + Duration::seconds(monitoring_threshold_in_seconds);
+        return common_utils::date_time::now() >= total_threshold_time;
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

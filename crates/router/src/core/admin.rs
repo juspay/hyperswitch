@@ -2915,14 +2915,15 @@ pub async fn create_connector(
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
-        update_revenue_recovery_algorithm_under_profile(
-            business_profile.clone(),
-            store,
-            key_manager_state,
-            &key_store,
-            common_enums::RevenueRecoveryAlgorithmType::Monitoring,
-        )
-        .await?;
+        let profile_wrapper = ProfileWrapper::new(business_profile.clone());
+        profile_wrapper
+            .update_revenue_recovery_algorithm_under_profile(
+                store,
+                key_manager_state,
+                &key_store,
+                common_enums::RevenueRecoveryAlgorithmType::Monitoring,
+            )
+            .await?;
     }
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
@@ -4558,33 +4559,35 @@ impl ProfileWrapper {
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
         Ok(())
     }
-}
-#[cfg(feature = "v2")]
-pub async fn update_revenue_recovery_algorithm_under_profile(
-    profile: domain::Profile,
-    db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
-) -> RouterResult<()> {
-    let recovery_algorithm_data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-        monitoring_configured_timestamp: date_time::now(),
-    };
-    let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
-        revenue_recovery_retry_algorithm_type,
-        revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
-    };
+    pub async fn update_revenue_recovery_algorithm_under_profile(
+        self,
+        db: &dyn StorageInterface,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+    ) -> RouterResult<()> {
+        let recovery_algorithm_data =
+            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                monitoring_configured_timestamp: date_time::now(),
+            };
+        let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+            revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
+        };
 
-    db.update_profile_by_profile_id(
-        key_manager_state,
-        merchant_key_store,
-        profile,
-        profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update revenue recovery retry algorithm in business profile")?;
-    Ok(())
+        db.update_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update revenue recovery retry algorithm in business profile",
+        )?;
+        Ok(())
+    }
 }
 
 pub async fn extended_card_info_toggle(

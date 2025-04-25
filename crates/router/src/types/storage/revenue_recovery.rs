@@ -9,7 +9,7 @@ pub struct PcrWorkflowTrackingData {
     pub global_payment_id: id_type::GlobalPaymentId,
     pub payment_attempt_id: id_type::GlobalAttemptId,
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
-    pub revenue_recovery_retry: enums::RecoveryAlgorithm,
+    pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
 }
 
 #[derive(Debug, Clone)]
@@ -17,4 +17,9 @@ pub struct PcrPaymentData {
     pub merchant_account: merchant_account::MerchantAccount,
     pub profile: business_profile::Profile,
     pub key_store: merchant_key_store::MerchantKeyStore,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct RevenueRecoverySettings {
+    monitoring_threshold_in_seconds: i64,
 }

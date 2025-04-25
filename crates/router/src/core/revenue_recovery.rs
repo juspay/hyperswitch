@@ -1,6 +1,5 @@
 pub mod transformers;
 pub mod types;
-pub mod utils;
 use api_models::{
     enums,
     payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest},
@@ -126,6 +125,7 @@ pub async fn perform_execute_payment(
                         pcr_data.profile.get_id().clone(),
                         attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                        tracking_data.revenue_recovery_retry,
                     )
                     .await?;
 
@@ -159,7 +159,7 @@ async fn insert_psync_pcr_task(
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
-    revenue_recovery_retry: diesel_enum::RecoveryAlgorithm,
+    revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -170,7 +170,7 @@ async fn insert_psync_pcr_task(
         merchant_id,
         profile_id,
         payment_attempt_id,
-        //: revenue_recovery_retry,
+        revenue_recovery_retry,
     };
     let tag = ["PCR"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
