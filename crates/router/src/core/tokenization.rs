@@ -102,28 +102,32 @@ pub async fn get_token_vault_core(
     query_params: (id_type::GlobalTokenId, bool),
 ) -> RouterResponse<serde_json::Value> {
     let db = state.store.as_ref();
-
+    let key_manager_state = &(&state).into();
     // Get the tokenization record from the database
     let tokenization = db
         .get_entity_id_vault_id_by_token_id(
             &query_params.0,
             &(merchant_key_store.clone()),
+            &key_manager_state,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get tokenization record")?;
     
+    if tokenization.flag == enums::TokenizationFlag::Disabled {
+        return Err(errors::ApiErrorResponse::InvalidRequestData{
+            message: "Tokenization is disabled".to_string()
+        }.into());
+    }
+
     let vault_request = pm_types::VaultRetrieveRequest{
-        entity_id : tokenization.0.clone(),
-        vault_id : hyperswitch_domain_models::payment_methods::VaultId::generate(tokenization.1.clone()),
+        entity_id : tokenization.merchant_id.clone(),
+        vault_id : hyperswitch_domain_models::payment_methods::VaultId::generate(tokenization.locker_id.clone()),
     };
 
     let vault_data = pm_vault::retrive_value_from_vault(
         &state, 
-        pm_types::VaultRetrieveRequest {
-            entity_id: tokenization.0.clone(),
-            vault_id: domain::VaultId::generate(tokenization.1.clone()),
-        }
+        vault_request
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

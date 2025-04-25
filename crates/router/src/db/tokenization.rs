@@ -41,7 +41,8 @@ pub trait TokenizationInterface {
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<(common_utils::id_type::MerchantId, String), errors::StorageError>;
+        key_manager_state: &KeyManagerState
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
 }
 
 
@@ -75,20 +76,26 @@ impl TokenizationInterface for Store {
     async fn get_entity_id_vault_id_by_token_id(
         &self,
         token: &common_utils::id_type::GlobalTokenId,
-        merchant_key_store: &MerchantKeyStore
-    ) -> CustomResult<(common_utils::id_type::MerchantId, String), errors::StorageError> {
+        merchant_key_store: &MerchantKeyStore,
+        key_manager_state: &KeyManagerState
+    ) -> CustomResult<domain_tokenization::Tokenization, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         
         // Use the find_by_id method we just defined
         let tokenization = diesel_models::tokenization::Tokenization::find_by_id(&conn, token)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        let domain_tokenization = tokenization
+            .convert(
+                key_manager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)?;
         
-        // Return the entity_id and vault_id directly
-        Ok((
-            tokenization.merchant_id,
-            tokenization.locker_id,
-        ))
+        Ok(domain_tokenization)
     }
 
 }
@@ -109,7 +116,8 @@ impl TokenizationInterface for MockDb {
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<(common_utils::id_type::MerchantId, String), errors::StorageError> {
+        key_manager_state: &KeyManagerState
+    ) -> CustomResult<domain_tokenization::Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
