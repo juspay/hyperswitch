@@ -34,4 +34,4 @@ impl crate::events::ApiEventMetric for GlobalTokenId {
             token_id: Some(self.clone()),
         })
     }
-} 
+}

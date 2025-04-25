@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use common_utils::id_type::GlobalTokenId;
-use time::PrimitiveDateTime;
 use common_enums;
+use common_utils::id_type::GlobalTokenId;
+use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,10 +17,10 @@ pub struct TokenizationResponse {
 pub enum TokenizationFlag {
     Enabled,
     Disabled,
-} 
+}
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct TokenizationQueryParameters{
-    // Make the 
-    pub reveal : Option<bool>,
+pub struct TokenizationQueryParameters {
+    // Make the
+    pub reveal: Option<bool>,
 }

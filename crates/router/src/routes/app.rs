@@ -38,8 +38,6 @@ use super::payment_methods;
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(all(feature = "oltp", feature = "v2"))]
-use super::tokenization as tokenization_routes;
 #[cfg(all(
     feature = "oltp",
     any(feature = "v1", feature = "v2"),
@@ -54,6 +52,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::tokenization as tokenization_routes;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -94,7 +94,10 @@ pub use crate::{
     services::{get_cache_store, get_store},
 };
 use crate::{
-    configs::{secrets_transformers, Settings}, core::payments::tokenization, db::kafka_store::{KafkaStore, TenantID}, routes::hypersense as hypersense_routes,
+    configs::{secrets_transformers, Settings},
+    core::payments::tokenization,
+    db::kafka_store::{KafkaStore, TenantID},
+    routes::hypersense as hypersense_routes,
 };
 
 #[derive(Clone)]
@@ -1380,18 +1383,12 @@ impl Tokenization {
     pub fn server(state: AppState) -> Scope {
         let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
         token_route = token_route.service(
-            web::resource("")
-                .route(web::post().to(tokenization_routes::create_token_vault_api)),
+            web::resource("").route(web::post().to(tokenization_routes::create_token_vault_api)),
         );
 
-        token_route =
-            token_route.service(
-                web::scope("/{token_id}")
-                    .service(
-                        web::resource("")
-                            .route(web::get().to(tokenization_routes::get_token_vault_api))
-                    )
-            );
+        token_route = token_route.service(web::scope("/{token_id}").service(
+            web::resource("").route(web::get().to(tokenization_routes::get_token_vault_api)),
+        ));
         token_route
     }
 }

@@ -31,6 +31,7 @@ pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
+use diesel_models::tokenization::Tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
@@ -39,8 +40,6 @@ use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, errors::StorageError};
-
-use diesel_models::tokenization::Tokenization;
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {

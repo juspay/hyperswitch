@@ -1,31 +1,27 @@
-use error_stack::{ResultExt, Report, report};
+use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::{
+    errors::CustomResult,
     ext_traits::OptionExt,
-    errors::CustomResult, 
-    id_type::{CellId, GlobalTokenId, MerchantId}, 
+    id_type::{CellId, GlobalTokenId, MerchantId},
     types::keymanager::KeyManagerState,
 };
-use diesel::{Insertable, RunQueryDsl, ExpressionMethods};
-use tokio::time;
-use async_bb8_diesel::AsyncRunQueryDsl;
-use crate::{
-    core,
-    connection,
-    errors ,
-    services::Store,
-};
-use storage_impl::MockDb;
+use diesel::{ExpressionMethods, Insertable, RunQueryDsl};
 use diesel_models::{
     enums::TokenizationFlag as DbTokenizationFlag,
-    tokenization::{Tokenization, TokenizationNew},
     schema_v2::tokenization::dsl as tokenization_dsl,
+    tokenization::{Tokenization, TokenizationNew},
     PgPooledConn,
 };
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
+    tokenization as domain_tokenization,
 };
-use hyperswitch_domain_models::tokenization as domain_tokenization;
+use storage_impl::MockDb;
+use tokio::time;
+
+use crate::{connection, core, errors, services::Store};
 
 #[async_trait::async_trait]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -34,31 +30,30 @@ pub trait TokenizationInterface {
         &self,
         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
         merchant_key_store: &MerchantKeyStore,
-        key_manager_state: &KeyManagerState
+        key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
 
     async fn get_entity_id_vault_id_by_token_id(
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
-        key_manager_state: &KeyManagerState
+        key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
 }
-
 
 #[async_trait::async_trait]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 impl TokenizationInterface for Store {
-    
     async fn insert_tokenization(
         &self,
         tokenization: domain_tokenization::Tokenization,
         merchant_key_store: &MerchantKeyStore,
-        key_manager_state: &KeyManagerState
+        key_manager_state: &KeyManagerState,
     ) -> CustomResult<domain_tokenization::Tokenization, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        tokenization.construct_new()
+        tokenization
+            .construct_new()
             .await
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
@@ -77,10 +72,10 @@ impl TokenizationInterface for Store {
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
-        key_manager_state: &KeyManagerState
+        key_manager_state: &KeyManagerState,
     ) -> CustomResult<domain_tokenization::Tokenization, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        
+
         // Use the find_by_id method we just defined
         let tokenization = diesel_models::tokenization::Tokenization::find_by_id(&conn, token)
             .await
@@ -94,21 +89,19 @@ impl TokenizationInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)?;
-        
+
         Ok(domain_tokenization)
     }
-
 }
 
 #[async_trait::async_trait]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 impl TokenizationInterface for MockDb {
-    
     async fn insert_tokenization(
         &self,
         tokenization: domain_tokenization::Tokenization,
         merchant_key_store: &MerchantKeyStore,
-        key_manager_state: &KeyManagerState
+        key_manager_state: &KeyManagerState,
     ) -> CustomResult<domain_tokenization::Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -116,7 +109,7 @@ impl TokenizationInterface for MockDb {
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
-        key_manager_state: &KeyManagerState
+        key_manager_state: &KeyManagerState,
     ) -> CustomResult<domain_tokenization::Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

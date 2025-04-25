@@ -39,14 +39,14 @@ pub mod refunds;
 pub mod relay;
 pub mod routing;
 pub mod surcharge_decision_configs;
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;
 pub mod user;
 pub mod user_role;
 pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
-#[cfg(feature = "tokenization_v2")]
-pub mod tokenization;
 
 pub trait ValidateFieldAndGet<Request> {
     fn validate_field_and_get(

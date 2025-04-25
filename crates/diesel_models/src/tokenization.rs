@@ -1,11 +1,4 @@
-
-use time::PrimitiveDateTime;
-use serde::{Deserialize, Serialize};
-use crate::{
-    schema_v2::tokenization,
-    PgPooledConn, StorageResult,
-    query::generics,
-};
+use common_enums;
 use common_utils::{
     consts::MAX_LOCKER_ID_LENGTH,
     id_type::{GlobalTokenId, MerchantId},
@@ -13,15 +6,17 @@ use common_utils::{
 };
 use diesel::{
     associations::HasTable,
-    deserialize::FromSqlRow, 
-    expression::AsExpression, 
-    sql_types::{Jsonb, Text},
+    deserialize::FromSqlRow,
+    expression::AsExpression,
     pg::Pg,
-    serialize::{ToSql, Output},
-    AsChangeset, Identifiable, Insertable, Queryable, Selectable
+    serialize::{Output, ToSql},
+    sql_types::{Jsonb, Text},
+    AsChangeset, Identifiable, Insertable, Queryable, Selectable,
 };
+use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
-use common_enums;
+use crate::{query::generics, schema_v2::tokenization, PgPooledConn, StorageResult};
 #[derive(Clone, Debug, Identifiable, Insertable, Queryable)]
 #[diesel(table_name = tokenization)]
 pub struct Tokenization {
@@ -91,7 +86,6 @@ pub struct TokenizationUpdate {
 //     Disabled,
 // }
 
-
 // impl diesel::serialize::ToSql<diesel::sql_types::Text, diesel::pg::Pg> for TokenizationFlag {
 //     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> diesel::serialize::Result {
 //         match *self {
@@ -101,7 +95,6 @@ pub struct TokenizationUpdate {
 //         Ok(diesel::serialize::IsNull::No)
 //     }
 // }
-
 
 // impl diesel::expression::QueryFragment for TokenizationFlag {
 //     fn walk_ast<'b>(&'b self, mut out: diesel::pg::PgAstPass<'_, 'b>) -> diesel::QueryResult<()> {

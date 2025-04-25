@@ -29,8 +29,7 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
-        DbTokenizationFlag as TokenizationFlag,
+        DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -8082,7 +8081,6 @@ pub enum CryptoPadding {
     PKCS7,
     ZeroPadding,
 }
-
 
 // #[derive(
 //     Clone,
