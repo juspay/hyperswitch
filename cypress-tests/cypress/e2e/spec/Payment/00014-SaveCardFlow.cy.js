@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { generateRandomName } from "../../../utils/RequestBodyUtils";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -649,6 +650,90 @@ describe("Card - SaveCard payment flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+    }
+  );
+  context(
+    "Check if card fields are populated when saving card again after a metadata update",
+    () => {
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("create+confirm-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCapture"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-customerPM-call-test", () => {
+        cy.listCustomerPMCallTest(globalState);
+      });
+
+      it("create+confirm-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCapture"];
+
+        // generates random name (first name and last name)
+        const card_holder_name = generateRandomName();
+        // Create a new configuration object 'newData' based on the original 'data'.
+        // This uses the spread operator (...) to create copies at each level,
+        // ensuring the original 'data' object remains unchanged (immutability).
+        const newData = {
+          // Copy all top-level properties from the original 'data'.
+          ...data,
+          // Override the 'Request' object with a new one.
+          Request: {
+            // Copy all properties from the original 'data.Request'.
+            ...data.Request,
+            // Override the 'payment_method_data' object within the Request.
+            payment_method_data: {
+              // Override the 'card' object within payment_method_data.
+              card: {
+                // Copy all properties from the original card details.
+                ...data.Request.payment_method_data.card,
+                // Set the desired modifications for this specific test case.
+                card_holder_name: card_holder_name, // Update card holder name.
+              },
+            },
+          },
+        };
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          newData,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-customerPM-call-test", () => {
+        cy.listCustomerPMCallTest(globalState);
       });
     }
   );

@@ -27,7 +27,6 @@ use crate::{
             self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
-        utils::ValidatePlatformMerchant,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
@@ -149,9 +148,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        payment_intent
-            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         self.validate_status_for_operation(payment_intent.status)?;
 
@@ -291,6 +287,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            client_secret: None,
             sessions_token: vec![],
         };
 
