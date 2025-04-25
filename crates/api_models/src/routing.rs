@@ -646,9 +646,10 @@ impl DynamicRoutingAlgorithmRef {
     pub fn is_elimination_enabled(&self) -> bool {
         self.elimination_routing_algorithm
             .as_ref()
-            .map(|er| {
-                er.enabled_feature == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || er.enabled_feature == DynamicRoutingFeatures::Metrics
+            .map(|elimination_routing| {
+                elimination_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
