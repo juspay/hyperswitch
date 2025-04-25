@@ -41,6 +41,8 @@ use storage_impl::redis::cache::Cacheable;
 use crate::db::errors::StorageErrorExt;
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -1353,42 +1355,34 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub fn get_txn_status_from_attempt_status(
-    attempt_status: common_enums::AttemptStatus,
-) -> open_router::TxnStatus {
-    match attempt_status {
-        common_enums::AttemptStatus::Started => open_router::TxnStatus::Started,
-        common_enums::AttemptStatus::AuthenticationFailed => {
-            open_router::TxnStatus::AuthenticationFailed
+impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
+    fn foreign_from(attempt_status: common_enums::AttemptStatus) -> Self {
+        match attempt_status {
+            common_enums::AttemptStatus::Started => Self::Started,
+            common_enums::AttemptStatus::AuthenticationFailed => Self::AuthenticationFailed,
+            common_enums::AttemptStatus::RouterDeclined => Self::JuspayDeclined,
+            common_enums::AttemptStatus::AuthenticationPending => Self::PendingVbv,
+            common_enums::AttemptStatus::AuthenticationSuccessful => Self::VBVSuccessful,
+            common_enums::AttemptStatus::Authorized => Self::Authorized,
+            common_enums::AttemptStatus::AuthorizationFailed => Self::AuthorizationFailed,
+            common_enums::AttemptStatus::Charged => Self::Charged,
+            common_enums::AttemptStatus::Authorizing => Self::Authorizing,
+            common_enums::AttemptStatus::CodInitiated => Self::CODInitiated,
+            common_enums::AttemptStatus::Voided => Self::Voided,
+            common_enums::AttemptStatus::VoidInitiated => Self::VoidInitiated,
+            common_enums::AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
+            common_enums::AttemptStatus::CaptureFailed => Self::CaptureFailed,
+            common_enums::AttemptStatus::VoidFailed => Self::VoidFailed,
+            common_enums::AttemptStatus::AutoRefunded => Self::AutoRefunded,
+            common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
+            common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
+            common_enums::AttemptStatus::Unresolved => Self::Pending,
+            common_enums::AttemptStatus::Pending => Self::Pending,
+            common_enums::AttemptStatus::Failure => Self::Failure,
+            common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
+            common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
+            common_enums::AttemptStatus::DeviceDataCollectionPending => Self::Pending,
         }
-        common_enums::AttemptStatus::RouterDeclined => open_router::TxnStatus::JuspayDeclined,
-        common_enums::AttemptStatus::AuthenticationPending => open_router::TxnStatus::PendingVbv,
-        common_enums::AttemptStatus::AuthenticationSuccessful => {
-            open_router::TxnStatus::VBVSuccessful
-        }
-        common_enums::AttemptStatus::Authorized => open_router::TxnStatus::Authorized,
-        common_enums::AttemptStatus::AuthorizationFailed => {
-            open_router::TxnStatus::AuthorizationFailed
-        }
-        common_enums::AttemptStatus::Charged => open_router::TxnStatus::Charged,
-        common_enums::AttemptStatus::Authorizing => open_router::TxnStatus::Authorizing,
-        common_enums::AttemptStatus::CodInitiated => open_router::TxnStatus::CODInitiated,
-        common_enums::AttemptStatus::Voided => open_router::TxnStatus::Voided,
-        common_enums::AttemptStatus::VoidInitiated => open_router::TxnStatus::VoidInitiated,
-        common_enums::AttemptStatus::CaptureInitiated => open_router::TxnStatus::CaptureInitiated,
-        common_enums::AttemptStatus::CaptureFailed => open_router::TxnStatus::CaptureFailed,
-        common_enums::AttemptStatus::VoidFailed => open_router::TxnStatus::VoidFailed,
-        common_enums::AttemptStatus::AutoRefunded => open_router::TxnStatus::AutoRefunded,
-        common_enums::AttemptStatus::PartialCharged => open_router::TxnStatus::PartialCharged,
-        common_enums::AttemptStatus::PartialChargedAndChargeable => {
-            open_router::TxnStatus::ToBeCharged
-        }
-        common_enums::AttemptStatus::Unresolved => open_router::TxnStatus::Pending,
-        common_enums::AttemptStatus::Pending => open_router::TxnStatus::Pending,
-        common_enums::AttemptStatus::Failure => open_router::TxnStatus::Failure,
-        common_enums::AttemptStatus::PaymentMethodAwaited => open_router::TxnStatus::Pending,
-        common_enums::AttemptStatus::ConfirmationAwaited => open_router::TxnStatus::Pending,
-        common_enums::AttemptStatus::DeviceDataCollectionPending => open_router::TxnStatus::Pending,
     }
 }
 

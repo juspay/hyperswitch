@@ -1534,6 +1534,7 @@ pub async fn perform_open_routing(
         .unwrap_or(routable_connectors);
 
     if is_elimination_enabled {
+        // This will initiate the elimination process for the connector.
         // Penalize the elimination score of the connector before making a payment.
         // Once the payment is made, we will update the score based on the payment status
         if let Some(connector) = connectors.first() {
@@ -1749,7 +1750,7 @@ pub async fn update_success_rate_score_with_open_router(
     let open_router_req_body = or_types::UpdateScorePayload {
         merchant_id: profile_id.clone(),
         gateway: payment_connector.to_string(),
-        status: routing::helpers::get_txn_status_from_attempt_status(payment_status),
+        status: payment_status.foreign_into(),
         payment_id: payment_id.clone(),
     };
 
