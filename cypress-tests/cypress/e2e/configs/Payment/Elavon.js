@@ -1,4 +1,4 @@
-import { customerAcceptance, getCustomExchange } from "./Commons";
+import customerAcceptance from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -179,7 +179,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
