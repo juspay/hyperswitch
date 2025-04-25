@@ -109,6 +109,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
@@ -146,6 +147,33 @@ pub struct Settings<S: SecretState> {
     pub theme: ThemeSettings,
     pub platform: Platform,
     pub open_router: OpenRouter,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkInterchangeFee {
+    pub non_regulated: NoneRegulatedNetworkProcessingData,
+    pub regulated: NetworkProcessingData,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NoneRegulatedNetworkProcessingData(
+    pub HashMap<String, HashMap<enums::CardNetwork, NetworkProcessingData>>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkProcessingData {
+    pub percentage: f64,
+    pub fixed_amount: f64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

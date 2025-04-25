@@ -6,21 +6,20 @@ use std::collections::hash_map;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+#[cfg(feature = "v1")]
+use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
+#[cfg(feature = "v1")]
+use common_utils::{ext_traits::BytesExt, request};
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::{
-    open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest},
-    routing as api_routing,
-};
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::{
-    ext_traits::{AsyncExt, BytesExt},
-    request,
-};
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -42,7 +41,7 @@ use kgraph_utils::{
     transformers::{IntoContext, IntoDirValue},
     types::CountryCurrencyFilter,
 };
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use rand::distributions::{self, Distribution};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use rand::SeedableRng;
@@ -55,8 +54,9 @@ use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 use crate::core::admin;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::{core::routing::transformers::OpenRouterDecideGatewayRequestExt, headers, services};
+#[cfg(feature = "v1")]
+use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
+
 use crate::{
     core::{errors, errors as oss_errors, routing},
     logger,
@@ -68,6 +68,7 @@ use crate::{
     utils::{OptionExt, ValueExt},
     SessionState,
 };
+use crate::{headers, services};
 
 pub enum CachedAlgorithm {
     Single(Box<routing_types::RoutableConnectorChoice>),
@@ -1535,6 +1536,85 @@ pub async fn perform_open_routing(
         .unwrap_or(routable_connectors);
 
     Ok(connectors)
+}
+
+#[cfg(feature = "v1")]
+pub async fn perform_open_routing_for_debit_routing(
+    state: &SessionState,
+    payment_attempt: &oss_storage::PaymentAttempt,
+    co_badged_card_request: or_types::CoBadgedCardRequest,
+    card_isin: Option<Secret<String>>,
+) -> RoutingResult<or_types::DebitRoutingOutput> {
+    logger::debug!(
+        "performing debit with open_router for profile {}",
+        payment_attempt.profile_id.get_string_repr()
+    );
+
+    let metadata = Some(
+        serde_json::to_string(&co_badged_card_request)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode Vaulting data to string")
+            .change_context(errors::RoutingError::MetadataParsingError)?,
+    );
+
+    let open_router_req_body = OpenRouterDecideGatewayRequest::construct_debit_request(
+        payment_attempt,
+        metadata,
+        card_isin,
+        Some(or_types::RankingAlgorithm::NtwBasedRouting),
+    );
+
+    let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
+    let mut request = request::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        state.tenant.tenant_id.get_string_repr().to_owned().into(),
+    );
+    request.set_body(request::RequestContent::Json(Box::new(
+        open_router_req_body,
+    )));
+
+    let response = services::call_connector_api(state, request, "open_router_debit_routing_call")
+        .await
+        .change_context(errors::RoutingError::OpenRouterCallFailed {
+            algo: "debit_routing".into(),
+        })?;
+
+    let output = match response {
+        Ok(resp) => {
+            let decided_gateway: DecidedGateway = resp
+                .response
+                .parse_struct("DecidedGateway")
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ))?;
+
+            let debit_routing_output = decided_gateway
+                .debit_routing_output
+                .get_required_value("debit_routing_output")
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ))
+                .attach_printable("debit_routing_output is missing in the open routing response")?;
+
+            Ok(debit_routing_output)
+        }
+        Err(err) => {
+            let err_resp: or_types::ErrorResponse = err
+                .response
+                .parse_struct("ErrorResponse")
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ))?;
+            logger::error!("open_router_error_response: {:?}", err_resp);
+            Err(errors::RoutingError::OpenRouterError(
+                "Failed to perform success based routing in open router".into(),
+            ))
+        }
+    }?;
+
+    Ok(output)
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

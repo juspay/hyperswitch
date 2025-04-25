@@ -2315,6 +2315,102 @@ pub enum CardNetwork {
     Nyce,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+pub enum RegulatedName {
+    #[serde(rename = "GOVERNMENT NON-EXEMPT INTERCHANGE FEE (WITH FRAUD)")]
+    NonExemptWithFraud,
+    #[serde(rename = "GOVERNMENT EXEMPT INTERCHANGE FEE")]
+    ExemptFraud,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
+pub enum PanOrToken {
+    Pan,
+    Token,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "lowercase")]
+pub enum CardType {
+    Credit,
+    Debit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantCategoryCode {
+    Mcc0001,
+}
+
+impl CardNetwork {
+    pub fn is_global_network(&self) -> bool {
+        match self {
+            Self::Interac
+            | Self::Star
+            | Self::Pulse
+            | Self::Accel
+            | Self::Nyce 
+            | Self::CartesBancaires => false,
+
+            Self::Visa
+            | Self::Mastercard
+            | Self::AmericanExpress
+            | Self::JCB
+            | Self::DinersClub
+            | Self::Discover
+            | Self::UnionPay
+            | Self::RuPay
+            | Self::Maestro => true,
+        }
+    }
+}
+
 /// Stage of the dispute
 #[derive(
     Clone,

@@ -930,6 +930,13 @@ payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 
+[debit_routing_config]
+supported_currencies = "USD"
+supported_connectors = "adyen"
+
+[debit_routing_config.connector_supported_debit_networks]
+adyen = "Star,Pulse,Accel,Nyce"
+
 [analytics]
 source = "sqlx"
 forex_enabled = false

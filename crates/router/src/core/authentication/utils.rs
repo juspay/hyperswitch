@@ -22,23 +22,25 @@ pub fn get_connector_data_if_separate_authn_supported(
     connector_call_type: &api::ConnectorCallType,
 ) -> Option<api::ConnectorData> {
     match connector_call_type {
-        api::ConnectorCallType::PreDetermined(connector_data) => {
-            if connector_data
+        api::ConnectorCallType::PreDetermined(connector_routing_data) => {
+            if connector_routing_data
+                .connector_data
                 .connector_name
                 .is_separate_authentication_supported()
             {
-                Some(connector_data.clone())
+                Some(connector_routing_data.connector_data.clone())
             } else {
                 None
             }
         }
-        api::ConnectorCallType::Retryable(connectors) => {
-            connectors.first().and_then(|connector_data| {
-                if connector_data
+        api::ConnectorCallType::Retryable(connector_routing_data) => {
+            connector_routing_data.first().and_then(|connector_routing_data| {
+                if connector_routing_data
+                    .connector_data
                     .connector_name
                     .is_separate_authentication_supported()
                 {
-                    Some(connector_data.clone())
+                    Some(connector_routing_data.connector_data.clone())
                 } else {
                     None
                 }

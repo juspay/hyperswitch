@@ -85,7 +85,8 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
-    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+ errors::StorageErrorExt, payment_methods::surcharge_decision_configs,
+    routing::TransactionData,
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -126,6 +127,8 @@ use crate::{
     core::authentication as authentication_core,
     types::{api::authentication, BrowserInformation},
 };
+#[cfg(feature = "v1")]
+use crate::core::debit_routing;
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -205,7 +208,7 @@ where
                 req_state.clone(),
                 &merchant_account,
                 &key_store,
-                connector_data.clone(),
+                connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
                 &customer,
@@ -361,6 +364,14 @@ where
     )
     .await?;
 
+    let (connector, is_debit_routing_performed )= debit_routing::perform_debit_routing(
+        &operation,
+        state,
+        &business_profile,
+        &payment_data,
+        connector,
+    ).await;
+
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
     let locale = header_payload.locale.clone();
@@ -495,7 +506,7 @@ where
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector.connector.id(),
+                            connector.connector_data.connector.id(),
                             merchant_account.get_id(),
                             0,
                         )
@@ -510,7 +521,7 @@ where
                         req_state.clone(),
                         &merchant_account,
                         &key_store,
-                        connector.clone(),
+                        connector.connector_data.clone(),
                         &operation,
                         &mut payment_data,
                         &customer,
@@ -590,7 +601,7 @@ where
                             &key_store,
                             &customer,
                             &mca,
-                            connector,
+                            &connector.connector_data,
                             &mut payment_data,
                             op_ref,
                             Some(header_payload.clone()),
@@ -610,7 +621,19 @@ where
 
                     let mut connectors = connectors.clone().into_iter();
 
-                    let connector_data = get_connector_data(&mut connectors)?;
+                        let connector_data = if business_profile.is_debit_routing_enabled && is_debit_routing_performed {
+                            if let Some((connector_data, local_network)) = find_connector_with_networks(&mut connectors) {
+                                payment_data.set_local_network(local_network);
+                                connector_data
+                            } else {
+                                get_connector_data(&mut connectors)?.connector_data
+                            }
+                        } else {
+                            get_connector_data(&mut connectors)?.connector_data
+                        };
+
+
+
 
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -1037,7 +1060,7 @@ where
     add_connector_http_status_code_metrics(connector_http_status_code);
 
     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    let routable_connectors = convert_connector_data_to_routable_connectors(&[connector.clone()])
+    let routable_connectors = convert_connector_data_to_routable_connectors(&[connector.clone().into()])
         .map_err(|e| logger::error!(routable_connector_error=?e))
         .unwrap_or_default();
 
@@ -1155,7 +1178,7 @@ where
                 req_state.clone(),
                 &merchant_account,
                 &key_store,
-                connector_data.clone(),
+                connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
                 call_connector_action.clone(),
@@ -1430,13 +1453,23 @@ where
 
 #[inline]
 pub fn get_connector_data(
-    connectors: &mut IntoIter<api::ConnectorData>,
-) -> RouterResult<api::ConnectorData> {
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+) -> RouterResult<api::ConnectorRoutingData> {
     connectors
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Connector not found in connectors iterator")
 }
+
+pub fn find_connector_with_networks(
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+) -> Option<(api::ConnectorData, enums::CardNetwork)> {
+    connectors.find_map(|connector| {
+        connector.network
+            .map(|network| (connector.connector_data, network))
+    })
+}
+
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
@@ -6379,7 +6412,7 @@ where
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
-        return Ok(ConnectorCallType::PreDetermined(connector_data));
+        return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
     if let Some(mandate_connector_details) = payment_data.get_mandate_connector().as_ref() {
@@ -6398,7 +6431,7 @@ where
             .merchant_connector_id
             .clone_from(&mandate_connector_details.merchant_connector_id);
 
-        return Ok(ConnectorCallType::PreDetermined(connector_data));
+        return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
     if let Some((pre_routing_results, storage_pm_type)) =
@@ -6442,7 +6475,8 @@ where
                     connector_choice.merchant_connector_id.clone(),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received")?;
+                .attach_printable("Invalid connector name received")?
+                .into();
 
                 pre_routing_connector_data_list.push(connector_data);
             }
@@ -6535,6 +6569,7 @@ where
                     api::GetToken::Connector,
                     conn.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -6593,6 +6628,7 @@ where
                     api::GetToken::Connector,
                     conn.merchant_connector_id,
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -6656,7 +6692,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     state: &SessionState,
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
-    connectors: Vec<api::ConnectorData>,
+    connectors: Vec<api::ConnectorRoutingData>,
     mandate_type: Option<api::MandateTransactionType>,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
@@ -6743,12 +6779,16 @@ where
                             "no eligible connector found for token-based MIT payment",
                         )?;
 
-                    routing_data.routed_through =
-                        Some(chosen_connector_data.connector_name.to_string());
+                    routing_data.routed_through = Some(
+                        chosen_connector_data
+                            .connector_data
+                            .connector_name
+                            .to_string(),
+                    );
 
                     routing_data
                         .merchant_connector_id
-                        .clone_from(&chosen_connector_data.merchant_connector_id);
+                        .clone_from(&chosen_connector_data.connector_data.merchant_connector_id);
 
                     payment_data.set_mandate_id(payments_api::MandateIds {
                         mandate_id: None,
@@ -6780,16 +6820,20 @@ where
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         ) => {
             if let Some(connector) = connectors.first() {
+                let connector = &connector.connector_data;
                 routing_data.routed_through = Some(connector.connector_name.clone().to_string());
                 routing_data
                     .merchant_connector_id
                     .clone_from(&connector.merchant_connector_id);
-                Ok(ConnectorCallType::PreDetermined(api::ConnectorData {
-                    connector: connector.connector.clone(),
-                    connector_name: connector.connector_name,
-                    get_token: connector.get_token.clone(),
-                    merchant_connector_id: connector.merchant_connector_id.clone(),
-                }))
+                Ok(ConnectorCallType::PreDetermined(
+                    api::ConnectorData {
+                        connector: connector.connector.clone(),
+                        connector_name: connector.connector_name,
+                        get_token: connector.get_token.clone(),
+                        merchant_connector_id: connector.merchant_connector_id.clone(),
+                    }
+                    .into(),
+                ))
             } else {
                 logger::error!("no eligible connector found for the ppt_mandate payment");
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
@@ -6805,9 +6849,10 @@ where
                 .attach_printable("no eligible connector found for payment")?
                 .clone();
 
-            routing_data.routed_through = Some(first_choice.connector_name.to_string());
+            routing_data.routed_through =
+                Some(first_choice.connector_data.connector_name.to_string());
 
-            routing_data.merchant_connector_id = first_choice.merchant_connector_id;
+            routing_data.merchant_connector_id = first_choice.connector_data.merchant_connector_id;
 
             Ok(ConnectorCallType::Retryable(connectors))
         }
@@ -6839,7 +6884,7 @@ pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
-    connectors: Vec<api::ConnectorData>,
+    connectors: Vec<api::ConnectorRoutingData>,
     is_connector_agnostic_mit_enabled: Option<bool>,
     payment_method_info: &domain::PaymentMethod,
 ) -> RouterResult<ConnectorCallType>
@@ -6855,7 +6900,8 @@ where
 
     let mut connector_choice = None;
 
-    for connector_data in connectors {
+    for connector_info in connectors {
+        let connector_data = connector_info.connector_data;
         let merchant_connector_id = connector_data
             .merchant_connector_id
             .as_ref()
@@ -6889,11 +6935,12 @@ where
                             )?;
                             let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
                                 api_models::payments::ConnectorMandateReferenceId::new(
-                                    Some(mandate_reference_record.connector_mandate_id.clone()),  // connector_mandate_id
-                                    Some(payment_method_info.get_id().clone()),                  // payment_method_id
-                                    None,                                                        // update_history
-                                    mandate_reference_record.mandate_metadata.clone(),           // mandate_metadata
-                                    mandate_reference_record.connector_mandate_request_reference_id.clone(), // connector_mandate_request_reference_id
+                                    Some(mandate_reference_record.connector_mandate_id.clone()),
+                                    Some(payment_method_info.get_id().clone()),
+                                    // update_histor
+                                    None,                                                        
+                                    mandate_reference_record.mandate_metadata.clone(),
+                                    mandate_reference_record.connector_mandate_request_reference_id.clone(),
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(
@@ -6951,16 +6998,18 @@ where
         mandate_reference_id,
     });
 
-    Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
+    Ok(ConnectorCallType::PreDetermined(
+        chosen_connector_data.into(),
+    ))
 }
 
 pub fn filter_ntid_supported_connectors(
-    connectors: Vec<api::ConnectorData>,
+    connectors: Vec<api::ConnectorRoutingData>,
     ntid_supported_connectors: &HashSet<enums::Connector>,
-) -> Vec<api::ConnectorData> {
+) -> Vec<api::ConnectorRoutingData> {
     connectors
         .into_iter()
-        .filter(|data| ntid_supported_connectors.contains(&data.connector_name))
+        .filter(|data| ntid_supported_connectors.contains(&data.connector_data.connector_name))
         .collect()
 }
 
@@ -6983,12 +7032,14 @@ pub enum ActionType {
 }
 
 pub fn filter_network_tokenization_supported_connectors(
-    connectors: Vec<api::ConnectorData>,
+    connectors: Vec<api::ConnectorRoutingData>,
     network_tokenization_supported_connectors: &HashSet<enums::Connector>,
-) -> Vec<api::ConnectorData> {
+) -> Vec<api::ConnectorRoutingData> {
     connectors
         .into_iter()
-        .filter(|data| network_tokenization_supported_connectors.contains(&data.connector_name))
+        .filter(|data| {
+            network_tokenization_supported_connectors.contains(&data.connector_data.connector_name)
+        })
         .collect()
 }
 
@@ -6998,7 +7049,7 @@ pub async fn decide_action_type(
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
-    filtered_nt_supported_connectors: Vec<api::ConnectorData>, //network tokenization supported connectors
+    filtered_nt_supported_connectors: Vec<api::ConnectorRoutingData>, //network tokenization supported connectors
 ) -> Option<ActionType> {
     match (
         is_network_token_with_network_transaction_id_flow(
@@ -7389,6 +7440,7 @@ where
                 api::GetToken::Connector,
                 conn.merchant_connector_id,
             )
+            .map(|connector_data| connector_data.into())
         })
         .collect::<CustomResult<Vec<_>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7481,6 +7533,7 @@ pub async fn route_connector_v1_for_payouts(
                 api::GetToken::Connector,
                 conn.merchant_connector_id,
             )
+            .map(|connector_data| connector_data.into())
         })
         .collect::<CustomResult<Vec<_>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -8095,6 +8148,7 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     );
+    fn set_local_network(&mut self, local_network: enums::CardNetwork);
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     fn set_frm_message(&mut self, frm_message: FraudCheck);
@@ -8324,6 +8378,12 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_attempt.merchant_connector_id = merchant_connector_id;
     }
 
+    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+        if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
+                card.card_network = Some(local_network);
+        };
+    }
+
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod) {
         self.payment_attempt.capture_method = Some(capture_method);
@@ -8543,6 +8603,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     }
 
     fn set_payment_method_id_in_attempt(&mut self, _payment_method_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
         todo!()
     }
 
@@ -8783,6 +8847,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
+    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+        todo!()
+    }
+
     fn set_surcharge_details(&mut self, _surcharge_details: Option<types::SurchargeDetails>) {
         todo!()
     }
@@ -8989,6 +9057,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_email_if_not_present(&mut self, _email: pii::Email) {
+        todo!()
+    }
+
+    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
         todo!()
     }
 
@@ -9208,6 +9280,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_payment_method_id_in_attempt(&mut self, _payment_method_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
         todo!()
     }
 

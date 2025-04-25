@@ -286,7 +286,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received")?;
 
-        Ok(ConnectorCallType::PreDetermined(connector_data))
+        Ok(ConnectorCallType::PreDetermined(connector_data.into()))
     }
 }
 
