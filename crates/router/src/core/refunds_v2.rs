@@ -398,10 +398,6 @@ pub fn perform_integrity_check<F>(
 ) -> RouterData<F, types::RefundsData, types::RefundsResponseData>
 where
     F: Debug + Clone + 'static,
-    dyn ConnectorTrait + Sync:
-        ConnectorIntegration<F, types::RefundsData, types::RefundsResponseData>,
-    dyn ConnectorV2 + Sync:
-        ConnectorIntegrationV2<F, RefundFlowData, types::RefundsData, types::RefundsResponseData>,
 {
     // Initiating Integrity check
     let integrity_result = check_refund_integrity(&router_data.request, &router_data.response);

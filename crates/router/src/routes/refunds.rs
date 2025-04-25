@@ -177,7 +177,6 @@ pub async fn refunds_retrieve(
     let refund_request = refunds::RefundsRetrieveRequest {
         refund_id: path.into_inner(),
         force_sync: query_params.force_sync,
-        merchant_connector_details: None,
     };
     let flow = match query_params.force_sync {
         Some(true) => Flow::RefundsRetrieveForceSync,
@@ -208,7 +207,7 @@ pub async fn refunds_retrieve(
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
             },
-            req.headers()
+            req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
     ))
