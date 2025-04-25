@@ -13,10 +13,10 @@ use common_enums::{
     enums::{
         AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
         AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
-        BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
-        CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
-        DenmarkStatesAbbreviation, FinlandStatesAbbreviation, FranceStatesAbbreviation,
-        FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
+        BosniaAndHerzegovinaStatesAbbreviation, BrazilStatesAbbreviation,
+        BulgariaStatesAbbreviation, CanadaStatesAbbreviation, CroatiaStatesAbbreviation,
+        CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation, FinlandStatesAbbreviation,
+        FranceStatesAbbreviation, FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
         HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
         ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
         LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
@@ -1691,6 +1691,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_network_from_additional_payment_method_data(
         &self,
     ) -> Result<enums::CardNetwork, Error>;
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1910,6 +1911,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             }
             .into()),
         }
+    }
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
+        self.connector_testing_data.clone()
     }
 }
 
@@ -5133,6 +5137,52 @@ impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
     }
 }
 
+impl ForeignTryFrom<String> for BrazilStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.clone(), "BrazilStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => match value.as_str() {
+                "Acre" => Ok(Self::Acre),
+                "Alagoas" => Ok(Self::Alagoas),
+                "Amapá" => Ok(Self::Amapá),
+                "Amazonas" => Ok(Self::Amazonas),
+                "Bahia" => Ok(Self::Bahia),
+                "Ceará" => Ok(Self::Ceará),
+                "Distrito Federal" => Ok(Self::DistritoFederal),
+                "Espírito Santo" => Ok(Self::EspíritoSanto),
+                "Goiás" => Ok(Self::Goiás),
+                "Maranhão" => Ok(Self::Maranhão),
+                "Mato Grosso" => Ok(Self::MatoGrosso),
+                "Mato Grosso do Sul" => Ok(Self::MatoGrossoDoSul),
+                "Minas Gerais" => Ok(Self::MinasGerais),
+                "Pará" => Ok(Self::Pará),
+                "Paraíba" => Ok(Self::Paraíba),
+                "Paraná" => Ok(Self::Paraná),
+                "Pernambuco" => Ok(Self::Pernambuco),
+                "Piauí" => Ok(Self::Piauí),
+                "Rio de Janeiro" => Ok(Self::RioDeJaneiro),
+                "Rio Grande do Norte" => Ok(Self::RioGrandeDoNorte),
+                "Rio Grande do Sul" => Ok(Self::RioGrandeDoSul),
+                "Rondônia" => Ok(Self::Rondônia),
+                "Roraima" => Ok(Self::Roraima),
+                "Santa Catarina" => Ok(Self::SantaCatarina),
+                "São Paulo" => Ok(Self::SãoPaulo),
+                "Sergipe" => Ok(Self::Sergipe),
+                "Tocantins" => Ok(Self::Tocantins),
+                _ => Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "address.state",
+                }
+                .into()),
+            },
+        }
+    }
+}
+
 pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
@@ -6013,6 +6063,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         shipping_cost: data.request.shipping_cost,
         merchant_account_id: None,
         merchant_config_currency: None,
+        connector_testing_data: data.request.connector_testing_data.clone(),
     }
 }
 
