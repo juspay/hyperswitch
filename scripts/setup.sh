@@ -56,16 +56,16 @@ show_banner() {
 
 # Detect Docker Compose version
 detect_docker_compose() {
-    # Check Podman or Docker
-    if command -v podman &> /dev/null; then
-        CONTAINER_ENGINE="podman"
-        echo_success "Podman is installed."
-    elif command -v docker &> /dev/null; then
+    # Check Docker or Podman
+    if command -v docker &> /dev/null; then
         CONTAINER_ENGINE="docker"
         echo_success "Docker is installed."
+    elif command -v podman &> /dev/null; then
+        CONTAINER_ENGINE="podman"
+        echo_success "Podman is installed."
     else
-        echo_error "Neither Podman nor Docker is installed. Please install one of them to proceed."
-        echo_info "Visit https://podman.io/docs/installation or https://docs.docker.com/get-docker/ for installation instructions."
+        echo_error "Neither Docker nor Podman is installed. Please install one of them to proceed."
+        echo_info "Visit https://docs.docker.com/get-docker/ or https://podman.io/docs/installation for installation instructions."
         echo_info "After installation, re-run this script: scripts/setup.sh"
         exit 1
     fi
@@ -80,9 +80,9 @@ detect_docker_compose() {
             echo_info "Visit https://docs.docker.com/compose/install/ for installation instructions."
         elif [ "$CONTAINER_ENGINE" = "podman" ]; then
             echo_info "Visit https://podman-desktop.io/docs/compose/setting-up-compose for installation instructions."
-    fi
-    echo_info "After installation, re-run this script: scripts/setup.sh"
-    exit 1
+        fi
+        echo_info "After installation, re-run this script: scripts/setup.sh"
+        exit 1
     fi
 }
 
