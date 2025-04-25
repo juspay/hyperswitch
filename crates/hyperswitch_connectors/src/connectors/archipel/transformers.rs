@@ -685,9 +685,10 @@ impl TryFrom<(ArchipelAmount, &PaymentsAuthorizeRouterData)> for ArchipelPayment
             ArchipelPaymentCertainty::Final
         };
 
-        let transaction_initiator = match is_recurring_payment {
-            true => ArchipelPaymentInitiator::Merchant,
-            false => ArchipelPaymentInitiator::Customer,
+        let transaction_initiator = if is_recurring_payment {
+            ArchipelPaymentInitiator::Merchant
+        } else {
+            ArchipelPaymentInitiator::Customer
         };
 
         let order = ArchipelOrderRequest {
@@ -712,9 +713,10 @@ impl TryFrom<(ArchipelAmount, &PaymentsAuthorizeRouterData)> for ArchipelPayment
             billing_address: Some(billing_address),
         });
 
-        let indicator_status = match is_subsequent_trx {
-            true => ArchipelCredentialIndicatorStatus::Subsequent,
-            false => ArchipelCredentialIndicatorStatus::Initial,
+        let indicator_status = if is_subsequent_trx {
+            ArchipelCredentialIndicatorStatus::Subsequent
+        } else {
+            ArchipelCredentialIndicatorStatus::Initial
         };
 
         let stored_on_file =
@@ -895,16 +897,25 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        if let Some(error) = item.response.error {
+            return Ok(Self {
+                response: Err(ArchipelErrorMessageWithHttpCode::new(error, item.http_code).into()),
+                ..item.data
+            });
+        };
+
         let capture_method = item
             .data
             .request
             .capture_method
             .ok_or_else(|| errors::ConnectorError::CaptureMethodNotSupported)?;
 
-        let archipel_flow = if capture_method == CaptureMethod::Automatic {
-            ArchipelPaymentFlow::Pay
-        } else {
-            ArchipelPaymentFlow::Authorize
+        let (archipel_flow, is_incremental_allowed) = match capture_method {
+            CaptureMethod::Automatic => (ArchipelPaymentFlow::Pay, false),
+            _ => (
+                ArchipelPaymentFlow::Authorize,
+                item.data.request.request_incremental_authorization,
+            ),
         };
 
         let metadata: Option<serde_json::Value> = ArchipelTransactionMetadata::from(&item.response)
@@ -913,12 +924,6 @@ impl<F>
 
         let status: AttemptStatus =
             ArchipelFlowStatus::new(item.response.transaction_result, archipel_flow).into();
-
-        let is_incremental_allowed = if capture_method == CaptureMethod::Automatic {
-            false
-        } else {
-            item.data.request.request_incremental_authorization
-        };
 
         Ok(Self {
             status,
@@ -1280,23 +1285,18 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = AuthorizationStatus::from(item.response.transaction_result.clone());
+        let status = AuthorizationStatus::from(item.response.transaction_result);
 
-        let errors: (Option<String>, Option<String>) = if status.clone()
-            == AuthorizationStatus::Success
-            || item.response.error.clone().is_none()
-        {
-            (None, None)
-        } else {
-            let archipel_error = item.response.error.unwrap_or_default();
-            (Some(archipel_error.code), archipel_error.description)
+        let (error_code, error_message) = match (&status, item.response.error) {
+            (AuthorizationStatus::Success, _) | (_, None) => (None, None),
+            (_, Some(err)) => (Some(err.code), err.description),
         };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status,
-                error_code: errors.0,
-                error_message: errors.1,
+                error_code,
+                error_message,
                 connector_authorization_id: None,
             }),
             ..item.data
@@ -1378,6 +1378,7 @@ impl TryFrom<ArchipelRefundResponse> for RefundsResponseData {
         })
     }
 }
+
 impl TryFrom<RefundsResponseRouterData<Execute, ArchipelRefundResponse>>
     for RefundsRouterData<Execute>
 {
