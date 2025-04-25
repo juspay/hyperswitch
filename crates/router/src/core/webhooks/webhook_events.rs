@@ -1,4 +1,6 @@
-use common_utils::{self, fp_utils};
+use std::collections::HashSet;
+
+use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -40,6 +42,8 @@ pub async fn list_initial_delivery_attempts(
     let events_list_begin_time =
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
+    let mut updated_event_types: HashSet<common_enums::EventType> = HashSet::new();
+
     let events = match constraints {
         api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
             match account {
@@ -64,6 +68,9 @@ pub async fn list_initial_delivery_attempts(
             created_before,
             limit,
             offset,
+            event_classes,
+            event_types,
+            is_delivered
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -78,6 +85,12 @@ pub async fn list_initial_delivery_attempts(
                 Some(offset) if offset > 0 => Some(offset),
                 _ => None,
             };
+
+            let event_classes = event_classes.unwrap_or(HashSet::new());
+            updated_event_types = event_types.unwrap_or(HashSet::new());
+            if !event_classes.is_empty() {
+                updated_event_types = finalize_event_types(event_classes, updated_event_types).await?;
+            }
 
             fp_utils::when(!created_after.zip(created_before).map(|(created_after,created_before)| created_after<=created_before).unwrap_or(true), || {
                 Err(errors::ApiErrorResponse::InvalidRequestData { message: "The `created_after` timestamp must be an earlier timestamp compared to the `created_before` timestamp".to_string() })
@@ -114,6 +127,8 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    updated_event_types.clone(),
+                    is_delivered,
                     &key_store,
                 )
                 .await,
@@ -124,6 +139,8 @@ pub async fn list_initial_delivery_attempts(
                     created_before,
                     limit,
                     offset,
+                    updated_event_types.clone(),
+                    is_delivered,
                     &key_store,
                 )
                 .await,
@@ -143,12 +160,16 @@ pub async fn list_initial_delivery_attempts(
         .unwrap_or(events_list_begin_time);
     let created_before = api_constraints.created_before.unwrap_or(now);
 
+    let is_delivered = api_constraints.is_delivered;
+
     let total_count = store
         .count_initial_events_by_constraints(
             &merchant_id,
             profile_id,
             created_after,
             created_before,
+            updated_event_types,
+            is_delivered,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -269,6 +290,7 @@ pub async fn retry_delivery_attempt(
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
+        is_overall_delivery_successful: Some(false),
     };
 
     let event = store
@@ -376,4 +398,49 @@ async fn get_account_and_key_store(
             ))
         }
     }
+}
+
+async fn finalize_event_types(
+    event_classes: HashSet<common_enums::EventClass>,
+    mut event_types: HashSet<common_enums::EventType>,
+) -> CustomResult<HashSet<common_enums::EventType>, errors::ApiErrorResponse> {
+    // Examples:
+    // 1. event_classes = ["payments", "refunds"], event_types = ["payment_succeeded"]
+    // 2. event_classes = ["refunds"], event_types = ["payment_succeeded"]
+
+    // Create possible_event_types based on event_classes
+    // Example 1: possible_event_types = ["payment_*", "refund_*"]
+    // Example 2: possible_event_types = ["refund_*"]
+    let possible_event_types = event_classes
+        .clone()
+        .into_iter()
+        .flat_map(common_enums::EventClass::event_types)
+        .collect::<HashSet<_>>();
+
+    if event_types.is_empty() {
+        return Ok(possible_event_types);
+    }
+
+    // Extend event_types if disjoint with event_classes
+    // Example 1: event_types = ["payment_succeeded", "refund_*"], is_disjoint is used to extend "refund_*" and ignore "payment_*".
+    // Example 2: event_types = ["payment_succeeded", "refund_*"], is_disjoint is only used to extend "refund_*".
+    event_classes.into_iter().for_each(|class| {
+        let valid_event_types = class.event_types();
+        if event_types.is_disjoint(&valid_event_types) {
+            event_types.extend(valid_event_types);
+        }
+    });
+
+    // Validate event_types is a subset of possible_event_types
+    // Example 1: event_types is a subset of possible_event_types (valid)
+    // Example 2: event_types is not a subset of possible_event_types (error due to "payment_succeeded")
+    if !event_types.is_subset(&possible_event_types) {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "`event_types` must be a subset of `event_classes`".to_string(),
+            }
+        ));
+    }
+
+    Ok(event_types.clone())
 }

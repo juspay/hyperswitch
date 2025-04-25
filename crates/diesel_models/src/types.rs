@@ -1,5 +1,7 @@
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
+#[cfg(feature = "v2")]
+use common_utils::id_type;
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -61,13 +63,21 @@ impl FeatureMetadata {
     pub fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.payment_revenue_recovery_metadata
             .as_ref()
-            .and_then(|val| val.payment_method_subtype)
+            .map(|rrm| rrm.payment_method_subtype)
     }
 
     pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
         self.payment_revenue_recovery_metadata
             .as_ref()
-            .map(|rrm| rrm.payment_method_type)
+            .map(|recovery_metadata| recovery_metadata.payment_method_type)
+    }
+
+    pub fn get_billing_merchant_connector_account_id(
+        &self,
+    ) -> Option<id_type::MerchantConnectorAccountId> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
     }
 
     // TODO: Check search_tags for relevant payment method type
@@ -150,17 +160,19 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Flag for the payment connector's call
     pub payment_connector_transmission: PaymentConnectorTransmission,
     /// Billing Connector Id to update the invoices
-    pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
     /// Payment Connector Id to retry the payments
-    pub active_attempt_payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
-    pub payment_method_subtype: Option<common_enums::enums::PaymentMethodType>,
+    pub payment_method_subtype: common_enums::enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
     pub connector: common_enums::connector_enums::Connector,
+    /// Time at which next invoice will be created
+    pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

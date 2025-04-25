@@ -179,6 +179,37 @@ impl<T: DatabaseStore> RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
+    pub async fn find_optional_resource<D, R, M>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        execute_query_fut: R,
+    ) -> error_stack::Result<Option<D>, StorageError>
+    where
+        D: Debug + Sync + Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Option<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: ReverseConversion<D>,
+    {
+        match execute_query_fut.await.map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })? {
+            Some(resource) => Ok(Some(
+                resource
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
+    }
+
     pub async fn find_resources<D, R, M>(
         &self,
         state: &KeyManagerState,
@@ -345,6 +376,7 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -352,6 +384,16 @@ impl UniqueConstraints for diesel_models::Refund {
             self.merchant_id.get_string_repr(),
             self.refund_id
         )]
+    }
+    fn table_name(&self) -> &str {
+        "Refund"
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+impl UniqueConstraints for diesel_models::Refund {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![self.id.get_string_repr().to_owned()]
     }
     fn table_name(&self) -> &str {
         "Refund"

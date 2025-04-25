@@ -1,6 +1,3 @@
-pub mod transformers;
-pub mod validator;
-
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
@@ -27,7 +24,10 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, access_token, helpers},
         refunds::transformers::SplitRefundInput,
-        utils as core_utils,
+        utils::{
+            self as core_utils, refunds_transformers as transformers,
+            refunds_validator as validator,
+        },
     },
     db, logger,
     routes::{metrics, SessionState},
@@ -339,8 +339,8 @@ pub async fn trigger_refund_to_gateway(
                 processor_refund_data: None,
                 unified_code: Some(unified_code),
                 unified_message: Some(unified_message),
-                issuer_error_code: err.issuer_error_code,
-                issuer_error_message: err.issuer_error_message,
+                issuer_error_code: err.network_decline_code,
+                issuer_error_message: err.network_error_message,
             }
         }
         Ok(response) => {
@@ -688,8 +688,8 @@ pub async fn sync_refund_with_gateway(
                 processor_refund_data: None,
                 unified_code: None,
                 unified_message: None,
-                issuer_error_code: error_message.issuer_error_code,
-                issuer_error_message: error_message.issuer_error_message,
+                issuer_error_code: error_message.network_decline_code,
+                issuer_error_message: error_message.network_error_message,
             }
         }
         Ok(response) => match router_data_res.integrity_check.clone() {
@@ -1621,7 +1621,7 @@ pub async fn add_refund_sync_task(
         refund_workflow_tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;
@@ -1660,7 +1660,7 @@ pub async fn add_refund_execute_task(
         refund_workflow_tracking_data,
         None,
         schedule_time,
-        hyperswitch_domain_models::consts::API_VERSION,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;

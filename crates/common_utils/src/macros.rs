@@ -381,20 +381,41 @@ macro_rules! create_list_wrapper {
             $($function_def: tt)*
         }
     ) => {
+        #[derive(Clone, Debug)]
         pub struct $wrapper_name(Vec<$type_name>);
         impl $wrapper_name {
             pub fn new(list: Vec<$type_name>) -> Self {
                 Self(list)
             }
-            pub fn iter(&self) -> std::slice::Iter<'_, $type_name> {
-                self.0.iter()
+            pub fn with_capacity(size: usize) -> Self {
+                Self(Vec::with_capacity(size))
             }
             $($function_def)*
         }
-        impl Iterator for $wrapper_name {
+        impl std::ops::Deref for $wrapper_name {
+            type Target = Vec<$type_name>;
+            fn deref(&self) -> &<Self as std::ops::Deref>::Target {
+                &self.0
+            }
+        }
+        impl std::ops::DerefMut for $wrapper_name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+        impl IntoIterator for $wrapper_name {
             type Item = $type_name;
-            fn next(&mut self) -> Option<Self::Item> {
-                self.0.pop()
+            type IntoIter = std::vec::IntoIter<$type_name>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.into_iter()
+            }
+        }
+
+        impl<'a> IntoIterator for &'a $wrapper_name {
+            type Item = &'a $type_name;
+            type IntoIter = std::slice::Iter<'a, $type_name>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.iter()
             }
         }
 
@@ -415,4 +436,388 @@ macro_rules! type_name {
             .nth(1)
             .unwrap_or_default();
     };
+}
+
+/// **Note** Creates an enum wrapper that implements `FromStr`, `Display`, `Serialize`, and `Deserialize`
+/// based on a specific string representation format: `"VariantName<delimiter>FieldValue"`.
+/// It handles parsing errors by returning a dedicated `Invalid` variant.
+/// *Note*: The macro adds `Invalid,` automatically.
+///
+/// # Use Case
+///
+/// This macro is designed for scenarios where you need an enum, with each variant
+/// holding a single piece of associated data, to be easily convertible to and from
+/// a simple string format. This is useful for cases where enum is serialized to key value pairs
+///
+/// It avoids more complex serialization structures (like JSON objects `{"VariantName": value}`)
+/// in favor of a plain string representation.
+///
+/// # Input Enum Format and Constraints
+///
+/// To use this macro, the enum definition must adhere to the following structure:
+///
+/// 1.  **Public Enum:** The enum must be declared as `pub enum EnumName { ... }`.
+/// 2.  **Struct Variants Only:** All variants must be struct variants (using `{}`).
+/// 3.  **Exactly One Field:** Each struct variant must contain *exactly one* named field.
+///     * **Valid:** `VariantA { value: i32 }`
+///     * **Invalid:** `VariantA(i32)` (tuple variant)
+///     * **Invalid:** `VariantA` or `VariantA {}` (no field)
+///     * **Invalid:** `VariantA { value: i32, other: bool }` (multiple fields)
+/// 4.  **Tag Delimiter:** The macro invocation must specify a `tag_delimeter` literal,
+///     which is the character used to separate the variant name from the field data in
+///     the string representation (e.g., `tag_delimeter = ":",`).
+/// 5.  **Field Type Requirements:** The type of the single field in each variant (`$field_ty`)
+///     must implement:
+///     * `core::str::FromStr`: To parse the field's data from the string part.
+///       The `Err` type should ideally be convertible to a meaningful error, though the
+///       macro currently uses a generic error message upon failure.
+///     * `core::fmt::Display`: To convert the field's data into the string part.
+///     * `serde::Serialize` and `serde::Deserialize<'de>`: Although the macro implements
+///       custom `Serialize`/`Deserialize` for the *enum* using the string format, the field
+///       type itself must satisfy these bounds if required elsewhere or by generic contexts.
+///       The macro's implementations rely solely on `Display` and `FromStr` for the conversion.
+/// 6.  **Error Type:** This macro uses `core::convert::Infallible` as it never fails but gives
+///     `Self::Invalid` variant.
+///
+/// # Serialization and Deserialization (`serde`)
+///
+/// When `serde` features are enabled and the necessary traits are derived or implemented,
+/// this macro implements `Serialize` and `Deserialize` for the enum:
+///
+/// **Serialization:** An enum value like `MyEnum::VariantA { value: 123 }` (with `tag_delimeter = ":",`)
+///     will be serialized into the string `"VariantA:123"`. If serializing to JSON, this results
+///     in a JSON string: `"\"VariantA:123\""`.
+/// **Deserialization:** The macro expects a string matching the format `"VariantName<delimiter>FieldValue"`.
+///     It uses the enum's `FromStr` implementation internally. When deserializing from JSON, it
+///     expects a JSON string containing the correctly formatted value (e.g., `"\"VariantA:123\""`).
+///
+/// # `Display` and `FromStr`
+///
+/// **`Display`:** Formats valid variants to `"VariantName<delimiter>FieldValue"` and catch-all cases to `"Invalid"`.
+/// **`FromStr`:** Parses `"VariantName<delimiter>FieldValue"` to the variant, or returns `Self::Invalid`
+///   if the input string is malformed or `"Invalid"`.
+///
+/// # Example
+///
+/// ```rust
+/// use std::str::FromStr;
+///
+/// crate::impl_enum_str!(
+///     tag_delimeter = ":",
+///     #[derive(Debug, PartialEq, Clone)] // Add other derives as needed
+///     pub enum Setting {
+///         Timeout { duration_ms: u32 },
+///         Username { name: String },
+///     }
+/// );
+/// // Note: The macro adds `Invalid,` automatically.
+///
+/// fn main() {
+///     // Display
+///     let setting1 = Setting::Timeout { duration_ms: 5000 };
+///     assert_eq!(setting1.to_string(), "Timeout:5000");
+///     assert_eq!(Setting::Invalid.to_string(), "Invalid");
+///
+///     // FromStr (returns Self, not Result)
+///     let parsed_setting: Setting = "Username:admin".parse().expect("Valid parse"); // parse() itself doesn't panic
+///     assert_eq!(parsed_setting, Setting::Username { name: "admin".to_string() });
+///
+///     let invalid_format: Setting = "Timeout".parse().expect("Parse always returns Self");
+///     assert_eq!(invalid_format, Setting::Invalid); // Malformed input yields Invalid
+///
+///     let bad_data: Setting = "Timeout:fast".parse().expect("Parse always returns Self");
+///     assert_eq!(bad_data, Setting::Invalid); // Bad field data yields Invalid
+///
+///     let unknown_tag: Setting = "Unknown:abc".parse().expect("Parse always returns Self");
+///     assert_eq!(unknown_tag, Setting::Invalid); // Unknown tag yields Invalid
+///
+///     let explicit_invalid: Setting = "Invalid".parse().expect("Parse always returns Self");
+///     assert_eq!(explicit_invalid, Setting::Invalid); // "Invalid" string yields Invalid
+///
+///     // Serde (requires derive Serialize/Deserialize on Setting)
+///     // let json_output = serde_json::to_string(&setting1).unwrap();
+///     // assert_eq!(json_output, "\"Timeout:5000\"");
+///     // let invalid_json_output = serde_json::to_string(&Setting::Invalid).unwrap();
+///     // assert_eq!(invalid_json_output, "\"Invalid\"");
+///
+///     // let deserialized: Setting = serde_json::from_str("\"Username:guest\"").unwrap();
+///     // assert_eq!(deserialized, Setting::Username { name: "guest".to_string() });
+///     // let deserialized_invalid: Setting = serde_json::from_str("\"Invalid\"").unwrap();
+///     // assert_eq!(deserialized_invalid, Setting::Invalid);
+///     // let deserialized_malformed: Setting = serde_json::from_str("\"TimeoutFast\"").unwrap();
+///     // assert_eq!(deserialized_malformed, Setting::Invalid); // Malformed -> Invalid
+/// }
+///
+/// # // Mock macro definition for doctest purposes
+/// # #[macro_export] macro_rules! impl_enum_str { ($($tt:tt)*) => { $($tt)* } }
+/// ```
+#[macro_export]
+macro_rules! impl_enum_str {
+    (
+        tag_delimeter = $tag_delim:literal,
+        $(#[$enum_attr:meta])*
+        pub enum $enum_name:ident {
+            $(
+                $(#[$variant_attr:meta])*
+                $variant:ident {
+                    $(#[$field_attr:meta])*
+                    $field:ident : $field_ty:ty $(,)?
+                }
+            ),* $(,)?
+        }
+    ) => {
+        $(#[$enum_attr])*
+        pub enum $enum_name {
+            $(
+                $(#[$variant_attr])*
+                $variant {
+                    $(#[$field_attr])*
+                    $field : $field_ty
+                },
+            )*
+            /// Represents a parsing failure.
+            Invalid, // Automatically add the Invalid variant
+        }
+
+        // Implement FromStr - now returns Self, not Result
+        impl core::str::FromStr for $enum_name {
+            // No associated error type needed
+            type Err = core::convert::Infallible; // FromStr requires an Err type, use Infallible
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                // Check for explicit "Invalid" string first
+                if s == "Invalid" {
+                    return Ok(Self::Invalid);
+                }
+
+                let Some((tag, associated_data)) = s.split_once($tag_delim) else {
+                    // Missing delimiter -> Invalid
+                    return Ok(Self::Invalid);
+                };
+
+                let result = match tag {
+                    $(
+                        stringify!($variant) => {
+                            // Try to parse the field data
+                            match associated_data.parse::<$field_ty>() {
+                                Ok(parsed_field) => {
+                                    // Success -> construct the variant
+                                     Self::$variant { $field: parsed_field }
+                                },
+                                Err(_) => {
+                                     // Field parse failure -> Invalid
+                                     Self::Invalid
+                                }
+                            }
+                        }
+                    ),*
+                    // Unknown tag -> Invalid
+                    _ => Self::Invalid,
+                };
+                Ok(result) // Always Ok because failure modes return Self::Invalid
+            }
+        }
+
+        // Implement Serialize
+        impl ::serde::Serialize for $enum_name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: ::serde::Serializer,
+            {
+                match self {
+                    $(
+                        Self::$variant { $field } => {
+                            let s = format!("{}{}{}", stringify!($variant), $tag_delim, $field);
+                            serializer.serialize_str(&s)
+                        }
+                    )*
+                    // Handle Invalid variant
+                    Self::Invalid => serializer.serialize_str("Invalid"),
+                }
+            }
+        }
+
+        // Implement Deserialize
+        impl<'de> ::serde::Deserialize<'de> for $enum_name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: ::serde::Deserializer<'de>,
+            {
+                struct EnumVisitor;
+
+                impl<'de> ::serde::de::Visitor<'de> for EnumVisitor {
+                    type Value = $enum_name;
+
+                    fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                        formatter.write_str(concat!("a string like VariantName", $tag_delim, "field_data or 'Invalid'"))
+                    }
+
+                    // Leverage the FromStr implementation which now returns Self::Invalid on failure
+                    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                    where
+                        E: ::serde::de::Error,
+                    {
+                        // parse() now returns Result<Self, Infallible>
+                        // We unwrap() the Ok because it's infallible.
+                       Ok(value.parse::<$enum_name>().unwrap())
+                    }
+
+                     fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+                    where
+                        E: ::serde::de::Error,
+                    {
+                        Ok(value.parse::<$enum_name>().unwrap())
+                    }
+                }
+
+                deserializer.deserialize_str(EnumVisitor)
+            }
+        }
+
+        // Implement Display
+        impl core::fmt::Display for $enum_name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                match self {
+                    $(
+                        Self::$variant { $field } => {
+                            write!(f, "{}{}{}", stringify!($variant), $tag_delim, $field)
+                        }
+                    )*
+                     // Handle Invalid variant
+                    Self::Invalid => write!(f, "Invalid"),
+                }
+            }
+        }
+    };
+}
+
+// --- Tests ---
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::panic, clippy::expect_used)]
+
+    use serde_json::{json, Value as JsonValue};
+
+    use crate::impl_enum_str;
+
+    impl_enum_str!(
+        tag_delimeter = ":",
+        #[derive(Debug, PartialEq, Clone)]
+        pub enum TestEnum {
+            VariantA { value: i32 },
+            VariantB { text: String },
+            VariantC { id: u64 },
+            VariantJson { data: JsonValue },
+        } // Note: Invalid variant is added automatically by the macro
+    );
+
+    #[test]
+    fn test_enum_from_str_ok() {
+        // Success cases just parse directly
+        let parsed_a: TestEnum = "VariantA:42".parse().unwrap(); // Unwrapping Infallible is fine
+        assert_eq!(parsed_a, TestEnum::VariantA { value: 42 });
+
+        let parsed_b: TestEnum = "VariantB:hello world".parse().unwrap();
+        assert_eq!(
+            parsed_b,
+            TestEnum::VariantB {
+                text: "hello world".to_string()
+            }
+        );
+
+        let parsed_c: TestEnum = "VariantC:123456789012345".parse().unwrap();
+        assert_eq!(
+            parsed_c,
+            TestEnum::VariantC {
+                id: 123456789012345
+            }
+        );
+
+        let parsed_json: TestEnum = r#"VariantJson:{"ok":true}"#.parse().unwrap();
+        assert_eq!(
+            parsed_json,
+            TestEnum::VariantJson {
+                data: json!({"ok": true})
+            }
+        );
+    }
+
+    #[test]
+    fn test_enum_from_str_failures_yield_invalid() {
+        // Missing delimiter
+        let parsed: TestEnum = "VariantA".parse().unwrap();
+        assert_eq!(parsed, TestEnum::Invalid);
+
+        // Unknown tag
+        let parsed: TestEnum = "UnknownVariant:123".parse().unwrap();
+        assert_eq!(parsed, TestEnum::Invalid);
+
+        // Bad field data for i32
+        let parsed: TestEnum = "VariantA:not_a_number".parse().unwrap();
+        assert_eq!(parsed, TestEnum::Invalid);
+
+        // Bad field data for JsonValue
+        let parsed: TestEnum = r#"VariantJson:{"bad_json"#.parse().unwrap();
+        assert_eq!(parsed, TestEnum::Invalid);
+
+        // Empty field data for non-string (e.g., i32)
+        let parsed: TestEnum = "VariantA:".parse().unwrap();
+        assert_eq!(parsed, TestEnum::Invalid);
+
+        // Empty field data for string IS valid for String type
+        let parsed_str: TestEnum = "VariantB:".parse().unwrap();
+        assert_eq!(
+            parsed_str,
+            TestEnum::VariantB {
+                text: "".to_string()
+            }
+        );
+
+        // Parsing the literal "Invalid" string
+        let parsed_invalid_str: TestEnum = "Invalid".parse().unwrap();
+        assert_eq!(parsed_invalid_str, TestEnum::Invalid);
+    }
+
+    #[test]
+    fn test_enum_display_and_serialize() {
+        // Display valid
+        let value_a = TestEnum::VariantA { value: 99 };
+        assert_eq!(value_a.to_string(), "VariantA:99");
+        // Serialize valid
+        let json_a = serde_json::to_string(&value_a).expect("Serialize A failed");
+        assert_eq!(json_a, "\"VariantA:99\""); // Serializes to JSON string
+
+        // Display Invalid
+        let value_invalid = TestEnum::Invalid;
+        assert_eq!(value_invalid.to_string(), "Invalid");
+        // Serialize Invalid
+        let json_invalid = serde_json::to_string(&value_invalid).expect("Serialize Invalid failed");
+        assert_eq!(json_invalid, "\"Invalid\""); // Serializes to JSON string "Invalid"
+    }
+
+    #[test]
+    fn test_enum_deserialize() {
+        // Deserialize valid
+        let input_a = "\"VariantA:123\"";
+        let deserialized_a: TestEnum = serde_json::from_str(input_a).expect("Deserialize A failed");
+        assert_eq!(deserialized_a, TestEnum::VariantA { value: 123 });
+
+        // Deserialize explicit "Invalid"
+        let input_invalid = "\"Invalid\"";
+        let deserialized_invalid: TestEnum =
+            serde_json::from_str(input_invalid).expect("Deserialize Invalid failed");
+        assert_eq!(deserialized_invalid, TestEnum::Invalid);
+
+        // Deserialize malformed string (according to macro rules) -> Invalid
+        let input_malformed = "\"VariantA_no_delimiter\"";
+        let deserialized_malformed: TestEnum =
+            serde_json::from_str(input_malformed).expect("Deserialize malformed should succeed");
+        assert_eq!(deserialized_malformed, TestEnum::Invalid);
+
+        // Deserialize string with bad field data -> Invalid
+        let input_bad_data = "\"VariantA:not_a_number\"";
+        let deserialized_bad_data: TestEnum =
+            serde_json::from_str(input_bad_data).expect("Deserialize bad data should succeed");
+        assert_eq!(deserialized_bad_data, TestEnum::Invalid);
+    }
 }

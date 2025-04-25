@@ -10,11 +10,12 @@ pub mod reject_flow;
 pub mod session_flow;
 pub mod session_update_flow;
 pub mod setup_mandate_flow;
+pub mod update_metadata_flow;
 
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    revenue_recovery::RecoveryRecordBack, GetAdditionalRevenueRecoveryDetails,
+    BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -138,6 +139,7 @@ pub trait Feature<F, T> {
         Ok(types::PaymentMethodTokenResult {
             payment_method_token_result: Ok(None),
             is_payment_method_tokenization_performed: false,
+            connector_response: None,
         })
     }
 
@@ -223,9 +225,7 @@ default_imp_for_complete_authorize!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -263,10 +263,7 @@ default_imp_for_webhook_source_verification!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -306,10 +303,7 @@ default_imp_for_create_customer!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
@@ -350,9 +344,7 @@ default_imp_for_connector_redirect_response!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
@@ -372,98 +364,15 @@ impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {
 
 default_imp_for_connector_request_id!(
     connector::Adyenplatform,
-    connector::Aci,
-    connector::Adyen,
-    connector::Airwallex,
-    connector::Amazonpay,
-    connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
-    connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
-    connector::Bluesnap,
-    connector::Boku,
-    connector::Braintree,
-    connector::Cashtocode,
-    connector::Chargebee,
-    connector::Checkout,
-    connector::Coinbase,
-    connector::Coingate,
-    connector::Cryptopay,
-    connector::Cybersource,
-    connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
     connector::Ebanx,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
-    connector::Getnet,
-    connector::Globalpay,
-    connector::Globepay,
-    connector::Gocardless,
     connector::Gpayments,
-    connector::Hipay,
-    connector::Iatapay,
-    connector::Inespay,
-    connector::Itaubank,
-    connector::Jpmorgan,
-    connector::Juspaythreedsserver,
-    connector::Klarna,
-    connector::Mifinity,
-    connector::Mollie,
-    connector::Moneris,
-    connector::Multisafepay,
     connector::Netcetera,
-    connector::Nexixpay,
-    connector::Nmi,
-    connector::Nomupay,
-    connector::Noon,
-    connector::Novalnet,
-    connector::Nuvei,
-    connector::Opayo,
-    connector::Opennode,
-    connector::Paybox,
-    connector::Payeezy,
-    connector::Payme,
-    connector::Payone,
-    connector::Paypal,
-    connector::Paystack,
-    connector::Payu,
-    connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
-    connector::Prophetpay,
-    connector::Rapyd,
-    connector::Razorpay,
-    connector::Recurly,
-    connector::Redsys,
-    connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
     connector::Stripe,
-    connector::Stripebilling,
-    connector::Taxjar,
     connector::Threedsecureio,
-    connector::Trustpay,
-    connector::Tsys,
-    connector::UnifiedAuthenticationService,
-    connector::Volt,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Xendit,
-    connector::Zen,
-    connector::Zsl,
-    connector::CtpMastercard
+    connector::Wise
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -501,10 +410,7 @@ default_imp_for_accept_dispute!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -566,10 +472,7 @@ default_imp_for_file_upload!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
@@ -608,10 +511,7 @@ default_imp_for_submit_evidence!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
@@ -650,10 +550,7 @@ default_imp_for_defend_dispute!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -708,10 +605,9 @@ default_imp_for_pre_processing_steps!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
+    connector::Stripe,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
@@ -731,13 +627,10 @@ impl<const T: u8>
 
 default_imp_for_post_processing_steps!(
     connector::Adyenplatform,
-    connector::Nmi,
     connector::Stripe,
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Payone,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
@@ -758,9 +651,7 @@ impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 default_imp_for_payouts!(
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout
@@ -798,10 +689,7 @@ default_imp_for_payouts_create!(
     connector::Adyenplatform,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout
@@ -840,10 +728,7 @@ default_imp_for_payouts_retrieve!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -886,10 +771,7 @@ default_imp_for_payouts_eligibility!(
     connector::Adyenplatform,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -927,9 +809,7 @@ impl<const T: u8>
 default_imp_for_payouts_fulfill!(
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout
@@ -967,10 +847,7 @@ default_imp_for_payouts_cancel!(
     connector::Adyenplatform,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout
@@ -1008,10 +885,7 @@ default_imp_for_payouts_quote!(
     connector::Adyenplatform,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1050,10 +924,7 @@ default_imp_for_payouts_recipient!(
     connector::Adyenplatform,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout
@@ -1095,10 +966,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
@@ -1137,10 +1005,7 @@ default_imp_for_approve!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1180,10 +1045,7 @@ default_imp_for_reject!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1191,6 +1053,7 @@ default_imp_for_reject!(
     connector::Wise
 );
 
+#[cfg(feature = "frm")]
 macro_rules! default_imp_for_fraud_check {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -1202,100 +1065,17 @@ macro_rules! default_imp_for_fraud_check {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
+#[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
     connector::Adyenplatform,
-    connector::Aci,
-    connector::Adyen,
-    connector::Airwallex,
-    connector::Amazonpay,
-    connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
-    connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
-    connector::Bluesnap,
-    connector::Boku,
-    connector::Braintree,
-    connector::Cashtocode,
-    connector::Chargebee,
-    connector::Checkout,
-    connector::Cryptopay,
-    connector::Cybersource,
-    connector::Coinbase,
-    connector::Coingate,
-    connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
     connector::Ebanx,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
-    connector::Getnet,
-    connector::Globalpay,
-    connector::Globepay,
-    connector::Gocardless,
     connector::Gpayments,
-    connector::Hipay,
-    connector::Helcim,
-    connector::Iatapay,
-    connector::Inespay,
-    connector::Itaubank,
-    connector::Jpmorgan,
-    connector::Juspaythreedsserver,
-    connector::Klarna,
-    connector::Mifinity,
-    connector::Mollie,
-    connector::Moneris,
-    connector::Multisafepay,
     connector::Netcetera,
-    connector::Nexinets,
-    connector::Nexixpay,
-    connector::Nmi,
-    connector::Nomupay,
-    connector::Noon,
-    connector::Novalnet,
-    connector::Nuvei,
-    connector::Opayo,
-    connector::Opennode,
-    connector::Paybox,
-    connector::Payeezy,
-    connector::Payme,
-    connector::Payone,
-    connector::Paypal,
-    connector::Paystack,
-    connector::Payu,
-    connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
-    connector::Prophetpay,
-    connector::Rapyd,
-    connector::Razorpay,
-    connector::Recurly,
-    connector::Redsys,
-    connector::Shift4,
-    connector::Square,
-    connector::Stax,
     connector::Stripe,
-    connector::Stripebilling,
-    connector::Taxjar,
     connector::Threedsecureio,
-    connector::Trustpay,
-    connector::Tsys,
-    connector::UnifiedAuthenticationService,
-    connector::Volt,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Xendit,
-    connector::Zen,
-    connector::Zsl,
-    connector::CtpMastercard
+    connector::Wise
 );
 
 #[cfg(feature = "frm")]
@@ -1332,8 +1112,6 @@ default_imp_for_frm_sale!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1375,8 +1153,6 @@ default_imp_for_frm_checkout!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1418,8 +1194,6 @@ default_imp_for_frm_transaction!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1461,8 +1235,6 @@ default_imp_for_frm_fulfillment!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1504,8 +1276,6 @@ default_imp_for_frm_record_return!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1545,10 +1315,7 @@ default_imp_for_incremental_authorization!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1586,10 +1353,7 @@ default_imp_for_revoking_mandates!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1684,97 +1448,12 @@ impl<const T: u8>
 }
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
-    connector::Aci,
-    connector::Adyen,
-    connector::Airwallex,
-    connector::Amazonpay,
-    connector::Authorizedotnet,
-    connector::Bambora,
-    connector::Bamboraapac,
-    connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
-    connector::Bluesnap,
-    connector::Boku,
-    connector::Braintree,
-    connector::Cashtocode,
-    connector::Chargebee,
-    connector::Checkout,
-    connector::Cryptopay,
-    connector::Coinbase,
-    connector::Coingate,
-    connector::Cybersource,
-    connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
     connector::Ebanx,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
-    connector::Getnet,
-    connector::Globalpay,
-    connector::Globepay,
-    connector::Gocardless,
-    connector::Hipay,
-    connector::Helcim,
-    connector::Iatapay,
-    connector::Inespay,
-    connector::Itaubank,
-    connector::Jpmorgan,
-    connector::Juspaythreedsserver,
-    connector::Klarna,
-    connector::Mifinity,
-    connector::Mollie,
-    connector::Moneris,
-    connector::Multisafepay,
-    connector::Nexinets,
-    connector::Nexixpay,
-    connector::Nmi,
-    connector::Nomupay,
-    connector::Noon,
-    connector::Novalnet,
-    connector::Nuvei,
-    connector::Opayo,
-    connector::Opennode,
-    connector::Paybox,
-    connector::Payeezy,
-    connector::Payme,
-    connector::Payone,
-    connector::Paypal,
-    connector::Paystack,
-    connector::Payu,
-    connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
-    connector::Prophetpay,
-    connector::Rapyd,
-    connector::Razorpay,
-    connector::Recurly,
-    connector::Redsys,
-    connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
     connector::Stripe,
-    connector::Stripebilling,
-    connector::Taxjar,
-    connector::Trustpay,
-    connector::Tsys,
-    connector::UnifiedAuthenticationService,
-    connector::Volt,
-    connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Xendit,
-    connector::Zen,
-    connector::Zsl,
-    connector::CtpMastercard
+    connector::Wise
 );
 
 macro_rules! default_imp_for_authorize_session_token {
@@ -1806,10 +1485,7 @@ default_imp_for_authorize_session_token!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1847,10 +1523,7 @@ default_imp_for_calculate_tax!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1888,10 +1561,7 @@ default_imp_for_session_update!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1929,12 +1599,46 @@ default_imp_for_post_session_tokens!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_update_metadata {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentUpdateMetadata for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::UpdateMetadata,
+                types::PaymentsUpdateMetadataData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_update_metadata!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
     connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
@@ -1973,10 +1677,7 @@ default_imp_for_uas_pre_authentication!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -2014,10 +1715,7 @@ default_imp_for_uas_post_authentication!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -2044,10 +1742,7 @@ default_imp_for_uas_authentication_confirmation!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -2098,10 +1793,7 @@ default_imp_for_uas_authentication!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -2205,7 +1897,7 @@ fn handle_post_capture_response(
                 )),
                 _ => {
                     logger::error!(
-                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.", 
+                        "Error in post capture_router_data response: {:?}, Current Status: {:?}. Proceeding without updating.",
                         post_capture_router_data.response,
                         post_capture_router_data.status,
                     );
@@ -2218,6 +1910,72 @@ fn handle_post_capture_response(
         }
     }
 }
+
+macro_rules! default_imp_for_revenue_recovery {
+    ($($path:ident::$connector:ident),*) => {
+        $(  impl api::RevenueRecovery for $path::$connector {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
+
+default_imp_for_revenue_recovery! {
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+macro_rules! default_imp_for_billing_connector_payment_sync {
+    ($($path:ident::$connector:ident),*) => {
+        $(  impl api::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                BillingConnectorPaymentsSync,
+                types::BillingConnectorPaymentsSyncRequest,
+                types::BillingConnectorPaymentsSyncResponse,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::BillingConnectorPaymentsSyncIntegration for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        BillingConnectorPaymentsSync,
+        types::BillingConnectorPaymentsSyncRequest,
+        types::BillingConnectorPaymentsSyncResponse,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+default_imp_for_billing_connector_payment_sync!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
@@ -2234,7 +1992,6 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
     )*
     };
 }
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
@@ -2254,83 +2011,7 @@ default_imp_for_revenue_recovery_record_back!(
     connector::Ebanx,
     connector::Gpayments,
     connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
     connector::Plaid,
-    connector::Riskified,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_revenue_recovery {
-    ($($path:ident::$connector:ident),*) => {
-        $(  impl api::RevenueRecovery for $path::$connector {}
-    )*
-    };
-}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
-
-default_imp_for_revenue_recovery! {
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
-    connector::Plaid,
-    connector::Riskified,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_additional_revenue_recovery_call {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::AdditionalRevenueRecovery for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                GetAdditionalRevenueRecoveryDetails,
-                types::GetAdditionalRevenueRecoveryRequestData,
-                types::GetAdditionalRevenueRecoveryResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::AdditionalRevenueRecovery for connector::DummyConnector<T> {}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegration<
-        GetAdditionalRevenueRecoveryDetails,
-        types::GetAdditionalRevenueRecoveryRequestData,
-        types::GetAdditionalRevenueRecoveryResponseData,
-    > for connector::DummyConnector<T>
-{
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_additional_revenue_recovery_call!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Nmi,
-    connector::Payone,
-    connector::Plaid,
-    connector::Riskified,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,

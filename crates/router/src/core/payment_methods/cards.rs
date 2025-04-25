@@ -4,6 +4,9 @@ use std::{
     str::FromStr,
 };
 
+use ::payment_methods::configs::payment_connector_required_fields::{
+    get_billing_required_fields, get_shipping_required_fields,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -48,6 +51,7 @@ use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -90,10 +94,8 @@ use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
-    configs::{
-        defaults::{get_billing_required_fields, get_shipping_required_fields},
-        settings,
-    },
+    configs::settings,
+    consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
@@ -118,8 +120,8 @@ use crate::{
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    consts as router_consts, core::payment_methods as pm_core, headers,
-    types::payment_methods as pm_types, utils::ConnectorResponseExt,
+    core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
+    utils::ConnectorResponseExt,
 };
 
 #[cfg(all(
@@ -204,7 +206,7 @@ pub async fn create_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: domain::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
@@ -827,7 +829,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: domain::consts::API_VERSION,
+                version: common_types::consts::API_VERSION,
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
@@ -3346,37 +3348,22 @@ pub async fn list_payment_methods(
 
     let profile_id = payment_intent
         .as_ref()
-        .map(|payment_intent| {
-            payment_intent
-                .profile_id
-                .clone()
-                .get_required_value("profile_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")
-        })
-        .transpose()?;
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        &key_store,
-        profile_id.as_ref(),
-        merchant_account.get_id(),
-    )
-    .await?;
-
-    let profile_id = profile_id
-        .clone()
+        .and_then(|payment_intent| payment_intent.profile_id.as_ref())
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Profile id not found".to_string(),
         })?;
+    let business_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
 
     // filter out payment connectors based on profile_id
-    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
-        all_mcas.clone(),
-        &profile_id,
-        ConnectorType::PaymentProcessor,
-    );
+    let filtered_mcas = all_mcas
+        .clone()
+        .filter_based_on_profile_and_connector_type(profile_id, ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -3407,7 +3394,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -3462,7 +3449,7 @@ pub async fn list_payment_methods(
                 payment_attempt.as_ref(),
                 billing_address.as_ref(),
                 mca.connector_name.clone(),
-                &state.conf.saved_payment_methods,
+                &state.conf,
             )
             .await?;
         }
@@ -3535,21 +3522,11 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let routing_enabled_pms = HashSet::from([
-            api_enums::PaymentMethod::BankTransfer,
-            api_enums::PaymentMethod::BankDebit,
-            api_enums::PaymentMethod::BankRedirect,
-        ]);
+        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
-        let routing_enabled_pm_types = HashSet::from([
-            api_enums::PaymentMethodType::GooglePay,
-            api_enums::PaymentMethodType::ApplePay,
-            api_enums::PaymentMethodType::Klarna,
-            api_enums::PaymentMethodType::Paypal,
-            api_enums::PaymentMethodType::SamsungPay,
-        ]);
+        let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
-        let mut chosen = Vec::<api::SessionConnectorData>::new();
+        let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
             if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 || routing_enabled_pms.contains(&intermediate.payment_method)
@@ -3564,7 +3541,8 @@ pub async fn list_payment_methods(
                 .attach_printable("invalid connector name received")?;
 
                 chosen.push(api::SessionConnectorData {
-                    payment_method_type: intermediate.payment_method_type,
+                    payment_method_sub_type: intermediate.payment_method_type,
+                    payment_method_type: intermediate.payment_method,
                     connector: connector_data,
                     business_sub_label: None,
                 });
@@ -3579,10 +3557,14 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let result = routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error performing session flow routing")?;
+        let result = routing::perform_session_flow_routing(
+            sfr,
+            &business_profile,
+            &enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
             if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
@@ -3770,8 +3752,7 @@ pub async fn list_payment_methods(
     // Check for `use_billing_as_payment_method_billing` config under business_profile
     // If this is disabled, then the billing details in required fields will be empty and have to be collected by the customer
     let billing_address_for_calculating_required_fields = business_profile
-        .as_ref()
-        .and_then(|business_profile| business_profile.use_billing_as_payment_method_billing)
+        .use_billing_as_payment_method_billing
         .unwrap_or(true)
         .then_some(billing_address.as_ref())
         .flatten();
@@ -3845,7 +3826,7 @@ pub async fn list_payment_methods(
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
                                     payment_method,
                                     element.payment_experience.as_ref(),
-                                    business_profile.as_ref(),
+                                    &business_profile,
                                     required_fields_hs.clone(),
                                 );
 
@@ -4178,61 +4159,47 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
-    let merchant_surcharge_configs =
-        if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
-            .as_ref()
-            .zip(payment_intent)
-            .zip(business_profile.as_ref())
-            .map(|((pa, pi), bp)| (pa, pi, bp))
-        {
-            Box::pin(call_surcharge_decision_management(
-                state,
-                &merchant_account,
-                &key_store,
-                business_profile,
-                payment_attempt,
-                payment_intent,
-                billing_address,
-                &mut payment_method_responses,
-            ))
-            .await?
-        } else {
-            api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
-        };
+    let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
+        payment_attempt.as_ref().zip(payment_intent)
+    {
+        Box::pin(call_surcharge_decision_management(
+            state,
+            &merchant_account,
+            &key_store,
+            &business_profile,
+            payment_attempt,
+            payment_intent,
+            billing_address,
+            &mut payment_method_responses,
+        ))
+        .await?
+    } else {
+        api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
+    };
 
-    let collect_shipping_details_from_wallets =
-        business_profile.as_ref().and_then(|business_profile| {
-            if business_profile
-                .always_collect_shipping_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                business_profile.always_collect_shipping_details_from_wallet_connector
-            } else {
-                business_profile.collect_shipping_details_from_wallet_connector
-            }
-        });
+    let collect_shipping_details_from_wallets = if business_profile
+        .always_collect_shipping_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_shipping_details_from_wallet_connector
+    } else {
+        business_profile.collect_shipping_details_from_wallet_connector
+    };
 
-    let collect_billing_details_from_wallets =
-        business_profile.as_ref().and_then(|business_profile| {
-            if business_profile
-                .always_collect_billing_details_from_wallet_connector
-                .unwrap_or(false)
-            {
-                business_profile.always_collect_billing_details_from_wallet_connector
-            } else {
-                business_profile.collect_billing_details_from_wallet_connector
-            }
-        });
+    let collect_billing_details_from_wallets = if business_profile
+        .always_collect_billing_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_billing_details_from_wallet_connector
+    } else {
+        business_profile.collect_billing_details_from_wallet_connector
+    };
 
-    let is_tax_connector_enabled = business_profile
-        .as_ref()
-        .is_some_and(|business_profile| business_profile.get_is_tax_connector_enabled());
+    let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
-            redirect_url: business_profile
-                .as_ref()
-                .and_then(|business_profile| business_profile.return_url.clone()),
+            redirect_url: business_profile.return_url.clone(),
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
@@ -4273,10 +4240,15 @@ pub async fn list_payment_methods(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
     payment_method: api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
-    business_profile: Option<&Profile>,
+    business_profile: &Profile,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
 ) -> HashMap<String, RequiredFieldInfo> {
     match (payment_method, payment_experience_optional) {
@@ -4285,13 +4257,11 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
             api_enums::PaymentMethod::PayLater,
             Some(api_enums::PaymentExperience::InvokeSdkClient),
         ) => {
-            let always_send_billing_details = business_profile.and_then(|business_profile| {
-                business_profile.always_collect_billing_details_from_wallet_connector
-            });
+            let always_send_billing_details =
+                business_profile.always_collect_billing_details_from_wallet_connector;
 
-            let always_send_shipping_details = business_profile.and_then(|business_profile| {
-                business_profile.always_collect_shipping_details_from_wallet_connector
-            });
+            let always_send_shipping_details =
+                business_profile.always_collect_shipping_details_from_wallet_connector;
 
             if always_send_billing_details == Some(true) {
                 let billing_details = get_billing_required_fields();
@@ -4479,7 +4449,7 @@ pub async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&domain::Address>,
     connector: String,
-    saved_payment_methods: &settings::EligiblePaymentMethods,
+    configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -4561,6 +4531,9 @@ pub async fn filter_payment_methods(
                         payment_method_object.payment_method_type,
                     );
 
+                    // Filter logic for payment method types based on the below conditions
+                    // Case 1: If the payment method type support Zero Mandate flow, filter only payment method type that support it
+                    // Case 2: Whether the payment method type support Mandates or not, list all the payment method types
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
@@ -4571,10 +4544,60 @@ pub async fn filter_payment_methods(
                             })
                             .unwrap_or(false)
                     {
+                        payment_intent.map(|intent| intent.amount).map(|amount| {
+                            if amount == MinorUnit::zero() {
+                                if configs
+                                    .zero_mandates
+                                    .supported_payment_methods
+                                    .0
+                                    .get(&payment_method)
+                                    .and_then(|supported_pm_for_mandates| {
+                                        supported_pm_for_mandates
+                                            .0
+                                            .get(&payment_method_type_info.payment_method_type)
+                                            .map(|supported_connector_for_mandates| {
+                                                supported_connector_for_mandates
+                                                    .connector_list
+                                                    .contains(&connector_variant)
+                                            })
+                                    })
+                                    .unwrap_or(false)
+                                {
+                                    context_values.push(dir::DirValue::PaymentType(
+                                        euclid::enums::PaymentType::SetupMandate,
+                                    ));
+                                }
+                            } else if configs
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&payment_method)
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates
+                                        .0
+                                        .get(&payment_method_type_info.payment_method_type)
+                                        .map(|supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector_variant)
+                                        })
+                                })
+                                .unwrap_or(false)
+                            {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NewMandate,
+                                ));
+                            } else {
+                                context_values.push(dir::DirValue::PaymentType(
+                                    euclid::enums::PaymentType::NonMandate,
+                                ));
+                            }
+                        });
+                    } else {
                         context_values.push(dir::DirValue::PaymentType(
-                            euclid::enums::PaymentType::NewMandate,
+                            euclid::enums::PaymentType::NonMandate,
                         ));
-                    };
+                    }
 
                     payment_attempt
                         .and_then(|attempt| attempt.mandate_data.as_ref())
@@ -4584,25 +4607,6 @@ pub async fn filter_payment_methods(
                                     euclid::enums::PaymentType::UpdateMandate,
                                 ));
                             }
-                        });
-
-                    payment_attempt
-                        .map(|attempt| {
-                            attempt.mandate_data.is_none()
-                                && attempt.mandate_details.is_none()
-                                && payment_intent
-                                    .and_then(|intent| intent.setup_future_usage)
-                                    .map(|future_usage| {
-                                        future_usage == common_enums::FutureUsage::OnSession
-                                    })
-                                    .unwrap_or(true)
-                        })
-                        .and_then(|res| {
-                            res.then(|| {
-                                context_values.push(dir::DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NonMandate,
-                                ))
-                            })
                         });
 
                     payment_attempt
@@ -4622,7 +4626,8 @@ pub async fn filter_payment_methods(
                         .as_ref()
                         .map(|cs| {
                             if cs.starts_with("pm_") {
-                                saved_payment_methods
+                                configs
+                                    .saved_payment_methods
                                     .sdk_eligible_payment_methods
                                     .contains(payment_method.to_string().as_str())
                             } else {
@@ -4684,7 +4689,7 @@ pub async fn filter_payment_methods(
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
     _connector: String,
-    _saved_payment_methods: &settings::EligiblePaymentMethods,
+    _configs: &settings::Settings<RawSecret>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }
@@ -5243,13 +5248,13 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-        let merchant_connector_accounts = domain::MerchantConnectorAccounts::new(mcas);
 
-        return Ok(merchant_connector_accounts
-            .is_merchant_connector_account_id_in_connector_mandate_details(
+        return Ok(
+            mcas.is_merchant_connector_account_id_in_connector_mandate_details(
                 profile_id.as_ref(),
                 &connector_mandate_details,
-            ));
+            ),
+        );
     }
     Ok(false)
 }

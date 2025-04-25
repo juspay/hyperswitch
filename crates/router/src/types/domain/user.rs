@@ -23,7 +23,7 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
-use router_env::env;
+use router_env::{env, logger};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
@@ -39,7 +39,7 @@ use crate::{
     routes::SessionState,
     services::{self, authentication::UserFromToken},
     types::{domain, transformers::ForeignFrom},
-    utils::user::password,
+    utils::{self, user::password},
 };
 
 pub mod dashboard_metadata;
@@ -417,7 +417,7 @@ impl NewUserMerchant {
     }
 
     pub fn get_product_type(&self) -> Option<common_enums::MerchantProductType> {
-        self.product_type.clone()
+        self.product_type
     }
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
@@ -703,11 +703,18 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
         } else {
             id_type::MerchantId::new_from_unix_timestamp()
         };
+        let (user_from_storage, user_merchant_create, user_from_token) = value;
         Ok(Self {
             merchant_id,
-            company_name: Some(UserCompanyName::new(value.1.company_name.clone())?),
-            product_type: value.1.product_type.clone(),
-            new_organization: NewUserOrganization::from(value),
+            company_name: Some(UserCompanyName::new(
+                user_merchant_create.company_name.clone(),
+            )?),
+            product_type: user_merchant_create.product_type,
+            new_organization: NewUserOrganization::from((
+                user_from_storage,
+                user_merchant_create,
+                user_from_token,
+            )),
         })
     }
 }
@@ -1449,5 +1456,56 @@ where
             .insert_user_role(new_v2_role)
             .await
             .change_context(UserErrors::InternalServerError)
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct LineageContext {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub role_id: String,
+    pub org_id: id_type::OrganizationId,
+    pub profile_id: id_type::ProfileId,
+    pub tenant_id: id_type::TenantId,
+}
+
+impl LineageContext {
+    pub async fn try_get_lineage_context_from_cache(
+        state: &SessionState,
+        user_id: &str,
+    ) -> Option<Self> {
+        // The errors are not handled here because we don't want to fail the request if the cache operation fails.
+        // The errors are logged for debugging purposes.
+        match utils::user::get_lineage_context_from_cache(state, user_id).await {
+            Ok(Some(ctx)) => Some(ctx),
+            Ok(None) => {
+                logger::debug!("Lineage context not found in Redis for user {}", user_id);
+                None
+            }
+            Err(e) => {
+                logger::error!(
+                    "Failed to retrieve lineage context from Redis for user {}: {:?}",
+                    user_id,
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    pub async fn try_set_lineage_context_in_cache(&self, state: &SessionState, user_id: &str) {
+        // The errors are not handled here because we don't want to fail the request if the cache operation fails.
+        // The errors are logged for debugging purposes.
+        if let Err(e) =
+            utils::user::set_lineage_context_in_cache(state, user_id, self.clone()).await
+        {
+            logger::error!(
+                "Failed to set lineage context in Redis for user {}: {:?}",
+                user_id,
+                e
+            );
+        } else {
+            logger::debug!("Lineage context cached for user {}", user_id);
+        }
     }
 }

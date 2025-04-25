@@ -192,6 +192,8 @@ impl<F: Send + Clone + Sync>
             billing_connector_id: request.billing_connector_id.clone(),
             processor_payment_method_token: request.processor_payment_method_token.clone(),
             connector_customer_id: request.connector_customer_id.clone(),
+            retry_count: request.retry_count,
+            invoice_next_billing_time: request.invoice_next_billing_time,
         };
 
         let payment_data = PaymentAttemptRecordData {
@@ -235,7 +237,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         {
             status: common_enums::IntentStatus::from(payment_data.payment_attempt.status),
             feature_metadata: Box::new(feature_metadata),
-            active_attempt_id: payment_data.payment_attempt.id.clone(),
             updated_by: storage_scheme.to_string(),
         };
         payment_data.payment_intent = state
