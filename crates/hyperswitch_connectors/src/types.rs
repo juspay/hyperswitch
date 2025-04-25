@@ -3,10 +3,17 @@ use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
+        authentication::{
+            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        },
         Accept, AccessTokenAuth, Authorize, Capture, Checkout, Defend, Evidence, Fulfillment,
         PSync, PreProcessing, Session, Transaction, Upload, Void,
     },
     router_request_types::{
+        authentication::{
+            ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
+            PreAuthNRequestData,
+        },
         fraud_check::{
             FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckTransactionData,
         },
@@ -16,8 +23,9 @@ use hyperswitch_domain_models::{
         UploadFileRequestData,
     },
     router_response_types::{
-        fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
-        PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse, UploadFileResponse,
+        fraud_check::FraudCheckResponseData, AcceptDisputeResponse, AuthenticationResponseData,
+        DefendDisputeResponse, PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse,
+        UploadFileResponse,
     },
 };
 use hyperswitch_interfaces::api::ConnectorIntegration;
@@ -71,3 +79,32 @@ pub type FrmFulfillmentType =
     dyn ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
 pub type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+
+pub type PreAuthNRouterData =
+    RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
+pub type PreAuthNVersionCallRouterData =
+    RouterData<PreAuthenticationVersionCall, PreAuthNRequestData, AuthenticationResponseData>;
+pub type ConnectorAuthenticationRouterData =
+    RouterData<Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
+pub type ConnectorPostAuthenticationRouterData = RouterData<
+    PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+pub type ConnectorAuthenticationType = dyn ConnectorIntegration<
+    Authentication,
+    ConnectorAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+pub type ConnectorPostAuthenticationType = dyn ConnectorIntegration<
+    PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+pub type ConnectorPreAuthenticationType =
+    dyn ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
+pub type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegration<
+    PreAuthenticationVersionCall,
+    PreAuthNRequestData,
+    AuthenticationResponseData,
+>;

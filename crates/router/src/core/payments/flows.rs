@@ -221,7 +221,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -257,7 +256,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -295,7 +293,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -334,7 +331,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -355,7 +351,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -396,7 +391,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -456,7 +450,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -493,7 +486,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -530,7 +522,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -583,7 +574,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -607,7 +597,6 @@ impl<const T: u8>
 
 default_imp_for_post_processing_steps!(
     connector::Stripe,
-    connector::Gpayments,
     connector::Netcetera,
     connector::Signifyd,
     connector::Threedsecureio,
@@ -627,7 +616,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -664,7 +652,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -701,7 +688,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -743,7 +729,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -781,7 +766,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -818,7 +802,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -855,7 +838,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -893,7 +875,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -933,7 +914,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -970,7 +950,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1008,7 +987,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1032,7 +1010,6 @@ impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Stripe,
@@ -1071,7 +1048,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Stripe,
@@ -1110,7 +1086,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Stripe,
@@ -1149,7 +1124,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Stripe,
@@ -1188,7 +1162,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Stripe,
@@ -1227,7 +1200,6 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Stripe,
@@ -1264,7 +1236,6 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1300,7 +1271,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1428,7 +1398,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_authorize_session_token!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1464,7 +1433,6 @@ impl<const T: u8>
 }
 
 default_imp_for_calculate_tax!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1500,7 +1468,6 @@ impl<const T: u8>
 }
 
 default_imp_for_session_update!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1536,7 +1503,6 @@ impl<const T: u8>
 }
 
 default_imp_for_post_session_tokens!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1572,7 +1538,6 @@ impl<const T: u8>
 }
 
 default_imp_for_update_metadata!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1610,7 +1575,6 @@ impl<const T: u8>
 }
 
 default_imp_for_uas_pre_authentication!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1646,7 +1610,6 @@ impl<const T: u8>
 }
 
 default_imp_for_uas_post_authentication!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1671,7 +1634,6 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1720,7 +1682,6 @@ impl<const T: u8>
 }
 
 default_imp_for_uas_authentication!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1851,7 +1812,6 @@ macro_rules! default_imp_for_revenue_recovery {
 impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 
 default_imp_for_revenue_recovery! {
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1891,7 +1851,6 @@ impl<const T: u8>
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,
@@ -1931,7 +1890,6 @@ impl<const T: u8>
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
-    connector::Gpayments,
     connector::Netcetera,
     connector::Plaid,
     connector::Signifyd,

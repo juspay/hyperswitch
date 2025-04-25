@@ -6228,3 +6228,16 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
             })
     }
 }
+
+pub fn get_card_details(
+    payment_method_data: PaymentMethodData,
+    connector_name: &'static str,
+) -> Result<Card, errors::ConnectorError> {
+    match payment_method_data {
+        PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: connector_name,
+        })?,
+    }
+}
