@@ -8,6 +8,9 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Alias for docker to use podman
+alias docker=podman
+
 # Function to print colorful messages
 echo_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -44,22 +47,33 @@ show_banner() {
 
 # Detect Docker Compose version
 detect_docker_compose() {
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        echo_error "Docker is not installed. Please install Docker first."
-        echo_info "Visit https://docs.docker.com/get-docker/ for installation instructions."
+    # Check Podman or Docker
+    if command -v podman &> /dev/null; then
+        CONTAINER_ENGINE="podman"
+        echo_success "Podman is installed."
+    elif command -v docker &> /dev/null; then
+        CONTAINER_ENGINE="docker"
+        echo_success "Docker is installed."
+    else
+        echo_error "Neither Podman nor Docker is installed. Please install one of them to proceed."
+        echo_info "Visit https://podman.io/docs/installation or https://docs.docker.com/get-docker/ for installation instructions."
+        echo_info "After installation, re-run this script: scripts/setup.sh"
         exit 1
     fi
-    echo_success "Docker is installed."
 
-    # Check Docker Compose
-    if docker compose version &> /dev/null; then
-        DOCKER_COMPOSE="docker compose"
-        echo_success "Docker Compose is installed."
+    # Check Docker Compose or Podman Compose
+    if $CONTAINER_ENGINE compose version &> /dev/null; then
+        DOCKER_COMPOSE="$CONTAINER_ENGINE compose"
+        echo_success "Compose is installed for $CONTAINER_ENGINE."
     else
-        echo_error "Docker Compose is not installed. Please install Docker Compose (Or use alternatives like Orbstack/Podman)."
-        echo_info "Visit https://docs.docker.com/compose/install/ for installation instructions."
-        exit 1
+        echo_error "Compose is not installed for $CONTAINER_ENGINE. Please install $CONTAINER_ENGINE compose to proceed."
+        if [ "$CONTAINER_ENGINE" = "docker" ]; then
+            echo_info "Visit https://docs.docker.com/compose/install/ for installation instructions."
+        elif [ "$CONTAINER_ENGINE" = "podman" ]; then
+            echo_info "Visit https://podman-desktop.io/docs/compose/setting-up-compose for installation instructions."
+    fi
+    echo_info "After installation, re-run this script: scripts/setup.sh"
+    exit 1
     fi
 }
 
@@ -110,16 +124,15 @@ setup_config() {
     fi
 }
 
-select_profile() {
-    echo "Select a deployment profile:"
-    echo -e "1) Standard Setup: ${BLUE}[Recommended]${NC} For quick local testing - (App Server + Control Center + Unified Checkout + Essential Services)"
-    echo "2) Full Stack Setup: For evaluating the complete product - (Standard + Monitoring + Scheduler)"
-    echo "3) Development Setup: For contributors, Builds from source - (Standard + Monitoring + Scheduler) : may take up to 30 minutes"
-    echo "4) Standalone App Server: For API-first integration testing (Core services only - Hyperswitch server, PostgreSQL, Redis)"
-    
+select_profile() {    
+    echo "Select a setup option:"
+    echo -e "1) Standard Setup: ${BLUE}[Recommended]${NC} Ideal for quick trial. Services included: ${BLUE}App Server, Control Center, Unified Checkout, PostgreSQL and Redis${NC}"
+    echo "2) Full Stack Setup: Ideal for comprehensive end-to-end payment testing. Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}"
+    echo "3) Standalone App Server: Ideal for API-first integration testing. Services included: ${BLUE}App server, PostgreSQL and Redis)${NC}"
+
     local profile_selected=false
     while [ "$profile_selected" = false ]; do
-        read -p "Enter your choice (1-4): " profile_choice
+        read -p "Enter your choice (1-3): " profile_choice
         profile_choice=${profile_choice:-1}
         
         case $profile_choice in
@@ -132,15 +145,11 @@ select_profile() {
                 profile_selected=true
                 ;;
             3)
-                PROFILE="development"
-                profile_selected=true
-                ;;
-            4)
                 PROFILE="standalone"
                 profile_selected=true
                 ;;
             *)
-                echo_error "Invalid choice. Please enter 1, 2, 3, or 4."
+                echo_error "Invalid choice. Please enter 1, 2, or 3."
                 ;;
         esac
     done
@@ -160,9 +169,6 @@ start_services() {
             ;;
         full)
             $DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap up -d
-            ;;
-        development)
-            $DOCKER_COMPOSE -f docker-compose-development.yml up -d
             ;;
     esac
 }
@@ -202,10 +208,10 @@ print_access_info() {
     echo -e "  • ${GREEN}App Server${NC}: ${BLUE}http://localhost:8080${NC}"
     
     if [ "$PROFILE" != "standalone" ]; then
-        echo -e "  • ${GREEN}Sample Unified Checkout Demo{NC}: ${BLUE}http://localhost:9050${NC}"
+        echo -e "  • ${GREEN}Sample Unified Checkout Demo{NC}: ${BLUE}http://localhost:9060${NC}"
     fi
     
-    if [ "$PROFILE" = "full" ] || [ "$PROFILE" = "development" ]; then
+    if [ "$PROFILE" = "full" ]; then
         echo -e "  • ${GREEN}Monitoring (Grafana)${NC}: ${BLUE}http://localhost:3000${NC}"
     fi
     echo "Hyperswitch is now ready to use!"
