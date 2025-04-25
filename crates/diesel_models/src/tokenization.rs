@@ -12,6 +12,7 @@ use common_utils::{
     tokenization as tokenization_utils,
 };
 use diesel::{
+    associations::HasTable,
     deserialize::FromSqlRow, 
     expression::AsExpression, 
     sql_types::{Jsonb, Text},
@@ -33,6 +34,19 @@ pub struct Tokenization {
     pub version: common_enums::enums::ApiVersion,
 }
 
+impl Tokenization {
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalTokenId,
+    ) -> StorageResult<Self> {
+        use diesel::ExpressionMethods;
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            tokenization::dsl::id.eq(id.to_owned()),
+        )
+        .await
+    }
+}
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = tokenization)]
 pub struct TokenizationNew {

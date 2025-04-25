@@ -91,3 +91,83 @@ pub async fn create_vault_token_core<T: Serialize +  std::fmt::Debug>(
         }
     ))
 }
+
+
+#[instrument(skip_all)]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub async fn get_token_vault_core(
+    state: SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_key_store: &domain::MerchantKeyStore,
+    query_params: (id_type::GlobalTokenId, bool),
+) -> RouterResponse<serde_json::Value> {
+    let db = state.store.as_ref();
+
+    // Get the tokenization record from the database
+    let tokenization = db
+        .get_entity_id_vault_id_by_token_id(
+            &query_params.0,
+            &(merchant_key_store.clone()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get tokenization record")?;
+    
+    let vault_request = pm_types::VaultRetrieveRequest{
+        entity_id : tokenization.0.clone(),
+        vault_id : hyperswitch_domain_models::payment_methods::VaultId::generate(tokenization.1.clone()),
+    };
+
+    let vault_data = pm_vault::retrive_value_from_vault(
+        &state, 
+        pm_types::VaultRetrieveRequest {
+            entity_id: tokenization.0.clone(),
+            vault_id: domain::VaultId::generate(tokenization.1.clone()),
+        }
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to retrieve vault data")?;
+
+    let data_json = vault_data
+    .get("data")
+    .cloned()
+    .unwrap_or(serde_json::Value::Null);
+    
+    // Mask sensitive data if needed
+    let response_data = if !query_params.1 {
+        mask_sensitive_data(data_json)
+    } else {
+        data_json
+    };
+
+    // Create the response
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(response_data))
+}
+
+
+fn mask_sensitive_data(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut masked = serde_json::Map::new();
+            for (key, val) in map {
+                // Recursively mask nested objects
+                masked.insert(key, mask_sensitive_data(val));
+            }
+            serde_json::Value::Object(masked)
+        },
+        serde_json::Value::Array(arr) => {
+            // Recursively mask each element in arrays
+            let masked_arr = arr.into_iter()
+                .map(mask_sensitive_data)
+                .collect();
+            serde_json::Value::Array(masked_arr)
+        },
+        // For primitive values (string, number, boolean), replace with "masked"
+        serde_json::Value::String(_) |
+        serde_json::Value::Number(_) |
+        serde_json::Value::Bool(_) => serde_json::Value::String("masked".to_string()),
+        // Keep null as is
+        serde_json::Value::Null => serde_json::Value::Null,
+    }
+}

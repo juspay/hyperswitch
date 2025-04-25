@@ -18,3 +18,9 @@ pub enum TokenizationFlag {
     Enabled,
     Disabled,
 } 
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct TokenizationQueryParameters{
+    // Make the 
+    pub reveal : Option<bool>,
+}

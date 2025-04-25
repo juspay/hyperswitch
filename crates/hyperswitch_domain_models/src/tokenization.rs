@@ -102,14 +102,3 @@ impl super::behaviour::Conversion for Tokenization {
         })
     }
 }
-
-// #[async_trait::async_trait]
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-// pub trait TokenizationInterface {
-//     async fn insert_tokenization(
-//         &self,
-//         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
-//         merchant_key_store: &MerchantKeyStore,
-//         key_manager_state: &keymanager::KeyManagerState
-//     ) -> CustomResult<Tokenization, StorageError>;
-// }

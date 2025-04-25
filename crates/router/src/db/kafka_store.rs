@@ -4195,4 +4195,12 @@ impl TokenizationInterface for KafkaStore {
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError> {
         self.diesel_store.insert_tokenization(tokenization, merchant_key_store, key_manager_state).await
     }
+
+    async fn get_entity_id_vault_id_by_token_id(
+        &self,
+        token: &common_utils::id_type::GlobalTokenId,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    ) -> CustomResult<(common_utils::id_type::MerchantId, String), errors::StorageError>{
+        self.diesel_store.get_entity_id_vault_id_by_token_id(token, merchant_key_store).await
+    }
 }

@@ -18,7 +18,10 @@ use crate::{
 use router_env::{instrument, tracing, Flow};
 use hyperswitch_domain_models;
 use api_models;
-use common_utils::ext_traits::{BytesExt, Encode};
+use common_utils::{
+    id_type,
+    ext_traits::{BytesExt, Encode}
+};
 
 
 #[instrument(skip_all, fields(flow = ?Flow::TokenizationCreate))]
@@ -55,3 +58,39 @@ pub async fn create_token_vault_api(
 }
 
 
+
+#[instrument(skip_all, fields(flow = ?Flow::TokenizationRetrieve))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub async fn get_token_vault_api(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<id_type::GlobalTokenId>,
+    query: web::Query<api_models::tokenization::TokenizationQueryParameters>
+) -> HttpResponse {
+    let reveal_flag = match query.reveal {
+        Some(true) => true,
+        _ => false,
+    };
+    let token_id = path.into_inner();
+    Box::pin(api_service::server_wrap(
+        Flow::TokenizationRetrieve,
+        state,
+        &req,
+        token_id.clone(),
+        |state, auth: auth::AuthenticationData, token_id, _| async move {
+            tokenization::get_token_vault_core(
+                state,
+                &auth.merchant_account,
+                &auth.key_store,
+                (token_id,reveal_flag),
+            )
+            .await
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
