@@ -10,12 +10,8 @@ use common_utils::{
     ext_traits::{BytesExt, Encode, StringExt},
     id_type,
 };
-use error_stack::{IntoReport, ResultExt};
 use hyperswitch_domain_models;
-use masking::Secret;
 use router_env::{instrument, logger, tracing, Flow};
-use serde::Serialize;
-
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
