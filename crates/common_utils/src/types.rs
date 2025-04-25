@@ -49,6 +49,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
+    impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -125,7 +126,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            match value.split('.').last() {
+            match value.split('.').next_back() {
                 Some(decimal_part) => {
                     decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
                 }
@@ -1204,6 +1205,14 @@ impl ConnectorTransactionId {
         }
     }
 
+    /// Implementation for extracting hashed data
+    pub fn extract_hashed_data(&self) -> Option<String> {
+        match self {
+            Self::TxnId(_) => None,
+            Self::HashedData(src) => Some(src.clone()),
+        }
+    }
+
     /// Implementation for retrieving
     pub fn get_txn_id<'a>(
         &'a self,
@@ -1348,3 +1357,22 @@ where
         self.0.to_sql(out)
     }
 }
+
+impl_enum_str!(
+    tag_delimeter = ":",
+    /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
+    /// trigger (Api, Jwt) of the record.
+    #[derive(Eq, PartialEq, Debug, Clone)]
+    pub enum CreatedBy {
+        /// Api variant
+        Api {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
+        /// Jwt variant
+        Jwt {
+            /// user id of creator.
+            user_id: String,
+        },
+    }
+);

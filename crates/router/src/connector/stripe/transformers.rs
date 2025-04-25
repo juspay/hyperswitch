@@ -3305,6 +3305,9 @@ pub struct ErrorDetails {
     pub param: Option<String>,
     pub decline_code: Option<String>,
     pub payment_intent: Option<PaymentIntentErrorResponse>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub advice_code: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -3380,6 +3383,30 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
             cancellation_reason: item.request.cancellation_reason.clone(),
         })
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct UpdateMetadataRequest {
+    #[serde(flatten)]
+    pub metadata: HashMap<String, String>,
+}
+
+impl TryFrom<&types::PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
+        let metadata = format_metadata_for_request(item.request.metadata.clone());
+        Ok(Self { metadata })
+    }
+}
+
+fn format_metadata_for_request(merchant_metadata: Secret<Value>) -> HashMap<String, String> {
+    let mut formatted_metadata = HashMap::new();
+    if let Value::Object(metadata_map) = merchant_metadata.expose() {
+        for (key, value) in metadata_map {
+            formatted_metadata.insert(format!("metadata[{}]", key), value.to_string());
+        }
+    }
+    formatted_metadata
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -3719,6 +3746,7 @@ pub struct WebhookEventObjectData {
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
     pub metadata: Option<StripeMetadata>,
+    pub last_payment_error: Option<ErrorDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
@@ -4178,9 +4206,15 @@ impl ForeignTryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsRes
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(response_id),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response
+                .as_ref()
+                .and_then(|res| res.network_advice_code.clone()),
+            network_decline_code: response
+                .as_ref()
+                .and_then(|res| res.network_decline_code.clone()),
+            network_error_message: response
+                .as_ref()
+                .and_then(|res| res.decline_code.clone().or(res.advice_code.clone())),
         })
     }
 }
