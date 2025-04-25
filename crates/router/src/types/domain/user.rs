@@ -23,7 +23,7 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
-use router_env::{env, logger};
+use router_env::logger;
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
@@ -721,7 +721,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
 
     fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
         let merchant_id =
-            user_utils::generate_env_specific_merchant_id(value.1.company_name.clone())?;
+            utils::user::generate_env_specific_merchant_id(value.1.company_name.clone())?;
         let (user_from_storage, user_merchant_create, user_from_token) = value;
         Ok(Self {
             merchant_id,
@@ -742,7 +742,7 @@ impl TryFrom<user_api::PlatformAccountCreateRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::PlatformAccountCreateRequest) -> UserResult<Self> {
-        let merchant_id = user_utils::generate_env_specific_merchant_id(
+        let merchant_id = utils::user::generate_env_specific_merchant_id(
             value.organization_name.clone().expose(),
         )?;
 
