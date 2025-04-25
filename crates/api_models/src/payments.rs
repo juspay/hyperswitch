@@ -6729,6 +6729,7 @@ pub struct ConnectorMetadata {
     pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
     pub braintree: Option<BraintreeData>,
+    pub adyen: Option<AdyenConnectorMetadata>,
 }
 
 impl ConnectorMetadata {
@@ -6777,6 +6778,18 @@ pub struct BraintreeData {
     /// Information about the merchant_config_currency that merchant wants to specify at connector level.
     #[schema(value_type = String)]
     pub merchant_config_currency: Option<api_enums::Currency>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AdyenConnectorMetadata {
+    pub testing: AdyenTestingData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AdyenTestingData {
+    /// Holder name to be sent to Adyen for a card payment(CIT) or a generic payment(MIT). This value overrides the values for card.card_holder_name and applies during both CIT and MIT payment transactions.
+    #[schema(value_type = String)]
+    pub holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -8068,6 +8081,9 @@ pub struct PaymentLinkDetails {
     pub payment_form_header_text: Option<String>,
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    pub is_setup_mandate_flow: Option<bool>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -8110,6 +8126,8 @@ pub struct PaymentLinkStatusDetails {
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

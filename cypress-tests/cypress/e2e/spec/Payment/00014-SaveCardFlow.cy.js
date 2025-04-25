@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
-import State from "../../../utils/State";
 import { generateRandomName } from "../../../utils/RequestBodyUtils";
+import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
