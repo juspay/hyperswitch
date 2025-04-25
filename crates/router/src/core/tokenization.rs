@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{ResultExt};
 use masking::Secret;
 use serde::Serialize;
 use actix_web::{web, HttpRequest, HttpResponse};
@@ -76,7 +76,7 @@ pub async fn create_vault_token_core<T: Serialize +  std::fmt::Debug>(
     let tokenization = db.insert_tokenization(
             tokenization_new,
             &(merchant_key_store.clone()),
-            &key_manager_state,
+            key_manager_state,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -108,7 +108,7 @@ pub async fn get_token_vault_core(
         .get_entity_id_vault_id_by_token_id(
             &query_params.0,
             &(merchant_key_store.clone()),
-            &key_manager_state,
+            key_manager_state,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

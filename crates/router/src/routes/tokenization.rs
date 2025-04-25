@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 use actix_web::{web, HttpRequest, HttpResponse};
@@ -63,14 +63,11 @@ pub async fn create_token_vault_api(
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub async fn get_token_vault_api(
     state: web::Data<AppState>,
-    req: actix_web::HttpRequest,
+    req: HttpRequest,
     path: web::Path<id_type::GlobalTokenId>,
     query: web::Query<api_models::tokenization::TokenizationQueryParameters>
 ) -> HttpResponse {
-    let reveal_flag = match query.reveal {
-        Some(true) => true,
-        _ => false,
-    };
+    let reveal_flag = matches!(query.reveal, Some(true));
     let token_id = path.into_inner();
     Box::pin(api_service::server_wrap(
         Flow::TokenizationRetrieve,
