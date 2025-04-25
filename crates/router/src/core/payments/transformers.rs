@@ -307,6 +307,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_payment_method_data: None,
         merchant_account_id: None,
         merchant_config_currency: None,
+        connector_testing_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -960,6 +961,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         capture_method: Some(payment_data.payment_intent.capture_method),
         complete_authorize_url,
+        connector_testing_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3183,7 +3185,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let order_category = additional_data
+        let connector_metadata = additional_data
             .payment_data
             .payment_intent
             .connector_metadata
@@ -3193,21 +3195,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed parsing ConnectorMetadata")
             })
-            .transpose()?
-            .and_then(|cm| cm.noon.and_then(|noon| noon.order_category));
+            .transpose()?;
 
-        let braintree_metadata = additional_data
-            .payment_data
-            .payment_intent
-            .connector_metadata
-            .clone()
-            .map(|cm| {
-                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed parsing ConnectorMetadata")
-            })
-            .transpose()?
-            .and_then(|cm| cm.braintree);
+        let order_category = connector_metadata.as_ref().and_then(|cm| {
+            cm.noon
+                .as_ref()
+                .and_then(|noon| noon.order_category.clone())
+        });
+        let braintree_metadata = connector_metadata
+            .as_ref()
+            .and_then(|cm| cm.braintree.clone());
 
         let merchant_account_id = braintree_metadata
             .as_ref()
@@ -3301,6 +3298,30 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        let connector = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+
+        let connector_testing_data = connector_metadata
+            .and_then(|cm| match connector {
+                api_models::enums::Connector::Adyen => cm
+                    .adyen
+                    .map(|adyen_cm| adyen_cm.testing)
+                    .map(|testing_data| {
+                        serde_json::to_value(testing_data)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to parse Adyen testing data")
+                    }),
+                _ => None,
+            })
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
@@ -3355,6 +3376,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             shipping_cost,
             merchant_account_id,
             merchant_config_currency,
+            connector_testing_data,
         })
     }
 }
@@ -4106,6 +4128,40 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_data.creds_identifier.as_deref(),
         ));
 
+        let connector = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+
+        let connector_testing_data = payment_data
+            .payment_intent
+            .connector_metadata
+            .as_ref()
+            .map(|cm| {
+                cm.clone()
+                    .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing ConnectorMetadata")
+            })
+            .transpose()?
+            .and_then(|cm| match connector {
+                api_models::enums::Connector::Adyen => cm
+                    .adyen
+                    .map(|adyen_cm| adyen_cm.testing)
+                    .map(|testing_data| {
+                        serde_json::to_value(testing_data)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to parse Adyen testing data")
+                    }),
+                _ => None,
+            })
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -4138,6 +4194,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             webhook_url,
             complete_authorize_url,
             capture_method: payment_data.payment_attempt.capture_method,
+            connector_testing_data,
         })
     }
 }

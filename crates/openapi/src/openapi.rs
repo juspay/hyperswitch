@@ -734,6 +734,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsUpdateMetadataRequest,
         api_models::payments::PaymentsUpdateMetadataResponse,
         api_models::payments::CtpServiceDetails,
+        api_models::payments::AdyenConnectorMetadata,
+        api_models::payments::AdyenTestingData,
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,
