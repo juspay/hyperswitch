@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.25.0
+
+### Features
+
+- **payments:** Add support for connector testing (Adyen) ([#7874](https://github.com/juspay/hyperswitch/pull/7874)) ([`f1bb4a0`](https://github.com/juspay/hyperswitch/commit/f1bb4a09edeb1a23a63b96592c808482f876b905))
+- **router:** Add revenue recovery retry algorithm type and data columns to business_profile table ([#7772](https://github.com/juspay/hyperswitch/pull/7772)) ([`c633b33`](https://github.com/juspay/hyperswitch/commit/c633b336fb0df9a53415324ccf0b71374ade874c))
+- **user:** Use global redis key prefix for user lineage context ([#7892](https://github.com/juspay/hyperswitch/pull/7892)) ([`25197c6`](https://github.com/juspay/hyperswitch/commit/25197c663ae5ef8328cf67463a41b77c737704bf))
+- **users:** Profile level custom role write ([#7877](https://github.com/juspay/hyperswitch/pull/7877)) ([`54e9105`](https://github.com/juspay/hyperswitch/commit/54e910582fac9bd6fe300a9a96926adf5123403e))
+
+### Refactors
+
+- **connector:**
+  - [BILLWERK, FISERVEMEA, TSYS] use LazyLock instead of lazy_static ([#7494](https://github.com/juspay/hyperswitch/pull/7494)) ([`413a7ee`](https://github.com/juspay/hyperswitch/commit/413a7eee8aafcf94925cd0b667b8569b4af9f375))
+  - [NMI,PAYONE,RISKIFIED] moved to hyperswitch_connectors ([#7666](https://github.com/juspay/hyperswitch/pull/7666)) ([`b461087`](https://github.com/juspay/hyperswitch/commit/b4610875674748433091a12ad8c8b8601ce2e496))
+
+### Documentation
+
+- Update the setup docs ([#7839](https://github.com/juspay/hyperswitch/pull/7839)) ([`c3ac0d0`](https://github.com/juspay/hyperswitch/commit/c3ac0d0bd63a349cee7100e6e06c1f65e411ad58))
+
+### Miscellaneous Tasks
+
+- Add hyperswitch-react-demo-app to docker-compose ([#7841](https://github.com/juspay/hyperswitch/pull/7841)) ([`d9a67aa`](https://github.com/juspay/hyperswitch/commit/d9a67aa144a9f01d2bf02c29ee5245566670745e))
+- Add cardholder name as mandatory field for Worldpay card transactions ([#7897](https://github.com/juspay/hyperswitch/pull/7897)) ([`2fe40a2`](https://github.com/juspay/hyperswitch/commit/2fe40a2f83d76a50ed9588ebcafee046ffec5812))
+
+**Full Changelog:** [`2025.04.24.0...2025.04.25.0`](https://github.com/juspay/hyperswitch/compare/2025.04.24.0...2025.04.25.0)
+
+
+- - -
+
 ## 2025.04.24.0
 
 ### Features
