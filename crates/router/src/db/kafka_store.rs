@@ -80,10 +80,10 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        tokenization::TokenizationInterface,
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
-        tokenization::TokenizationInterface,
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
@@ -4191,17 +4191,23 @@ impl TokenizationInterface for KafkaStore {
         &self,
         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
         merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        key_manager_state: &KeyManagerState
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError> {
-        self.diesel_store.insert_tokenization(tokenization, merchant_key_store, key_manager_state).await
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
+            .await
     }
 
     async fn get_entity_id_vault_id_by_token_id(
         &self,
         token: &id_type::GlobalTokenId,
         merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        key_manager_state: &KeyManagerState
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>{
-        self.diesel_store.get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state).await
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
     }
 }

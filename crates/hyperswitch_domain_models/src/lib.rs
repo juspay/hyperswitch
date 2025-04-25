@@ -31,12 +31,12 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod routing;
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;
 pub mod type_encryption;
 pub mod types;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod vault;
-#[cfg(feature = "tokenization_v2")]
-pub mod tokenization;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}

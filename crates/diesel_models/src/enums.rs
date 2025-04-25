@@ -23,25 +23,24 @@ pub mod diesel_exports {
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
-        DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
-        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt, 
-        DbTokenizationFlag as TokenizationFlag,
+        DbTokenizationFlag as TokenizationFlag, DbTotpStatus as TotpStatus,
+        DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
+        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
+use std::io::Write;
+
 pub use common_enums::*;
-use common_utils::pii;
-use common_utils::tokenization;
+use common_utils::{pii, tokenization};
 use diesel::{
-    deserialize::FromSqlRow, 
-    expression::AsExpression, 
-    sql_types::{Jsonb, Text},
+    deserialize::FromSqlRow,
+    expression::AsExpression,
     pg::Pg,
-    serialize::{ToSql, Output},
+    serialize::{Output, ToSql},
+    sql_types::{Jsonb, Text},
 };
 use router_derive::diesel_enum;
 use time::PrimitiveDateTime;
-use std::io::Write;
 
 #[derive(
     Clone,

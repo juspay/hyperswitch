@@ -158,7 +158,7 @@ pub fn mk_app(
                 .service(routes::PaymentMethodSession::server(state.clone()))
                 .service(routes::Refunds::server(state.clone()));
         }
-        #[cfg(all(feature = "v2", feature = "oltp" , feature = "tokenization_v2"))]
+        #[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
         {
             server_app = server_app.service(routes::Tokenization::server(state.clone()));
         }

@@ -339,8 +339,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
 
-            Flow::TokenizationCreate
-            | Flow::TokenizationRetrieve => Self::GenericTokenization,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

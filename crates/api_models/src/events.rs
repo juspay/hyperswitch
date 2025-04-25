@@ -39,9 +39,9 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
+    tokenization,
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
-    tokenization,
 };
 
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {

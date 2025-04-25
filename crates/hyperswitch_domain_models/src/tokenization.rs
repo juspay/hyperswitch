@@ -1,19 +1,16 @@
-
+use common_enums;
+use common_utils::{
+    self,
+    errors::{CustomResult, ValidationError},
+    id_type, pii,
+    types::{keymanager, MinorUnit},
+};
+use diesel_models::tokenization;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use common_utils::{
-    id_type,
-    types::{keymanager, MinorUnit},
-    errors::{CustomResult, ValidationError}, pii,
-};
-use masking::{ExposeInterface, Secret};
-use diesel_models::tokenization;
-use common_enums;
-use crate::{
-    types,
-    merchant_key_store::MerchantKeyStore,
-};
-use common_utils;
+
+use crate::{merchant_key_store::MerchantKeyStore, types};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -72,8 +69,8 @@ impl super::behaviour::Conversion for Tokenization {
         })
     }
 
-    async fn convert_back( 
-        _state: &keymanager::KeyManagerState, 
+    async fn convert_back(
+        _state: &keymanager::KeyManagerState,
         item: Self::DstType,
         _key: &Secret<Vec<u8>>,
         _key_manager_identifier: keymanager::Identifier,
@@ -86,10 +83,9 @@ impl super::behaviour::Conversion for Tokenization {
             updated_at: item.updated_at,
             flag: item.flag,
             version: item.version,
-
         })
     }
-    
+
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::tokenization::Tokenization {
             id: self.id,
