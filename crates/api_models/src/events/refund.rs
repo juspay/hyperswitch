@@ -1,14 +1,13 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-#[cfg(feature = "v1")]
-use crate::refunds::{RefundRequest,RefundUpdateRequest};
 #[cfg(feature = "v2")]
 use crate::refunds::RefundsCreateRequest;
 use crate::refunds::{
     RefundAggregateResponse, RefundListFilters, RefundListMetaData, RefundListRequest,
-    RefundListResponse, RefundManualUpdateRequest, RefundResponse,
-    RefundsRetrieveRequest,
+    RefundListResponse, RefundManualUpdateRequest, RefundResponse, RefundsRetrieveRequest,
 };
+#[cfg(feature = "v1")]
+use crate::refunds::{RefundRequest, RefundUpdateRequest};
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for RefundRequest {
