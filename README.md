@@ -80,7 +80,7 @@ scripts/setup.sh
 ```
 
 The above script will:
-- Check for prerequisites (Docker Compose/Orbstack)
+- Check for prerequisites (Docker Compose/Podman)
 - Set up necessary configurations
 - Let you select a deployment profile:
   - **Standard**: Recommended - App server + Control Center + Web SDK.

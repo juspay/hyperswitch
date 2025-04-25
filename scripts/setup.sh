@@ -6,6 +6,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Alias for docker to use podman
@@ -29,15 +30,23 @@ echo_error() {
 }
 
 show_banner() {
-    echo -e "${BLUE}"
+    echo -e "${BLUE}${BOLD}"
     echo "" 
-    echo "        #                                                                                                            "
-    echo "        # #    #  ####  #####    ##   #   #   #     # #   # #####  ###### #####   ####  #    # # #####  ####  #    # "
-    echo "        # #    # #      #    #  #  #   # #    #     #  # #  #    # #      #    # #      #    # #   #   #    # #    # "
-    echo "        # #    #  ####  #    # #    #   #     #     #   #   #    # #####  #    #  ####  #    # #   #   #      ###### "
-    echo "  #     # #    #      # #####  ######   #     #######   #   #####  #      #####       # # ## # #   #   #      #    # "
-    echo "  #     # #    # #    # #      #    #   #     #     #   #   #      #      #   #  #    # ##  ## #   #   #    # #    # "
-    echo "   #####   ####   ####  #      #    #   #     #     #   #   #      ###### #    #  ####  #    # #   #    ####  #    # "
+    echo "        #             "
+    echo "        # #    #  ####  #####    ##   #   #  "
+    echo "        # #    # #      #    #  #  #   # #   "
+    echo "        # #    #  ####  #    # #    #   #    "
+    echo "  #     # #    #      # #####  ######   #    "
+    echo "  #     # #    # #    # #      #    #   #    "
+    echo "   #####   ####   ####  #      #    #   #    "
+    echo "" 
+    echo "" 
+    echo "  #     # #   # #####  ###### #####   ####  #    # # #####  ####  #    # "
+    echo "  #     #  # #  #    # #      #    # #      #    # #   #   #    # #    # "
+    echo "  #     #   #   #    # #####  #    #  ####  #    # #   #   #      ###### "
+    echo "  #######   #   #####  #      #####       # # ## # #   #   #      #    # "
+    echo "  #     #   #   #      #      #   #  #    # ##  ## #   #   #    # #    # "
+    echo "  #     #   #   #      ###### #    #  ####  #    # #   #    ####  #    # "
     echo ""                                                                                                           
     sleep 1
     echo -e "${NC}"
@@ -125,11 +134,12 @@ setup_config() {
 }
 
 select_profile() {    
+    echo ""    
     echo "Select a setup option:"
     echo -e "1) Standard Setup: ${BLUE}[Recommended]${NC} Ideal for quick trial. Services included: ${BLUE}App Server, Control Center, Unified Checkout, PostgreSQL and Redis${NC}"
-    echo "2) Full Stack Setup: Ideal for comprehensive end-to-end payment testing. Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}"
-    echo "3) Standalone App Server: Ideal for API-first integration testing. Services included: ${BLUE}App server, PostgreSQL and Redis)${NC}"
-
+    echo -e "2) Full Stack Setup: Ideal for comprehensive end-to-end payment testing. Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}"
+    echo -e "3) Standalone App Server: Ideal for API-first integration testing. Services included: ${BLUE}App server, PostgreSQL and Redis)${NC}"
+    echo ""
     local profile_selected=false
     while [ "$profile_selected" = false ]; do
         read -p "Enter your choice (1-3): " profile_choice
@@ -154,11 +164,10 @@ select_profile() {
         esac
     done
     
-    echo "Selected profile: $PROFILE"
+    echo "Selected setup: $PROFILE"
 }
 
 start_services() {
-    echo "Starting Hyperswitch services with profile: $PROFILE"
     
     case $PROFILE in
         standalone)
@@ -174,7 +183,6 @@ start_services() {
 }
 
 check_services_health() {
-    
     # Wait for the hyperswitch-server to be healthy
     MAX_RETRIES=30
     RETRY_INTERVAL=5
@@ -182,14 +190,18 @@ check_services_health() {
     
     while [ $RETRIES -lt $MAX_RETRIES ]; do
         if curl --silent --head --request GET 'http://localhost:8080/health' | grep "200 OK" > /dev/null; then
-            break
+            echo_success "Hyperswitch server is healthy!"
+            print_access_info  # Call print_access_info only when the server is healthy
+            return
         fi
         
         RETRIES=$((RETRIES+1))
         if [ $RETRIES -eq $MAX_RETRIES ]; then
-            echo_error "Hyperswitch server did not become healthy in the expected time."
-            echo_info "Check logs with: $DOCKER_COMPOSE logs hyperswitch-server"
-            echo_warning "The setup process will continue, but some services might not work correctly."
+            echo ""
+            echo_error "${RED}${BOLD}Hyperswitch server did not become healthy in the expected time."
+            echo -e "Check logs with: $DOCKER_COMPOSE logs hyperswitch-server, Or reach out to us on slack(https://hyperswitch-io.slack.com/) for help."
+            echo -e "The setup process will continue, but some services might not work correctly.${NC}"
+            echo ""
         else
             echo "Waiting for server to become healthy... ($RETRIES/$MAX_RETRIES)"
             sleep $RETRY_INTERVAL
@@ -198,25 +210,25 @@ check_services_health() {
 }
 
 print_access_info() {
-    
-    echo "Setup complete! You can access Hyperswitch services at:"
+    echo ""
+    echo -e "${GREEN}${BOLD}Setup complete! You can access Hyperswitch services at:${NC}"
+    echo ""
     
     if [ "$PROFILE" != "standalone" ]; then
-        echo -e "  • ${GREEN}Control Center${NC}: ${BLUE}http://localhost:9000${NC}"
+        echo -e "  • ${GREEN}${BOLD}Control Center${NC}: ${BLUE}${BOLD}http://localhost:9000${NC}"
     fi
     
-    echo -e "  • ${GREEN}App Server${NC}: ${BLUE}http://localhost:8080${NC}"
+    echo -e "  • ${GREEN}${BOLD}App Server${NC}: ${BLUE}${BOLD}http://localhost:8080${NC}"
     
     if [ "$PROFILE" != "standalone" ]; then
-        echo -e "  • ${GREEN}Sample Unified Checkout Demo{NC}: ${BLUE}http://localhost:9060${NC}"
+        echo -e "  • ${GREEN}${BOLD}Unified Checkout${NC}: ${BLUE}${BOLD}http://localhost:9060${NC}"
     fi
     
     if [ "$PROFILE" = "full" ]; then
-        echo -e "  • ${GREEN}Monitoring (Grafana)${NC}: ${BLUE}http://localhost:3000${NC}"
+        echo -e "  • ${GREEN}${BOLD}Monitoring (Grafana)${NC}: ${BLUE}${BOLD}http://localhost:3000${NC}"
     fi
-    echo "Hyperswitch is now ready to use!"
-    echo_info "To stop all services, run:"
-    echo "  $DOCKER_COMPOSE down"
+    echo ""
+    echo_info "To stop all services, run: $DOCKER_COMPOSE down"
 }
 
 # Main execution flow
@@ -226,5 +238,4 @@ check_prerequisites
 setup_config
 select_profile
 start_services
-check_services_health
-print_access_info
+check_services_health  # This will call print_access_info if the server is healthy
