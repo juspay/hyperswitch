@@ -150,7 +150,6 @@ pub async fn recovery_incoming_webhook_flow(
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
         revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
-            //: match if the business profile entry is a Monitoring job return Noaffect(Discuss this) or some other job and then do this
             let recovery_algorithm_type = business_profile
                 .revenue_recovery_retry_algorithm_type
                 .ok_or(report!(
