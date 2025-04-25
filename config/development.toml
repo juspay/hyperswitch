@@ -434,9 +434,6 @@ ach = { country = "US", currency = "USD" }
 [pm_filters.volt]
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }
 
-[pm_filters.noon]
-paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD,AED,SAR"}
-
 [pm_filters.razorpay]
 upi_collect = { country = "IN", currency = "INR" }
 
@@ -576,6 +573,9 @@ paypal = { country = "AD,AE,AL,AM,AR,AT,AU,AZ,BA,BB,BD,BE,BG,BH,BI,BM,BN,BO,BR,B
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
+
+[pm_filters.facilitapay]
+pix = { country = "BR", currency = "BRL" }
 
 [pm_filters.helcim]
 credit = { country = "US, CA", currency = "USD, CAD" }
@@ -754,7 +754,7 @@ nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe"
+connector_list = "gocardless,stax,stripe,facilitapay"
 payout_connector_list = "nomupay,stripe,wise"
 
 [dummy_connector]
@@ -1016,7 +1016,7 @@ connector_list = "cybersource"
 
 [grpc_client.dynamic_routing_client]
 host = "localhost"
-port = 7000
+port = 8000
 service = "dynamo"
 
 [theme.storage]
@@ -1031,3 +1031,7 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
+
+[open_router]
+enabled = false
+url = "http://localhost:8080"

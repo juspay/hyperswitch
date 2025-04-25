@@ -923,6 +923,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             shipping_cost: data.request.shipping_cost,
             merchant_account_id: None,
             merchant_config_currency: None,
+            connector_testing_data: data.request.connector_testing_data.clone(),
         }
     }
 }
