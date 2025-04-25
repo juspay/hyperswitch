@@ -21,17 +21,16 @@ use masking::{ExposeInterface, Secret};
 use serde::Deserialize;
 use serde_json::to_string;
 
+use super::gpayments_types::{
+    self, AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationSuccessResponse,
+    GpaymentsPreAuthVersionCallResponse,
+};
 use crate::{
     types::{
         ConnectorAuthenticationRouterData, PreAuthNRouterData, PreAuthNVersionCallRouterData,
         ResponseRouterData,
     },
     utils::{get_card_details, to_connector_meta_from_secret, CardData as _},
-};
-
-use super::gpayments_types::{
-    self, AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationSuccessResponse,
-    GpaymentsPreAuthVersionCallResponse,
 };
 
 pub struct GpaymentsRouterData<T> {
