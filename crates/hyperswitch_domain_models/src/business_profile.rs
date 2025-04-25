@@ -8,6 +8,8 @@ use common_utils::{
     pii, type_name,
     types::keymanager,
 };
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
     CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
@@ -901,6 +903,8 @@ pub struct Profile {
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -951,6 +955,8 @@ pub struct ProfileSetter {
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -1006,6 +1012,8 @@ impl From<ProfileSetter> for Profile {
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
+            revenue_recovery_retry_algorithm_type: value.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: value.revenue_recovery_retry_algorithm_data,
         }
     }
 }
@@ -1095,6 +1103,10 @@ pub enum ProfileUpdate {
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
+    RevenueRecoveryAlgorithmUpdate {
+        revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+        revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -1181,6 +1193,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_clear_pan_retries_enabled: None,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    revenue_recovery_retry_algorithm_type: None,
+                    revenue_recovery_retry_algorithm_data: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1230,6 +1244,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1277,6 +1293,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1324,6 +1342,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1371,6 +1391,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1418,6 +1440,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1465,6 +1489,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1512,6 +1538,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1559,6 +1587,58 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+            },
+            ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+                revenue_recovery_retry_algorithm_type,
+                revenue_recovery_retry_algorithm_data,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: false,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: Some(revenue_recovery_retry_algorithm_type),
+                revenue_recovery_retry_algorithm_data,
             },
         }
     }
@@ -1628,6 +1708,8 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: None,
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
         })
     }
 
@@ -1717,6 +1799,8 @@ impl super::behaviour::Conversion for Profile {
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,
+                revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
+                revenue_recovery_retry_algorithm_data: item.revenue_recovery_retry_algorithm_data,
             })
         }
         .await
@@ -1780,6 +1864,8 @@ impl super::behaviour::Conversion for Profile {
             is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
         })
     }
 }

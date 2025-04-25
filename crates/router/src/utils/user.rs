@@ -12,7 +12,10 @@ use redis_interface::RedisConnectionPool;
 use router_env::env;
 
 use crate::{
-    consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
+    consts::user::{
+        LINEAGE_CONTEXT_PREFIX, LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS, REDIS_SSO_PREFIX,
+        REDIS_SSO_TTL,
+    },
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
@@ -20,7 +23,7 @@ use crate::{
         authorization::roles::RoleInfo,
     },
     types::{
-        domain::{self, MerchantAccount, UserFromStorage},
+        domain::{self, LineageContext, MerchantAccount, UserFromStorage},
         transformers::ForeignFrom,
     },
 };
@@ -138,6 +141,27 @@ pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnect
         .get_redis_conn()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")
+}
+
+pub fn get_redis_connection_for_global_tenant(
+    state: &SessionState,
+) -> UserResult<Arc<RedisConnectionPool>> {
+    let redis_connection_pool = state
+        .store
+        .get_redis_conn()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let global_tenant_prefix = &state.conf.multitenancy.global_tenant.redis_key_prefix;
+
+    Ok(Arc::new(RedisConnectionPool {
+        pool: Arc::clone(&redis_connection_pool.pool),
+        key_prefix: global_tenant_prefix.to_string(),
+        config: Arc::clone(&redis_connection_pool.config),
+        subscriber: Arc::clone(&redis_connection_pool.subscriber),
+        publisher: Arc::clone(&redis_connection_pool.publisher),
+        is_redis_available: Arc::clone(&redis_connection_pool.is_redis_available),
+    }))
 }
 
 impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
@@ -334,6 +358,52 @@ pub async fn validate_email_domain_auth_type_using_db(
             .any(|auth_method| auth_method.auth_type == required_auth_type))
     .then_some(())
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
+}
+
+pub async fn get_lineage_context_from_cache(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<Option<LineageContext>> {
+    let connection = get_redis_connection_for_global_tenant(state)?;
+    let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
+    let lineage_context = connection
+        .get_key::<Option<String>>(&key.into())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get lineage context from redis")?;
+
+    match lineage_context {
+        Some(json_str) => {
+            let ctx = serde_json::from_str::<LineageContext>(&json_str)
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to deserialize LineageContext from JSON")?;
+            Ok(Some(ctx))
+        }
+        None => Ok(None),
+    }
+}
+
+pub async fn set_lineage_context_in_cache(
+    state: &SessionState,
+    user_id: &str,
+    lineage_context: LineageContext,
+) -> UserResult<()> {
+    let connection = get_redis_connection_for_global_tenant(state)?;
+    let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
+    let serialized_lineage_context: String = serde_json::to_string(&lineage_context)
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to serialize LineageContext")?;
+    connection
+        .set_key_with_expiry(
+            &key.into(),
+            serialized_lineage_context,
+            LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to set lineage context in redis")?;
+
+    Ok(())
 }
 
 pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {

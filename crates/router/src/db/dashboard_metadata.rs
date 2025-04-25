@@ -62,7 +62,7 @@ impl DashboardMetadataInterface for Store {
         &self,
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         metadata
             .insert(&conn)
             .await
@@ -78,7 +78,7 @@ impl DashboardMetadataInterface for Store {
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         storage::DashboardMetadata::update(
             &conn,
             user_id,
@@ -99,7 +99,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::DashboardMetadata::find_user_scoped_dashboard_metadata(
             &conn,
             user_id.to_owned(),
@@ -118,7 +118,7 @@ impl DashboardMetadataInterface for Store {
         org_id: &id_type::OrganizationId,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::DashboardMetadata::find_merchant_scoped_dashboard_metadata(
             &conn,
             merchant_id.to_owned(),
@@ -135,7 +135,7 @@ impl DashboardMetadataInterface for Store {
         user_id: &str,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         storage::DashboardMetadata::delete_all_user_scoped_dashboard_metadata_by_merchant_id(
             &conn,
             user_id.to_owned(),
@@ -152,7 +152,7 @@ impl DashboardMetadataInterface for Store {
         merchant_id: &id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
             &conn,
             user_id.to_owned(),

@@ -3816,7 +3816,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -3890,7 +3891,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -3962,7 +3964,8 @@ mod tests {
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: id_type::MerchantId::default(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -4500,6 +4503,9 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            processor_merchant_id: old_payment_attempt.processor_merchant_id,
+            created_by: old_payment_attempt.created_by,
+            setup_future_usage_applied: None,
         }
     }
 
