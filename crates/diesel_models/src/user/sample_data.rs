@@ -22,9 +22,6 @@ use crate::{
 };
 
 // #[cfg(feature = "v2")]
-// use crate::schema_v2::payment_attempt;
-
-// #[cfg(feature = "v2")]
 // #[derive(
 //     Clone, Debug, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 // )]
