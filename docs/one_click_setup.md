@@ -47,7 +47,7 @@ The script offers four deployment profiles to match your needs:
    - **Error**: "The following ports are already in use: [port list]"
    - **Solution**: Stop services using those ports or choose different ports.
 
-4. **Server not becoming healthy**
+3. **Server not becoming healthy**
    - **Error**: "Hyperswitch server did not become healthy in the expected time."
    - **Solution**: Check logs with `docker compose logs hyperswitch-server` or  `podman compose logs hyperswitch-server`.
 
