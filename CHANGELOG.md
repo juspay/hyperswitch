@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.23.0-hotfix1
+
+### Features
+
+- **payments:** Add support for connector testing (Adyen) ([#7898](https://github.com/juspay/hyperswitch/pull/7898)) ([`227f9b6`](https://github.com/juspay/hyperswitch/commit/227f9b64544af5e1fbb50bb3f6a681af44be8577))
+
+### Miscellaneous Tasks
+
+- Add cardholder name as mandatory field for Worldpay card transactions ([#7900](https://github.com/juspay/hyperswitch/pull/7900)) ([`d5a5894`](https://github.com/juspay/hyperswitch/commit/d5a5894c135b229646be148cd713e470b6c1dba0))
+
+**Full Changelog:** [`2025.04.23.0...2025.04.23.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.04.23.0...2025.04.23.0-hotfix1)
+
+
+- - -
+
 ## 2025.04.23.0
 
 ### Features
