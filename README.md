@@ -85,7 +85,6 @@ The above script will:
 - Let you select a deployment profile:
   - **Standard**: Recommended - App server + Control Center + Web SDK.
   - **Full**: Standard + Monitoring + Scheduler.
-  - **Development**: Build from source environment- may take up to 30 minutes.
   - **Standalone App Server**: Core services only (Hyperswitch server, PostgreSQL, Redis)
 - Start the selected services
 - Check service health

@@ -8,7 +8,7 @@ The `setup.sh` script simplifies the process of setting up Hyperswitch in a loca
 
 ## Features
 
-- **Prerequisite Checking**: Verifies Docker and Docker Compose installation.
+- **Prerequisite Checking**: Verifies Docker/Podman and Docker/Podman Compose installation.
 - **Port Availability Check**: Ensures required ports are available to avoid conflicts.
 - **Configuration Management**: Automatically sets up necessary configuration files.
 - **Multiple Deployment Profiles**: Choose the right setup for your needs.
@@ -29,12 +29,7 @@ The script offers four deployment profiles to match your needs:
 - **Best for**: Complete system testing
 - **Resources required**: Higher
 
-### 3. Development
-- **Services**: Complete environment built from source
-- **Best for**: Active development on Hyperswitch
-- **Resources required**: Highest
-
-### 4. Standalone App Server
+### 3. Standalone App Server
 - **Services**: Hyperswitch server, PostgreSQL, Redis
 - **Best for**: Testing basic API functionality
 - **Resources required**: Lower
@@ -45,7 +40,7 @@ The script offers four deployment profiles to match your needs:
 ### Common Issues
 
 1. **Docker not running**
-   - **Error**: "Cannot connect to the Docker daemon"
+   - **Error**: "Cannot connect to the Docker/Podman daemon"
    - **Solution**: Start the Docker daemon/Docker Desktop or Use Orbstack.
 
 2. **Port conflicts**
@@ -54,7 +49,7 @@ The script offers four deployment profiles to match your needs:
 
 4. **Server not becoming healthy**
    - **Error**: "Hyperswitch server did not become healthy in the expected time."
-   - **Solution**: Check logs with `docker compose logs hyperswitch-server`.
+   - **Solution**: Check logs with `docker compose logs hyperswitch-server` or  `podman compose logs hyperswitch-server`.
 
 ### Viewing Logs
 
@@ -88,9 +83,9 @@ export DRAINER_INSTANCE_COUNT=2
 
 After setup, you can manually control services:
 
-- Stop all services: `docker compose down`
-- Start specific services: `docker compose up -d [service-name]`
-- Restart a service: `docker compose restart [service-name]`
+- Stop all services: `docker/Podman compose down`
+- Start specific services: `docker/Podman compose up -d [service-name]`
+- Restart a service: `docker/Podman compose restart [service-name]`
 
 ## Next Steps
 
