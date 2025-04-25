@@ -146,7 +146,7 @@ pub struct RefundUpdateRequest {
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct RefundUpdateRequest {
+pub struct RefundMetadataUpdateRequest {
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,

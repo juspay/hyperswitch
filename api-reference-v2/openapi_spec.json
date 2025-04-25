@@ -3265,14 +3265,14 @@
         ]
       }
     },
-    "/v2/refunds/{id}": {
+    "/v2/refunds/{id}/update_metadata": {
       "put": {
         "tags": [
           "Refunds"
         ],
-        "summary": "Refunds - Update",
+        "summary": "Refunds - Metadata Update",
         "description": "Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields",
-        "operationId": "Update a Refund",
+        "operationId": "Update Refund Metadata and Reason",
         "parameters": [
           {
             "name": "id",
@@ -3288,7 +3288,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RefundUpdateRequest"
+                "$ref": "#/components/schemas/RefundMetadataUpdateRequest"
               },
               "examples": {
                 "Update refund reason": {
@@ -20415,6 +20415,24 @@
           }
         }
       },
+      "RefundMetadataUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
+            "example": "Customer returned the product",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RefundResponse": {
         "type": "object",
         "required": [
@@ -20522,24 +20540,6 @@
           "scheduled",
           "instant"
         ]
-      },
-      "RefundUpdateRequest": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string",
-            "description": "An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive",
-            "example": "Customer returned the product",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
       },
       "RefundsCreateRequest": {
         "type": "object",

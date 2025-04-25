@@ -214,17 +214,17 @@ pub async fn refunds_filter_list() {}
 #[cfg(feature = "v2")]
 pub async fn refunds_create() {}
 
-/// Refunds - Update
+/// Refunds - Metadata Update
 ///
 /// Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields
 #[utoipa::path(
     put,
-    path = "/v2/refunds/{id}",
+    path = "/v2/refunds/{id}/update_metadata",
     params(
         ("id" = String, Path, description = "The identifier for refund")
     ),
     request_body(
-        content = RefundUpdateRequest,
+        content = RefundMetadataUpdateRequest,
         examples(
             (
                 "Update refund reason" = (
@@ -240,8 +240,8 @@ pub async fn refunds_create() {}
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Refunds",
-    operation_id = "Update a Refund",
+    operation_id = "Update Refund Metadata and Reason",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
-pub async fn refunds_update() {}
+pub async fn refunds_metadata_update() {}

@@ -446,10 +446,10 @@ where
 
 // ********************************************** REFUND UPDATE **********************************************
 
-pub async fn refund_update_core(
+pub async fn refund_metadata_update_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    req: refunds::RefundUpdateRequest,
+    req: refunds::RefundMetadataUpdateRequest,
     global_refund_id: id_type::GlobalRefundId,
 ) -> errors::RouterResponse<refunds::RefundResponse> {
     let db = state.store.as_ref();

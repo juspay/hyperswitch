@@ -301,10 +301,10 @@ pub async fn refunds_update(
 
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
-pub async fn refunds_update(
+pub async fn refunds_metadata_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<refunds::RefundUpdateRequest>,
+    json_payload: web::Json<refunds::RefundMetadataUpdateRequest>,
     path: web::Path<common_utils::id_type::GlobalRefundId>,
 ) -> HttpResponse {
     let flow = Flow::RefundsUpdate;
@@ -322,7 +322,7 @@ pub async fn refunds_update(
         &req,
         internal_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_update_core(
+            refund_metadata_update_core(
                 state,
                 auth.merchant_account,
                 req.payload,
