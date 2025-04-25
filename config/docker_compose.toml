@@ -899,6 +899,3 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
-
-[open_router]
-enabled = false
