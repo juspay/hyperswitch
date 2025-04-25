@@ -351,10 +351,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-                if accounts.is_empty() {
-                    MerchantAccountType::Platform
-                } else {
+                let platform_account_exists = accounts
+                    .iter()
+                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
+
+                if platform_account_exists {
                     MerchantAccountType::Connected
+                } else {
+                    MerchantAccountType::Platform
                 }
             }
         };
@@ -658,22 +662,13 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let merchant_account_type = match organization.organization_type {
             OrganizationType::Standard => MerchantAccountType::Standard,
-
+            // Blocking v2 merchant account create for platform
             OrganizationType::Platform => {
-                let accounts = state
-                    .store
-                    .list_merchant_accounts_by_organization_id(
-                        &state.into(),
-                        &organization.get_organization_id(),
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-                if accounts.is_empty() {
-                    MerchantAccountType::Platform
-                } else {
-                    MerchantAccountType::Connected
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Merchant account creation is not allowed for a platform organization"
+                        .to_string(),
                 }
+                .into())
             }
         };
 
