@@ -83,9 +83,9 @@ export DRAINER_INSTANCE_COUNT=2
 
 After setup, you can manually control services:
 
-- Stop all services: `docker/Podman compose down`
-- Start specific services: `docker/Podman compose up -d [service-name]`
-- Restart a service: `docker/Podman compose restart [service-name]`
+- Stop all services: `docker/podman compose down`
+- Start specific services: `docker/podman compose up -d [service-name]`
+- Restart a service: `docker/podman compose restart [service-name]`
 
 ## Next Steps
 
