@@ -11,6 +11,8 @@ pub struct ProxyRequest {
     pub destination_url: String,
 
     pub headers: Value,
+
+    pub token: String,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

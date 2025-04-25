@@ -6,7 +6,6 @@ use x509_parser::nom::{
     sequence::{delimited, preceded},
     IResult,
 };
-use async_trait::async_trait;
 use common_utils::{request, ext_traits::BytesExt};
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
@@ -24,8 +23,7 @@ use crate::{
     utils::ConnectorResponseExt,
 };
 use serde_json::Value;
-use std::collections::HashMap;
-use masking::PeekInterface;
+
 
 #[derive(Debug)]
 struct TokenReference {
@@ -34,43 +32,41 @@ struct TokenReference {
     token: String,
 }
 
+// Update the TokenReference struct and parser
 fn parse_token(input: &str) -> IResult<&str, TokenReference> {
     let (input, _) = tag("{{")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, _) = char('$')(input)?;
     
     let (input, field) = take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, _) = multispace0(input)?;
-    let (input, token) = take_while1(|c: char| c.is_alphanumeric() || c == '-')(input)?;
     let (input, _) = multispace0(input)?;
     let (input, _) = tag("}}")(input)?;
 
     Ok((input, TokenReference {
-        full_match: format!("{{{{ ${}:{} }}}}", field, token),
+        full_match: format!("{{{{ ${} }}}}", field),
         field: field.to_string(),
-        token: token.to_string(),
+        token: String::new(), // Token will come from the request
     }))
 }
 
-
+// Update the contains_token function to handle the new format
 fn contains_token(s: &str) -> bool {
-    s.contains("{{") && s.contains("$") && s.contains("}}") && s.contains(":")
+    s.contains("{{") && s.contains("$") && s.contains("}}")
 }
-
 
 async fn process_value(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     value: Value,
-    // token_cache: &mut HashMap<String, Value>,
+    token: &str,
+    vault_data: &Value,
 ) -> RouterResult<Value> {
     match value {
         Value::Object(obj) => {
             let mut new_obj = serde_json::Map::new();
             
             for (key, val) in obj {
-                let processed = Box::pin(process_value(state, merchant_account, val)).await?;
+                let processed = Box::pin(process_value(state, merchant_account, val, token, vault_data)).await?;
                 new_obj.insert(key, processed);
             }
             
@@ -79,35 +75,20 @@ async fn process_value(
         Value::String(s) => {
             if contains_token(&s) {
                 if let Ok((_, token_ref)) = parse_token(&s) {
-                    // if let Some(cached_value) = token_cache.get(&token_ref.token) {
-                    //     return extract_field_from_vault_data(cached_value, &token_ref.field);
-                    // }
-                    
-                    let vault_id = domain::VaultId::generate(token_ref.token.clone()); 
-                    
-                    let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
-                        state,
-                        merchant_account,
-                        &vault_id,
-                    )
-                    .await
-                    .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-                    
-                    let vault_data_value = serde_json::to_value(&vault_response.data)
-                        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-                    // token_cache.insert(token_ref.token.clone(), vault_data_value.clone());
-                    
-                    return extract_field_from_vault_data(&vault_data_value, &token_ref.field);
+                    extract_field_from_vault_data(vault_data, &token_ref.field)
+                } else {
+                    Ok(Value::String(s))
                 }
+            } else {
+                Ok(Value::String(s))
             }
-            Ok(Value::String(s))
         },
         _ => Ok(value),
     }
 }
 
+// Add the missing extract_field_from_vault_data function
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
-
     if let Value::Object(obj) = vault_data {
         if let Some(field_value) = obj.get(field_name) {
             return Ok(field_value.clone());
@@ -134,6 +115,8 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
     Ok(Value::String(format!("Field '{}' not found", field_name)))
 }
 
+
+
 pub async fn proxy_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -141,18 +124,28 @@ pub async fn proxy_core(
     key_store: domain::MerchantKeyStore,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    let token = &req.token;
+    let vault_id = domain::VaultId::generate(token.clone());
+    
+    let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
+        &state,
+        &merchant_account,
+        &vault_id,
+    )
+    .await
+    .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
+    
+    let vault_data = serde_json::to_value(&vault_response.data)
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
 
-    // let mut token_cache = HashMap::new();
-    let processed_body = process_value(&state, &merchant_account, req.req_body).await?;
+    let processed_body = process_value(&state, &merchant_account, req.req_body, token, &vault_data).await?;
 
     logger::debug!("processeddd_body: {:?}", processed_body);
     logger::debug!("destination_url: {:?}", req.destination_url);
 
-
     let mut request = services::Request::new(services::Method::Post, &req.destination_url);
     request.set_body(request::RequestContent::Json(Box::new(processed_body)));
     
-    // Add headers from the request to the outgoing API call
     if let Value::Object(headers) = req.headers {
         headers.iter().for_each(|(key, value)| {
             let header_value = match value {
@@ -162,14 +155,6 @@ pub async fn proxy_core(
             request.add_header(key, header_value);
         });
     }
-    
-    // // Add API keys as Authorization header if provided
-    // if let Some(api_keys) = &req.api_keys {
-    //     request.add_header(
-    //         "Authorization",
-    //         format!("Bearer {}", api_keys.api_key.peek()).into_masked(),
-    //     );
-    // }
 
     logger::debug!(
         "Proxy Request: {:?}",
