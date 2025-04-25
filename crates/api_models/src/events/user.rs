@@ -15,13 +15,13 @@ use crate::user::{
     CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
     GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
-    PlatformAccountCreateRequest, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest,
-    TokenResponse, TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantAccountResponse,
-    UserMerchantCreate, UserOrgMerchantCreateRequest, VerifyEmailRequest,
-    VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    PlatformAccountCreateRequest, PlatformAccountCreateResponse, ReInviteUserRequest,
+    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
+    SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
+    SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
+    TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
+    UserFromEmailRequest, UserMerchantAccountResponse, UserMerchantCreate,
+    UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 common_utils::impl_api_event_type!(
@@ -40,6 +40,7 @@ common_utils::impl_api_event_type!(
         CreateInternalUserRequest,
         CreateTenantUserRequest,
         PlatformAccountCreateRequest,
+        PlatformAccountCreateResponse,
         UserOrgMerchantCreateRequest,
         UserMerchantAccountResponse,
         UserMerchantCreate,

@@ -1502,7 +1502,7 @@ pub async fn create_platform_account(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_api::PlatformAccountCreateRequest,
-) -> UserResponse<()> {
+) -> UserResponse<user_api::PlatformAccountCreateResponse> {
     let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from(req)?;
@@ -1546,12 +1546,20 @@ pub async fn create_platform_account(
                 .tenant_id
                 .clone()
                 .unwrap_or(state.tenant.tenant_id.clone()),
-            org_id: merchant_account.organization_id,
+            org_id: merchant_account.organization_id.clone(),
         })
         .insert_in_v2(&state)
         .await?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        user_api::PlatformAccountCreateResponse {
+            org_id: organization.get_organization_id(),
+            org_name: organization.get_organization_name(),
+            org_type: organization.organization_type,
+            merchant_id: merchant_account.get_id().to_owned(),
+            merchant_account_type: merchant_account.merchant_account_type,
+        },
+    ))
 }
 
 #[cfg(feature = "v1")]

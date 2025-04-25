@@ -23,7 +23,6 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
-use router_env::env;
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
@@ -39,7 +38,7 @@ use crate::{
     routes::SessionState,
     services::{self, authentication::UserFromToken},
     types::{domain, transformers::ForeignFrom},
-    utils::user::password,
+    utils::user::{self as user_utils, password},
 };
 
 pub mod dashboard_metadata;
@@ -720,11 +719,8 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
-        let merchant_id = if matches!(env::which(), env::Env::Production) {
-            id_type::MerchantId::try_from(MerchantId::new(value.1.company_name.clone())?)?
-        } else {
-            id_type::MerchantId::new_from_unix_timestamp()
-        };
+        let merchant_id =
+            user_utils::generate_env_specific_merchant_id(value.1.company_name.clone())?;
         let (user_from_storage, user_merchant_create, user_from_token) = value;
         Ok(Self {
             merchant_id,
@@ -745,21 +741,16 @@ impl TryFrom<user_api::PlatformAccountCreateRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::PlatformAccountCreateRequest) -> UserResult<Self> {
-        let merchant_id = if matches!(env::which(), env::Env::Production) {
-            // For production constructing platform merchant id using organization name
-            id_type::MerchantId::try_from(MerchantId::new(
-                value.organization_name.clone().expose(),
-            )?)?
-        } else {
-            id_type::MerchantId::new_from_unix_timestamp()
-        };
+        let merchant_id = user_utils::generate_env_specific_merchant_id(
+            value.organization_name.clone().expose(),
+        )?;
 
         let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
-            product_type: None,
+            product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
         })
     }
 }
