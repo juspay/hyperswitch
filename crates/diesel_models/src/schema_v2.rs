@@ -232,6 +232,8 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
+        revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
+        revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
     }
 }
 
@@ -1289,7 +1291,7 @@ diesel::table! {
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         org_id -> Varchar,
         groups -> Array<Nullable<Text>>,

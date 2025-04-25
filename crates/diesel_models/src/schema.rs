@@ -1361,7 +1361,7 @@ diesel::table! {
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         org_id -> Varchar,
         groups -> Array<Nullable<Text>>,
