@@ -49,7 +49,7 @@ const billingDetails = {
     last_name: "Doe",
   },
   email: "johndoe@gmail.com",
-}
+};
 
 export const connectorDetails = {
   card_pm: {
