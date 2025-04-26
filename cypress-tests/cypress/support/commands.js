@@ -1625,7 +1625,10 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session" && response.body.status !== "processing") {
+                if (
+                  setupFutureUsage === "off_session" &&
+                  response.body.status !== "processing"
+                ) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2614,7 +2617,10 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session" && response.body.status !== "processing") {
+                if (
+                  setupFutureUsage === "off_session" &&
+                  response.body.status !== "processing"
+                ) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"

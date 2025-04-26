@@ -707,7 +707,8 @@ describe("Card - Refund flow - No 3DS", () => {
           globalState
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("refund-call-test", () => {
