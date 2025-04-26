@@ -35,6 +35,22 @@ const multiUseMandateData = {
     },
   },
 };
+
+const billingDetails = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  email: "johndoe@gmail.com",
+}
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -260,20 +276,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -341,20 +344,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
       },
       Response: {
@@ -410,20 +400,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: null,
@@ -441,20 +418,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -472,20 +436,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -503,20 +454,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -533,20 +471,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -563,20 +488,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -617,20 +529,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: null,
@@ -648,20 +547,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: null,
@@ -680,20 +566,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         mandate_data: null,
         authentication_type: "three_ds",
