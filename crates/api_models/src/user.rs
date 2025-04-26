@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{EntityType, TokenPurpose};
-use common_utils::{crypto::OptionalEncryptableName, events::ApiEventMetric, id_type, pii};
+use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -127,9 +127,6 @@ pub struct CloneConnectorRequest {
     pub source: CloneConnectorSource,
     pub destination: CloneConnectorDestination,
 }
-
-// Implement the trait using the default behavior
-impl ApiEventMetric for CloneConnectorRequest {}
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {

@@ -54,6 +54,7 @@ pub async fn retrieve_dispute(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -108,6 +109,7 @@ pub async fn retrieve_disputes_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -169,6 +171,7 @@ pub async fn retrieve_disputes_list_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -207,6 +210,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -252,6 +256,7 @@ pub async fn get_disputes_filters_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -307,6 +312,7 @@ pub async fn accept_dispute(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -357,6 +363,7 @@ pub async fn submit_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -414,6 +421,7 @@ pub async fn attach_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -463,6 +471,7 @@ pub async fn retrieve_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -508,6 +517,7 @@ pub async fn delete_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -540,6 +550,7 @@ pub async fn get_disputes_aggregate(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -578,6 +589,7 @@ pub async fn get_disputes_aggregate_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

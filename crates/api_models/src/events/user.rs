@@ -11,7 +11,7 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
-    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest, CreateInternalUserRequest,
     CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
     GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
@@ -69,7 +69,8 @@ common_utils::impl_api_event_type!(
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
-        AuthSelectRequest
+        AuthSelectRequest,
+        CloneConnectorRequest
     )
 );
 

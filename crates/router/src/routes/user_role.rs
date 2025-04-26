@@ -32,6 +32,7 @@ pub async fn get_authorization_info(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -89,6 +90,7 @@ pub async fn create_role(
         role_core::create_role,
         &auth::JWTAuth {
             permission: Permission::MerchantUserWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -114,6 +116,7 @@ pub async fn get_role(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -139,6 +142,7 @@ pub async fn get_parent_info_for_role(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -162,6 +166,7 @@ pub async fn update_role(
         |state, user, req, _| role_core::update_role(state, user, req, &role_id),
         &auth::JWTAuth {
             permission: Permission::MerchantUserWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -183,6 +188,7 @@ pub async fn update_user_role(
         user_role_core::update_user_role,
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -243,6 +249,7 @@ pub async fn delete_user_role(
         user_role_core::delete_user_role,
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -265,6 +272,7 @@ pub async fn get_role_information(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -287,6 +295,7 @@ pub async fn get_parent_group_info(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -331,6 +340,7 @@ pub async fn list_roles_with_info(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -359,6 +369,7 @@ pub async fn list_invitable_roles_at_entity_level(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -387,6 +398,7 @@ pub async fn list_updatable_roles_at_entity_level(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))

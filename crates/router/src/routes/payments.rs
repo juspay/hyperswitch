@@ -99,6 +99,7 @@ pub async fn payments_create(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    role_type: auth::RoleType::Any,
                 },
                 req.headers(),
             ),
@@ -164,6 +165,7 @@ pub async fn payments_create_intent(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    role_type: auth::RoleType::Any,
                 },
                 req.headers(),
             ),
@@ -275,6 +277,7 @@ pub async fn payments_create_and_confirm_intent(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    role_type: auth::RoleType::Any,
                 },
                 req.headers(),
             ),
@@ -477,6 +480,7 @@ pub async fn payments_retrieve(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -1395,6 +1399,7 @@ pub async fn payments_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -1427,6 +1432,7 @@ pub async fn payments_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -1465,6 +1471,7 @@ pub async fn profile_payments_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -1498,6 +1505,7 @@ pub async fn payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1529,6 +1537,7 @@ pub async fn profile_payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1554,6 +1563,7 @@ pub async fn get_filters_for_payments(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1577,6 +1587,7 @@ pub async fn get_payment_filters(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1604,6 +1615,7 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1631,6 +1643,7 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1656,6 +1669,7 @@ pub async fn get_payments_aggregates(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1723,6 +1737,7 @@ pub async fn payments_approve(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    role_type: auth::RoleType::Any,
                 },
                 http_req.headers(),
             ),
@@ -1794,6 +1809,7 @@ pub async fn payments_reject(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    role_type: auth::RoleType::Any,
                 },
                 http_req.headers(),
             ),
@@ -2489,6 +2505,7 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2518,6 +2535,7 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2837,6 +2855,7 @@ pub async fn payment_status(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -3008,6 +3027,7 @@ pub async fn payments_capture(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

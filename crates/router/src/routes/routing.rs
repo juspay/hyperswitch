@@ -47,12 +47,14 @@ pub async fn routing_create_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -91,12 +93,14 @@ pub async fn routing_create_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -135,12 +139,14 @@ pub async fn routing_link_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -230,12 +236,14 @@ pub async fn routing_retrieve_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -273,12 +281,14 @@ pub async fn routing_retrieve_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -316,12 +326,14 @@ pub async fn list_routing_configs(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantRoutingRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -359,12 +371,14 @@ pub async fn list_routing_configs_for_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -449,12 +463,14 @@ pub async fn routing_unlink_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -495,12 +511,14 @@ pub async fn routing_update_default_config(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantRoutingWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -536,12 +554,14 @@ pub async fn routing_update_default_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantRoutingWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -613,6 +633,7 @@ pub async fn routing_retrieve_default_config(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -648,12 +669,14 @@ pub async fn upsert_surcharge_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -686,12 +709,14 @@ pub async fn delete_surcharge_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -724,12 +749,14 @@ pub async fn retrieve_surcharge_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -765,12 +792,14 @@ pub async fn upsert_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -806,12 +835,14 @@ pub async fn upsert_decision_manager_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -845,12 +876,14 @@ pub async fn delete_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -881,12 +914,14 @@ pub async fn retrieve_decision_manager_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -917,12 +952,14 @@ pub async fn retrieve_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1000,12 +1037,14 @@ pub async fn routing_retrieve_linked_config(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfileRoutingRead,
+                    role_type: auth::RoleType::Any,
                 },
                 req.headers(),
             ),
             #[cfg(feature = "release")]
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1093,6 +1132,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -1104,6 +1144,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

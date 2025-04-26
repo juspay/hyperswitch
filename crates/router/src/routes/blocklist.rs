@@ -41,6 +41,7 @@ pub async fn add_entry_to_blocklist(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -82,6 +83,7 @@ pub async fn remove_entry_from_blocklist(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -125,6 +127,7 @@ pub async fn list_blocked_payment_methods(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -168,6 +171,7 @@ pub async fn toggle_blocklist_guard(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

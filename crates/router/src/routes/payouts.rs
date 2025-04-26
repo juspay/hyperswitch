@@ -78,6 +78,7 @@ pub async fn payouts_retrieve(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -232,6 +233,7 @@ pub async fn payouts_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -272,6 +274,7 @@ pub async fn payouts_list_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -306,6 +309,7 @@ pub async fn payouts_list_by_filter(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -346,6 +350,7 @@ pub async fn payouts_list_by_filter_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -380,6 +385,7 @@ pub async fn payouts_list_available_filters_for_merchant(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -419,6 +425,7 @@ pub async fn payouts_list_available_filters_for_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePayoutRead,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

@@ -191,6 +191,7 @@ pub async fn set_dashboard_metadata(
         user_core::dashboard_metadata::set_metadata,
         &auth::JWTAuth {
             permission: Permission::ProfileAccountWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -276,6 +277,7 @@ pub async fn user_org_create(
         },
         &auth::JWTAuth {
             permission: Permission::TenantAccountWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -298,6 +300,7 @@ pub async fn user_merchant_account_create(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationAccountWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -321,6 +324,7 @@ pub async fn generate_sample_data(
         sample_data::generate_sample_data_for_user,
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -344,6 +348,7 @@ pub async fn delete_sample_data(
         sample_data::delete_sample_data_for_user,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -364,6 +369,7 @@ pub async fn list_user_roles_details(
         user_core::list_user_roles_details,
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -453,6 +459,7 @@ pub async fn invite_multiple_user(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -478,6 +485,7 @@ pub async fn resend_invite(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
+            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1008,6 +1016,7 @@ pub async fn clone_connector(
         |state, user_from_token, req, _| user_core::clone_connector(state, req, user_from_token),
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            role_type: auth::RoleType::Internal,
         },
         api_locking::LockAction::NotApplicable,
     ))

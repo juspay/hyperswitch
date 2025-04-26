@@ -349,6 +349,7 @@ pub async fn toggle_connector_agnostic_mit(
             }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,
+                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

@@ -2408,9 +2408,25 @@ where
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoleType {
+    Any,
+    Internal,
+}
+
+impl RoleType {
+    pub fn validate_role_type(&self, role_info: &authorization::roles::RoleInfo) -> bool {
+        match self {
+            RoleType::Any => true,
+            RoleType::Internal => role_info.is_internal(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct JWTAuth {
     pub permission: Permission,
+    pub role_type: RoleType,
 }
 
 #[async_trait]
@@ -2434,6 +2450,12 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         Ok((
@@ -2467,6 +2489,12 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         Ok((
@@ -2507,6 +2535,12 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
@@ -3359,6 +3393,12 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
@@ -3424,6 +3464,12 @@ where
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
@@ -3498,6 +3544,12 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
@@ -3951,6 +4003,12 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
@@ -4112,6 +4170,12 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
+        if !self.role_type.validate_role_type(&role_info) {
+            return Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "Required internal role".to_string(),
+            }
+            .into());
+        }
         authorization::check_permission(self.permission, &role_info)?;
 
         let user = UserFromToken {
