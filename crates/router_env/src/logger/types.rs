@@ -582,6 +582,8 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Clone Connector flow
+    CloneConnector,
 }
 
 /// Trait for providing generic behaviour to flow metric

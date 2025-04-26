@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{EntityType, TokenPurpose};
-use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
+use common_utils::{crypto::OptionalEncryptableName, events::ApiEventMetric, id_type, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -107,6 +107,29 @@ pub struct SwitchMerchantRequest {
 pub struct SwitchProfileRequest {
     pub profile_id: id_type::ProfileId,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CloneConnectorSource {
+    pub mca_id: id_type::MerchantConnectorAccountId,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CloneConnectorDestination {
+    pub connector_label: Option<String>,
+    // Add other destination-specific fields here if needed in the future
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CloneConnectorRequest {
+    pub source: CloneConnectorSource,
+    pub destination: CloneConnectorDestination,
+}
+
+// Implement the trait using the default behavior
+impl ApiEventMetric for CloneConnectorRequest {}
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {

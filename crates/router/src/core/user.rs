@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::{EntityType, UserAuthType};
+use common_enums::{connector_enums, EntityType, UserAuthType};
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -3559,4 +3559,106 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     };
 
     auth::cookies::set_cookie_response(response, token)
+}
+
+#[cfg(feature = "v1")]
+pub async fn clone_connector(
+    state: SessionState,
+    request: user_api::CloneConnectorRequest,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
+    let _role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.org_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    // if role_info.is_internal() {
+    //     return Err(UserErrors::InvalidRoleOperationWithMessage(
+    //         "Internal roles are not allowed for this operation".to_string(),
+    //     )
+    //     .into());
+    // }
+
+    // Get the source connector details and extract the inner JSON response
+    let source_connector_details = match admin::retrieve_connector(
+        state.clone(),
+        request.source.merchant_id.clone(),
+        Some(request.source.profile_id.clone()),
+        request.source.mca_id.clone(),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to retrieve source connector details")?
+    {
+        ApplicationResponse::Json(details) => details,
+        _ => return Err(UserErrors::InternalServerError.into()),
+    };
+
+    let merchant_connector_create = api_models::admin::MerchantConnectorCreate {
+        connector_type: source_connector_details.connector_type,
+        connector_name: source_connector_details
+            .connector_name
+            .parse::<connector_enums::Connector>()
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Invalid connector name received")?,
+        connector_label: request
+            .destination
+            .connector_label
+            .or(source_connector_details.connector_label),
+        merchant_connector_id: None,
+        connector_account_details: Some(source_connector_details.connector_account_details),
+        test_mode: source_connector_details.test_mode,
+        disabled: source_connector_details.disabled,
+        payment_methods_enabled: source_connector_details.payment_methods_enabled,
+        metadata: source_connector_details.metadata,
+        business_country: source_connector_details.business_country,
+        business_label: source_connector_details.business_label,
+        business_sub_label: source_connector_details.business_sub_label,
+        frm_configs: source_connector_details.frm_configs,
+        connector_webhook_details: source_connector_details.connector_webhook_details,
+        profile_id: Some(user_from_token.profile_id.clone()),
+        pm_auth_config: source_connector_details.pm_auth_config,
+        connector_wallets_details: source_connector_details.connector_wallets_details,
+        status: Some(source_connector_details.status),
+        additional_merchant_data: source_connector_details.additional_merchant_data,
+    };
+
+    let key_manager_state = &(&state).into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            &user_from_token.merchant_id,
+            &key_store,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    admin::create_connector(
+        state,
+        merchant_connector_create,
+        merchant_account,
+        Some(user_from_token.profile_id),
+        key_store,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to create cloned connector")
 }
