@@ -364,6 +364,8 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
@@ -434,6 +436,8 @@ pub struct ProfileNew {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
@@ -488,6 +492,8 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
 }
@@ -539,6 +545,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
+            revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled,
             vault_connector_details,
         } = self;
@@ -621,6 +629,10 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type
+                .or(source.revenue_recovery_retry_algorithm_type),
+            revenue_recovery_retry_algorithm_data: revenue_recovery_retry_algorithm_data
+                .or(source.revenue_recovery_retry_algorithm_data),
             is_external_vault_enabled: is_external_vault_enabled
                 .or(source.is_external_vault_enabled),
             vault_connector_details: vault_connector_details.or(source.vault_connector_details),
@@ -757,3 +769,11 @@ pub struct BusinessGenericLinkConfig {
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct RevenueRecoveryAlgorithmData {
+    pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
