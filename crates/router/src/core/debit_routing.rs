@@ -248,7 +248,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<F: Clone, D: OperationSessionG
     payment_data: &D,
     acquirer_country: enums::CountryAlpha2,
 ) -> Option<Vec<enums::CardNetwork>> {
-    logger::debug!("Fetching sorted card networks based on their respective network fees");
+    logger::debug!("Fetching sorted card networks");
 
     let payment_method_data_optional = payment_data.get_payment_method_data();
     let payment_attempt = payment_data.get_payment_attempt();

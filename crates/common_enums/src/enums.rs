@@ -2385,6 +2385,7 @@ pub enum CardType {
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantCategoryCode {
+    #[serde(rename = "merchant_category_code_0001")]
     Mcc0001,
 }
 
