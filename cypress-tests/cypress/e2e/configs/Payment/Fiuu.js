@@ -35,6 +35,17 @@ const multiUseMandateData = {
 };
 
 const billingDetails = {
+    address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
   email: "johndoe@gmail.com",
 };
 
