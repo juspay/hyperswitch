@@ -167,6 +167,14 @@ pub struct PixBankTransferAdditionalData {
     /// Partially masked CNPJ - CNPJ is a Brazilian company tax identification number
     #[schema(value_type = Option<String>, example = "**** 417312")]
     pub cnpj: Option<MaskedBankAccount>,
+
+    /// Partially masked source bank account number
+    #[schema(value_type = Option<String>, example = "********-****-4073-****-9fa964d08bc5")]
+    pub source_bank_account_id: Option<MaskedBankAccount>,
+
+    /// Partially masked destination bank account number
+    #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b")]
+    pub destination_bank_account_id: Option<MaskedBankAccount>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

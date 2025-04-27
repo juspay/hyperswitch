@@ -1,7 +1,8 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
+use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
@@ -21,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundsRouterData,
@@ -439,4 +443,45 @@ impl IncomingWebhook for Opennode {
     }
 }
 
-impl ConnectorSpecifications for Opennode {}
+static OPENNODE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut opennode_supported_payment_methods = SupportedPaymentMethods::new();
+
+        opennode_supported_payment_methods.add(
+            enums::PaymentMethod::Crypto,
+            enums::PaymentMethodType::CryptoCurrency,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        opennode_supported_payment_methods
+    });
+
+static OPENNODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Opennode",
+    description:
+        "OpenNode offers accessible way for e-commerce businesses to process bitcoin payments.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static OPENNODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Opennode {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&OPENNODE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*OPENNODE_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&OPENNODE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
