@@ -8,12 +8,12 @@ use common_utils::{
     pii, type_name,
     types::keymanager,
 };
-#[cfg(feature = "v2")]
-use diesel_models::business_profile::{RevenueRecoveryAlgorithmData, VaultConnectorDetails};
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
     CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
 };
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::{RevenueRecoveryAlgorithmData, VaultConnectorDetails};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -1615,6 +1615,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_external_vault_enabled: None,
+                vault_connector_details: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
