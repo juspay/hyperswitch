@@ -38,6 +38,10 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::router_request_types::fraud_check::{
+    FraudCheckCheckoutData, FraudCheckTransactionData,
+};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
@@ -69,6 +73,8 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
 
+#[cfg(feature = "frm")]
+use crate::types::FrmTransactionRouterData;
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -1685,6 +1691,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_network_from_additional_payment_method_data(
         &self,
     ) -> Result<enums::CardNetwork, Error>;
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1904,6 +1911,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             }
             .into()),
         }
+    }
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
+        self.connector_testing_data.clone()
     }
 }
 
@@ -2478,6 +2488,15 @@ macro_rules! capture_method_not_supported {
         }
         .into())
     };
+}
+#[macro_export]
+macro_rules! get_formatted_date_time {
+    ($date_format:tt) => {{
+        let format = time::macros::format_description!($date_format);
+        time::OffsetDateTime::now_utc()
+            .format(&format)
+            .change_context(ConnectorError::InvalidDateFormat)
+    }};
 }
 
 #[macro_export]
@@ -6044,6 +6063,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         shipping_cost: data.request.shipping_cost,
         merchant_account_id: None,
         merchant_config_currency: None,
+        connector_testing_data: data.request.connector_testing_data.clone(),
     }
 }
 
@@ -6118,6 +6138,69 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let regex = REGEX.as_ref().map_err(|e| e.clone())?;
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
+}
+#[cfg(feature = "frm")]
+pub trait FrmTransactionRouterDataRequest {
+    fn is_payment_successful(&self) -> Option<bool>;
+}
+
+#[cfg(feature = "frm")]
+impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
+    fn is_payment_successful(&self) -> Option<bool> {
+        match self.status {
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::Failure
+            | AttemptStatus::AutoRefunded => Some(false),
+
+            AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Authorized
+            | AttemptStatus::Charged => Some(true),
+
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending => None,
+        }
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckCheckoutRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+
+#[cfg(feature = "frm")]
+impl FraudCheckCheckoutRequest for FraudCheckCheckoutData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckTransactionRequest {
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckTransactionRequest for FraudCheckTransactionData {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
 }
 
 /// Custom deserializer for Option<Currency> that treats empty strings as None
