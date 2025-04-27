@@ -8,11 +8,9 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const successfulThreeDSTestCardDetails = {
+const successful3DSCardDetails = {
+  ...successfulNo3DSCardDetails,
   card_number: "5105105105105100",
-  card_exp_month: "12",
-  card_exp_year: "2031",
-  card_holder_name: "joseph Doe",
   card_cvc: "444",
 };
 
@@ -37,19 +35,8 @@ const multiUseMandateData = {
 };
 
 const billingDetails = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
-    city: "San Fransico",
-    state: "California",
-    zip: "94122",
-    country: "NL",
-    first_name: "joseph",
-    last_name: "Doe",
-  },
   email: "johndoe@gmail.com",
-}
+};
 
 export const connectorDetails = {
   card_pm: {
@@ -70,7 +57,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -87,7 +74,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -205,7 +192,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -221,7 +208,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -238,9 +225,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -257,9 +242,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -293,9 +276,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            email: "johndoe@gmail.com",
-          },
+          billing: billingDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -311,7 +292,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -327,7 +308,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -470,7 +451,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
           billing: billingDetails,
         },
         setup_future_usage: "off_session",
@@ -546,7 +527,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
           billing: billingDetails,
         },
         currency: "USD",
@@ -565,7 +546,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSCardDetails,
           billing: billingDetails,
         },
         mandate_data: null,
