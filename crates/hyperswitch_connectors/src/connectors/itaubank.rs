@@ -797,8 +797,6 @@ impl IncomingWebhook for Itaubank {
 
 static ITAUBANK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods = Vec::new();
-
         let mut itaubank_supported_payment_methods = SupportedPaymentMethods::new();
 
         itaubank_supported_payment_methods.add(
@@ -807,7 +805,7 @@ static ITAUBANK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: Vec::new(),
                 specific_features: None,
             },
         );

@@ -98,23 +98,6 @@ impl ConnectorCommon for Nuvei {
 }
 
 impl ConnectorValidation for Nuvei {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -1119,7 +1102,7 @@ static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Nuvei {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

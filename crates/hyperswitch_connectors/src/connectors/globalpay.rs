@@ -160,22 +160,6 @@ impl ConnectorCommon for Globalpay {
 }
 
 impl ConnectorValidation for Globalpay {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -1070,7 +1054,7 @@ static GLOBALPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -1089,7 +1073,7 @@ static GLOBALPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -1165,12 +1149,12 @@ static GLOBALPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     });
 
 static GLOBALPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Globepay",
-        description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
+        display_name: "Globalpay",
+        description: "Global Payments is an American multinational financial technology company that provides payment technology and services to merchants, issuers and consumers.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-static GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Globalpay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -868,7 +868,8 @@ static ZEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-static ZEN_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+static ZEN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Zen {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
