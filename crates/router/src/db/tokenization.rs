@@ -15,6 +15,8 @@ use diesel_models::{
 use error_stack::{report, Report, ResultExt};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models::tokenization::Tokenization;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use hyperswitch_domain_models::tokenization::Tokenization;
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
@@ -23,10 +25,6 @@ use storage_impl::MockDb;
 use tokio::time;
 
 use crate::{connection, core, errors, services::Store};
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models::tokenization::Tokenization;
-
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 pub trait TokenizationInterface {}
@@ -129,7 +127,6 @@ impl TokenizationInterface for MockDb {
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl TokenizationInterface for MockDb {}
-
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl TokenizationInterface for Store {}
