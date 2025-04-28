@@ -4153,9 +4153,12 @@ pub async fn get_session_token_for_click_to_pay(
         _ => None,
     };
 
-    let card_brands =
-        get_card_brands_based_on_active_merchant_connector_account(state, profile_id, key_store)
-            .await?;
+    let card_brands = get_card_brands_based_on_active_merchant_connector_account(
+        state,
+        profile_id,
+        merchant_context.get_merchant_key_store(),
+    )
+    .await?;
 
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
