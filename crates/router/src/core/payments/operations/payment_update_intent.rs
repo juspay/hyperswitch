@@ -136,12 +136,20 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsUpdateIntentRequest,
         merchant_account: &domain::MerchantAccount,
-        _profile: &domain::Profile,
+        profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
+        if let Some(routing_algorithm_id) = request.routing_algorithm_id.as_ref() {
+            helpers::validate_routing_id_with_profile_id(
+                db,
+                routing_algorithm_id,
+                profile.get_id(),
+            )
+            .await?;
+        }
         let key_manager_state = &state.into();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_intent = db

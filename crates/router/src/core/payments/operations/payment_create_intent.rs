@@ -4,7 +4,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsCreateIntentRequest};
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::Encode,
     types::{authentication, keymanager::ToEncryptable},
 };
 use error_stack::ResultExt;
@@ -15,10 +15,9 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, cards::create_encrypted_data, helpers, operations},
+        payments::{self, helpers, operations},
     },
     routes::{app::ReqState, SessionState},
-    services,
     types::{
         api,
         domain::{self, types as domain_types},
@@ -102,6 +101,14 @@ impl<F: Send + Clone + Sync>
         platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
+        if let Some(routing_algorithm_id) = request.routing_algorithm_id.as_ref() {
+            helpers::validate_routing_id_with_profile_id(
+                db,
+                routing_algorithm_id,
+                profile.get_id(),
+            )
+            .await?;
+        }
         let key_manager_state = &state.into();
 
         let storage_scheme = merchant_account.storage_scheme;
