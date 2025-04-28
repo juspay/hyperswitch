@@ -6552,43 +6552,8 @@ where
             )
             .await;
 
-            // connectors = routing::perform_eligibility_analysis_with_fallback(
-            //     &state,
-            //     key_store,
-            //     connectors,
-            //     &TransactionData::Payment(transaction_data),
-            //     eligible_connectors,
-            //     business_profile,
-            // )
-            // .await
-            // .change_context(errors::ApiErrorResponse::InternalServerError)
-            // .attach_printable("failed eligibility analysis and fallback")?;
+
         }
-
-        // let connector_data = connectors
-        //     .into_iter()
-        //     .map(|conn| {
-        //         api::ConnectorData::get_connector_by_name(
-        //             &state.conf.connectors,
-        //             &conn.connector.to_string(),
-        //             api::GetToken::Connector,
-        //             conn.merchant_connector_id,
-        //         )
-        //     })
-        //     .collect::<CustomResult<Vec<_>, _>>()
-        //     .change_context(errors::ApiErrorResponse::InternalServerError)
-        //     .attach_printable("Invalid connector name received")?;
-
-        // return decide_multiplex_connector_for_normal_or_recurring_payment(
-        //     &state,
-        //     payment_data,
-        //     routing_data,
-        //     connector_data,
-        //     mandate_type,
-        //     business_profile.is_connector_agnostic_mit_enabled,
-        //     business_profile.is_network_tokenization_enabled,
-        // )
-        // .await;
     }
 
     let new_pd = payment_data.clone();
@@ -7365,10 +7330,6 @@ where
     let mut final_connectors = connectors.clone();
     if let Some(straight_through_connectors) = connector_list {
         final_connectors.extend(straight_through_connectors);
-        // let final_connectors = connectors
-        //     .into_iter()
-        //     .chain(straight_through_connectors.into_iter())
-        //     .collect::<Vec<_>>();
     }
 
     let connector_data = final_connectors
