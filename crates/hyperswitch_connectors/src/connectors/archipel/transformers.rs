@@ -356,7 +356,7 @@ impl TryFrom<(Option<Secret<String>>, &Card)> for ArchipelCard {
             },
             security_code: Some(ccard.card_cvc.clone()),
             application_selection_indicator: ApplicationSelectionIndicator::ByDefault,
-            card_holder_name,
+            card_holder_name: ccard.card_holder_name.clone().or(card_holder_name),
             scheme,
         })
     }
@@ -384,7 +384,7 @@ impl
             },
             security_code: None,
             application_selection_indicator: ApplicationSelectionIndicator::ByDefault,
-            card_holder_name,
+            card_holder_name: card_details.card_holder_name.clone().or(card_holder_name),
             scheme,
         })
     }

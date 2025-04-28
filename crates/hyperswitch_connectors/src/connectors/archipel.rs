@@ -166,10 +166,7 @@ impl ConnectorValidation for Archipel {
         _payment_method: common_enums::PaymentMethod,
         pmt: Option<common_enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method =
-            capture_method.ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "capture_method",
-            })?;
+        let capture_method = capture_method.unwrap_or_default();
 
         match capture_method {
             enums::CaptureMethod::Automatic
