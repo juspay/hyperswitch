@@ -218,7 +218,7 @@ pub async fn form_payment_link_data(
             &payment_intent.payment_id,
             &merchant_id,
             &attempt_id.clone(),
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

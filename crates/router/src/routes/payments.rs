@@ -257,7 +257,7 @@ pub async fn payments_create_and_confirm_intent(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, request, req_state| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store)
+                domain::Context(auth.merchant_account, auth.key_store),
             ));
             payments::payments_create_and_confirm_intent(
                 state,
@@ -1249,7 +1249,7 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
         |state, auth: auth::AuthenticationData, req, req_state| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
-            )); 
+            ));
             <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
                 &payments::PaymentRedirectCompleteAuthorize {},
                 state,
@@ -1410,7 +1410,7 @@ pub async fn payments_list(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            payments::list_payments(state, merchant_context, None,req)
+            payments::list_payments(state, merchant_context, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -1520,12 +1520,7 @@ pub async fn payments_list_by_filter(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            payments::apply_filters_on_payments(
-                state,
-                merchant_context,
-                None,
-                req,
-            )
+            payments::apply_filters_on_payments(state, merchant_context, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -1586,7 +1581,7 @@ pub async fn get_filters_for_payments(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            payments::get_filters_for_payments(state, merchant_context,req)
+            payments::get_filters_for_payments(state, merchant_context, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -1905,7 +1900,7 @@ where
         >(
             state,
             req_state,
-                merchant_context,
+            merchant_context,
             profile_id,
             operation,
             req,

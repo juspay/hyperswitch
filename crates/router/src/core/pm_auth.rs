@@ -358,12 +358,12 @@ async fn store_bank_details_in_payment_methods(
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_status(
             &((&state).into()),
-            &key_store,
+            merchant_context.get_merchant_key_store(),
             &customer_id,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             common_enums::enums::PaymentMethodStatus::Active,
             None,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
@@ -564,7 +564,7 @@ async fn store_bank_details_in_payment_methods(
             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             let pm_new = domain::PaymentMethod {
                 customer_id: customer_id.clone(),
-                merchant_id: merchant_account.get_id().clone(),
+                merchant_id: merchant_context.get_merchant_account().get_id().clone(),
                 id: pm_id,
                 payment_method_type: Some(enums::PaymentMethod::BankDebit),
                 payment_method_subtype: Some(creds.payment_method_type),

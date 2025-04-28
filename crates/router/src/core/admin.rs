@@ -2932,7 +2932,7 @@ pub async fn create_connector(
             business_profile.clone(),
             store,
             key_manager_state,
-            &key_store,
+            merchant_context.get_merchant_key_store(),
             common_enums::RevenueRecoveryAlgorithmType::Monitoring,
         )
         .await?;
