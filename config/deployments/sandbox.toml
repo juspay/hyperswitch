@@ -632,3 +632,6 @@ enabled = false
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
+
+[authentication_providers]
+click_to_pay = {connector_list = "adyen, cybersource"}
