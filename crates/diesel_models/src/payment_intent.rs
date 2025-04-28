@@ -60,6 +60,8 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -148,6 +150,8 @@ pub struct PaymentIntent {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -201,6 +205,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -337,6 +343,8 @@ pub struct PaymentIntentNew {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -408,6 +416,8 @@ pub struct PaymentIntentNew {
     pub platform_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v2")]

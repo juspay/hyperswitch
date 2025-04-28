@@ -1,51 +1,96 @@
 pub mod transformers;
-
+#[cfg(feature = "frm")]
+use api_models::webhooks::{ConnectorWebhookSecrets, IncomingWebhookEvent, ObjectReferenceId};
 #[cfg(feature = "frm")]
 use base64::Engine;
-use common_utils::types::{
-    AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+#[cfg(feature = "frm")]
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+#[cfg(feature = "frm")]
+use common_utils::{
+    consts::BASE64_ENGINE,
+    request::{Method, RequestBuilder},
+    types::MinorUnit,
 };
 #[cfg(feature = "frm")]
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{errors::CustomResult, request::Request};
 #[cfg(feature = "frm")]
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_domain_models::{
+    router_data::ErrorResponse,
+    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_request_types::fraud_check::{
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
+        FraudCheckSaleData, FraudCheckTransactionData,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, RouterData},
+    router_flow_types::{
+        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, RSync, Session,
+        SetupMandate, Void,
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+};
+use hyperswitch_interfaces::{
+    api::{
+        ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        ConnectorSpecifications, ConnectorValidation, MandateSetup, Payment, PaymentAuthorize,
+        PaymentCapture, PaymentSession, PaymentSync, PaymentToken, PaymentVoid, Refund,
+        RefundExecute, RefundSync,
+    },
+    configs::Connectors,
+    errors::ConnectorError,
+};
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::{
+    api::{
+        FraudCheck, FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn,
+        FraudCheckSale, FraudCheckTransaction,
+    },
+    events::connector_api_logs::ConnectorEvent,
+    types::Response,
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+};
+#[cfg(feature = "frm")]
+use masking::Maskable;
+#[cfg(feature = "frm")]
+use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
 use transformers as riskified;
 
-use super::utils::convert_amount;
 #[cfg(feature = "frm")]
-use super::utils::{self as connector_utils, FrmTransactionRouterDataRequest};
+use crate::constants::headers;
+#[cfg(feature = "frm")]
+use crate::utils::convert_amount;
+#[cfg(feature = "frm")]
 use crate::{
-    configs::settings,
-    core::errors::{self, CustomResult},
-    services::{self, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        FrmCheckoutRouterData, FrmCheckoutType, FrmFulfillmentRouterData, FrmFulfillmentType,
+        FrmTransactionRouterData, FrmTransactionType, ResponseRouterData,
     },
-};
-#[cfg(feature = "frm")]
-use crate::{
-    consts,
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::request,
-    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
-    utils::BytesExt,
+    utils::FrmTransactionRouterDataRequest,
 };
 
 #[derive(Clone)]
 pub struct Riskified {
+    #[cfg(feature = "frm")]
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Riskified {
     pub fn new() -> &'static Self {
         &Self {
+            #[cfg(feature = "frm")]
             amount_converter: &StringMajorUnitForConnector,
         }
     }
@@ -55,7 +100,7 @@ impl Riskified {
         &self,
         auth: &riskified::RiskifiedAuthType,
         payload: &str,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, ConnectorError> {
         let key = hmac::Key::new(
             hmac::HMAC_SHA256,
             auth.secret_token.clone().expose().as_bytes(),
@@ -76,9 +121,9 @@ where
     #[cfg(feature = "frm")]
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         let auth: riskified::RiskifiedAuthType =
             riskified::RiskifiedAuthType::try_from(&req.connector_auth_type)?;
 
@@ -89,7 +134,7 @@ where
 
         let digest = self
             .generate_authorization_signature(&auth, payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(ConnectorError::RequestEncodingFailed)?;
 
         let header = vec![
             (
@@ -102,7 +147,7 @@ where
             ),
             (
                 "X-RISKIFIED-HMAC-SHA256".to_string(),
-                request::Mask::into_masked(digest),
+                Mask::into_masked(digest),
             ),
             (
                 "Accept".to_string(),
@@ -122,7 +167,7 @@ impl ConnectorCommon for Riskified {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.riskified.base_url.as_ref()
     }
 
@@ -131,11 +176,13 @@ impl ConnectorCommon for Riskified {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        use hyperswitch_interfaces::consts::NO_ERROR_CODE;
+
         let response: riskified::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -143,7 +190,7 @@ impl ConnectorCommon for Riskified {
         Ok(ErrorResponse {
             status_code: res.status_code,
             attempt_status: None,
-            code: consts::NO_ERROR_CODE.to_string(),
+            code: NO_ERROR_CODE.to_string(),
             message: response.error.message.clone(),
             reason: None,
             connector_transaction_id: None,
@@ -155,18 +202,12 @@ impl ConnectorCommon for Riskified {
 }
 
 #[cfg(feature = "frm")]
-impl
-    ConnectorIntegration<
-        frm_api::Checkout,
-        frm_types::FraudCheckCheckoutData,
-        frm_types::FraudCheckResponseData,
-    > for Riskified
-{
+impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData> for Riskified {
     fn get_headers(
         &self,
-        req: &frm_types::FrmCheckoutRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &FrmCheckoutRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -176,23 +217,23 @@ impl
 
     fn get_url(
         &self,
-        _req: &frm_types::FrmCheckoutRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
+        _req: &FrmCheckoutRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "/decide"))
     }
 
     fn get_request_body(
         &self,
-        req: &frm_types::FrmCheckoutRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        req: &FrmCheckoutRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
             MinorUnit::new(req.request.amount),
             req.request
                 .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?,
         )?;
@@ -203,37 +244,33 @@ impl
 
     fn build_request(
         &self,
-        req: &frm_types::FrmCheckoutRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &FrmCheckoutRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&frm_types::FrmCheckoutType::get_url(self, req, connectors)?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&FrmCheckoutType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(frm_types::FrmCheckoutType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(frm_types::FrmCheckoutType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(FrmCheckoutType::get_headers(self, req, connectors)?)
+                .set_body(FrmCheckoutType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &frm_types::FrmCheckoutRouterData,
+        data: &FrmCheckoutRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<frm_types::FrmCheckoutRouterData, errors::ConnectorError> {
+    ) -> CustomResult<FrmCheckoutRouterData, ConnectorError> {
         let response: riskified::RiskifiedPaymentsResponse = res
             .response
             .parse_struct("RiskifiedPaymentsResponse Checkout")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        <frm_types::FrmCheckoutRouterData>::try_from(types::ResponseRouterData {
+        <FrmCheckoutRouterData>::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -243,47 +280,36 @@ impl
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
-impl api::Payment for Riskified {}
-impl api::PaymentAuthorize for Riskified {}
-impl api::PaymentSync for Riskified {}
-impl api::PaymentVoid for Riskified {}
-impl api::PaymentCapture for Riskified {}
-impl api::MandateSetup for Riskified {}
-impl api::ConnectorAccessToken for Riskified {}
-impl api::PaymentToken for Riskified {}
-impl api::Refund for Riskified {}
-impl api::RefundExecute for Riskified {}
-impl api::RefundSync for Riskified {}
+impl Payment for Riskified {}
+impl PaymentAuthorize for Riskified {}
+impl PaymentSync for Riskified {}
+impl PaymentVoid for Riskified {}
+impl PaymentCapture for Riskified {}
+impl MandateSetup for Riskified {}
+impl ConnectorAccessToken for Riskified {}
+impl PaymentToken for Riskified {}
+impl Refund for Riskified {}
+impl RefundExecute for Riskified {}
+impl RefundSync for Riskified {}
 impl ConnectorValidation for Riskified {}
 
 #[cfg(feature = "frm")]
-impl
-    ConnectorIntegration<
-        frm_api::Sale,
-        frm_types::FraudCheckSaleData,
-        frm_types::FraudCheckResponseData,
-    > for Riskified
-{
-}
+impl ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData> for Riskified {}
 
 #[cfg(feature = "frm")]
-impl
-    ConnectorIntegration<
-        frm_api::Transaction,
-        frm_types::FraudCheckTransactionData,
-        frm_types::FraudCheckResponseData,
-    > for Riskified
+impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
+    for Riskified
 {
     fn get_headers(
         &self,
-        req: &frm_types::FrmTransactionRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &FrmTransactionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -293,9 +319,9 @@ impl
 
     fn get_url(
         &self,
-        req: &frm_types::FrmTransactionRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
+        req: &FrmTransactionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
         match req.is_payment_successful() {
             Some(false) => Ok(format!(
                 "{}{}",
@@ -308,9 +334,9 @@ impl
 
     fn get_request_body(
         &self,
-        req: &frm_types::FrmTransactionRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        req: &FrmTransactionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
         match req.is_payment_successful() {
             Some(false) => {
                 let req_obj = riskified::TransactionFailedRequest::try_from(req)?;
@@ -322,7 +348,7 @@ impl
                     MinorUnit::new(req.request.amount),
                     req.request
                         .currency
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                        .ok_or(ConnectorError::MissingRequiredField {
                             field_name: "currency",
                         })?,
                 )?;
@@ -335,50 +361,44 @@ impl
 
     fn build_request(
         &self,
-        req: &frm_types::FrmTransactionRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &FrmTransactionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&frm_types::FrmTransactionType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&FrmTransactionType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(frm_types::FrmTransactionType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(frm_types::FrmTransactionType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(FrmTransactionType::get_headers(self, req, connectors)?)
+                .set_body(FrmTransactionType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &frm_types::FrmTransactionRouterData,
+        data: &FrmTransactionRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<frm_types::FrmTransactionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<FrmTransactionRouterData, ConnectorError> {
         let response: riskified::RiskifiedTransactionResponse = res
             .response
             .parse_struct("RiskifiedPaymentsResponse Transaction")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         match response {
             riskified::RiskifiedTransactionResponse::FailedResponse(response_data) => {
-                <frm_types::FrmTransactionRouterData>::try_from(types::ResponseRouterData {
+                <FrmTransactionRouterData>::try_from(ResponseRouterData {
                     response: response_data,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
             }
             riskified::RiskifiedTransactionResponse::SuccessResponse(response_data) => {
-                <frm_types::FrmTransactionRouterData>::try_from(types::ResponseRouterData {
+                <FrmTransactionRouterData>::try_from(ResponseRouterData {
                     response: response_data,
                     data: data.clone(),
                     http_code: res.status_code,
@@ -390,24 +410,20 @@ impl
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[cfg(feature = "frm")]
-impl
-    ConnectorIntegration<
-        frm_api::Fulfillment,
-        frm_types::FraudCheckFulfillmentData,
-        frm_types::FraudCheckResponseData,
-    > for Riskified
+impl ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
+    for Riskified
 {
     fn get_headers(
         &self,
-        req: &frm_types::FrmFulfillmentRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &FrmFulfillmentRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -417,58 +433,52 @@ impl
 
     fn get_url(
         &self,
-        _req: &frm_types::FrmFulfillmentRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
+        _req: &FrmFulfillmentRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "/fulfill"))
     }
 
     fn get_request_body(
         &self,
-        req: &frm_types::FrmFulfillmentRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        req: &FrmFulfillmentRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
         let req_obj = riskified::RiskifiedFulfillmentRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
         &self,
-        req: &frm_types::FrmFulfillmentRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &FrmFulfillmentRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&frm_types::FrmFulfillmentType::get_url(
-                    self, req, connectors,
-                )?)
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&FrmFulfillmentType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(frm_types::FrmFulfillmentType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(frm_types::FrmFulfillmentType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(FrmFulfillmentType::get_headers(self, req, connectors)?)
+                .set_body(FrmFulfillmentType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &frm_types::FrmFulfillmentRouterData,
+        data: &FrmFulfillmentRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
+    ) -> CustomResult<FrmFulfillmentRouterData, ConnectorError> {
         let response: riskified::RiskifiedFulfilmentResponse = res
             .response
             .parse_struct("RiskifiedFulfilmentResponse fulfilment")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        frm_types::FrmFulfillmentRouterData::try_from(types::ResponseRouterData {
+        FrmFulfillmentRouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -479,136 +489,93 @@ impl
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[cfg(feature = "frm")]
-impl
-    ConnectorIntegration<
-        frm_api::RecordReturn,
-        frm_types::FraudCheckRecordReturnData,
-        frm_types::FraudCheckResponseData,
-    > for Riskified
-{
-}
-
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Riskified
-{
-}
-
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+impl ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
     for Riskified
 {
 }
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Riskified
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Riskified
+{
+}
+
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Riskified {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Riskified
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Riskified".to_string())
-                .into(),
-        )
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        Err(ConnectorError::NotImplemented("Setup Mandate flow for Riskified".to_string()).into())
     }
 }
 
-impl api::PaymentSession for Riskified {}
+impl PaymentSession for Riskified {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Riskified {}
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Riskified {}
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Riskified {}
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Riskified {}
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Riskified {}
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Riskified {}
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Riskified
-{
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Riskified {}
 
 #[cfg(feature = "frm")]
-impl api::FraudCheck for Riskified {}
+impl FraudCheck for Riskified {}
 #[cfg(feature = "frm")]
-impl frm_api::FraudCheckSale for Riskified {}
+impl FraudCheckSale for Riskified {}
 #[cfg(feature = "frm")]
-impl frm_api::FraudCheckCheckout for Riskified {}
+impl FraudCheckCheckout for Riskified {}
 #[cfg(feature = "frm")]
-impl frm_api::FraudCheckTransaction for Riskified {}
+impl FraudCheckTransaction for Riskified {}
 #[cfg(feature = "frm")]
-impl frm_api::FraudCheckFulfillment for Riskified {}
+impl FraudCheckFulfillment for Riskified {}
 #[cfg(feature = "frm")]
-impl frm_api::FraudCheckRecordReturn for Riskified {}
+impl FraudCheckRecordReturn for Riskified {}
 
 #[cfg(feature = "frm")]
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Riskified {
+impl IncomingWebhook for Riskified {
     fn get_webhook_source_verification_algorithm(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
         let header_value =
-            connector_utils::get_header_key_value("x-riskified-hmac-sha256", request.headers)?;
+            crate::utils::get_header_key_value("x-riskified-hmac-sha256", request.headers)?;
         Ok(header_value.as_bytes().to_vec())
     }
 
     async fn verify_webhook_source(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
+    ) -> CustomResult<bool, ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_id,
@@ -616,11 +583,11 @@ impl api::IncomingWebhook for Riskified {
                 connector_webhook_details,
             )
             .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
             .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = self
             .get_webhook_source_verification_message(
@@ -628,55 +595,55 @@ impl api::IncomingWebhook for Riskified {
                 merchant_id,
                 &connector_webhook_secrets,
             )
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &connector_webhook_secrets.secret);
         let signed_message = hmac::sign(&signing_key, &message);
-        let payload_sign = consts::BASE64_ENGINE.encode(signed_message.as_ref());
+        let payload_sign = BASE64_ENGINE.encode(signed_message.as_ref());
         Ok(payload_sign.as_bytes().eq(&signature))
     }
 
     fn get_webhook_source_verification_message(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        _connector_webhook_secrets: &ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
         Ok(request.body.to_vec())
     }
 
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
             .parse_struct("RiskifiedWebhookBody")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api::webhooks::ObjectReferenceId::PaymentId(
+            .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::PaymentAttemptId(resource.id),
         ))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
             .parse_struct("RiskifiedWebhookBody")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(api::IncomingWebhookEvent::from(resource.status))
+            .change_context(ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(IncomingWebhookEvent::from(resource.status))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
             .parse_struct("RiskifiedWebhookBody")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+            .change_context(ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(resource))
     }
 }
