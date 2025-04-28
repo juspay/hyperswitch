@@ -364,10 +364,10 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
-    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
-    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub vault_connector_details: Option<VaultConnectorDetails>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 impl Profile {
