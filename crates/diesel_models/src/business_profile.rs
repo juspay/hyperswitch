@@ -761,7 +761,7 @@ impl RevenueRecoveryAlgorithmData {
     pub fn calculate_monitorig_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
         let total_threshold_time = self.monitoring_configured_timestamp
             + Duration::seconds(monitoring_threshold_in_seconds);
-        return common_utils::date_time::now() >= total_threshold_time;
+        common_utils::date_time::now() >= total_threshold_time
     }
 }
 

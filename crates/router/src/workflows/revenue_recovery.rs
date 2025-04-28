@@ -20,8 +20,8 @@ use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        admin, payments,
-        revenue_recovery::{self as pcr, types},
+        payments,
+        revenue_recovery::{self as pcr},
     },
     db::StorageInterface,
     errors::StorageError,
@@ -152,6 +152,7 @@ pub(crate) async fn extract_data_and_perform_action(
         merchant_account,
         profile,
         key_store,
+        retry_algorithm: tracking_data.revenue_recovery_retry,
     };
     Ok(pcr_payment_data)
 }

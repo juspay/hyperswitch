@@ -42,7 +42,6 @@ use crate::{
     types::{
         self, api as api_types, api::payments as payments_types, storage, transformers::ForeignInto,
     },
-    workflows::revenue_recovery::get_schedule_time_to_retry_mit_payments,
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
@@ -165,6 +164,7 @@ impl Action {
                         db,
                         merchant_id,
                         process.clone(),
+                        pcr_data,
                         &payment_data.payment_attempt,
                     )
                     .await
@@ -210,6 +210,7 @@ impl Action {
                     pcr_data.profile.get_id().to_owned(),
                     attempt_id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                    pcr_data.retry_algorithm,
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
@@ -422,10 +423,13 @@ impl Action {
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
+        revenue_recovery_payment_data: &storage::revenue_recovery::PcrPaymentData,
         payment_attempt: &payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
-        let schedule_time =
-            get_schedule_time_to_retry_mit_payments(db, merchant_id, pt.retry_count + 1).await;
+        let schedule_time = revenue_recovery_payment_data
+            .get_schedule_time_based_on_retry_type(db, merchant_id, pt.retry_count + 1)
+            .await;
+
         match schedule_time {
             Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
 

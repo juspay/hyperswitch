@@ -211,14 +211,13 @@ async fn handle_monitoring_threshold(
     let db = &*state.store;
     let key_manager_state = &(state).into();
     let monitoring_threshold_config = state.conf.revenue_recovery.monitoring_threshold_in_seconds;
-    let revenue_recovery_retry_algorithm_data = business_profile
+    let revenue_recovery_retry_algorithm = business_profile
         .revenue_recovery_retry_algorithm_data
+        .clone()
         .ok_or(report!(
             errors::RevenueRecoveryError::RetryAlgorithmTypeNotFound
         ))?;
-    if revenue_recovery_retry_algorithm_data
-        .calculate_monitorig_threshold(monitoring_threshold_config)
-    {
+    if revenue_recovery_retry_algorithm.calculate_monitorig_threshold(monitoring_threshold_config) {
         let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
         profile_wrapper
             .update_revenue_recovery_algorithm_under_profile(
@@ -232,7 +231,7 @@ async fn handle_monitoring_threshold(
     }
     Ok(webhooks::WebhookResponseTracker::NoEffect)
 }
-
+#[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
     billing_connector_account: &domain::MerchantConnectorAccount,
     intent_retry_count: u16,

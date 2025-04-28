@@ -41,13 +41,11 @@ use storage_impl::config::QueueStrategy;
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
 use crate::{
     configs,
-    core::{
-        errors::{ApplicationError, ApplicationResult},
-        revenue_recovery,
-    },
+    core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
     routes::app,
+    types::storage::revenue_recovery,
     AppState,
 };
 
@@ -149,7 +147,7 @@ pub struct Settings<S: SecretState> {
     pub theme: ThemeSettings,
     pub platform: Platform,
     pub open_router: OpenRouter,
-    pub revenue_recovery: revenue_recovery::utils::RevenueRecoverySettings,
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

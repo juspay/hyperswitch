@@ -151,6 +151,7 @@ pub async fn perform_execute_payment(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn insert_psync_pcr_task(
     billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
