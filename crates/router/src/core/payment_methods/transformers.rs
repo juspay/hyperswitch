@@ -1,4 +1,7 @@
-pub use ::payment_methods::cards::{DataDuplicationCheck, DeleteCardResp};
+pub use ::payment_methods::{
+    cards::{DataDuplicationCheck, DeleteCardResp},
+    types as pm_types,
+};
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -371,7 +374,7 @@ pub async fn mk_basilisk_req(
 pub async fn mk_add_locker_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    payload: &StoreLockerReq,
+    payload: &pm_types::StoreLockerReq,
     locker_choice: api_enums::LockerChoice,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,

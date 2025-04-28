@@ -12,13 +12,15 @@ use common_utils::{
 };
 use diesel_models::payment_method;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
+use hyperswitch_domain_models::{
+    bulk_tokenization, merchant_account, merchant_key_store, payment_methods, type_encryption,
+};
 use masking::{PeekInterface, Secret};
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors as storage_errors;
 
-use crate::core::errors;
+use crate::{core::errors, types};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DeleteCardResp {
@@ -130,23 +132,11 @@ pub trait PaymentMethodsController {
         key_store: merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
 
-    async fn add_card_hs(
+    async fn tokenize_card_flow(
         &self,
-        req: api::PaymentMethodCreate,
-        card: &api::CardDetail,
-        customer_id: &id_type::CustomerId,
-        locker_choice: api_enums::LockerChoice,
-        card_reference: Option<&str>,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
-
-    /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
-    async fn add_card_to_locker(
-        &self,
-        req: api::PaymentMethodCreate,
-        card: &api::CardDetail,
-        customer_id: &id_type::CustomerId,
-        card_reference: Option<&str>,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+        req: bulk_tokenization::CardNetworkTokenizeRequest,
+        key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> errors::PmResult<api::CardNetworkTokenizeResponse>;
 
     #[cfg(feature = "payouts")]
     async fn add_bank_to_locker(
@@ -197,13 +187,6 @@ pub trait PaymentMethodsController {
         &self,
         pm: &payment_methods::PaymentMethod,
     ) -> errors::PmResult<api::CardDetailFromLocker>;
-
-    async fn delete_card_from_locker(
-        &self,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        card_reference: &str,
-    ) -> errors::PmResult<DeleteCardResp>;
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
@@ -268,6 +251,40 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
         card_network: Option<common_enums::CardNetwork>,
     ) -> errors::PmResult<()>;
+}
+
+#[async_trait::async_trait]
+pub trait LockerController {
+    async fn add_card_hs(
+        &self,
+        req: api::PaymentMethodCreate,
+        card: &api::CardDetail,
+        customer_id: &id_type::CustomerId,
+        locker_choice: api_enums::LockerChoice,
+        card_reference: Option<&str>,
+        merchant_account: &merchant_account::MerchantAccount,
+    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    async fn add_card_to_hs_locker(
+        &self,
+        payload: &types::StoreLockerReq,
+        customer_id: &id_type::CustomerId,
+        locker_choice: api_enums::LockerChoice,
+    ) -> errors::VaultResult<types::StoreCardRespPayload>;
+    /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
+    async fn add_card_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        card: &api::CardDetail,
+        customer_id: &id_type::CustomerId,
+        card_reference: Option<&str>,
+        merchant_account: &merchant_account::MerchantAccount,
+    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    async fn delete_card_from_locker(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        card_reference: &str,
+    ) -> errors::PmResult<DeleteCardResp>;
 }
 
 pub async fn create_encrypted_data<T>(

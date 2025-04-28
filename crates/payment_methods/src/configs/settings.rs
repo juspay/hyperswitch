@@ -1,12 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::network_tokenization::{
+    NetworkTokenizationService, NetworkTokenizationSupportedCardNetworks,
+};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::errors::CustomResult;
+use common_utils::request::Request;
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
-    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    secret_state::{RawSecret, SecretState, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use hyperswitch_interfaces::types;
 use masking::Secret;
 use serde::{self, Deserialize, Serialize};
 
@@ -94,6 +99,30 @@ pub struct ZeroMandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct LockerConfig {
+    pub ttl_for_storage_in_secs: i64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct PaymentMethodsConfig<S: SecretState> {
+    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub locker: LockerConfig,
+    pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
+}
+
+#[async_trait::async_trait]
+pub trait ConnectorApiClient: dyn_clone::DynClone + Send + Sync + 'static {
+    async fn call_connector_api(
+        &self,
+        request: Request,
+        flow_name: String,
+    ) -> CustomResult<Result<types::Response, types::Response>, enums::ApiClientError>;
+}
+dyn_clone::clone_trait_object!(ConnectorApiClient);
+
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
     T: Eq + std::str::FromStr + std::hash::Hash,
@@ -132,7 +161,7 @@ where
     }
 }
 
-fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
+pub fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
 where
     D: serde::Deserializer<'a>,
     T: Eq + std::str::FromStr + std::hash::Hash,

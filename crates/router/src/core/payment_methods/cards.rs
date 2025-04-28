@@ -5,10 +5,11 @@ use std::{
 };
 
 use ::payment_methods::{
-    cards::PaymentMethodsController,
+    cards::{LockerController, PaymentMethodsController},
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
     },
+    tokenization, types as pm_types,
 };
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -53,7 +54,7 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
-use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_domain_models::{bulk_tokenization, mandates::CommonMandateReference};
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -74,13 +75,8 @@ use super::surcharge_decision_configs::{
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use super::tokenize::NetworkTokenizationProcess;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 use crate::core::payment_methods::{
-    add_payment_method_status_update_task, tokenize,
+    add_payment_method_status_update_task,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(all(
@@ -121,9 +117,18 @@ use crate::{
     core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
     utils::ConnectorResponseExt,
 };
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use ::payment_methods::tokenization::NetworkTokenizationProcess;
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
     pub merchant_account: &'a domain::MerchantAccount,
+}
+
+pub struct PmLocker<'a> {
+    pub state: &'a routes::SessionState,
 }
 
 #[async_trait::async_trait]
@@ -414,11 +419,12 @@ impl PaymentMethodsController for PmCards<'_> {
             customer_id
         );
 
-        let token_resp = Box::pin(self.add_card_to_locker(
+        let token_resp = Box::pin(PmLocker { state: &self.state }.add_card_to_locker(
             payment_method_create_request.clone(),
             &network_token_details,
             &customer_id,
             None,
+            &self.merchant_account,
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -617,20 +623,19 @@ impl PaymentMethodsController for PmCards<'_> {
             Ok(hex::encode(e.peek()))
         })?;
 
-        let payload =
-            payment_methods::StoreLockerReq::LockerGeneric(payment_methods::StoreGenericReq {
-                merchant_id: self.merchant_account.get_id().to_owned(),
-                merchant_customer_id: customer_id.to_owned(),
-                enc_data,
-                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-            });
-        let store_resp = add_card_to_hs_locker(
-            self.state,
-            &payload,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await?;
+        let payload = pm_types::StoreLockerReq::LockerGeneric(pm_types::StoreGenericReq {
+            merchant_id: self.merchant_account.get_id().to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            enc_data,
+            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+        });
+        let store_resp = PmLocker { state: self.state }
+            .add_card_to_hs_locker(
+                &payload,
+                customer_id,
+                api_enums::LockerChoice::HyperswitchCardVault,
+            )
+            .await?;
         let payment_method_resp = payment_methods::mk_add_bank_response_hs(
             bank.clone(),
             store_resp.card_reference,
@@ -640,118 +645,50 @@ impl PaymentMethodsController for PmCards<'_> {
         Ok((payment_method_resp, store_resp.duplication_check))
     }
 
-    /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
-    async fn add_card_to_locker(
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    async fn tokenize_card_flow(
         &self,
-        req: api::PaymentMethodCreate,
-        card: &api::CardDetail,
-        customer_id: &id_type::CustomerId,
-        card_reference: Option<&str>,
-    ) -> errors::CustomResult<
-        (
-            api::PaymentMethodResponse,
-            Option<payment_methods::DataDuplicationCheck>,
-        ),
-        errors::VaultError,
-    > {
-        metrics::STORED_TO_LOCKER.add(1, &[]);
-        let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
-            async {
-                self.add_card_hs(
-                    req.clone(),
-                    card,
-                    customer_id,
-                    api_enums::LockerChoice::HyperswitchCardVault,
-                    card_reference,
-                )
-                .await
-                .inspect_err(|_| {
-                    metrics::CARD_LOCKER_FAILURES.add(
-                        1,
-                        router_env::metric_attributes!(("locker", "rust"), ("operation", "add")),
-                    );
-                })
-            },
-            &metrics::CARD_ADD_TIME,
-            router_env::metric_attributes!(("locker", "rust")),
-        ))
-        .await?;
-
-        logger::debug!("card added to hyperswitch-card-vault");
-        Ok(add_card_to_hs_resp)
-    }
-
-    async fn delete_card_from_locker(
-        &self,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        card_reference: &str,
-    ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-        metrics::DELETE_FROM_LOCKER.add(1, &[]);
-
-        common_utils::metrics::utils::record_operation_time(
-            async move {
-                delete_card_from_hs_locker(self.state, customer_id, merchant_id, card_reference)
+        req: bulk_tokenization::CardNetworkTokenizeRequest,
+        key_store: &domain::MerchantKeyStore,
+    ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
+        let locker = PmLocker { state: &self.state };
+        let pm_state = &self.state.into();
+        match req.data {
+            domain::TokenizeDataRequest::Card(ref card_req) => {
+                let executor = tokenization::CardNetworkTokenizeExecutor::new(
+                    pm_state,
+                    key_store,
+                    self.merchant_account,
+                    card_req,
+                    &req.customer,
+                    self,
+                    &locker,
+                );
+                let builder = tokenization::NetworkTokenizationBuilder::<
+                    tokenization::TokenizeWithCard,
+                >::default();
+                execute_card_tokenization(executor, builder, card_req).await
+            }
+            domain::TokenizeDataRequest::ExistingPaymentMethod(ref payment_method) => {
+                let executor = tokenization::CardNetworkTokenizeExecutor::new(
+                    pm_state,
+                    key_store,
+                    self.merchant_account,
+                    payment_method,
+                    &req.customer,
+                    self,
+                    &locker,
+                );
+                let builder = tokenization::NetworkTokenizationBuilder::<
+                    tokenization::TokenizeWithPmId,
+                >::default();
+                execute_payment_method_tokenization(self.state, executor, builder, payment_method)
                     .await
-                    .inspect_err(|_| {
-                        metrics::CARD_LOCKER_FAILURES.add(
-                            1,
-                            router_env::metric_attributes!(
-                                ("locker", "rust"),
-                                ("operation", "delete")
-                            ),
-                        );
-                    })
-            },
-            &metrics::CARD_DELETE_TIME,
-            &[],
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while deleting card from locker")
-    }
-
-    #[instrument(skip_all)]
-    async fn add_card_hs(
-        &self,
-        req: api::PaymentMethodCreate,
-        card: &api::CardDetail,
-        customer_id: &id_type::CustomerId,
-        locker_choice: api_enums::LockerChoice,
-        card_reference: Option<&str>,
-    ) -> errors::CustomResult<
-        (
-            api::PaymentMethodResponse,
-            Option<payment_methods::DataDuplicationCheck>,
-        ),
-        errors::VaultError,
-    > {
-        let payload = payment_methods::StoreLockerReq::LockerCard(payment_methods::StoreCardReq {
-            merchant_id: self.merchant_account.get_id().to_owned(),
-            merchant_customer_id: customer_id.to_owned(),
-            requestor_card_reference: card_reference.map(str::to_string),
-            card: Card {
-                card_number: card.card_number.to_owned(),
-                name_on_card: card.card_holder_name.to_owned(),
-                card_exp_month: card.card_exp_month.to_owned(),
-                card_exp_year: card.card_exp_year.to_owned(),
-                card_brand: card.card_network.as_ref().map(ToString::to_string),
-                card_isin: None,
-                nick_name: card.nick_name.as_ref().map(Secret::peek).cloned(),
-            },
-            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-        });
-
-        let store_card_payload =
-            add_card_to_hs_locker(self.state, &payload, customer_id, locker_choice).await?;
-
-        let payment_method_resp = payment_methods::mk_add_card_response_hs(
-            card.clone(),
-            store_card_payload.card_reference,
-            req,
-            self.merchant_account.get_id(),
-        );
-        Ok((payment_method_resp, store_card_payload.duplication_check))
+            }
+        }
     }
 
     #[cfg(all(
@@ -1033,7 +970,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .attach_printable("Customer not found for the payment method")?;
 
         if key.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-            let response = self
+            let response = PmLocker { state: &self.state }
                 .delete_card_from_locker(
                     &key.customer_id,
                     &key.merchant_id,
@@ -1050,7 +987,6 @@ impl PaymentMethodsController for PmCards<'_> {
                         key.payment_method_id.clone(),
                         key.network_token_locker_id,
                         network_token_ref_id,
-                        self.merchant_account,
                     )
                     .await?;
 
@@ -1157,11 +1093,12 @@ impl PaymentMethodsController for PmCards<'_> {
                         &card_details.card_exp_month,
                         &card_details.card_exp_year,
                     )?;
-                    Box::pin(self.add_card_to_locker(
+                    Box::pin(PmLocker { state: &self.state }.add_card_to_locker(
                         req.clone(),
                         &card_details,
                         &customer_id,
                         None,
+                        &self.merchant_account,
                     ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1200,18 +1137,20 @@ impl PaymentMethodsController for PmCards<'_> {
                             .await?;
 
                         let client_secret = existing_pm.client_secret.clone();
+                        let locker = PmLocker { state: &self.state };
 
-                        self.delete_card_from_locker(
-                            &customer_id,
-                            merchant_id,
-                            existing_pm
-                                .locker_id
-                                .as_ref()
-                                .unwrap_or(&existing_pm.payment_method_id),
-                        )
-                        .await?;
+                        locker
+                            .delete_card_from_locker(
+                                &customer_id,
+                                merchant_id,
+                                existing_pm
+                                    .locker_id
+                                    .as_ref()
+                                    .unwrap_or(&existing_pm.payment_method_id),
+                            )
+                            .await?;
 
-                        let add_card_resp = self
+                        let add_card_resp = locker
                             .add_card_hs(
                                 req.clone(),
                                 &card,
@@ -1223,6 +1162,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                         .as_ref()
                                         .unwrap_or(&existing_pm.payment_method_id),
                                 ),
+                                &self.merchant_account,
                             )
                             .await;
 
@@ -1340,6 +1280,166 @@ impl PaymentMethodsController for PmCards<'_> {
         }
 
         Ok(services::ApplicationResponse::Json(resp))
+    }
+}
+
+#[async_trait::async_trait]
+impl LockerController for PmLocker<'_> {
+    #[instrument(skip_all)]
+    async fn add_card_hs(
+        &self,
+        req: api::PaymentMethodCreate,
+        card: &api::CardDetail,
+        customer_id: &id_type::CustomerId,
+        locker_choice: api_enums::LockerChoice,
+        card_reference: Option<&str>,
+        merchant_account: &domain::MerchantAccount,
+    ) -> errors::CustomResult<
+        (
+            api::PaymentMethodResponse,
+            Option<payment_methods::DataDuplicationCheck>,
+        ),
+        errors::VaultError,
+    > {
+        let payload = pm_types::StoreLockerReq::LockerCard(pm_types::StoreCardReq {
+            merchant_id: merchant_account.get_id().to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            requestor_card_reference: card_reference.map(str::to_string),
+            card: Card {
+                card_number: card.card_number.to_owned(),
+                name_on_card: card.card_holder_name.to_owned(),
+                card_exp_month: card.card_exp_month.to_owned(),
+                card_exp_year: card.card_exp_year.to_owned(),
+                card_brand: card.card_network.as_ref().map(ToString::to_string),
+                card_isin: None,
+                nick_name: card.nick_name.as_ref().map(Secret::peek).cloned(),
+            },
+            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+        });
+
+        let store_card_payload = self
+            .add_card_to_hs_locker(&payload, customer_id, locker_choice)
+            .await?;
+
+        let payment_method_resp = payment_methods::mk_add_card_response_hs(
+            card.clone(),
+            store_card_payload.card_reference,
+            req,
+            merchant_account.get_id(),
+        );
+        Ok((payment_method_resp, store_card_payload.duplication_check))
+    }
+
+    async fn add_card_to_hs_locker(
+        &self,
+        payload: &pm_types::StoreLockerReq,
+        customer_id: &id_type::CustomerId,
+        locker_choice: api_enums::LockerChoice,
+    ) -> errors::CustomResult<pm_types::StoreCardRespPayload, errors::VaultError> {
+        let locker = &self.state.conf.locker;
+        let jwekey = self.state.conf.jwekey.get_inner();
+        let db = &*self.state.store;
+        let stored_card_response = if !locker.mock_locker {
+            let request = payment_methods::mk_add_locker_request_hs(
+                jwekey,
+                locker,
+                payload,
+                locker_choice,
+                self.state.tenant.tenant_id.clone(),
+                self.state.request_id,
+            )
+            .await?;
+            call_locker_api::<pm_types::StoreCardResp>(
+                self.state,
+                request,
+                "add_card_to_hs_locker",
+                Some(locker_choice),
+            )
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)?
+        } else {
+            let card_id = generate_id(consts::ID_LENGTH, "card");
+            mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
+        };
+
+        let stored_card = stored_card_response
+            .payload
+            .get_required_value("StoreCardRespPayload")
+            .change_context(errors::VaultError::SaveCardFailed)?;
+        Ok(stored_card)
+    }
+
+    /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
+    async fn add_card_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        card: &api::CardDetail,
+        customer_id: &id_type::CustomerId,
+        card_reference: Option<&str>,
+        merchant_account: &domain::MerchantAccount,
+    ) -> errors::CustomResult<
+        (
+            api::PaymentMethodResponse,
+            Option<payment_methods::DataDuplicationCheck>,
+        ),
+        errors::VaultError,
+    > {
+        metrics::STORED_TO_LOCKER.add(1, &[]);
+        let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
+            async {
+                self.add_card_hs(
+                    req.clone(),
+                    card,
+                    customer_id,
+                    api_enums::LockerChoice::HyperswitchCardVault,
+                    card_reference,
+                    merchant_account,
+                )
+                .await
+                .inspect_err(|_| {
+                    metrics::CARD_LOCKER_FAILURES.add(
+                        1,
+                        router_env::metric_attributes!(("locker", "rust"), ("operation", "add")),
+                    );
+                })
+            },
+            &metrics::CARD_ADD_TIME,
+            router_env::metric_attributes!(("locker", "rust")),
+        ))
+        .await?;
+
+        logger::debug!("card added to hyperswitch-card-vault");
+        Ok(add_card_to_hs_resp)
+    }
+
+    async fn delete_card_from_locker(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        card_reference: &str,
+    ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+        metrics::DELETE_FROM_LOCKER.add(1, &[]);
+
+        common_utils::metrics::utils::record_operation_time(
+            async move {
+                delete_card_from_hs_locker(self.state, customer_id, merchant_id, card_reference)
+                    .await
+                    .inspect_err(|_| {
+                        metrics::CARD_LOCKER_FAILURES.add(
+                            1,
+                            router_env::metric_attributes!(
+                                ("locker", "rust"),
+                                ("operation", "delete")
+                            ),
+                        );
+                    })
+            },
+            &metrics::CARD_DELETE_TIME,
+            &[],
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while deleting card from locker")
     }
 }
 
@@ -1475,6 +1575,7 @@ pub async fn add_payment_method_data(
         state: &state,
         merchant_account: &merchant_account,
     };
+    let locker = PmLocker { state: &state };
 
     let pmd = req
         .payment_method_data
@@ -1523,9 +1624,15 @@ pub async fn add_payment_method_data(
     match pmd {
         api_models::payment_methods::PaymentMethodCreateData::Card(card) => {
             helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
-            let resp = Box::pin(cards.add_card_to_locker(req.clone(), &card, &customer_id, None))
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError);
+            let resp = Box::pin(locker.add_card_to_locker(
+                req.clone(),
+                &card,
+                &customer_id,
+                None,
+                &merchant_account,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError);
 
             match resp {
                 Ok((mut pm_resp, duplication_check)) => {
@@ -1780,12 +1887,9 @@ pub async fn update_customer_payment_method(
                 network_transaction_id: None,
             };
             new_pm.validate()?;
-            let cards = PmCards {
-                state: &state,
-                merchant_account,
-            };
+            let locker = PmLocker { state: &state };
             // Delete old payment method from locker
-            cards
+            locker
                 .delete_card_from_locker(
                     &pm.customer_id,
                     &pm.merchant_id,
@@ -1794,11 +1898,12 @@ pub async fn update_customer_payment_method(
                 .await?;
 
             // Add the updated payment method data to locker
-            let (mut add_card_resp, _) = Box::pin(cards.add_card_to_locker(
+            let (mut add_card_resp, _) = Box::pin(locker.add_card_to_locker(
                 new_pm.clone(),
                 &updated_card_details,
                 &pm.customer_id,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
+                merchant_account,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2086,46 +2191,6 @@ pub async fn get_payment_method_from_hs_locker<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn add_card_to_hs_locker(
-    state: &routes::SessionState,
-    payload: &payment_methods::StoreLockerReq,
-    customer_id: &id_type::CustomerId,
-    locker_choice: api_enums::LockerChoice,
-) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
-    let locker = &state.conf.locker;
-    let jwekey = state.conf.jwekey.get_inner();
-    let db = &*state.store;
-    let stored_card_response = if !locker.mock_locker {
-        let request = payment_methods::mk_add_locker_request_hs(
-            jwekey,
-            locker,
-            payload,
-            locker_choice,
-            state.tenant.tenant_id.clone(),
-            state.request_id,
-        )
-        .await?;
-        call_locker_api::<payment_methods::StoreCardResp>(
-            state,
-            request,
-            "add_card_to_hs_locker",
-            Some(locker_choice),
-        )
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)?
-    } else {
-        let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
-    };
-
-    let stored_card = stored_card_response
-        .payload
-        .get_required_value("StoreCardRespPayload")
-        .change_context(errors::VaultError::SaveCardFailed)?;
-    Ok(stored_card)
-}
-
-#[instrument(skip_all)]
 pub async fn call_locker_api<T>(
     state: &routes::SessionState,
     request: Request,
@@ -2375,11 +2440,11 @@ pub async fn delete_card_from_hs_locker_by_global_id<'a>(
 pub async fn mock_call_to_locker_hs(
     db: &dyn db::StorageInterface,
     card_id: &str,
-    payload: &payment_methods::StoreLockerReq,
+    payload: &pm_types::StoreLockerReq,
     card_cvc: Option<String>,
     payment_method_id: Option<String>,
     customer_id: Option<&id_type::CustomerId>,
-) -> errors::CustomResult<payment_methods::StoreCardResp, errors::VaultError> {
+) -> errors::CustomResult<pm_types::StoreCardResp, errors::VaultError> {
     let mut locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
         external_id: uuid::Uuid::new_v4().to_string(),
@@ -2397,7 +2462,7 @@ pub async fn mock_call_to_locker_hs(
         enc_card_data: None,
     };
     locker_mock_up = match payload {
-        payment_methods::StoreLockerReq::LockerCard(store_card_req) => storage::LockerMockUpNew {
+        pm_types::StoreLockerReq::LockerCard(store_card_req) => storage::LockerMockUpNew {
             merchant_id: store_card_req.merchant_id.to_owned(),
             card_number: store_card_req.card.card_number.peek().to_string(),
             card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
@@ -2406,24 +2471,22 @@ pub async fn mock_call_to_locker_hs(
             nickname: store_card_req.card.nick_name.to_owned(),
             ..locker_mock_up
         },
-        payment_methods::StoreLockerReq::LockerGeneric(store_generic_req) => {
-            storage::LockerMockUpNew {
-                merchant_id: store_generic_req.merchant_id.to_owned(),
-                enc_card_data: Some(store_generic_req.enc_data.to_owned()),
-                ..locker_mock_up
-            }
-        }
+        pm_types::StoreLockerReq::LockerGeneric(store_generic_req) => storage::LockerMockUpNew {
+            merchant_id: store_generic_req.merchant_id.to_owned(),
+            enc_card_data: Some(store_generic_req.enc_data.to_owned()),
+            ..locker_mock_up
+        },
     };
 
     let response = db
         .insert_locker_mock_up(locker_mock_up)
         .await
         .change_context(errors::VaultError::SaveCardFailed)?;
-    let payload = payment_methods::StoreCardRespPayload {
+    let payload = pm_types::StoreCardRespPayload {
         card_reference: response.card_id,
         duplication_check: None,
     };
-    Ok(payment_methods::StoreCardResp {
+    Ok(pm_types::StoreCardResp {
         status: "Ok".to_string(),
         error_code: None,
         error_message: None,
@@ -5134,47 +5197,9 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-pub async fn tokenize_card_flow(
-    state: &routes::SessionState,
-    req: domain::CardNetworkTokenizeRequest,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
-    match req.data {
-        domain::TokenizeDataRequest::Card(ref card_req) => {
-            let executor = tokenize::CardNetworkTokenizeExecutor::new(
-                state,
-                key_store,
-                merchant_account,
-                card_req,
-                &req.customer,
-            );
-            let builder =
-                tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::default();
-            execute_card_tokenization(executor, builder, card_req).await
-        }
-        domain::TokenizeDataRequest::ExistingPaymentMethod(ref payment_method) => {
-            let executor = tokenize::CardNetworkTokenizeExecutor::new(
-                state,
-                key_store,
-                merchant_account,
-                payment_method,
-                &req.customer,
-            );
-            let builder =
-                tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::default();
-            execute_payment_method_tokenization(executor, builder, payment_method).await
-        }
-    }
-}
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 pub async fn execute_card_tokenization(
-    executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest>,
-    builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithCard>,
+    executor: tokenization::CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest>,
+    builder: tokenization::NetworkTokenizationBuilder<'_, tokenization::TokenizeWithCard>,
     req: &domain::TokenizeCardRequest,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
     // Validate request and get optional customer
@@ -5238,8 +5263,9 @@ pub async fn execute_card_tokenization(
     not(feature = "payment_methods_v2")
 ))]
 pub async fn execute_payment_method_tokenization(
-    executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest>,
-    builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithPmId>,
+    state: &routes::SessionState,
+    executor: tokenization::CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest>,
+    builder: tokenization::NetworkTokenizationBuilder<'_, tokenization::TokenizeWithPmId>,
     req: &domain::TokenizePaymentMethodRequest,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
     // Fetch payment method
@@ -5256,7 +5282,7 @@ pub async fn execute_payment_method_tokenization(
 
     // Fetch card from locker
     let card_details = get_card_from_locker(
-        executor.state,
+        &state,
         &customer.id,
         executor.merchant_account.get_id(),
         &locker_id,

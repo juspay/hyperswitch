@@ -1,6 +1,7 @@
 use ::payment_methods::{
     cards::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
+    tokenization,
 };
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
@@ -17,6 +18,11 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
+use crate::{core::customers, types::api::customers::CustomerRequest};
 use crate::{
     core::{
         api_locking,
@@ -29,14 +35,6 @@ use crate::{
         domain,
         storage::payment_method::PaymentTokenData,
     },
-};
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
-use crate::{
-    core::{customers, payment_methods::tokenize},
-    types::api::customers::CustomerRequest,
 };
 
 #[cfg(all(
@@ -1056,12 +1054,13 @@ pub async fn tokenize_card_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let res = Box::pin(cards::tokenize_card_flow(
-                &state,
-                CardNetworkTokenizeRequest::foreign_from(req),
-                &merchant_account,
-                &key_store,
-            ))
+            let res = Box::pin(
+                cards::PmCards {
+                    state: &state,
+                    merchant_account: &merchant_account,
+                }
+                .tokenize_card_flow(CardNetworkTokenizeRequest::foreign_from(req), &key_store),
+            )
             .await?;
             Ok(services::ApplicationResponse::Json(res))
         },
@@ -1103,12 +1102,13 @@ pub async fn tokenize_card_using_pm_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let res = Box::pin(cards::tokenize_card_flow(
-                &state,
-                CardNetworkTokenizeRequest::foreign_from(req),
-                &merchant_account,
-                &key_store,
-            ))
+            let res = Box::pin(
+                cards::PmCards {
+                    state: &state,
+                    merchant_account: &merchant_account,
+                }
+                .tokenize_card_flow(CardNetworkTokenizeRequest::foreign_from(req), &key_store),
+            )
             .await?;
             Ok(services::ApplicationResponse::Json(res))
         },
@@ -1126,10 +1126,10 @@ pub async fn tokenize_card_using_pm_api(
 pub async fn tokenize_card_batch_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    MultipartForm(form): MultipartForm<tokenize::CardNetworkTokenizeForm>,
+    MultipartForm(form): MultipartForm<tokenization::CardNetworkTokenizeForm>,
 ) -> HttpResponse {
     let flow = Flow::TokenizeCardBatch;
-    let (merchant_id, records) = match tokenize::get_tokenize_card_form_records(form) {
+    let (merchant_id, records) = match tokenization::get_tokenize_card_form_records(form) {
         Ok(res) => res,
         Err(e) => return api::log_and_return_error_response(e.into()),
     };
@@ -1144,12 +1144,14 @@ pub async fn tokenize_card_batch_api(
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
-                Box::pin(tokenize::tokenize_cards(
-                    &state,
+                tokenization::tokenize_cards(
                     req,
-                    &merchant_account,
                     &key_store,
-                ))
+                    &cards::PmCards {
+                        state: &state,
+                        merchant_account: &merchant_account,
+                    },
+                )
                 .await
             }
         },

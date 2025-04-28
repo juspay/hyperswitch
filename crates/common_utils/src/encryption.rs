@@ -5,9 +5,13 @@ use diesel::{
     serialize::ToSql,
     sql_types,
 };
+use error_stack::report;
+use error_stack::ResultExt;
+use josekit::jwe;
 use masking::Secret;
 
 use crate::{crypto::Encryptable, pii::EncryptionStrategy};
+use crate::{errors::CustomResult, fp_utils};
 
 impl<DB> FromSql<sql_types::Binary, DB> for Encryption
 where
@@ -70,4 +74,67 @@ impl Encryption {
     pub fn get_inner(&self) -> &Secret<Vec<u8>, EncryptionStrategy> {
         &self.inner
     }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone, strum::AsRefStr, strum::Display)]
+pub enum EncryptionAlgorithm {
+    A128GCM,
+    A256GCM,
+}
+
+pub async fn encrypt_jwe(
+    payload: &[u8],
+    public_key: impl AsRef<[u8]>,
+    algorithm: EncryptionAlgorithm,
+    key_id: Option<&str>,
+) -> CustomResult<String, std::fmt::Error> {
+    let alg = jwe::RSA_OAEP_256;
+    let mut src_header = jwe::JweHeader::new();
+    let enc_str = algorithm.as_ref();
+    src_header.set_content_encryption(enc_str);
+    src_header.set_token_type("JWT");
+    if let Some(key_id) = key_id {
+        src_header.set_key_id(key_id);
+    }
+    let encrypter = alg
+        .encrypter_from_pem(public_key)
+        .change_context(std::fmt::Error)
+        .attach_printable("Error getting JweEncryptor")?;
+
+    jwe::serialize_compact(payload, &src_header, &encrypter)
+        .change_context(std::fmt::Error)
+        .attach_printable("Error getting jwt string")
+}
+
+#[derive(Debug, Clone)]
+pub enum KeyIdCheck<'a> {
+    RequestResponseKeyId((&'a str, &'a str)),
+    SkipKeyIdCheck,
+}
+
+pub async fn decrypt_jwe(
+    jwt: &str,
+    key_ids: KeyIdCheck<'_>,
+    private_key: impl AsRef<[u8]>,
+    alg: jwe::alg::rsaes::RsaesJweAlgorithm,
+) -> CustomResult<String, std::fmt::Error> {
+    if let KeyIdCheck::RequestResponseKeyId((req_key_id, resp_key_id)) = key_ids {
+        fp_utils::when(req_key_id.ne(resp_key_id), || {
+            Err(report!(std::fmt::Error)
+                .attach_printable("key_id mismatch, Error authenticating response"))
+        })?;
+    }
+
+    let decrypter = alg
+        .decrypter_from_pem(private_key)
+        .change_context(std::fmt::Error)
+        .attach_printable("Error getting JweDecryptor")?;
+
+    let (dst_payload, _dst_header) = jwe::deserialize_compact(jwt, &decrypter)
+        .change_context(std::fmt::Error)
+        .attach_printable("Error getting Decrypted jwe")?;
+
+    String::from_utf8(dst_payload)
+        .change_context(std::fmt::Error)
+        .attach_printable("Could not decode JWE payload from UTF-8")
 }

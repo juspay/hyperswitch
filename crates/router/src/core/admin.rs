@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crate::core::payment_methods::cards::PmLocker;
+use ::payment_methods::{cards::LockerController, types as pm_types};
 use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
@@ -30,7 +32,7 @@ use crate::{
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::cards,
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
@@ -4929,22 +4931,22 @@ async fn locker_recipient_create_call(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert to CustomerId")?;
 
-    let payload = transformers::StoreLockerReq::LockerGeneric(transformers::StoreGenericReq {
+    let payload = pm_types::StoreLockerReq::LockerGeneric(pm_types::StoreGenericReq {
         merchant_id: merchant_id.to_owned(),
         merchant_customer_id: cust_id.clone(),
         enc_data,
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::add_card_to_hs_locker(
-        state,
-        &payload,
-        &cust_id,
-        api_enums::LockerChoice::HyperswitchCardVault,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt merchant bank account data")?;
+    let store_resp = PmLocker { state: &state }
+        .add_card_to_hs_locker(
+            &payload,
+            &cust_id,
+            api_enums::LockerChoice::HyperswitchCardVault,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
 }

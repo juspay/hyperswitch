@@ -1,7 +1,7 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::fmt::Debug;
 
-use ::payment_methods::cards::PaymentMethodsController;
+use ::payment_methods::cards::LockerController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};
@@ -741,21 +741,17 @@ pub async fn delete_network_token_from_locker_and_token_service(
     payment_method_id: String,
     network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
-    merchant_account: &domain::MerchantAccount,
 ) -> errors::RouterResult<DeleteCardResp> {
     //deleting network token from locker
-    let resp = payment_methods::cards::PmCards {
-        state,
-        merchant_account,
-    }
-    .delete_card_from_locker(
-        customer_id,
-        merchant_id,
-        network_token_locker_id
-            .as_ref()
-            .unwrap_or(&payment_method_id),
-    )
-    .await?;
+    let resp = payment_methods::cards::PmLocker { state }
+        .delete_card_from_locker(
+            customer_id,
+            merchant_id,
+            network_token_locker_id
+                .as_ref()
+                .unwrap_or(&payment_method_id),
+        )
+        .await?;
     if let Some(tokenization_service) = &state.conf.network_tokenization_service {
         let delete_token_resp = record_operation_time(
             async {

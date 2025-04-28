@@ -36,6 +36,7 @@ futures = { version = "0.3.30", optional = true }
 globset = "0.4.14"
 hex = "0.4.3"
 http = "0.2.12"
+josekit = "0.8.6"
 md5 = "0.7.0"
 nanoid = "0.4.0"
 nutype = { version = "0.4.2", features = ["serde"] }

@@ -11,6 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub use ::payment_methods::configs::settings::ConnectorApiClient;
 use actix_http::header::HeaderMap;
 use actix_web::{
     body,
@@ -388,6 +389,26 @@ where
     }
 }
 
+#[derive(Clone)]
+pub struct ApiCaller {
+    pub state: SessionState,
+    pub api_client: Box<dyn ApiClient>,
+}
+impl ApiCaller {
+    pub fn new(state: SessionState, api_client: Box<dyn ApiClient>) -> Self {
+        Self { state, api_client }
+    }
+}
+#[async_trait::async_trait]
+impl ConnectorApiClient for ApiCaller {
+    async fn call_connector_api(
+        &self,
+        request: Request,
+        flow_name: String,
+    ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
+        call_connector_api(&self.state, request, &flow_name).await
+    }
+}
 #[instrument(skip_all)]
 pub async fn call_connector_api(
     state: &SessionState,

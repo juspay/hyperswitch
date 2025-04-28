@@ -4,6 +4,9 @@ use std::{
     sync::Arc,
 };
 
+pub use ::payment_methods::network_tokenization::{
+    NetworkTokenizationService, NetworkTokenizationSupportedCardNetworks,
+};
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
@@ -506,24 +509,6 @@ pub struct CorsSettings {
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkTokenizationSupportedCardNetworks {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub card_networks: HashSet<enums::CardNetwork>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct NetworkTokenizationService {
-    pub generate_token_url: url::Url,
-    pub fetch_token_url: url::Url,
-    pub token_service_api_key: Secret<String>,
-    pub public_key: Secret<String>,
-    pub private_key: Secret<String>,
-    pub key_id: String,
-    pub delete_token_url: url::Url,
-    pub check_token_status_url: url::Url,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

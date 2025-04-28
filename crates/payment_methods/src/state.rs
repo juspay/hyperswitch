@@ -15,7 +15,10 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     merchant_account::MerchantAccount, payment_methods::PaymentMethod,
 };
+use hyperswitch_interfaces::secrets_interface::secret_state;
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
+
+use crate::configs::settings::{ConnectorApiClient, PaymentMethodsConfig};
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsStorageInterface:
@@ -44,6 +47,8 @@ pub struct PaymentMethodsState {
     pub store: Box<dyn PaymentMethodsStorageInterface>,
     pub key_store: Option<MerchantKeyStore>,
     pub key_manager_state: KeyManagerState,
+    pub conf: PaymentMethodsConfig<secret_state::RawSecret>,
+    pub connector_api_client: Box<dyn ConnectorApiClient>,
 }
 impl From<&PaymentMethodsState> for KeyManagerState {
     fn from(state: &PaymentMethodsState) -> Self {

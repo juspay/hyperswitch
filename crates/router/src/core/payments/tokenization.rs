@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ::payment_methods::cards::PaymentMethodsController;
+use ::payment_methods::cards::{LockerController, PaymentMethodsController};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -31,7 +31,7 @@ use crate::{
         mandate,
         payment_methods::{
             self,
-            cards::{create_encrypted_data, PmCards},
+            cards::{self as pm_cards, create_encrypted_data},
             network_tokenization,
         },
         payments,
@@ -98,10 +98,11 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
-    let cards = PmCards {
+    let cards = pm_cards::PmCards {
         state,
         merchant_account,
     };
+    let locker = pm_cards::PmLocker { state };
     match save_payment_method_data.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -549,7 +550,7 @@ where
                                     }
                                 }?;
 
-                                cards
+                                locker
                                     .delete_card_from_locker(
                                         &customer_id,
                                         merchant_id,
@@ -560,7 +561,7 @@ where
                                     )
                                     .await?;
 
-                                let add_card_resp = cards
+                                let add_card_resp = locker
                                     .add_card_hs(
                                         payment_method_create_request,
                                         &card,
@@ -572,6 +573,7 @@ where
                                                 .as_ref()
                                                 .unwrap_or(&existing_pm.payment_method_id),
                                         ),
+                                        merchant_account,
                                     )
                                     .await;
 
@@ -945,13 +947,13 @@ pub async fn save_in_locker(
         .clone()
         .get_required_value("customer_id")?;
     match payment_method_request.card.clone() {
-        Some(card) => Box::pin(
-            PmCards {
-                state,
-                merchant_account,
-            }
-            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
-        )
+        Some(card) => Box::pin(pm_cards::PmLocker { state }.add_card_to_locker(
+            payment_method_request,
+            &card,
+            &customer_id,
+            None,
+            merchant_account,
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed"),
@@ -1057,18 +1059,13 @@ pub async fn save_network_token_in_locker(
                     card_type: None,
                 };
 
-                let (res, dc) = Box::pin(
-                    PmCards {
-                        state,
-                        merchant_account,
-                    }
-                    .add_card_to_locker(
-                        payment_method_request,
-                        &network_token_data,
-                        &customer_id,
-                        None,
-                    ),
-                )
+                let (res, dc) = Box::pin(pm_cards::PmLocker { state }.add_card_to_locker(
+                    payment_method_request,
+                    &network_token_data,
+                    &customer_id,
+                    None,
+                    merchant_account,
+                ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add Network Token Failed")?;

@@ -1,4 +1,8 @@
-use ::payment_methods::cards::PaymentMethodsController;
+use crate::core::payouts::helpers::cards::PmLocker;
+use ::payment_methods::{
+    cards::{LockerController, PaymentMethodsController},
+    types::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
+};
 use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     crypto::Encryptable,
@@ -25,11 +29,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::{
-            cards,
-            transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
-            vault,
-        },
+        payment_methods::{cards, vault},
         payments::{helpers as payment_helpers, routing, CustomerDetails},
         routing::TransactionData,
         utils as core_utils,
@@ -336,14 +336,14 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::add_card_to_hs_locker(
-        state,
-        &locker_req,
-        customer_id,
-        api_enums::LockerChoice::HyperswitchCardVault,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let stored_resp = PmLocker { state: &state }
+        .add_card_to_hs_locker(
+            &locker_req,
+            customer_id,
+            api_enums::LockerChoice::HyperswitchCardVault,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let db = &*state.store;
 
@@ -601,14 +601,14 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::add_card_to_hs_locker(
-            state,
-            &locker_req,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError);
+        let stored_resp = PmLocker { state: &state }
+            .add_card_to_hs_locker(
+                &locker_req,
+                customer_id,
+                api_enums::LockerChoice::HyperswitchCardVault,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError);
 
         // Check if locker operation was successful or not, if not, delete the entry from payment_methods table
         if let Err(err) = stored_resp {

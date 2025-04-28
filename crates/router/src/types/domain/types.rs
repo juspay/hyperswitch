@@ -1,4 +1,5 @@
-use ::payment_methods::state::PaymentMethodsState;
+use crate::services::api::ApiCaller;
+use ::payment_methods::{configs::settings as pm_settings, state as pm_state};
 use common_utils::types::keymanager::KeyManagerState;
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
@@ -23,12 +24,23 @@ impl From<&crate::SessionState> for KeyManagerState {
     }
 }
 
-impl From<&crate::SessionState> for PaymentMethodsState {
+impl From<&crate::SessionState> for pm_state::PaymentMethodsState {
     fn from(state: &crate::SessionState) -> Self {
         Self {
             store: state.store.get_payment_methods_store(),
             key_store: None,
             key_manager_state: state.into(),
+            conf: pm_settings::PaymentMethodsConfig {
+                network_tokenization_supported_card_networks: state
+                    .conf
+                    .network_tokenization_supported_card_networks
+                    .clone(),
+                locker: pm_settings::LockerConfig {
+                    ttl_for_storage_in_secs: state.conf.locker.ttl_for_storage_in_secs,
+                },
+                network_tokenization_service: state.conf.network_tokenization_service.clone(),
+            },
+            connector_api_client: Box::new(ApiCaller::new(state.clone(), state.api_client.clone())),
         }
     }
 }
