@@ -48,8 +48,6 @@ use super::{
     user_key_store::UserKeyStoreInterface,
     user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload, UserRoleInterface},
 };
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::db::tokenization::TokenizationInterface;
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
 use crate::{
