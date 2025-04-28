@@ -53,8 +53,9 @@ Check the Table Of Contents to jump to the relevant section.
 
    ```shell
    docker compose up -d
+   # This script verifies the setup and provides links to the individual components.
+   scripts/docker_output.sh
    ```
-
    This should run the hyperswitch app server, web client and control center.
    Wait for the `migration_runner` container to finish installing `diesel_cli`
    and running migrations (approximately 2 minutes), and for the
@@ -154,8 +155,8 @@ Once the services have been confirmed to be up and running, you can proceed with
 
    This will compile the payments router, the primary component within
    hyperswitch and then start it.
-   Depending on the specifications of your machine, compilation can take
-   around 15 minutes.
+   Depending on the specifications of your machine, **compilation can take
+   around 30 minutes**.
 
 5. (Optional) You can also choose to
    [start the scheduler and/or monitoring services](#running-additional-services)

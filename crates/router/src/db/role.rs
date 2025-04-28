@@ -265,7 +265,13 @@ impl RoleInterface for MockDb {
                     && (role.tenant_id == *tenant_id)
                     && role.org_id == *org_id
                     && ((role.scope == RoleScope::Organization)
-                        || (role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant)
+                        || (role
+                            .merchant_id
+                            .as_ref()
+                            .is_some_and(|merchant_id_from_role| {
+                                merchant_id_from_role == merchant_id
+                                    && role.scope == RoleScope::Merchant
+                            }))
                         || (role
                             .profile_id
                             .as_ref()
@@ -369,10 +375,10 @@ impl RoleInterface for MockDb {
         let roles_list: Vec<_> = roles
             .iter()
             .filter(|role| {
-                let matches_merchant = match merchant_id {
-                    Some(merchant_id) => role.merchant_id == *merchant_id,
-                    None => true,
-                };
+                let matches_merchant = merchant_id
+                    .zip(role.merchant_id.as_ref())
+                    .map(|(merchant_id, role_merchant_id)| merchant_id == role_merchant_id)
+                    .unwrap_or(true);
 
                 matches_merchant
                     && role.org_id == *org_id
@@ -420,17 +426,26 @@ impl RoleInterface for MockDb {
                         vec![EntityType::Merchant]
                     };
 
+                    let matches_merchant = role
+                        .merchant_id
+                        .as_ref()
+                        .is_some_and(|merchant_id_from_role| merchant_id_from_role == merchant_id);
+
                     role.tenant_id == tenant_id
                         && role.org_id == org_id
-                        && (role.scope == RoleScope::Organization
-                            || role.merchant_id == *merchant_id)
+                        && (role.scope == RoleScope::Organization || matches_merchant)
                         && entity_in_vec.contains(&role.entity_type)
                 }
                 storage::ListRolesByEntityPayload::Profile(merchant_id, profile_id) => {
                     let entity_in_vec = [EntityType::Profile];
 
                     let matches_merchant =
-                        role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
+                        role.merchant_id
+                            .as_ref()
+                            .is_some_and(|merchant_id_from_role| {
+                                merchant_id_from_role == merchant_id
+                                    && role.scope == RoleScope::Merchant
+                            });
 
                     let matches_profile =
                         role.profile_id

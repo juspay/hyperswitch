@@ -76,6 +76,7 @@ pub struct PaymentsAuthorizeData {
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -658,6 +659,7 @@ pub struct RefundsData {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -935,4 +937,5 @@ pub struct SetupMandateRequestData {
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
 }
