@@ -1464,6 +1464,104 @@ pub async fn success_based_routing_update_configs(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn elimination_routing_update_configs(
+    state: SessionState,
+    request: routing_types::EliminationRoutingConfig,
+    algorithm_id: common_utils::id_type::RoutingId,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    use external_services::grpc_client::dynamic_routing::elimination_based_client::EliminationBasedRouting;
+
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+    );
+
+    let db = state.store.as_ref();
+
+    let dynamic_routing_algo_to_update = db
+        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let mut config_to_update: routing::EliminationRoutingConfig = dynamic_routing_algo_to_update
+        .algorithm_data
+        .parse_value::<routing::EliminationRoutingConfig>("EliminationRoutingConfig")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize algorithm data from routing table into EliminationRoutingConfig",
+        )?;
+
+    config_to_update.update(request);
+
+    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+    let algo = RoutingAlgorithm {
+        algorithm_id: updated_algorithm_id,
+        profile_id: dynamic_routing_algo_to_update.profile_id,
+        merchant_id: dynamic_routing_algo_to_update.merchant_id,
+        name: dynamic_routing_algo_to_update.name,
+        description: dynamic_routing_algo_to_update.description,
+        kind: dynamic_routing_algo_to_update.kind,
+        algorithm_data: serde_json::json!(config_to_update),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+    };
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    // redact cache for elimination routing configs
+    let cache_key = format!(
+        "{}_{}",
+        profile_id.get_string_repr(),
+        algorithm_id.get_string_repr()
+    );
+    let cache_entries_to_redact = vec![cache::CacheKind::EliminationBasedDynamicRoutingCache(
+        cache_key.into(),
+    )];
+
+    let _ = cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        cache_entries_to_redact,
+    )
+    .await
+    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}"));
+
+    let new_record = record.foreign_into();
+
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+    );
+
+    state
+        .grpc_client
+        .dynamic_routing
+        .elimination_based_client
+        .as_ref()
+        .async_map(|er_client| async {
+            er_client
+                .invalidate_elimination_bucket(
+                    profile_id.get_string_repr().into(),
+                    state.get_grpc_headers(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to invalidate the routing keys".to_string(),
+                })
+        })
+        .await
+        .transpose()?;
+
+    Ok(service_api::ApplicationResponse::Json(new_record))
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn contract_based_dynamic_routing_setup(
     state: SessionState,
     key_store: domain::MerchantKeyStore,

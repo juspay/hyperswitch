@@ -817,6 +817,17 @@ pub struct EliminationAnalyserConfig {
     pub bucket_leak_interval_in_secs: Option<u64>,
 }
 
+impl EliminationAnalyserConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(bucket_size) = new.bucket_size {
+            self.bucket_size = Some(bucket_size)
+        }
+        if let Some(bucket_leak_interval_in_secs) = new.bucket_leak_interval_in_secs {
+            self.bucket_leak_interval_in_secs = Some(bucket_leak_interval_in_secs)
+        }
+    }
+}
+
 impl Default for EliminationRoutingConfig {
     fn default() -> Self {
         Self {
@@ -825,6 +836,19 @@ impl Default for EliminationRoutingConfig {
                 bucket_size: Some(5),
                 bucket_leak_interval_in_secs: Some(2),
             }),
+        }
+    }
+}
+
+impl EliminationRoutingConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(params) = new.params {
+            self.params = Some(params)
+        }
+        if let Some(new_config) = new.elimination_analyser_config {
+            self.elimination_analyser_config
+                .as_mut()
+                .map(|config| config.update(new_config));
         }
     }
 }
@@ -891,6 +915,13 @@ pub enum SuccessRateSpecificityLevel {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedRoutingPayloadWrapper {
     pub updated_config: SuccessBasedRoutingConfig,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EliminationRoutingPayloadWrapper {
+    pub updated_config: EliminationRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
 }

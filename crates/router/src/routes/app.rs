@@ -2001,10 +2001,18 @@ impl Profile {
                             .route(web::post().to(routing::set_dynamic_routing_volume_split)),
                     )
                     .service(
-                        web::scope("/elimination").service(
-                            web::resource("/toggle")
-                                .route(web::post().to(routing::toggle_elimination_routing)),
-                        ),
+                        web::scope("/elimination")
+                            .service(
+                                web::resource("/toggle")
+                                    .route(web::post().to(routing::toggle_elimination_routing)),
+                            )
+                            .service(web::resource("config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::elimination_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
                     )
                     .service(
                         web::scope("/contracts")
