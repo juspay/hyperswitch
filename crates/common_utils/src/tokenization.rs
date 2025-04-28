@@ -8,10 +8,7 @@ use diesel;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    consts::{TOKEN_LENGTH},
-    id_type::GlobalTokenId,
-};
+use crate::{consts::TOKEN_LENGTH, id_type::GlobalTokenId};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 /// Response structure for tokenization operations
