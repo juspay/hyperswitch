@@ -44,6 +44,6 @@ pub use hyperswitch_connectors::connectors::{
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    plaid::Plaid, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
+    signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
     wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
