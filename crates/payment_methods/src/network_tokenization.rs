@@ -1,19 +1,18 @@
-use common_enums::enums;
-use common_enums::ApplicationError;
-use common_utils::ext_traits::BytesExt;
-use common_utils::ext_traits::ConfigExt;
-use common_utils::ext_traits::Encode;
-use common_utils::{errors::CustomResult, id_type};
+use std::collections::HashSet;
+
+use common_enums::{enums, ApplicationError};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{BytesExt, ConfigExt, Encode},
+    id_type,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models as domain;
 use hyperswitch_interfaces::secrets_interface::{self, secret_handler, secret_state};
 use josekit::jwe;
-use masking::Mask;
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{Mask, PeekInterface, Secret};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 use crate::{
     configs::settings::deserialize_hashset, core::errors::NetworkTokenizationError, headers,

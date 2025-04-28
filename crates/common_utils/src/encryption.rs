@@ -5,13 +5,11 @@ use diesel::{
     serialize::ToSql,
     sql_types,
 };
-use error_stack::report;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use josekit::jwe;
 use masking::Secret;
 
-use crate::{crypto::Encryptable, pii::EncryptionStrategy};
-use crate::{errors::CustomResult, fp_utils};
+use crate::{crypto::Encryptable, errors::CustomResult, fp_utils, pii::EncryptionStrategy};
 
 impl<DB> FromSql<sql_types::Binary, DB> for Encryption
 where

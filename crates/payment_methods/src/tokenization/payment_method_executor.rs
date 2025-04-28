@@ -1,8 +1,10 @@
+use api_models as api;
 use api_models::enums as api_enums;
 use common_utils::{
     ext_traits::OptionExt, fp_utils::when, pii::Email, types::keymanager::KeyManagerState,
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models as domain;
 use masking::Secret;
 use router_env::logger;
 
@@ -14,8 +16,6 @@ use crate::{
     core::errors::{self, PmResult},
     types::payment_methods as pm_transformers,
 };
-use api_models as api;
-use hyperswitch_domain_models as domain;
 
 // Available states for payment method tokenization
 pub struct TokenizeWithPmId;

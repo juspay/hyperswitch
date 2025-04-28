@@ -1,10 +1,5 @@
 use std::str::FromStr;
 
-use crate::{
-    core::errors::{self, PmResult},
-    core::migration,
-    types::payment_methods as pm_transformers,
-};
 use api_models::{self as api, enums as api_enums, payment_methods as payment_methods_api};
 use common_utils::{
     consts, crypto,
@@ -25,6 +20,13 @@ use router_env::logger;
 use super::{
     CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
+};
+use crate::{
+    core::{
+        errors::{self, PmResult},
+        migration,
+    },
+    types::payment_methods as pm_transformers,
 };
 
 // Available states for card tokenization

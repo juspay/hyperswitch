@@ -1,4 +1,3 @@
-use crate::core::payouts::helpers::cards::PmLocker;
 use ::payment_methods::{
     cards::{LockerController, PaymentMethodsController},
     types::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
@@ -31,6 +30,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
         payments::{helpers as payment_helpers, routing, CustomerDetails},
+        payouts::helpers::cards::PmLocker,
         routing::TransactionData,
         utils as core_utils,
     },

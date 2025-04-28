@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use crate::core::payment_methods::cards::PmLocker;
 use ::payment_methods::{cards::LockerController, types as pm_types};
 use api_models::{
     admin::{self as admin_types},
@@ -32,7 +31,7 @@ use crate::{
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::cards,
+        payment_methods::{cards, cards::PmLocker},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,

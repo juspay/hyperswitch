@@ -1,10 +1,12 @@
-pub use crate::cards::{DataDuplicationCheck, DeleteCardResp};
+use std::fmt::Debug;
+
 use api_models::{enums as api_enums, payment_methods::Card};
 use cards::CardNumber;
 use common_utils::id_type;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+
+pub use crate::cards::{DataDuplicationCheck, DeleteCardResp};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

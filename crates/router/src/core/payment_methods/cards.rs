@@ -4,6 +4,11 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use ::payment_methods::tokenization::NetworkTokenizationProcess;
 use ::payment_methods::{
     cards::{LockerController, PaymentMethodsController},
     configs::payment_connector_required_fields::{
@@ -117,11 +122,6 @@ use crate::{
     core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
     utils::ConnectorResponseExt,
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use ::payment_methods::tokenization::NetworkTokenizationProcess;
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
     pub merchant_account: &'a domain::MerchantAccount,
