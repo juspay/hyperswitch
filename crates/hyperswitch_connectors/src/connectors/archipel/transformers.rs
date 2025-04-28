@@ -296,7 +296,7 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
                     .application_expiration_date
                     .get(0..2)
                     .ok_or_else(|| errors::ConnectorError::ParsingFailed)?
-                    .to_owned(),
+                    .to_string(),
             )
         };
         let expiry_month = apple_pay_decrypt_data.get_expiry_month()?;
@@ -918,9 +918,10 @@ impl<F>
             ),
         };
 
-        let metadata: Option<serde_json::Value> = ArchipelTransactionMetadata::from(&item.response)
-            .encode_to_value()
-            .ok();
+        let connector_metadata: Option<serde_json::Value> =
+            ArchipelTransactionMetadata::from(&item.response)
+                .encode_to_value()
+                .ok();
 
         let status: AttemptStatus =
             ArchipelFlowStatus::new(item.response.transaction_result, archipel_flow).into();
@@ -928,11 +929,11 @@ impl<F>
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: metadata,
+                connector_metadata,
                 // Save archipel initial transaction uuid for network transaction mit/cit
                 network_txn_id: item
                     .data
@@ -961,6 +962,13 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        if let Some(error) = item.response.error {
+            return Ok(Self {
+                response: Err(ArchipelErrorMessageWithHttpCode::new(error, item.http_code).into()),
+                ..item.data
+            });
+        };
+
         let connector_metadata: Option<serde_json::Value> =
             ArchipelTransactionMetadata::from(&item.response)
                 .encode_to_value()
@@ -1030,6 +1038,13 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        if let Some(error) = item.response.error {
+            return Ok(Self {
+                response: Err(ArchipelErrorMessageWithHttpCode::new(error, item.http_code).into()),
+                ..item.data
+            });
+        };
+
         let connector_metadata: Option<serde_json::Value> =
             ArchipelTransactionMetadata::from(&item.response)
                 .encode_to_value()
@@ -1044,7 +1059,7 @@ impl<F>
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id.to_owned()),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1152,24 +1167,34 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        if let Some(error) = item.response.error {
+            return Ok(Self {
+                response: Err(ArchipelErrorMessageWithHttpCode::new(error, item.http_code).into()),
+                ..item.data
+            });
+        };
+
+        let connector_metadata: Option<serde_json::Value> =
+            ArchipelTransactionMetadata::from(&item.response)
+                .encode_to_value()
+                .ok();
+
         let status: AttemptStatus = ArchipelFlowStatus::new(
-            item.response.transaction_result.clone(),
+            item.response.transaction_result,
             ArchipelPaymentFlow::Verify,
         )
         .into();
 
-        let metadata = ArchipelTransactionMetadata::from(&item.response);
-
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id.to_owned()),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: metadata.encode_to_value().ok(),
+                connector_metadata,
                 network_txn_id: Some(item.response.transaction_id.clone()),
-                connector_response_reference_id: Some(item.response.transaction_id.clone()),
+                connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: Some(false),
             }),
             ..item.data
@@ -1206,24 +1231,32 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        if let Some(error) = item.response.error {
+            return Ok(Self {
+                response: Err(ArchipelErrorMessageWithHttpCode::new(error, item.http_code).into()),
+                ..item.data
+            });
+        };
+
+        let connector_metadata: Option<serde_json::Value> =
+            ArchipelTransactionMetadata::from(&item.response)
+                .encode_to_value()
+                .ok();
+
         let status: AttemptStatus = ArchipelFlowStatus::new(
-            item.response.transaction_result.clone(),
+            item.response.transaction_result,
             ArchipelPaymentFlow::Cancel,
         )
         .into();
 
-        let metadata: Option<serde_json::Value> = ArchipelTransactionMetadata::from(&item.response)
-            .encode_to_value()
-            .ok();
-
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id.to_owned()),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: metadata,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
@@ -1261,7 +1294,7 @@ impl From<ArchipelRouterData<&PaymentsIncrementalAuthorizationRouterData>>
                 certainty: ArchipelPaymentCertainty::Estimated,
                 initiator: ArchipelPaymentInitiator::Customer,
             },
-            tenant_id: item.tenant_id.clone(),
+            tenant_id: item.tenant_id,
         }
     }
 }
@@ -1322,7 +1355,7 @@ impl<F> From<ArchipelRouterData<&RefundsRouterData<F>>> for ArchipelRefundReques
         Self {
             order: ArchipelRefundOrder {
                 amount: item.amount,
-                currency: item.router_data.request.currency.to_owned(),
+                currency: item.router_data.request.currency,
             },
             tenant_id: item.tenant_id,
         }
@@ -1372,8 +1405,7 @@ impl TryFrom<ArchipelRefundResponse> for RefundsResponseData {
         Ok(Self {
             connector_refund_id: resp
                 .transaction_id
-                .ok_or_else(|| errors::ConnectorError::ParsingFailed)?
-                .to_owned(),
+                .ok_or_else(|| errors::ConnectorError::ParsingFailed)?,
             refund_status: RefundStatus::from(resp.transaction_result),
         })
     }
@@ -1426,14 +1458,14 @@ impl From<ArchipelErrorMessageWithHttpCode> for ErrorResponse {
     ) -> Self {
         Self {
             status_code: http_code,
-            code: error_message.code.clone(),
+            code: error_message.code,
             attempt_status: None,
             connector_transaction_id: None,
             message: error_message
                 .description
                 .clone()
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: error_message.description.clone(),
+            reason: error_message.description,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,

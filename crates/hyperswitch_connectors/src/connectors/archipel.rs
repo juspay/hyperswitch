@@ -132,14 +132,14 @@ impl ConnectorCommon for Archipel {
 
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: err.code.clone(),
+                    code: err.code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    reason: err.description.clone(),
                     message: err
                         .description
-                        .unwrap_or(NO_ERROR_MESSAGE.to_string())
-                        .clone(),
+                        .clone()
+                        .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                    reason: err.description,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
