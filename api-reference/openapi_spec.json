@@ -38,42 +38,53 @@
                 "Create a 3DS payment": {
                   "value": {
                     "amount": 6540,
-                    "authentication_type": "three_ds",
-                    "currency": "USD"
+                    "currency": "USD",
+                    "authentication_type": "three_ds"
                   }
                 },
                 "Create a manual capture payment": {
                   "value": {
                     "amount": 6540,
-                    "billing": {
-                      "address": {
-                        "city": "San Fransico",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe",
-                        "line1": "1467",
-                        "line2": "Harrison Street",
-                        "line3": "Harrison Street",
-                        "state": "California",
-                        "zip": "94122"
-                      },
-                      "phone": {
-                        "country_code": "+91",
-                        "number": "9123456789"
-                      }
-                    },
                     "currency": "USD",
                     "customer": {
                       "id": "cus_abcdefgh"
+                    },
+                    "billing": {
+                      "address": {
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "city": "San Fransico",
+                        "state": "California",
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe"
+                      },
+                      "phone": {
+                        "number": "9123456789",
+                        "country_code": "+91"
+                      }
                     }
                   }
                 },
                 "Create a payment and save the card": {
                   "value": {
                     "amount": 6540,
-                    "authentication_type": "no_three_ds",
-                    "confirm": true,
                     "currency": "USD",
+                    "confirm": true,
+                    "customer_id": "StripeCustomer123",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
                     "customer_acceptance": {
                       "acceptance_type": "online",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
@@ -82,49 +93,38 @@
                         "user_agent": "amet irure esse"
                       }
                     },
-                    "customer_id": "StripeCustomer123",
-                    "payment_method": "card",
-                    "payment_method_data": {
-                      "card": {
-                        "card_cvc": "123",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_number": "4242424242424242"
-                      }
-                    },
                     "setup_future_usage": "off_session"
                   }
                 },
                 "Create a payment using an already saved card's token": {
                   "value": {
                     "amount": 6540,
-                    "card_cvc": "123",
-                    "client_secret": "{{client_secret}}",
-                    "confirm": true,
                     "currency": "USD",
+                    "confirm": true,
+                    "client_secret": "{{client_secret}}",
                     "payment_method": "card",
-                    "payment_token": "{{payment_token}}"
+                    "payment_token": "{{payment_token}}",
+                    "card_cvc": "123"
                   }
                 },
                 "Create a payment with customer details and metadata": {
                   "value": {
                     "amount": 6540,
                     "currency": "USD",
+                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
                     "customer": {
-                      "email": "john@example.com",
                       "id": "cus_abcdefgh",
                       "name": "John Dough",
-                      "phone": "9123456789"
+                      "phone": "9123456789",
+                      "email": "john@example.com"
                     },
                     "description": "Its my first payment request",
+                    "statement_descriptor_name": "joseph",
+                    "statement_descriptor_suffix": "JS",
                     "metadata": {
                       "udf1": "some-value",
                       "udf2": "some-value"
-                    },
-                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
-                    "statement_descriptor_name": "joseph",
-                    "statement_descriptor_suffix": "JS"
+                    }
                   }
                 },
                 "Create a payment with minimal fields": {
@@ -136,10 +136,10 @@
                 "Create a recurring payment with mandate_id": {
                   "value": {
                     "amount": 6540,
-                    "authentication_type": "no_three_ds",
-                    "confirm": true,
                     "currency": "USD",
+                    "confirm": true,
                     "customer_id": "StripeCustomer",
+                    "authentication_type": "no_three_ds",
                     "mandate_id": "{{mandate_id}}",
                     "off_session": true
                   }
@@ -147,18 +147,21 @@
                 "Create a setup mandate payment": {
                   "value": {
                     "amount": 6540,
-                    "authentication_type": "no_three_ds",
-                    "confirm": true,
                     "currency": "USD",
-                    "customer_acceptance": {
-                      "acceptance_type": "online",
-                      "accepted_at": "1963-05-03T04:07:52.723Z",
-                      "online": {
-                        "ip_address": "127.0.0.1",
-                        "user_agent": "amet irure esse"
+                    "confirm": true,
+                    "customer_id": "StripeCustomer123",
+                    "authentication_type": "no_three_ds",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
                       }
                     },
-                    "customer_id": "StripeCustomer123",
+                    "setup_future_usage": "off_session",
                     "mandate_data": {
                       "customer_acceptance": {
                         "acceptance_type": "online",
@@ -175,17 +178,14 @@
                         }
                       }
                     },
-                    "payment_method": "card",
-                    "payment_method_data": {
-                      "card": {
-                        "card_cvc": "123",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_number": "4242424242424242"
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
                       }
-                    },
-                    "setup_future_usage": "off_session"
+                    }
                   }
                 }
               }
@@ -250,19 +250,19 @@
                   "value": {
                     "shipping": {
                       "address": {
-                        "city": "San Fransico",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe",
                         "line1": "1467",
                         "line2": "Harrison Street",
                         "line3": "Harrison Street",
+                        "city": "San Fransico",
                         "state": "California",
-                        "zip": "94122"
+                        "zip": "94122",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe"
                       },
                       "phone": {
-                        "country_code": "+91",
-                        "number": "9123456789"
+                        "number": "9123456789",
+                        "country_code": "+91"
                       }
                     }
                   }
@@ -377,6 +377,17 @@
               "examples": {
                 "Confirm a payment with payment method data": {
                   "value": {
+                    "payment_method": "card",
+                    "payment_method_type": "credit",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
                     "customer_acceptance": {
                       "acceptance_type": "online",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
@@ -384,18 +395,7 @@
                         "ip_address": "127.0.0.1",
                         "user_agent": "amet irure esse"
                       }
-                    },
-                    "payment_method": "card",
-                    "payment_method_data": {
-                      "card": {
-                        "card_cvc": "123",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_number": "4242424242424242"
-                      }
-                    },
-                    "payment_method_type": "credit"
+                    }
                   }
                 }
               }
@@ -1026,15 +1026,15 @@
               "examples": {
                 "Create a relay request": {
                   "value": {
-                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
                     "connector_resource_id": "7256228702616471803954",
+                    "connector_id": "mca_5apGeP94tMts6rg3U3kR",
+                    "type": "refund",
                     "data": {
                       "refund": {
                         "amount": 6540,
                         "currency": "USD"
                       }
-                    },
-                    "type": "refund"
+                    }
                   }
                 }
               }
@@ -1125,9 +1125,9 @@
               "examples": {
                 "Create an instant refund to refund partial amount": {
                   "value": {
-                    "amount": 654,
                     "payment_id": "{{payment_id}}",
-                    "refund_type": "instant"
+                    "refund_type": "instant",
+                    "amount": 654
                   }
                 },
                 "Create an instant refund to refund the whole amount": {
@@ -1138,10 +1138,10 @@
                 },
                 "Create an instant refund with reason": {
                   "value": {
-                    "amount": 6540,
                     "payment_id": "{{payment_id}}",
-                    "reason": "Customer returned product",
-                    "refund_type": "instant"
+                    "refund_type": "instant",
+                    "amount": 6540,
+                    "reason": "Customer returned product"
                   }
                 }
               }
@@ -1744,37 +1744,37 @@
               "examples": {
                 "Create a merchant account with custom connector label": {
                   "value": {
-                    "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
-                      "auth_type": "BodyKey",
-                      "key1": "{{adyen_merchant_account}}"
-                    },
-                    "connector_label": "EU_adyen",
+                    "connector_type": "payment_processor",
                     "connector_name": "adyen",
-                    "connector_type": "payment_processor"
+                    "connector_label": "EU_adyen",
+                    "connector_account_details": {
+                      "auth_type": "BodyKey",
+                      "api_key": "{{adyen-api-key}}",
+                      "key1": "{{adyen_merchant_account}}"
+                    }
                   }
                 },
                 "Create a merchant connector account under a specific profile": {
                   "value": {
+                    "connector_type": "payment_processor",
+                    "connector_name": "adyen",
                     "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
                       "auth_type": "BodyKey",
+                      "api_key": "{{adyen-api-key}}",
                       "key1": "{{adyen_merchant_account}}"
                     },
-                    "connector_name": "adyen",
-                    "connector_type": "payment_processor",
                     "profile_id": "{{profile_id}}"
                   }
                 },
                 "Create a merchant connector account with minimal fields": {
                   "value": {
-                    "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
-                      "auth_type": "BodyKey",
-                      "key1": "{{adyen_merchant_account}}"
-                    },
+                    "connector_type": "payment_processor",
                     "connector_name": "adyen",
-                    "connector_type": "payment_processor"
+                    "connector_account_details": {
+                      "auth_type": "BodyKey",
+                      "api_key": "{{adyen-api-key}}",
+                      "key1": "{{adyen_merchant_account}}"
+                    }
                   }
                 }
               }
@@ -2549,16 +2549,16 @@
               "examples": {
                 "Save a card": {
                   "value": {
+                    "payment_method": "card",
+                    "payment_method_type": "credit",
+                    "payment_method_issuer": "Visa",
                     "card": {
+                      "card_number": "4242424242424242",
                       "card_exp_month": "11",
                       "card_exp_year": "25",
-                      "card_holder_name": "John Doe",
-                      "card_number": "4242424242424242"
+                      "card_holder_name": "John Doe"
                     },
-                    "customer_id": "{{customer_id}}",
-                    "payment_method": "card",
-                    "payment_method_issuer": "Visa",
-                    "payment_method_type": "credit"
+                    "customer_id": "{{customer_id}}"
                   }
                 }
               }
@@ -5376,6 +5376,10 @@
                   "value": {
                     "created_after": "2023-01-01T00:00:00",
                     "created_before": "2023-01-31T23:59:59",
+                    "limit": 5,
+                    "offset": 0,
+                    "object_id": "{{object_id}}",
+                    "profile_id": "{{profile_id}}",
                     "event_classes": [
                       "payments",
                       "refunds"
@@ -5383,11 +5387,7 @@
                     "event_types": [
                       "payment_succeeded"
                     ],
-                    "is_delivered": true,
-                    "limit": 5,
-                    "object_id": "{{object_id}}",
-                    "offset": 0,
-                    "profile_id": "{{profile_id}}"
+                    "is_delivered": true
                   }
                 }
               }
@@ -5434,6 +5434,10 @@
                   "value": {
                     "created_after": "2023-01-01T00:00:00",
                     "created_before": "2023-01-31T23:59:59",
+                    "limit": 5,
+                    "offset": 0,
+                    "object_id": "{{object_id}}",
+                    "profile_id": "{{profile_id}}",
                     "event_classes": [
                       "payments",
                       "refunds"
@@ -5441,11 +5445,7 @@
                     "event_types": [
                       "payment_succeeded"
                     ],
-                    "is_delivered": true,
-                    "limit": 5,
-                    "object_id": "{{object_id}}",
-                    "offset": 0,
-                    "profile_id": "{{profile_id}}"
+                    "is_delivered": true
                   }
                 }
               }
@@ -14851,38 +14851,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
                 "payment_method_types": [
                   "upi_collect",
                   "upi_intent"
+                ],
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "recurring_enabled": true
+                "accepted_currencies": {
+                  "type": "enable_only",
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ]
+                },
+                "accepted_countries": {
+                  "type": "disable_only",
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ]
+                },
+                "minimum_amount": 1,
+                "maximum_amount": 68607706,
+                "recurring_enabled": true,
+                "installment_payment_enabled": true
               }
             ],
             "nullable": true
@@ -15096,38 +15096,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
                 "payment_method_types": [
                   "upi_collect",
                   "upi_intent"
+                ],
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "recurring_enabled": true
+                "accepted_currencies": {
+                  "type": "enable_only",
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ]
+                },
+                "accepted_countries": {
+                  "type": "disable_only",
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ]
+                },
+                "minimum_amount": 1,
+                "maximum_amount": 68607706,
+                "recurring_enabled": true,
+                "installment_payment_enabled": true
               }
             ],
             "nullable": true
@@ -15242,38 +15242,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
                 "payment_method_types": [
                   "upi_collect",
                   "upi_intent"
+                ],
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "recurring_enabled": true
+                "accepted_currencies": {
+                  "type": "enable_only",
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ]
+                },
+                "accepted_countries": {
+                  "type": "disable_only",
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ]
+                },
+                "minimum_amount": 1,
+                "maximum_amount": 68607706,
+                "recurring_enabled": true,
+                "installment_payment_enabled": true
               }
             ],
             "nullable": true
@@ -15401,38 +15401,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
                 "payment_method_types": [
                   "upi_collect",
                   "upi_intent"
+                ],
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "recurring_enabled": true
+                "accepted_currencies": {
+                  "type": "enable_only",
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ]
+                },
+                "accepted_countries": {
+                  "type": "disable_only",
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ]
+                },
+                "minimum_amount": 1,
+                "maximum_amount": 68607706,
+                "recurring_enabled": true,
+                "installment_payment_enabled": true
               }
             ],
             "nullable": true

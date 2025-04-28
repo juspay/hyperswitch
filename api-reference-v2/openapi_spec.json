@@ -225,37 +225,37 @@
               "examples": {
                 "Create a merchant account with custom connector label": {
                   "value": {
-                    "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
-                      "auth_type": "BodyKey",
-                      "key1": "{{adyen_merchant_account}}"
-                    },
-                    "connector_label": "EU_adyen",
+                    "connector_type": "payment_processor",
                     "connector_name": "adyen",
-                    "connector_type": "payment_processor"
+                    "connector_label": "EU_adyen",
+                    "connector_account_details": {
+                      "auth_type": "BodyKey",
+                      "api_key": "{{adyen-api-key}}",
+                      "key1": "{{adyen_merchant_account}}"
+                    }
                   }
                 },
                 "Create a merchant connector account under a specific profile": {
                   "value": {
+                    "connector_type": "payment_processor",
+                    "connector_name": "adyen",
                     "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
                       "auth_type": "BodyKey",
+                      "api_key": "{{adyen-api-key}}",
                       "key1": "{{adyen_merchant_account}}"
                     },
-                    "connector_name": "adyen",
-                    "connector_type": "payment_processor",
                     "profile_id": "{{profile_id}}"
                   }
                 },
                 "Create a merchant connector account with minimal fields": {
                   "value": {
-                    "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
-                      "auth_type": "BodyKey",
-                      "key1": "{{adyen_merchant_account}}"
-                    },
+                    "connector_type": "payment_processor",
                     "connector_name": "adyen",
-                    "connector_type": "payment_processor"
+                    "connector_account_details": {
+                      "auth_type": "BodyKey",
+                      "api_key": "{{adyen-api-key}}",
+                      "key1": "{{adyen_merchant_account}}"
+                    }
                   }
                 }
               }
@@ -476,11 +476,11 @@
               "examples": {
                 "Create a merchant account with merchant details": {
                   "value": {
+                    "merchant_name": "Cloth Store",
                     "merchant_details": {
                       "primary_contact_person": "John Doe",
                       "primary_email": "example@company.com"
-                    },
-                    "merchant_name": "Cloth Store"
+                    }
                   }
                 },
                 "Create a merchant account with metadata": {
@@ -1787,8 +1787,8 @@
                 "Create a payment intent with minimal fields": {
                   "value": {
                     "amount_details": {
-                      "currency": "USD",
-                      "order_amount": 6540
+                      "order_amount": 6540,
+                      "currency": "USD"
                     }
                   }
                 }
@@ -1899,8 +1899,8 @@
                 "Update a payment intent with minimal fields": {
                   "value": {
                     "amount_details": {
-                      "currency": "USD",
-                      "order_amount": 6540
+                      "order_amount": 6540,
+                      "currency": "USD"
                     }
                   }
                 }
@@ -1981,17 +1981,17 @@
               "examples": {
                 "Confirm the payment intent with card details": {
                   "value": {
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
                     "payment_method_data": {
                       "card": {
-                        "card_cvc": "123",
+                        "card_number": "4242424242424242",
                         "card_exp_month": "10",
                         "card_exp_year": "25",
                         "card_holder_name": "joseph Doe",
-                        "card_number": "4242424242424242"
+                        "card_cvc": "123"
                       }
-                    },
-                    "payment_method_subtype": "credit",
-                    "payment_method_type": "card"
+                    }
                   }
                 }
               }
@@ -2101,20 +2101,20 @@
                 "Create and confirm the payment intent with amount and card details": {
                   "value": {
                     "amount_details": {
-                      "currency": "USD",
-                      "order_amount": 6540
+                      "order_amount": 6540,
+                      "currency": "USD"
                     },
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
                     "payment_method_data": {
                       "card": {
-                        "card_cvc": "123",
+                        "card_number": "4242424242424242",
                         "card_exp_month": "10",
                         "card_exp_year": "25",
                         "card_holder_name": "joseph Doe",
-                        "card_number": "4242424242424242"
+                        "card_cvc": "123"
                       }
-                    },
-                    "payment_method_subtype": "credit",
-                    "payment_method_type": "card"
+                    }
                   }
                 }
               }
@@ -3087,12 +3087,12 @@
               "examples": {
                 "Update the card holder name": {
                   "value": {
+                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3",
                     "payment_method_data": {
                       "card": {
                         "card_holder_name": "Narayan Bhat"
                       }
-                    },
-                    "payment_method_id": "12345_pm_0194b1ecabc172e28aeb71f70a4daba3"
+                    }
                   }
                 }
               }
@@ -3160,16 +3160,16 @@
               "examples": {
                 "Confirm the payment method session with card details": {
                   "value": {
+                    "payment_method_type": "card",
+                    "payment_method_subtype": "credit",
                     "payment_method_data": {
                       "card": {
-                        "card_cvc": "123",
+                        "card_number": "4242424242424242",
                         "card_exp_month": "10",
                         "card_exp_year": "25",
-                        "card_number": "4242424242424242"
+                        "card_cvc": "123"
                       }
-                    },
-                    "payment_method_subtype": "credit",
-                    "payment_method_type": "card"
+                    }
                   }
                 }
               }
@@ -3216,26 +3216,26 @@
               "examples": {
                 "Create an instant refund to refund partial amount": {
                   "value": {
-                    "amount": 654,
-                    "merchant_reference_id": "ref_123",
                     "payment_id": "{{payment_id}}",
-                    "refund_type": "instant"
+                    "merchant_reference_id": "ref_123",
+                    "refund_type": "instant",
+                    "amount": 654
                   }
                 },
                 "Create an instant refund to refund the whole amount": {
                   "value": {
-                    "merchant_reference_id": "ref_123",
                     "payment_id": "{{payment_id}}",
+                    "merchant_reference_id": "ref_123",
                     "refund_type": "instant"
                   }
                 },
                 "Create an instant refund with reason": {
                   "value": {
-                    "amount": 6540,
-                    "merchant_reference_id": "ref_123",
                     "payment_id": "{{payment_id}}",
-                    "reason": "Customer returned product",
-                    "refund_type": "instant"
+                    "merchant_reference_id": "ref_123",
+                    "refund_type": "instant",
+                    "amount": 6540,
+                    "reason": "Customer returned product"
                   }
                 }
               }
