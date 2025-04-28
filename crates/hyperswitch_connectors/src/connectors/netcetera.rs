@@ -32,7 +32,6 @@ use hyperswitch_domain_models::{
         AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
     },
 };
-
 use hyperswitch_interfaces::{
     api::{
         authentication::{

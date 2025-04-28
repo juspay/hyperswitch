@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_utils::{pii::Email, types::SemanticVersion};
 use hyperswitch_domain_models::router_request_types::{
     authentication::MessageCategory, BrowserInformation,
@@ -5,7 +7,6 @@ use hyperswitch_domain_models::router_request_types::{
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use unidecode::unidecode;
 
 use crate::utils::{AddressDetailsData as _, PhoneDetailsData as _};

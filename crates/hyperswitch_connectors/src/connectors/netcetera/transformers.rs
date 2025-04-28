@@ -1,9 +1,3 @@
-use crate::{
-    types::{ConnectorAuthenticationRouterData, PreAuthNRouterData, ResponseRouterData},
-    utils::{get_card_details, to_connector_meta_from_secret, CardData as _},
-};
-
-use super::netcetera_types;
 use common_enums::enums;
 use common_utils::{ext_traits::OptionExt as _, types::SemanticVersion};
 use error_stack::ResultExt;
@@ -18,6 +12,12 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use super::netcetera_types;
+use crate::{
+    types::{ConnectorAuthenticationRouterData, PreAuthNRouterData, ResponseRouterData},
+    utils::{get_card_details, to_connector_meta_from_secret, CardData as _},
+};
 
 //TODO: Fill the struct with respective fields
 pub struct NetceteraRouterData<T> {
