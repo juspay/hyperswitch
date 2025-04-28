@@ -4816,6 +4816,12 @@ pub async fn get_additional_payment_data(
                     details: None,
                 },
             )),
+            domain::BankRedirectData::OnlineBankingFpx { issuer } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: Some(issuer.to_owned()),
+                    details: None,
+                },
+            )),
             domain::BankRedirectData::Ideal { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
