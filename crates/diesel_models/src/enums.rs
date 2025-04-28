@@ -33,11 +33,7 @@ pub use common_enums::*;
 use common_utils::pii;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub use common_utils::tokenization;
-use diesel::{
-    deserialize::FromSqlRow,
-    expression::AsExpression,
-    sql_types::Jsonb,
-};
+use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Jsonb};
 use router_derive::diesel_enum;
 use time::PrimitiveDateTime;
 
