@@ -9,7 +9,6 @@ use diesel::{
 };
 use masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
-use strum::{Display, EnumString};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]

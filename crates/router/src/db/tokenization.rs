@@ -1,3 +1,4 @@
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use async_bb8_diesel::AsyncRunQueryDsl;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{
@@ -6,25 +7,28 @@ use common_utils::{
     id_type::{CellId, GlobalTokenId, MerchantId},
     types::keymanager::KeyManagerState,
 };
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use diesel::{ExpressionMethods, Insertable, RunQueryDsl};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use diesel_models::{
     enums::TokenizationFlag as DbTokenizationFlag,
     schema_v2::tokenization::dsl as tokenization_dsl, tokenization, PgPooledConn,
 };
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{report, Report, ResultExt};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models::tokenization::Tokenization;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models::tokenization::Tokenization;
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
 use storage_impl::MockDb;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use tokio::time;
-
-use crate::{connection, core, errors, services::Store};
+use crate::services::Store;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use crate::{connection, core, errors};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 pub trait TokenizationInterface {}

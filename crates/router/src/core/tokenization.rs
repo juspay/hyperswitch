@@ -1,19 +1,28 @@
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use std::sync::Arc;
-
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use api_models;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_enums::enums;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode, StringExt},
     id_type,
 };
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use masking::Secret;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
-
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -148,6 +157,7 @@ pub async fn get_token_vault_core(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 fn mask_sensitive_data(value: serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {

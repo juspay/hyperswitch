@@ -28,7 +28,6 @@ pub mod diesel_exports {
         DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
-use std::io::Write;
 
 pub use common_enums::*;
 use common_utils::pii;
@@ -37,9 +36,7 @@ pub use common_utils::tokenization;
 use diesel::{
     deserialize::FromSqlRow,
     expression::AsExpression,
-    pg::Pg,
-    serialize::{Output, ToSql},
-    sql_types::{Jsonb, Text},
+    sql_types::Jsonb,
 };
 use router_derive::diesel_enum;
 use time::PrimitiveDateTime;
