@@ -3,6 +3,7 @@ pub use hyperswitch_domain_models::{
     api::ApplicationResponse,
     errors::api_error_response::{self, *},
 };
+pub use storage_impl::*;
 
 pub type PmResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type PmResponse<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
@@ -46,4 +47,28 @@ pub enum VaultError {
     VaultAPIError,
     #[error("Failed while calling locker API")]
     ApiError,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum NetworkTokenizationError {
+    #[error("Failed to save network token in vault")]
+    SaveNetworkTokenFailed,
+    #[error("Failed to fetch network token details from vault")]
+    FetchNetworkTokenFailed,
+    #[error("Failed to encode network token vault request")]
+    RequestEncodingFailed,
+    #[error("Failed to deserialize network token service response")]
+    ResponseDeserializationFailed,
+    #[error("Failed to delete network token")]
+    DeleteNetworkTokenFailed,
+    #[error("Network token service not configured")]
+    NetworkTokenizationServiceNotConfigured,
+    #[error("Failed while calling Network Token Service API")]
+    ApiError,
+    #[error("Network Tokenization is not enabled for profile")]
+    NetworkTokenizationNotEnabledForProfile,
+    #[error("Network Tokenization is not supported for {message}")]
+    NotSupported { message: String },
+    #[error("Failed to encrypt the NetworkToken payment method details")]
+    NetworkTokenDetailsEncryptionFailed,
 }

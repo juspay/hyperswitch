@@ -1809,6 +1809,7 @@ dependencies = [
  "globset",
  "hex",
  "http 0.2.12",
+ "josekit 0.8.7",
  "masking",
  "md5",
  "nanoid",
@@ -5491,8 +5492,10 @@ dependencies = [
  "diesel_models",
  "dyn-clone",
  "error-stack",
+ "futures 0.3.30",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
+ "josekit 0.8.7",
  "masking",
  "rdkafka",
  "router_env",
@@ -5501,6 +5504,8 @@ dependencies = [
  "serde_json",
  "storage_impl",
  "thiserror 1.0.63",
+ "url",
+ "uuid",
 ]
 
 [[package]]
