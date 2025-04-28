@@ -7,6 +7,6 @@ CREATE TABLE IF NOT EXISTS tokenization (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     locker_id VARCHAR(255) NOT NULL,
-    flag "TokenizationFlag" NOT NULL,
-    version VARCHAR(32) NOT NULL  -- ApiVersion enum
+    flag "TokenizationFlag" NOT NULL DEFAULT 'enabled',
+    version "ApiVersion" NOT NULL DEFAULT 'v2'  -- ApiVersion enum
 );
