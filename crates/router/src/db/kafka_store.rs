@@ -83,12 +83,11 @@ use crate::{
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
+        tokenization::TokenizationInterface
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::db::tokenization::TokenizationInterface;
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 
@@ -4212,3 +4211,6 @@ impl TokenizationInterface for KafkaStore {
             .await
     }
 }
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+impl TokenizationInterface for KafkaStore {}

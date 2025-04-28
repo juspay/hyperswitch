@@ -28,6 +28,10 @@ use crate::{connection, core, errors, services::Store};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models::tokenization::Tokenization;
 
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+pub trait TokenizationInterface {}
+
 #[async_trait::async_trait]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub trait TokenizationInterface {
@@ -119,3 +123,10 @@ impl TokenizationInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 }
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+impl TokenizationInterface for MockDb {}
+
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+impl TokenizationInterface for Store {}
