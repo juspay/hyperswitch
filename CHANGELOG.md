@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.28.1
+
+### Refactors
+
+- **payment_methods:** Refactor merchant payment method list for wallets ([#7866](https://github.com/juspay/hyperswitch/pull/7866)) ([`48b473d`](https://github.com/juspay/hyperswitch/commit/48b473dee2f427d52779fba1fa108e70965eb255))
+
+**Full Changelog:** [`2025.04.28.0...2025.04.28.1`](https://github.com/juspay/hyperswitch/compare/2025.04.28.0...2025.04.28.1)
+
+
+- - -
+
 ## 2025.04.28.0
 
 ### Features
