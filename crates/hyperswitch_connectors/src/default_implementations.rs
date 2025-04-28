@@ -614,6 +614,7 @@ default_imp_for_update_metadata!(
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
     connectors::Deutschebank,
+    connectors::Vgs,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl,
