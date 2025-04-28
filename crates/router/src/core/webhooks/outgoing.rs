@@ -147,7 +147,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let lock_value = utils::perform_redis_lock(
         &state,
         &idempotent_event_id,
-        merchant_account.get_id().to_owned(),
+        merchant_context.get_merchant_account().get_id().to_owned(),
     )
     .await?;
 
@@ -161,7 +161,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             key_manager_state,
             &merchant_id,
             &event_id,
-            merchant_key_store,
+            merchant_context.get_merchant_key_store(),
         )
         .await)
         .is_ok()
@@ -172,7 +172,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         utils::free_redis_lock(
             &state,
             &idempotent_event_id,
-            merchant_account.get_id().to_owned(),
+            merchant_context.get_merchant_account().get_id().to_owned(),
             lock_value,
         )
         .await?;
@@ -201,7 +201,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     utils::free_redis_lock(
         &state,
         &idempotent_event_id,
-        merchant_account.get_id().to_owned(),
+        merchant_context.get_merchant_account().get_id().to_owned(),
         lock_value,
     )
     .await?;
