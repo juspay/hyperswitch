@@ -419,12 +419,12 @@ impl PaymentMethodsController for PmCards<'_> {
             customer_id
         );
 
-        let token_resp = Box::pin(PmLocker { state: &self.state }.add_card_to_locker(
+        let token_resp = Box::pin(PmLocker { state: self.state }.add_card_to_locker(
             payment_method_create_request.clone(),
             &network_token_details,
             &customer_id,
             None,
-            &self.merchant_account,
+            self.merchant_account,
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -654,7 +654,7 @@ impl PaymentMethodsController for PmCards<'_> {
         req: bulk_tokenization::CardNetworkTokenizeRequest,
         key_store: &domain::MerchantKeyStore,
     ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
-        let locker = PmLocker { state: &self.state };
+        let locker = PmLocker { state: self.state };
         let pm_state = &self.state.into();
         match req.data {
             domain::TokenizeDataRequest::Card(ref card_req) => {
@@ -970,7 +970,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .attach_printable("Customer not found for the payment method")?;
 
         if key.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-            let response = PmLocker { state: &self.state }
+            let response = PmLocker { state: self.state }
                 .delete_card_from_locker(
                     &key.customer_id,
                     &key.merchant_id,
@@ -1093,12 +1093,12 @@ impl PaymentMethodsController for PmCards<'_> {
                         &card_details.card_exp_month,
                         &card_details.card_exp_year,
                     )?;
-                    Box::pin(PmLocker { state: &self.state }.add_card_to_locker(
+                    Box::pin(PmLocker { state: self.state }.add_card_to_locker(
                         req.clone(),
                         &card_details,
                         &customer_id,
                         None,
-                        &self.merchant_account,
+                        self.merchant_account,
                     ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1137,7 +1137,7 @@ impl PaymentMethodsController for PmCards<'_> {
                             .await?;
 
                         let client_secret = existing_pm.client_secret.clone();
-                        let locker = PmLocker { state: &self.state };
+                        let locker = PmLocker { state: self.state };
 
                         locker
                             .delete_card_from_locker(
@@ -1162,7 +1162,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                         .as_ref()
                                         .unwrap_or(&existing_pm.payment_method_id),
                                 ),
-                                &self.merchant_account,
+                                self.merchant_account,
                             )
                             .await;
 
@@ -5282,7 +5282,7 @@ pub async fn execute_payment_method_tokenization(
 
     // Fetch card from locker
     let card_details = get_card_from_locker(
-        &state,
+        state,
         &customer.id,
         executor.merchant_account.get_id(),
         &locker_id,

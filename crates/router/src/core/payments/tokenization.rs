@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use ::payment_methods::cards::{LockerController, PaymentMethodsController};
+use ::payment_methods::{
+    cards::{LockerController, PaymentMethodsController},
+    network_tokenization,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -32,7 +35,6 @@ use crate::{
         payment_methods::{
             self,
             cards::{self as pm_cards, create_encrypted_data},
-            network_tokenization,
         },
         payments,
     },
@@ -1038,7 +1040,7 @@ pub async fn save_network_token_in_locker(
     {
         let optional_card_cvc = Some(card_data.card_cvc.clone());
         match network_tokenization::make_card_network_tokenization_request(
-            state,
+            &state.into(),
             &domain::CardDetail::from(card_data),
             optional_card_cvc,
             &customer_id,

@@ -336,7 +336,7 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = PmLocker { state: &state }
+    let stored_resp = PmLocker { state }
         .add_card_to_hs_locker(
             &locker_req,
             customer_id,
@@ -601,7 +601,7 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = PmLocker { state: &state }
+        let stored_resp = PmLocker { state }
             .add_card_to_hs_locker(
                 &locker_req,
                 customer_id,

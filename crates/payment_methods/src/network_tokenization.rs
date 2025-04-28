@@ -103,7 +103,11 @@ pub type NetworkTokenizationResponse = (
     Option<String>,
 );
 
-async fn mk_tokenization_req(
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+pub async fn mk_tokenization_req(
     state: &PaymentMethodsState,
     payload_bytes: &[u8],
     customer_id: id_type::CustomerId,
@@ -212,6 +216,10 @@ async fn mk_tokenization_req(
     Ok((cn_response.clone(), Some(cn_response.card_reference)))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn make_card_network_tokenization_request(
     state: &PaymentMethodsState,
     card: &domain::payment_method_data::CardDetail,
@@ -247,4 +255,60 @@ pub async fn make_card_network_tokenization_request(
             })
             .attach_printable("Network Tokenization Service not configured")
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn make_card_network_tokenization_request(
+    state: &routes::SessionState,
+    card: &api_payment_methods::CardDetail,
+    customer_id: &id_type::GlobalCustomerId,
+) -> CustomResult<(NetworkTokenDetails, String), NetworkTokenizationError> {
+    let card_data = pm_types::CardData {
+        card_number: card.card_number.clone(),
+        exp_month: card.card_exp_month.clone(),
+        exp_year: card.card_exp_year.clone(),
+        card_security_code: None,
+    };
+
+    let payload = card_data
+        .encode_to_string_of_json()
+        .and_then(|x| x.encode_to_string_of_json())
+        .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)?;
+
+    let payload_bytes = payload.as_bytes();
+    let network_tokenization_service = match &state.conf.network_tokenization_service {
+        Some(nt_service) => Ok(nt_service.get_inner()),
+        None => Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+        )),
+    }?;
+
+    let (resp, network_token_req_ref_id) = record_operation_time(
+        async {
+            generate_network_token(
+                state,
+                payload_bytes,
+                customer_id.clone(),
+                network_tokenization_service,
+            )
+            .await
+            .inspect_err(|e| logger::error!(error=?e, "Error while making tokenization request"))
+        },
+        &metrics::GENERATE_NETWORK_TOKEN_TIME,
+        router_env::metric_attributes!(("locker", "rust")),
+    )
+    .await?;
+
+    let network_token_details = NetworkTokenDetails {
+        network_token: resp.token,
+        network_token_exp_month: resp.token_expiry_month,
+        network_token_exp_year: resp.token_expiry_year,
+        card_issuer: card.card_issuer.clone(),
+        card_network: Some(resp.card_brand),
+        card_type: card.card_type.clone(),
+        card_issuing_country: card.card_issuing_country,
+        card_holder_name: card.card_holder_name.clone(),
+        nick_name: card.nick_name.clone(),
+    };
+    Ok((network_token_details, network_token_req_ref_id))
 }

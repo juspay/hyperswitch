@@ -4937,7 +4937,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = PmLocker { state: &state }
+    let store_resp = PmLocker { state }
         .add_card_to_hs_locker(
             &payload,
             &cust_id,
