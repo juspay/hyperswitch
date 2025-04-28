@@ -1,5 +1,6 @@
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use std::sync::Arc;
+
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
