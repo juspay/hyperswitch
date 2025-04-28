@@ -244,3 +244,6 @@ pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
+
+/// Max webhook url details a profile can have
+pub const MAX_WEBHOOK_DETAILS: usize = 16;

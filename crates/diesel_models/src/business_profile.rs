@@ -682,6 +682,16 @@ pub struct WebhookDetails {
     pub payment_created_enabled: Option<bool>,
     pub payment_succeeded_enabled: Option<bool>,
     pub payment_failed_enabled: Option<bool>,
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
+    pub webhook_url: Option<Secret<String>>,
+    pub events: Vec<common_enums::EventType>,
+    pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);

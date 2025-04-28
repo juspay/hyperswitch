@@ -17,7 +17,9 @@ pub(crate) use self::incoming_v2::incoming_webhooks_wrapper;
 pub(crate) use self::{
     incoming::incoming_webhooks_wrapper,
     outgoing::{
+        add_bulk_outgoing_webhook_task_to_process_tracker,
         create_event_and_trigger_outgoing_webhook, get_outgoing_webhook_request,
+        get_webhook_detail_by_webhook_endpoint_id, get_webhook_details_for_event_type,
         trigger_webhook_and_raise_event,
     },
 };

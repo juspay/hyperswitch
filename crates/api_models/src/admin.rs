@@ -682,6 +682,18 @@ pub struct WebhookDetails {
     /// If this property is true, a webhook message is posted whenever a payment fails
     #[schema(example = true)]
     pub payment_failed_enabled: Option<bool>,
+
+    #[schema(value_type = Option<Vec<MultipleWebhookDetail>>)]
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: Option<id_type::WebhookEndpointId>,
+    pub webhook_url: Option<Secret<String>>,
+    pub events: Vec<common_enums::EventType>,
+    pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

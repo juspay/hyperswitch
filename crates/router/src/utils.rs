@@ -40,7 +40,6 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -1160,9 +1159,9 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    merchant_account: domain::MerchantAccount,
+    _merchant_account: domain::MerchantAccount,
     business_profile: domain::Profile,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
@@ -1212,33 +1211,28 @@ where
             payments_response
         {
             let cloned_state = state.clone();
-            let cloned_key_store = key_store.clone();
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
-                tokio::spawn(
-                    async move {
-                        let primary_object_created_at = payments_response_json.created;
-                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                            cloned_state,
-                            merchant_account,
-                            business_profile,
-                            &cloned_key_store,
-                            event_type,
-                            diesel_models::enums::EventClass::Payments,
-                            payment_id.get_string_repr().to_owned(),
-                            diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
-                                payments_response_json,
-                            )),
-                            primary_object_created_at,
-                        ))
-                        .await
-                    }
-                    .in_current_span(),
-                );
+                let primary_object_created_at = payments_response_json.created;
+
+                Box::pin(
+                    webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                        cloned_state,
+                        &business_profile,
+                        payment_id.get_string_repr(),
+                        event_type,
+                        diesel_models::enums::EventClass::Payments,
+                        diesel_models::enums::EventObjectType::PaymentDetails,
+                        primary_object_created_at,
+                    ),
+                )
+                .await
+                .map_err(|e| {
+                    e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                })?;
             } else {
                 logger::warn!(
                     "Outgoing webhook not sent because of missing event type status mapping"
@@ -1265,7 +1259,7 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
 #[cfg(feature = "v1")]
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
     refund: &diesel_models::Refund,
     profile_id: id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
@@ -1289,28 +1283,21 @@ pub async fn trigger_refund_outgoing_webhook(
                 id: profile_id.get_string_repr().to_owned(),
             })?;
         let cloned_state = state.clone();
-        let cloned_key_store = key_store.clone();
-        let cloned_merchant_account = merchant_account.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
-            tokio::spawn(
-                async move {
-                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                        cloned_state,
-                        cloned_merchant_account,
-                        business_profile,
-                        &cloned_key_store,
-                        outgoing_event_type,
-                        diesel_models::enums::EventClass::Refunds,
-                        refund_id.to_string(),
-                        diesel_models::enums::EventObjectType::RefundDetails,
-                        webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
-                        primary_object_created_at,
-                    ))
-                    .await
-                }
-                .in_current_span(),
-            );
+            Box::pin(
+                webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
+                    cloned_state,
+                    &business_profile,
+                    &refund_id,
+                    outgoing_event_type,
+                    diesel_models::enums::EventClass::Refunds,
+                    diesel_models::enums::EventObjectType::RefundDetails,
+                    primary_object_created_at,
+                ),
+            )
+            .await
+            .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
         } else {
             logger::warn!("Outgoing webhook not sent because of missing event type status mapping");
         };
