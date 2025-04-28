@@ -369,7 +369,7 @@ impl ForeignFrom<api_models::user::UserOrgMerchantCreateRequest>
         } = item;
         let mut org_new_db = Self::new(
             org_id,
-            common_enums::OrganizationType::Platform,
+            common_enums::OrganizationType::Standard,
             Some(organization_name.expose()),
         );
         org_new_db.organization_details = organization_details;

@@ -1825,6 +1825,7 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationCreateRequest) -> Self {
+        // Create a new organization with a standard type by default
         let org_new = api_models::organization::OrganizationNew::new(
             common_enums::OrganizationType::Standard,
             None,

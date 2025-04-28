@@ -250,7 +250,6 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
                 organization_details,
                 metadata,
                 platform_merchant_id,
-                ..
             } => Self {
                 organization_name,
                 organization_details,
