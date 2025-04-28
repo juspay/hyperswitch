@@ -19,6 +19,7 @@ use diesel::{
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "v2")]
 use time::PrimitiveDateTime;
+
 #[cfg(feature = "v2")]
 use crate::{query::generics, schema_v2::tokenization, PgPooledConn, StorageResult};
 

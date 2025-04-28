@@ -177,7 +177,6 @@ pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
 /// SOAP 1.1 Envelope Namespace
 pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
 
-
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 /// Length of generated tokens
 pub const TOKEN_LENGTH: usize = 32;

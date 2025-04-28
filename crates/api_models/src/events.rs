@@ -22,6 +22,8 @@ use common_utils::{
 };
 
 use crate::customers::CustomerListRequest;
+#[cfg(feature = "v2")]
+use crate::tokenization;
 #[allow(unused_imports)]
 use crate::{
     admin::*,
@@ -42,9 +44,6 @@ use crate::{
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
-
-#[cfg(feature = "v2")]
-use crate::tokenization;
 
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

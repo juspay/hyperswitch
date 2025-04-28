@@ -29,10 +29,11 @@ pub mod diesel_exports {
     };
 }
 use std::io::Write;
+
+pub use common_enums::*;
+use common_utils::pii;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub use common_utils::tokenization;
-pub use common_enums::*;
-use common_utils::{pii};
 use diesel::{
     deserialize::FromSqlRow,
     expression::AsExpression,
