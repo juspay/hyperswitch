@@ -6551,8 +6551,6 @@ where
                 Some(connectors),
             )
             .await;
-
-
         }
     }
 
