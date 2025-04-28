@@ -80,7 +80,6 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
-        tokenization::TokenizationInterface,
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
@@ -88,7 +87,8 @@ use crate::{
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
-
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use crate::db::tokenization::TokenizationInterface;
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 
@@ -4185,6 +4185,7 @@ impl CallbackMapperInterface for KafkaStore {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[async_trait::async_trait]
 impl TokenizationInterface for KafkaStore {
     async fn insert_tokenization(

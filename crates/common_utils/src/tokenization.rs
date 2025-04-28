@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    consts::{MAX_LOCKER_ID_LENGTH, TOKEN_LENGTH},
+    consts::{TOKEN_LENGTH},
     id_type::GlobalTokenId,
 };
 

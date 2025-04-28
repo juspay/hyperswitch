@@ -39,10 +39,12 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
-    tokenization,
     user::{UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
+
+#[cfg(feature = "v2")]
+use crate::tokenization;
 
 impl ApiEventMetric for GetPaymentIntentFiltersRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

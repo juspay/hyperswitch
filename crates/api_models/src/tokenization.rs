@@ -19,6 +19,7 @@ pub enum TokenizationFlag {
     Disabled,
 }
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct TokenizationQueryParameters {
     // Make the
