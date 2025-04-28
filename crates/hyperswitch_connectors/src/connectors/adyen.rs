@@ -2872,7 +2872,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::Boleto,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2905,7 +2905,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::Oxxo,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2916,7 +2916,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::SevenEleven,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2927,7 +2927,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::Lawson,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2938,7 +2938,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::MiniStop,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2949,7 +2949,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::FamilyMart,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2960,7 +2960,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::Seicomart,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
@@ -2971,7 +2971,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::PayEasy,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods: supported_capture_methods3.clone(),
             specific_features: None,
         },
