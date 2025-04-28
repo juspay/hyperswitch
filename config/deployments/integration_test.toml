@@ -592,6 +592,7 @@ billwerk = {long_lived_token = false, payment_method = "card"}
 
 [webhooks]
 outgoing_enabled = true
+redis_lock_expiry_seconds = 180
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"         # List of connectors which has additional source verification api-call
