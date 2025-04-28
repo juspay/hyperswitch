@@ -1,15 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-#[cfg(feature = "v1")]
-use crate::schema::business_profile;
-#[cfg(feature = "v2")]
-use crate::schema_v2::business_profile;
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::Duration;
+
+#[cfg(feature = "v1")]
+use crate::schema::business_profile;
+#[cfg(feature = "v2")]
+use crate::schema_v2::business_profile;
 
 /// Note: The order of fields in the struct is important.
 /// This should be in the same order as the fields in the schema.rs file, otherwise the code will
