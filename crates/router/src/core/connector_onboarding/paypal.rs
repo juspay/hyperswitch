@@ -8,11 +8,12 @@ use crate::{
         admin,
         errors::{ApiErrorResponse, RouterResult},
     },
-    services::{send_request, ApplicationResponse, Request},
+    services::{ApplicationResponse, Request},
     types::{self as oss_types, api as oss_api_types, api::connector_onboarding as types},
     utils::connector_onboarding as utils,
     SessionState,
 };
+pub use external_services::http_client;
 
 fn build_referral_url(state: SessionState) -> String {
     format!(
@@ -47,7 +48,7 @@ pub async fn get_action_url_from_paypal(
         return_url,
     ))
     .await?;
-    let referral_response = send_request(&state, referral_request, None)
+    let referral_response = http_client::send_request(&state.conf.proxy, referral_request, None)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to send request to paypal referrals")?;
@@ -97,10 +98,11 @@ pub async fn sync_merchant_onboarding_status(
     let merchant_details_request =
         utils::paypal::build_paypal_get_request(merchant_details_url, access_token.token.expose())?;
 
-    let merchant_details_response = send_request(&state, merchant_details_request, None)
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to send request to paypal merchant details")?;
+    let merchant_details_response =
+        http_client::send_request(&state.conf.proxy, merchant_details_request, None)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to send request to paypal merchant details")?;
 
     let parsed_response: types::paypal::SellerStatusDetailsResponse = merchant_details_response
         .json()
@@ -121,10 +123,11 @@ async fn find_paypal_merchant_by_tracking_id(
         merchant_onboarding_status_url(state.clone(), tracking_id),
         access_token.token.peek().to_string(),
     )?;
-    let seller_status_response = send_request(&state, seller_status_request, None)
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to send request to paypal onboarding status")?;
+    let seller_status_response =
+        http_client::send_request(&state.conf.proxy, seller_status_request, None)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to send request to paypal onboarding status")?;
 
     if seller_status_response.status().is_success() {
         return Ok(Some(

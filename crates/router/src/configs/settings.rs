@@ -13,6 +13,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
+    crm::CRMManagerConfig,
     file_storage::FileStorageConfig,
     grpc_client::GrpcClientSettings,
     managers::{
@@ -21,8 +22,11 @@ use external_services::{
     },
 };
 pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+use hyperswitch_interfaces::{
+    secrets_interface::secret_state::{
+        RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+    },
+    types::Proxy,
 };
 use masking::Secret;
 use redis_interface::RedisSettings;
@@ -91,7 +95,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
-    pub hubspot: HubspotSettings,
+    pub crm: CRMManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
@@ -686,13 +690,6 @@ pub struct FallbackMerchantIds {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct HubspotSettings {
-    pub enabled: bool,
-    pub request_url: String,
-    pub form_id: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
 pub struct UserSettings {
     pub password_validity_in_days: u16,
     pub two_factor_auth_expiry_in_secs: i64,
@@ -746,14 +743,15 @@ pub struct Jwekey {
     pub tunnel_private_key: Secret<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct Proxy {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_hosts: Option<String>,
-}
+// TODO: remove this before raising a PR
+// #[derive(Debug, Deserialize, Clone)]
+// #[serde(default)]
+// pub struct Proxy {
+//     pub http_url: Option<String>,
+//     pub https_url: Option<String>,
+//     pub idle_pool_connection_timeout: Option<u64>,
+//     pub bypass_proxy_hosts: Option<String>,
+// }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -1010,6 +1008,10 @@ impl Settings<SecuredSecret> {
         self.api_keys.get_inner().validate()?;
 
         self.file_storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.crm
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 

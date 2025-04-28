@@ -1,138 +1,18 @@
 use std::time::Duration;
 
-use base64::Engine;
-use error_stack::ResultExt;
-use http::{HeaderValue, Method};
-use masking::{ExposeInterface, PeekInterface};
-use once_cell::sync::OnceCell;
-use reqwest::multipart::Form;
-use router_env::tracing_actix_web::RequestId;
-
 use super::{request::Maskable, Request};
 use crate::{
-    configs::settings::Proxy,
-    consts::BASE64_ENGINE,
     core::errors::{ApiClientError, CustomResult},
     routes::SessionState,
 };
-
-static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
-
-fn get_client_builder(
-    proxy_config: &Proxy,
-) -> CustomResult<reqwest::ClientBuilder, ApiClientError> {
-    let mut client_builder = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .pool_idle_timeout(Duration::from_secs(
-            proxy_config
-                .idle_pool_connection_timeout
-                .unwrap_or_default(),
-        ));
-
-    let proxy_exclusion_config =
-        reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
-
-    // Proxy all HTTPS traffic through the configured HTTPS proxy
-    if let Some(url) = proxy_config.https_url.as_ref() {
-        client_builder = client_builder.proxy(
-            reqwest::Proxy::https(url)
-                .change_context(ApiClientError::InvalidProxyConfiguration)
-                .attach_printable("HTTPS proxy configuration error")?
-                .no_proxy(proxy_exclusion_config.clone()),
-        );
-    }
-
-    // Proxy all HTTP traffic through the configured HTTP proxy
-    if let Some(url) = proxy_config.http_url.as_ref() {
-        client_builder = client_builder.proxy(
-            reqwest::Proxy::http(url)
-                .change_context(ApiClientError::InvalidProxyConfiguration)
-                .attach_printable("HTTP proxy configuration error")?
-                .no_proxy(proxy_exclusion_config),
-        );
-    }
-
-    Ok(client_builder)
-}
-
-fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, ApiClientError> {
-    Ok(DEFAULT_CLIENT
-        .get_or_try_init(|| {
-            get_client_builder(proxy_config)?
-                .build()
-                .change_context(ApiClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct base client")
-        })?
-        .clone())
-}
-
-// We may need to use outbound proxy to connect to external world.
-// Precedence will be the environment variables, followed by the config.
-pub fn create_client(
-    proxy_config: &Proxy,
-    client_certificate: Option<masking::Secret<String>>,
-    client_certificate_key: Option<masking::Secret<String>>,
-) -> CustomResult<reqwest::Client, ApiClientError> {
-    match (client_certificate, client_certificate_key) {
-        (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-            let client_builder = get_client_builder(proxy_config)?;
-
-            let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
-                encoded_certificate_key,
-            )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
-                .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
-            client_builder
-                .identity(identity)
-                .use_rustls_tls()
-                .build()
-                .change_context(ApiClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct client with certificate and certificate key")
-        }
-        _ => get_base_client(proxy_config),
-    }
-}
-
-pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: masking::Secret<String>,
-    encoded_certificate_key: masking::Secret<String>,
-) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
-    let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
-        .change_context(ApiClientError::CertificateDecodeFailed)?;
-
-    let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key.expose())
-        .change_context(ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate = String::from_utf8(decoded_certificate)
-        .change_context(ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate_key = String::from_utf8(decoded_certificate_key)
-        .change_context(ApiClientError::CertificateDecodeFailed)?;
-
-    let key_chain = format!("{}{}", certificate_key, certificate);
-    reqwest::Identity::from_pem(key_chain.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
-}
-
-pub fn create_certificate(
-    encoded_certificate: masking::Secret<String>,
-) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
-    let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
-        .change_context(ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate = String::from_utf8(decoded_certificate)
-        .change_context(ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
-}
+use common_utils::errors::ReportSwitchExt;
+use error_stack::ResultExt;
+pub use external_services::http_client::{self, client};
+use http::{HeaderValue, Method};
+use hyperswitch_interfaces::types::Proxy;
+use masking::PeekInterface;
+use reqwest::multipart::Form;
+use router_env::tracing_actix_web::RequestId;
 
 pub trait RequestBuilder: Send + Sync {
     fn json(&mut self, body: serde_json::Value);
@@ -196,7 +76,8 @@ pub struct ProxyClient {
 
 impl ProxyClient {
     pub fn new(proxy_config: &Proxy) -> CustomResult<Self, ApiClientError> {
-        let client = get_client_builder(proxy_config)?
+        let client = client::get_client_builder(proxy_config)
+            .switch()?
             .build()
             .change_context(ApiClientError::InvalidProxyConfiguration)?;
         Ok(Self {
@@ -213,9 +94,10 @@ impl ProxyClient {
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
-                let client_builder = get_client_builder(&self.proxy_config)?;
+                let client_builder = client::get_client_builder(&self.proxy_config).switch()?;
                 let identity =
-                    create_identity_from_certificate_and_key(certificate, certificate_key)?;
+                    client::create_identity_from_certificate_and_key(certificate, certificate_key)
+                        .switch()?;
                 Ok(client_builder
                     .identity(identity)
                     .build()
@@ -314,7 +196,9 @@ impl ApiClient for ProxyClient {
         option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError> {
-        crate::services::send_request(state, request, option_timeout_secs).await
+        http_client::send_request(&state.conf.proxy, request, option_timeout_secs)
+            .await
+            .switch()
     }
 
     fn add_request_id(&mut self, request_id: RequestId) {

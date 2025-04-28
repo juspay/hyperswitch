@@ -8,6 +8,7 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::crm::CRMPayload;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
@@ -17,9 +18,9 @@ use router_env::logger;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
-    services::{authentication::UserFromToken, hubspot::HubspotRequest, ApplicationResponse},
+    services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
-    utils::user::dashboard_metadata as utils,
+    utils::user::{self as user_utils, dashboard_metadata as utils},
 };
 #[cfg(feature = "email")]
 use crate::{
@@ -522,24 +523,40 @@ async fn insert_metadata(
                 }
             }
 
-            if state.conf.hubspot.enabled {
-                let hubspotbody = HubspotRequest::new(
-                    data.business_country_name.unwrap_or_default(),
-                    state.conf.hubspot.form_id.to_string(),
-                    data.poc_name.unwrap_or_default(),
-                    data.poc_email
-                        .clone()
-                        .unwrap_or_default()
-                        .peek()
-                        .to_string(),
-                    data.legal_business_name.unwrap_or_default(),
-                    data.business_website.unwrap_or_default(),
-                );
+            // Hubspot integration
+            let hubspotbody = state
+                .crm_client
+                .make_body(CRMPayload {
+                    legal_business_name: data.legal_business_name,
+                    business_label: data.business_label,
+                    business_location: data.business_location,
+                    display_name: data.display_name,
+                    poc_email: data.poc_email,
+                    business_type: data.business_type,
+                    business_identifier: data.business_identifier,
+                    business_website: data.business_website,
+                    poc_name: data.poc_name,
+                    poc_contact: data.poc_contact,
+                    comments: data.comments,
+                    is_completed: data.is_completed,
+                    business_country_name: data.business_country_name,
+                })
+                .await;
+            let base_url = user_utils::get_base_url(state);
+            let hubspot_request = state
+                .crm_client
+                .make_request(hubspotbody, base_url.to_string())
+                .await;
 
-                hubspotbody
-                    .create_and_send_request(state, user.user_id.clone())
-                    .await;
-            }
+            let _ = state
+                .crm_client
+                .send_request(&state.conf.proxy, hubspot_request)
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable(format!(
+                    "Failed to send data to hubspot for user_id {}",
+                    user.user_id,
+                ));
 
             metadata
         }

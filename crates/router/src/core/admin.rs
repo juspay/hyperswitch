@@ -1,28 +1,5 @@
 use std::str::FromStr;
 
-use api_models::{
-    admin::{self as admin_types},
-    enums as api_enums, routing as routing_types,
-};
-use common_utils::{
-    date_time,
-    ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
-    fp_utils, id_type, pii, type_name,
-    types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
-};
-use diesel_models::configs;
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
-use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
-use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_connectors::connectors::{chargebee, recurly};
-use hyperswitch_domain_models::merchant_connector_account::{
-    FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
-};
-use masking::{ExposeInterface, PeekInterface, Secret};
-use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
-use regex::Regex;
-use uuid::Uuid;
-
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -39,7 +16,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::{
         self,
-        api::{self as service_api, client},
+        api::{self as service_api},
         authentication, pm_auth as payment_initiation_service,
     },
     types::{
@@ -54,6 +31,29 @@ use crate::{
     },
     utils,
 };
+use api_models::{
+    admin::{self as admin_types},
+    enums as api_enums, routing as routing_types,
+};
+use common_utils::{
+    date_time,
+    ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
+    fp_utils, id_type, pii, type_name,
+    types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
+};
+use diesel_models::configs;
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
+use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
+use error_stack::{report, FutureExt, ResultExt};
+use external_services::http_client::client;
+use hyperswitch_connectors::connectors::{chargebee, recurly};
+use hyperswitch_domain_models::merchant_connector_account::{
+    FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
+};
+use masking::{ExposeInterface, PeekInterface, Secret};
+use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
+use regex::Regex;
+use uuid::Uuid;
 
 const IBAN_MAX_LENGTH: usize = 34;
 const BACS_SORT_CODE_LENGTH: usize = 6;

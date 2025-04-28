@@ -501,7 +501,6 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "email")]
         email: conf.email,
         user: conf.user,
-        hubspot: conf.hubspot,
         mandates: conf.mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
@@ -543,6 +542,7 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
+        crm: conf.crm,
         #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf

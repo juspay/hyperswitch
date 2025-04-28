@@ -1,0 +1,61 @@
+use std::str::FromStr;
+
+pub use common_utils::errors::CustomResult;
+pub use common_utils::request::ContentType;
+use common_utils::request::Headers;
+use error_stack::ResultExt;
+use hyperswitch_interfaces::errors::HttpClientError;
+pub use masking::{Mask, Maskable};
+use router_env::{instrument, tracing};
+use std::fmt::{Display, Formatter};
+
+// use crate::core::errors::{self, CustomResult};
+
+#[allow(missing_docs, missing_debug_implementations)]
+pub trait HeaderExt {
+    fn construct_header_map(self) -> CustomResult<reqwest::header::HeaderMap, HttpClientError>;
+}
+
+impl HeaderExt for Headers {
+    fn construct_header_map(self) -> CustomResult<reqwest::header::HeaderMap, HttpClientError> {
+        use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+
+        self.into_iter().try_fold(
+            HeaderMap::new(),
+            |mut header_map, (header_name, header_value)| {
+                let header_name = HeaderName::from_str(&header_name)
+                    .change_context(HttpClientError::HeaderMapConstructionFailed)?;
+                let header_value = header_value.into_inner();
+                let header_value = HeaderValue::from_str(&header_value)
+                    .change_context(HttpClientError::HeaderMapConstructionFailed)?;
+                header_map.append(header_name, header_value);
+                Ok(header_map)
+            },
+        )
+    }
+}
+
+#[allow(missing_docs, missing_debug_implementations)]
+pub trait RequestBuilderExt {
+    fn add_headers(self, headers: reqwest::header::HeaderMap) -> Self;
+}
+
+impl RequestBuilderExt for reqwest::RequestBuilder {
+    #[instrument(skip_all)]
+    fn add_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
+        self = self.headers(headers);
+        self
+    }
+}
+
+/// Error thrown when the file storage config is invalid
+#[derive(Debug, Clone)]
+pub struct InvalidCRMConfig(pub &'static str);
+
+impl std::error::Error for InvalidCRMConfig {}
+
+impl Display for InvalidCRMConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "crm: {}", self.0)
+    }
+}

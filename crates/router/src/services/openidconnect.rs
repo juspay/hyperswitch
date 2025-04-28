@@ -1,17 +1,18 @@
+use crate::{
+    consts,
+    core::errors::{UserErrors, UserResult},
+    routes::SessionState,
+    types::domain::user::UserEmail,
+};
+use common_utils::errors::ErrorSwitch;
 use error_stack::ResultExt;
+use external_services::http_client::client;
+use hyperswitch_interfaces::errors::HttpClientError;
 use masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
 use redis_interface::RedisConnectionPool;
 use storage_impl::errors::ApiClientError;
-
-use crate::{
-    consts,
-    core::errors::{UserErrors, UserResult},
-    routes::SessionState,
-    services::api::client,
-    types::domain::user::UserEmail,
-};
 
 pub async fn get_authorization_url(
     state: SessionState,
@@ -156,6 +157,7 @@ async fn get_oidc_reqwest_client(
     request: oidc::HttpRequest,
 ) -> Result<oidc::HttpResponse, ApiClientError> {
     let client = client::create_client(&state.conf.proxy, None, None)
+        .switch()
         .map_err(|e| e.current_context().to_owned())?;
 
     let mut request_builder = client
