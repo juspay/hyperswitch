@@ -3877,6 +3877,7 @@ dependencies = [
  "strum 0.26.3",
  "time",
  "unicode-normalization",
+ "unidecode",
  "url",
  "urlencoding",
  "uuid",
