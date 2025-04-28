@@ -66,6 +66,7 @@ pub mod paypal;
 pub mod paystack;
 pub mod payu;
 pub mod placetopay;
+pub mod plaid;
 pub mod powertranz;
 pub mod prophetpay;
 pub mod rapyd;
@@ -106,7 +107,7 @@ pub use self::{
     nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, novalnet::Novalnet, nuvei::Nuvei,
     opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
     payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
-    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
+    plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, square::Square,
     stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay,
     tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,

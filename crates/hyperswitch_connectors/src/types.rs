@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
         Accept, AccessTokenAuth, Authorize, Capture, Checkout, Defend, Evidence, Fulfillment,
-        PSync, PreProcessing, Session, Transaction, Upload, Void,
+        PSync, PostProcessing, PreProcessing, Session, Transaction, Upload, Void,
     },
     router_request_types::{
         authentication::{
@@ -18,9 +18,9 @@ use hyperswitch_domain_models::{
             FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckTransactionData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, AcceptDisputeResponse, AuthenticationResponseData,
@@ -108,3 +108,6 @@ pub type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegration<
     PreAuthNRequestData,
     AuthenticationResponseData,
 >;
+
+pub type PaymentsPostProcessingRouterData =
+    RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
