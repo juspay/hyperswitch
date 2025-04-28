@@ -40,7 +40,6 @@ use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
-use hyperswitch_domain_models::payments::{payment_intent::CustomerData, ClickToPayMetaData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentCaptureData, PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -53,6 +52,10 @@ pub use hyperswitch_domain_models::{
     payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
+};
+use hyperswitch_domain_models::{
+    payments::{payment_intent::CustomerData, ClickToPayMetaData},
+    router_data::AccessToken,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -3052,16 +3055,6 @@ where
     // Validating the blocklist guard and generate the fingerprint
     blocklist_guard(state, merchant_account, key_store, operation, payment_data).await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_account,
-        key_store,
-        &merchant_connector_account,
-        payment_data,
-    )
-    .await?;
-
     #[cfg(feature = "v1")]
     let merchant_recipient_data = if let Some(true) = payment_data
         .get_payment_intent()
@@ -3113,6 +3106,22 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        &merchant_connector_account,
+        payment_data,
+        router_data.access_token.as_ref(),
+    )
+    .await?;
+
+    #[cfg(feature = "v1")]
+    if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
+        router_data.connector_customer = Some(connector_customer_id);
+    }
 
     router_data.payment_method_token = if let Some(decrypted_token) =
         add_decrypted_payment_method_token(tokenization_action.clone(), payment_data).await?
@@ -4275,6 +4284,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     key_store: &domain::MerchantKeyStore,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
+    access_token: Option<&AccessToken>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -4337,7 +4347,7 @@ where
 
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
-                let router_data = payment_data
+                let mut customer_router_data = payment_data
                     .construct_router_data(
                         state,
                         connector.connector.id(),
@@ -4350,7 +4360,9 @@ where
                     )
                     .await?;
 
-                let connector_customer_id = router_data
+                customer_router_data.access_token = access_token.cloned();
+
+                let connector_customer_id = customer_router_data
                     .create_connector_customer(state, &connector)
                     .await?;
 
@@ -7266,6 +7278,9 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let payment_attempt = transaction_data.payment_attempt.clone();
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -7280,33 +7295,42 @@ where
 
     // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let connectors = {
-        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
-            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-                .parse_value("DynamicRoutingAlgorithmRef")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-            let dynamic_split = api_models::routing::RoutingVolumeSplit {
-                routing_type: api_models::routing::RoutingType::Dynamic,
-                split: dynamic_routing_config
-                    .dynamic_routing_volume_split
-                    .unwrap_or_default(),
+    let connectors = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+        let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+            .parse_value("DynamicRoutingAlgorithmRef")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
+        let dynamic_split = api_models::routing::RoutingVolumeSplit {
+            routing_type: api_models::routing::RoutingType::Dynamic,
+            split: dynamic_routing_config
+                .dynamic_routing_volume_split
+                .unwrap_or_default(),
+        };
+        let static_split: api_models::routing::RoutingVolumeSplit =
+            api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Static,
+                split: consts::DYNAMIC_ROUTING_MAX_VOLUME
+                    - dynamic_routing_config
+                        .dynamic_routing_volume_split
+                        .unwrap_or_default(),
             };
-            let static_split: api_models::routing::RoutingVolumeSplit =
-                api_models::routing::RoutingVolumeSplit {
-                    routing_type: api_models::routing::RoutingType::Static,
-                    split: consts::DYNAMIC_ROUTING_MAX_VOLUME
-                        - dynamic_routing_config
-                            .dynamic_routing_volume_split
-                            .unwrap_or_default(),
-                };
-            let volume_split_vec = vec![dynamic_split, static_split];
-            let routing_choice =
-                routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to perform volume split on routing type")?;
+        let volume_split_vec = vec![dynamic_split, static_split];
+        let routing_choice = routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to perform volume split on routing type")?;
 
-            if routing_choice.routing_type.is_dynamic_routing() {
+        if routing_choice.routing_type.is_dynamic_routing() {
+            if state.conf.open_router.enabled {
+                routing::perform_open_routing(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    payment_attempt,
+                )
+                .await
+                .map_err(|e| logger::error!(open_routing_error=?e))
+                .unwrap_or(connectors)
+            } else {
                 let dynamic_routing_config_params_interpolator =
                     routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
@@ -7348,12 +7372,12 @@ where
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
                 .unwrap_or(connectors)
-            } else {
-                connectors
             }
         } else {
             connectors
         }
+    } else {
+        connectors
     };
 
     let connector_data = connectors
@@ -8045,6 +8069,9 @@ pub trait OperationSessionGetters<F> {
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
 
     #[cfg(feature = "v1")]
+    fn get_connector_customer_id(&self) -> Option<String>;
+
+    #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation>;
 
     #[cfg(feature = "v2")]
@@ -8233,6 +8260,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation> {
         self.vault_operation.as_ref()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_connector_customer_id(&self) -> Option<String> {
+        self.connector_customer_id.clone()
     }
 
     // #[cfg(feature = "v2")]

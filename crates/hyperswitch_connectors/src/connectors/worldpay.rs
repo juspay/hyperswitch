@@ -273,6 +273,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 http_code: res.status_code,
             },
             optional_correlation_id,
+            data.request.amount.unwrap_or(0),
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -747,6 +748,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 http_code: res.status_code,
             },
             optional_correlation_id,
+            data.request.amount,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -858,6 +860,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
                 http_code: res.status_code,
             },
             optional_correlation_id,
+            data.request.amount,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
