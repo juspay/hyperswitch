@@ -80,10 +80,10 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        tokenization::TokenizationInterface,
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
-        tokenization::TokenizationInterface
     },
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
