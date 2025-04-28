@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod vault;
+pub mod vault_v2;
 
 use std::fmt::Debug;
 
@@ -71,7 +73,7 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{payments::*, refunds::*};
+pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
     connector_integration_v2::ConnectorIntegrationV2, consts, errors,
     events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
@@ -96,6 +98,7 @@ pub trait Connector:
     + TaxCalculation
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
+    + Vault
 {
 }
 
@@ -116,7 +119,8 @@ impl<
             + authentication::ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + revenue_recovery::RevenueRecovery,
+            + revenue_recovery::RevenueRecovery
+            + Vault,
     > Connector for T
 {
 }

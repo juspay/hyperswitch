@@ -2018,3 +2018,141 @@ default_imp_for_revenue_recovery_record_back!(
     connector::Wellsfargopayout,
     connector::Wise
 );
+
+macro_rules! default_imp_for_vault {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::Vault for $path::$connector {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::Vault for connector::DummyConnector<T> {}
+
+default_imp_for_vault!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_vault_insert {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::VaultInsert for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::VaultInsertFlow,
+                types::VaultRequestData,
+                types::VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::VaultInsert for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::VaultInsertFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_vault_insert!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_vault_retrieve {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::VaultRetrieve for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::VaultRetrieveFlow,
+                types::VaultRequestData,
+                types::VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::VaultRetrieve for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::VaultRetrieveFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_vault_retrieve!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_vault_delete {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::VaultDelete for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::VaultDeleteFlow,
+                types::VaultRequestData,
+                types::VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::VaultDelete for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::VaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_vault_delete!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);

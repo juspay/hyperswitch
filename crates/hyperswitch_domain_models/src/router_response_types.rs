@@ -6,13 +6,12 @@ use std::collections::HashMap;
 use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
+#[cfg(feature = "v2")]
+use super::vault::PaymentMethodVaultingData;
 use crate::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::{authentication::AuthNFlowType, ResponseId},
 };
-
-#[cfg(feature = "v2")]
-use super::vault::PaymentMethodVaultingData;
 
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
@@ -614,11 +613,11 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
     }
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
     VaultInsertResponse {
         connector_vault_id: String,
+        fingerprint_id: String,
     },
     VaultRetrieveResponse {
         vault_data: PaymentMethodVaultingData,
@@ -626,7 +625,13 @@ pub enum VaultResponseData {
     VaultDeleteResponse {
         connector_vault_id: Option<String>,
     },
-    VaultFingerprintResponse {
-        fingerprint_id: String,
-    },
+}
+
+impl Default for VaultResponseData {
+    fn default() -> Self {
+        Self::VaultInsertResponse {
+            connector_vault_id: String::new(),
+            fingerprint_id: String::new(),
+        }
+    }
 }

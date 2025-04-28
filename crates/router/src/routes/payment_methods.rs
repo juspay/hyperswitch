@@ -187,6 +187,7 @@ pub async fn payment_method_update_api(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile,
                 req,
                 &payment_method_id,
             )
@@ -1372,6 +1373,7 @@ pub async fn payment_method_session_update_saved_payment_method(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile,
                 request.payment_method_session_id,
                 request.request,
             )

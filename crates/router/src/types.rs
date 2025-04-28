@@ -42,6 +42,7 @@ use hyperswitch_domain_models::router_flow_types::{
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
+    VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow,
 };
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
@@ -74,7 +75,7 @@ pub use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -84,8 +85,8 @@ pub use hyperswitch_domain_models::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        VerifyWebhookStatus,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]

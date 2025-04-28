@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
             PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
             WebhookSourceVerifyData,
         },
-        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData, VaultConnectorFlowData,
     },
     router_flow_types::{
         authentication::{
@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth,
+        AccessTokenAuth, VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow,
     },
     router_request_types::{
         authentication,
@@ -38,7 +38,7 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -46,7 +46,7 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -101,6 +101,7 @@ use hyperswitch_interfaces::{
             BillingConnectorPaymentsSyncIntegrationV2, RevenueRecoveryRecordBackV2,
             RevenueRecoveryV2,
         },
+        vault_v2::{VaultDeleteV2, VaultInsertV2, VaultRetrieveV2, VaultV2},
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
@@ -131,6 +132,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl PaymentUpdateMetadataV2 for $path::$connector{}
+            impl VaultV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -2835,6 +2837,130 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_vault_insert {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl VaultInsertV2 for $path::$connector {}
+            impl VaultRetrieveV2 for $path::$connector {}
+            impl VaultDeleteV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            VaultInsertFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            VaultRetrieveFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            VaultDeleteFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_vault_insert!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Nmi,
+    connectors::Payone,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payme,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Shift4,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl

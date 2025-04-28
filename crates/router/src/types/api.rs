@@ -20,6 +20,8 @@ pub mod payouts;
 pub mod poll;
 pub mod refunds;
 pub mod routing;
+pub mod vault;
+pub mod vault_v2;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 #[cfg(feature = "olap")]
@@ -75,7 +77,7 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*, vault::*,
     webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
@@ -276,6 +278,29 @@ impl ConnectorData {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| format!("unable to parse payout connector name {name}"))?;
         let connector_name = api_enums::Connector::from(payout_connector_name);
+        Ok(Self {
+            connector,
+            connector_name,
+            get_token: connector_type,
+            merchant_connector_id: connector_id,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_external_vault_connector_by_name(
+        _connectors: &Connectors,
+        name: &str,
+        connector_type: GetToken,
+        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector = Self::convert_connector(name)?;
+        let external_vault_connector_name = api_enums::VaultConnectors::from_str(name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("unable to parse external vault connector name {name}")
+            })?;
+        let connector_name = api_enums::Connector::from(external_vault_connector_name);
         Ok(Self {
             connector,
             connector_name,
@@ -553,6 +578,7 @@ impl ConnectorData {
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,
                 // ))),
+                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))

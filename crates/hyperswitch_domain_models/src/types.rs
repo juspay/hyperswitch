@@ -8,7 +8,8 @@ use crate::{
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VaultDeleteFlow, VaultInsertFlow,
+        VaultRetrieveFlow, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
@@ -23,21 +24,16 @@ use crate::{
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
             BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
         },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
-};
-#[cfg(feature = "v2")]
-pub use crate::{
-    router_flow_types::{VaultDelete, VaultInsert, VaultRetrieve},
-    router_request_types::VaultRequestData,
-    router_response_types::VaultResponseData,
 };
 #[cfg(feature = "payouts")]
 pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
@@ -116,5 +112,4 @@ pub type BillingConnectorPaymentsSyncRouterData = RouterData<
     BillingConnectorPaymentsSyncResponse,
 >;
 
-#[cfg(feature = "v2")]
 pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;

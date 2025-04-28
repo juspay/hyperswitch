@@ -15,6 +15,8 @@ use common_utils::{
     types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
@@ -37,7 +39,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::PaymentData,
+        payments::{helpers as payment_helpers, PaymentData},
     },
     db::StorageInterface,
     routes::SessionState,
@@ -1978,4 +1980,80 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
         .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
         (None, None) | (None, Some(_)) => Ok(()),
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn construct_vault_router_data<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+    pmd: &domain::PaymentMethodVaultingData,
+) -> RouterResult<VaultRouterData<F>> {
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .unwrap_or_default(); // always get the connector name from the merchant_connector_account
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let address = PaymentAddress::new(None, None, None, None);
+
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().to_owned(),
+        customer_id: None,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector_customer: None,
+        connector: connector_name.to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("vault")
+            .get_string_repr()
+            .to_owned(),
+        attempt_id: "".to_string(),
+        status: enums::AttemptStatus::Failure,
+        payment_method: enums::PaymentMethod::default(),
+        connector_auth_type,
+        description: None,
+        address,
+        auth_type: enums::AuthenticationType::default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        amount_captured: None,
+        minor_amount_captured: None,
+        payment_method_status: None,
+        request: types::VaultRequestData {
+            payment_method_vaulting_data: Some(pmd.clone()),
+            connector_vault_id: None,
+        },
+        response: Ok(types::VaultResponseData::default()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        connector_request_reference_id: "".to_string(),
+        payout_method_data: None,
+        quote_id: None,
+        test_mode,
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+    };
+
+    Ok(router_data)
 }

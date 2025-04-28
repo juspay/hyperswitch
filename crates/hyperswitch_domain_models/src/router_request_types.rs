@@ -940,9 +940,8 @@ pub struct SetupMandateRequestData {
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
 pub struct VaultRequestData {
-    payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
-    connector_vault_id: Option<String>,
+    pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
+    pub connector_vault_id: Option<String>,
 }

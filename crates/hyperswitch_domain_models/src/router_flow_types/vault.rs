@@ -1,11 +1,8 @@
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
-pub struct VaultInsert;
+pub struct VaultInsertFlow;
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
-pub struct VaultRetrieve;
+pub struct VaultRetrieveFlow;
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
-pub struct VaultDelete;
+pub struct VaultDeleteFlow;

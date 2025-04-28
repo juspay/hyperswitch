@@ -1286,7 +1286,7 @@ pub async fn add_payment_method_to_vault(
     merchant_account: &domain::MerchantAccount,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
-) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
+) -> CustomResult<pm_types::AddVaultResponseInternal, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
         entity_id: merchant_account.get_id().to_owned(),
         vault_id: existing_vault_id
@@ -1303,7 +1303,7 @@ pub async fn add_payment_method_to_vault(
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
 
-    let stored_pm_resp: pm_types::AddVaultResponse = resp
+    let stored_pm_resp: pm_types::AddVaultResponseInternal = resp
         .parse_struct("AddVaultResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into AddVaultResponse")?;

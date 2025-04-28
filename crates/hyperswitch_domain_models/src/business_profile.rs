@@ -1042,6 +1042,11 @@ impl Profile {
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.order_fulfillment_time
     }
+
+    #[cfg(feature = "v2")]
+    pub fn get_is_external_vault_enabled(&self) -> bool {
+        self.is_external_vault_enabled.unwrap_or(false)
+    }
 }
 
 #[cfg(feature = "v2")]
