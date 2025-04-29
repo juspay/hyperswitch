@@ -58,56 +58,56 @@ pub(crate) type DefendDisputeRouterData =
     RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
 #[cfg(feature = "payouts")]
-pub type PayoutsResponseRouterData<F, R> =
+pub(crate) type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 // TODO: Remove `ResponseRouterData` from router crate after all the related type aliases are moved to this crate.
-pub struct ResponseRouterData<Flow, R, Request, Response> {
-    pub response: R,
-    pub data: RouterData<Flow, Request, Response>,
-    pub http_code: u16,
+pub(crate) struct ResponseRouterData<Flow, R, Request, Response> {
+    pub(crate) response: R,
+    pub(crate) data: RouterData<Flow, Request, Response>,
+    pub(crate) http_code: u16,
 }
-pub type FrmFulfillmentRouterData =
+pub(crate) type FrmFulfillmentRouterData =
     RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
-pub type FrmCheckoutType =
+pub(crate) type FrmCheckoutType =
     dyn ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
-pub type FrmTransactionType =
+pub(crate) type FrmTransactionType =
     dyn ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>;
-pub type FrmTransactionRouterData =
+pub(crate) type FrmTransactionRouterData =
     RouterData<Transaction, FraudCheckTransactionData, FraudCheckResponseData>;
-pub type FrmFulfillmentType =
+pub(crate) type FrmFulfillmentType =
     dyn ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
-pub type FrmCheckoutRouterData =
+pub(crate) type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
 
-pub type PreAuthNRouterData =
+pub(crate) type PreAuthNRouterData =
     RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
-pub type PreAuthNVersionCallRouterData =
+pub(crate) type PreAuthNVersionCallRouterData =
     RouterData<PreAuthenticationVersionCall, PreAuthNRequestData, AuthenticationResponseData>;
-pub type ConnectorAuthenticationRouterData =
+pub(crate) type ConnectorAuthenticationRouterData =
     RouterData<Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
-pub type ConnectorPostAuthenticationRouterData = RouterData<
+pub(crate) type ConnectorPostAuthenticationRouterData = RouterData<
     PostAuthentication,
     ConnectorPostAuthenticationRequestData,
     AuthenticationResponseData,
 >;
-pub type ConnectorAuthenticationType = dyn ConnectorIntegration<
+pub(crate) type ConnectorAuthenticationType = dyn ConnectorIntegration<
     Authentication,
     ConnectorAuthenticationRequestData,
     AuthenticationResponseData,
 >;
-pub type ConnectorPostAuthenticationType = dyn ConnectorIntegration<
+pub(crate) type ConnectorPostAuthenticationType = dyn ConnectorIntegration<
     PostAuthentication,
     ConnectorPostAuthenticationRequestData,
     AuthenticationResponseData,
 >;
-pub type ConnectorPreAuthenticationType =
+pub(crate) type ConnectorPreAuthenticationType =
     dyn ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
-pub type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegration<
+pub(crate) type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegration<
     PreAuthenticationVersionCall,
     PreAuthNRequestData,
     AuthenticationResponseData,
 >;
 
-pub type PaymentsPostProcessingRouterData =
+pub(crate) type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
