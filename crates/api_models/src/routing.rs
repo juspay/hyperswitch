@@ -834,7 +834,7 @@ impl Default for EliminationRoutingConfig {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             elimination_analyser_config: Some(EliminationAnalyserConfig {
                 bucket_size: Some(5),
-                bucket_leak_interval_in_secs: Some(2),
+                bucket_leak_interval_in_secs: Some(60),
             }),
         }
     }
