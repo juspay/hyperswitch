@@ -160,7 +160,7 @@ impl JWTFlow {
         let new_lineage_context = match lineage_context_from_db {
             Some(ctx) => {
                 let tenant_id = ctx.tenant_id.clone();
-                let user_role_match_v1 = state
+                let user_role_match_v2 = state
                     .global_store
                     .find_user_role_by_user_id_and_lineage(
                         &ctx.user_id,
@@ -168,15 +168,15 @@ impl JWTFlow {
                         &ctx.org_id,
                         &ctx.merchant_id,
                         &ctx.profile_id,
-                        UserRoleVersion::V1,
+                        UserRoleVersion::V2,
                     )
                     .await
                     .is_ok();
 
-                if user_role_match_v1 {
+                if user_role_match_v2 {
                     ctx
                 } else {
-                    let user_role_match_v2 = state
+                    let user_role_match_v1 = state
                         .global_store
                         .find_user_role_by_user_id_and_lineage(
                             &ctx.user_id,
@@ -184,12 +184,12 @@ impl JWTFlow {
                             &ctx.org_id,
                             &ctx.merchant_id,
                             &ctx.profile_id,
-                            UserRoleVersion::V2,
+                            UserRoleVersion::V1,
                         )
                         .await
                         .is_ok();
 
-                    if user_role_match_v2 {
+                    if user_role_match_v1 {
                         ctx
                     } else {
                         // fallback to default lineage if cached context is invalid
