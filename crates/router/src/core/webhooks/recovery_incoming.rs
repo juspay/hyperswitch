@@ -90,7 +90,7 @@ pub async fn recovery_incoming_webhook_flow(
         BillingConnectorInvoiceSyncResponseData::get_billing_connector_invoice_details(
             should_billing_connector_invoice_api_called,
             &state,
-            &merchant_account,
+            &merchant_context,
             &billing_connector_account,
             connector_name,
             invoice_id,
@@ -912,7 +912,7 @@ pub struct BillingConnectorInvoiceSyncFlowRouterData(
 impl BillingConnectorInvoiceSyncResponseData {
     async fn handle_billing_connector_invoice_sync_call(
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         connector_name: &str,
         id: &str,
@@ -937,7 +937,7 @@ impl BillingConnectorInvoiceSyncResponseData {
                 state,
                 connector_name,
                 merchant_connector_account,
-                merchant_account,
+                merchant_context,
                 id,
             )
             .await
@@ -972,7 +972,7 @@ impl BillingConnectorInvoiceSyncResponseData {
     async fn get_billing_connector_invoice_details(
         should_billing_connector_invoice_api_called: bool,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         billing_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
         connector_name: &str,
         merchant_reference_id: Option<id_type::PaymentReferenceId>,
@@ -990,7 +990,7 @@ impl BillingConnectorInvoiceSyncResponseData {
                 let billing_connector_invoice_details =
                     Self::handle_billing_connector_invoice_sync_call(
                         state,
-                        merchant_account,
+                        merchant_context,
                         billing_connector_account,
                         connector_name,
                         billing_connector_invoice_id,
@@ -1014,7 +1014,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
         state: &SessionState,
         connector_name: &str,
         merchant_connector_account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         billing_connector_invoice_id: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let auth_type: types::ConnectorAuthType = helpers::MerchantConnectorAccountType::DbVal(
