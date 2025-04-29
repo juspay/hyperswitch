@@ -97,7 +97,7 @@ pub async fn recovery_incoming_webhook_flow(
         )
         .await?;
 
-    // Checks whether we have data in recovery_details , If its there then it will use the data and convert it into required from or else fetches from Incoming webhook
+    // Checks whether we have data in billing_connector_invoice_details , if it is there then we construct revenue recovery invoice from it else it takes from webhook
     let invoice_details = RevenueRecoveryInvoice::get_recovery_invoice_details(
         connector_enum,
         request_details,

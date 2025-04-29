@@ -52,16 +52,16 @@ const STATUS_FAILED_ENDPOINT: &str = "mark_failed";
 
 const RECURLY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
 
+
+// We don't need an amount converter beacuse we are not using it anywhere in code, but it's important to note that Float Major Unit is the standard format used by Recurly.
 #[derive(Clone)]
 pub struct Recurly {
-    // amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    // amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Recurly {
     pub fn new() -> &'static Self {
-        &Self {
-            // amount_converter: &StringMinorUnitForConnector,
-        }
+        &Self {}
     }
 
     fn get_signature_elements_from_header(
