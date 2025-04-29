@@ -940,6 +940,7 @@ impl Default for CCardType {
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
+            co_badged_card_data: None,
         })
     }
 }

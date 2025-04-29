@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
+use crate::enums::{Currency, PaymentMethod, RoutableConnectors};
+use crate::payment_methods;
 use common_utils::{id_type, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
@@ -9,8 +11,6 @@ pub use euclid::{
     },
 };
 use serde::{Deserialize, Serialize};
-
-use crate::enums::{Currency, PaymentMethod, RoutableConnectors};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,7 +49,6 @@ pub struct PaymentInfo {
     // paymentSource: Option<String>,
     // authType: Option<ETCa::txn_card_info::AuthType>,
     // cardIssuerBankName: Option<String>,
-    
     pub card_isin: Option<String>,
     // cardType: Option<ETCa::card_type::CardType>,
     // cardSwitchProvider: Option<Secret<String>>,
@@ -68,6 +67,30 @@ pub struct DebitRoutingOutput {
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
     pub card_type: common_enums::CardType,
+}
+
+impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
+    fn from(output: &DebitRoutingOutput) -> Self {
+        payment_methods::CoBadgedCardData {
+            co_badged_card_networks: output.co_badged_card_networks.clone(),
+            issuer_country: output.issuer_country.clone(),
+            is_regulated: output.is_regulated.clone(),
+            regulated_name: output.regulated_name.clone(),
+            card_type: output.card_type.clone(),
+        }
+    }
+}
+
+impl From<payment_methods::CoBadgedCardData> for DebitRoutingRequestData {
+    fn from(output: payment_methods::CoBadgedCardData) -> Self {
+        DebitRoutingRequestData {
+            co_badged_card_networks: output.co_badged_card_networks.clone(),
+            issuer_country: output.issuer_country.clone(),
+            is_regulated: output.is_regulated.clone(),
+            regulated_name: output.regulated_name.clone(),
+            card_type: output.card_type.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

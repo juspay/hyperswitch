@@ -77,6 +77,14 @@ impl PaymentMethodData {
     pub fn is_network_token_payment_method_data(&self) -> bool {
         matches!(self, Self::NetworkToken(_))
     }
+
+    pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
+        if let PaymentMethodData::Card(card) = self {
+            card.co_badged_card_data.as_ref()
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -87,11 +95,13 @@ pub struct Card {
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
+    // we use this as the card type for co-badged cards as well
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -120,6 +130,7 @@ pub struct CardDetail {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -162,6 +173,7 @@ impl From<&Card> for CardDetail {
             bank_code: item.bank_code.to_owned(),
             nick_name: item.nick_name.to_owned(),
             card_holder_name: item.card_holder_name.to_owned(),
+            co_badged_card_data: item.co_badged_card_data.to_owned(),
         }
     }
 }
@@ -732,7 +744,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
             api_models::payments::PaymentMethodData::Card(card_data) => {
-                Self::Card(Card::from(card_data))
+                Self::Card(Card::from((card_data, None)))
             }
             api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
                 Self::CardRedirect(From::from(card_redirect))
@@ -782,8 +794,21 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     }
 }
 
-impl From<api_models::payments::Card> for Card {
-    fn from(value: api_models::payments::Card) -> Self {
+impl
+    From<(
+        api_models::payments::Card,
+        Option<payment_methods::CoBadgedCardData>,
+    )> for Card
+{
+    fn from(
+        (value, co_badged_card_data): (
+            api_models::payments::Card,
+            Option<payment_methods::CoBadgedCardData>,
+        ),
+    ) -> Self {
+        let a = co_badged_card_data
+            .clone()
+            .map(|x| x.co_badged_card_networks[0].clone());
         let api_models::payments::Card {
             card_number,
             card_exp_month,
@@ -804,12 +829,13 @@ impl From<api_models::payments::Card> for Card {
             card_exp_year,
             card_cvc,
             card_issuer,
-            card_network,
+            card_network: a.or(card_network),
             card_type,
             card_issuing_country,
             bank_code,
             nick_name,
             card_holder_name,
+            co_badged_card_data,
         }
     }
 }
@@ -1875,6 +1901,16 @@ pub enum PaymentMethodsData {
     NetworkToken(NetworkTokenDetailsPaymentMethod),
 }
 
+impl PaymentMethodsData {
+    pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
+        if let PaymentMethodsData::Card(card) = self {
+            card.co_badged_card_data.clone()
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -1909,6 +1945,7 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

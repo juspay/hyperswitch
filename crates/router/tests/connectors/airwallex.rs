@@ -83,6 +83,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
+            co_badged_card_data: None,
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),

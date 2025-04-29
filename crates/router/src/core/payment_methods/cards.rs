@@ -776,7 +776,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let payment_method_card_details =
-        PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()));
+        PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)));
 
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
         create_encrypted_data(key_manager_state, key_store, payment_method_card_details)
@@ -934,7 +934,7 @@ pub async fn save_network_token_and_update_payment_method(
             let pm_token_details = token_pm_resp
                 .card
                 .as_ref()
-                .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+                .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None))));
             let pm_network_token_data_encrypted = pm_token_details
                 .async_map(|pm_card| create_encrypted_data(key_manager_state, key_store, pm_card))
                 .await
@@ -1369,6 +1369,7 @@ pub async fn add_payment_method_data(
                             card_issuer: card_info.as_ref().and_then(|ci| ci.card_issuer.clone()),
                             card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         };
                         let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
                             create_encrypted_data(
@@ -1636,7 +1637,7 @@ pub async fn add_payment_method(
                     });
 
                     let updated_pmd = updated_card.as_ref().map(|card| {
-                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
                     });
                     let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                         updated_pmd
@@ -1898,7 +1899,7 @@ pub async fn save_migration_payment_method(
                     });
 
                     let updated_pmd = updated_card.as_ref().map(|card| {
-                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
                     });
                     let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                         updated_pmd
@@ -2007,7 +2008,7 @@ pub async fn insert_payment_method(
     let pm_card_details = resp
         .card
         .clone()
-        .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+        .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None))));
     let key_manager_state = state.into();
     let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
         .clone()
@@ -2233,7 +2234,7 @@ pub async fn update_customer_payment_method(
 
             let updated_pmd = updated_card
                 .as_ref()
-                .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+                .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None))));
             let key_manager_state = (&state).into();
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
                 .async_map(|updated_pmd| {

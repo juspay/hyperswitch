@@ -121,6 +121,7 @@ impl Vaultable for domain::Card {
             card_type: None,
             nick_name: value1.nickname.map(masking::Secret::new),
             card_holder_name: value1.card_holder_name,
+            co_badged_card_data: None,
         };
 
         let supp_data = SupplementaryVaultData {

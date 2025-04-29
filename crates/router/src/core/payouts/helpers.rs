@@ -486,6 +486,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: card_info.card_network,
                             card_type: card_info.card_type,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 })
@@ -506,6 +507,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: None,
                             card_type: None,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 });

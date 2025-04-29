@@ -196,6 +196,11 @@ where
                         payment_method_billing_address,
                     )
                     .await?;
+                let payment_methods_data =
+                    &save_payment_method_data.request.get_payment_method_data();
+
+                let co_badged_card_data = payment_methods_data.get_co_badged_card_data();
+
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = merchant_account.get_id();
                 let is_network_tokenization_enabled =
@@ -264,7 +269,7 @@ where
                     save_payment_method_data.request.get_payment_method_data(),
                 ) {
                     (Some(card), _) => Some(PaymentMethodsData::Card(
-                        CardDetailsPaymentMethod::from(card.clone()),
+                        CardDetailsPaymentMethod::from((card.clone(), co_badged_card_data.clone())),
                     )),
                     (
                         _,
@@ -289,7 +294,10 @@ where
                 > = match network_token_resp {
                     Some(token_resp) => {
                         let pm_token_details = token_resp.card.as_ref().map(|card| {
-                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
+                                card.clone(),
+                                None,
+                            )))
                         });
 
                         pm_token_details
@@ -622,9 +630,10 @@ where
                                 });
 
                                 let updated_pmd = updated_card.as_ref().map(|card| {
-                                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
                                         card.clone(),
-                                    ))
+                                        None,
+                                    )))
                                 });
                                 let pm_data_encrypted: Option<
                                     Encryptable<Secret<serde_json::Value>>,
