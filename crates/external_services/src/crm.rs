@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
 use common_utils::{
     errors::CustomResult,
@@ -16,13 +19,11 @@ use masking::PeekInterface;
 use reqwest;
 use router_env::logger;
 
-use crate::{
-    http_client, http_client::request::InvalidCRMConfig, hubspot_proxy::core::HubspotRequest,
-};
+use crate::{http_client, hubspot_proxy::HubspotRequest};
 
 /// Hubspot CRM configuration
 #[derive(Debug, Clone, serde::Deserialize)]
-pub struct HubspotSettings {
+pub struct HubspotProxyConfig {
     /// The ID of the Hubspot form to be submitted.
     pub form_id: String,
 
@@ -30,7 +31,7 @@ pub struct HubspotSettings {
     pub request_url: String,
 }
 
-impl HubspotSettings {
+impl HubspotProxyConfig {
     /// Validates Hubspot configuration
     pub(super) fn validate(&self) -> Result<(), InvalidCRMConfig> {
         use common_utils::fp_utils::when;
@@ -42,6 +43,18 @@ impl HubspotSettings {
         when(self.form_id.is_default_or_empty(), || {
             Err(InvalidCRMConfig("form_id must not be empty"))
         })
+    }
+}
+
+/// Error thrown when the crm config is invalid
+#[derive(Debug, Clone)]
+pub struct InvalidCRMConfig(pub &'static str);
+
+impl std::error::Error for InvalidCRMConfig {}
+
+impl Display for InvalidCRMConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "crm: {}", self.0)
     }
 }
 
@@ -57,7 +70,7 @@ pub enum CRMManagerConfig {
     /// Hubspot CRM configuration
     HubspotProxy {
         /// Hubspot CRM configuration
-        hubspot_proxy: HubspotSettings,
+        hubspot_proxy: HubspotProxyConfig,
     },
 
     /// No CRM configuration
@@ -86,7 +99,7 @@ impl CRMManagerConfig {
 #[async_trait::async_trait]
 impl CRMInterface for NoCrm {
     async fn make_body(&self, _details: CRMPayload) -> RequestContent {
-        RequestContent::Json(Box::new(serde_json::json!({})))
+        RequestContent::Json(Box::new(()))
     }
 
     async fn make_request(&self, _body: RequestContent, _origin_base_url: String) -> Request {
@@ -98,14 +111,13 @@ impl CRMInterface for NoCrm {
         _proxy: &Proxy,
         _request: Request,
     ) -> CustomResult<reqwest::Response, HttpClientError> {
-        logger::info!("NO CRM manager is not configured, resolving with a 200 OK response");
-        Err(HttpClientError::UnexpectedState)
-            .attach_printable("NO CRM manager is not configured, resolving with a 200 OK response")
+        logger::info!("No CRM configured!");
+        Err(HttpClientError::UnexpectedState).attach_printable("No CRM configured!")
     }
 }
 
 #[async_trait::async_trait]
-impl CRMInterface for HubspotSettings {
+impl CRMInterface for HubspotProxyConfig {
     async fn make_body(&self, details: CRMPayload) -> RequestContent {
         RequestContent::FormUrlEncoded(Box::new(HubspotRequest::new(
             details.business_country_name.unwrap_or_default(),

@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Display, Formatter},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use common_utils::request::Headers;
 pub use common_utils::{errors::CustomResult, request::ContentType};
@@ -44,17 +41,5 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
     fn add_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
         self = self.headers(headers);
         self
-    }
-}
-
-/// Error thrown when the crm config is invalid
-#[derive(Debug, Clone)]
-pub struct InvalidCRMConfig(pub &'static str);
-
-impl std::error::Error for InvalidCRMConfig {}
-
-impl Display for InvalidCRMConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "crm: {}", self.0)
     }
 }
