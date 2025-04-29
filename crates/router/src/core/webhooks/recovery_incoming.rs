@@ -886,12 +886,16 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
         .parse_value("ConnectorAuthType")
         .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)?;
 
-        let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params_using_connector_name(
-                    &state.conf.connectors,
-                    connector_name.to_string()
-                )
-                .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
-                .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",connector_name))?;
+        let connector = common_enums::connector_enums::Connector::from_str(connector_name)
+        .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)
+        .attach_printable("Cannot find connector from the connector_name")?;
+
+        let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params(
+            &state.conf.connectors,
+            connector
+        )
+        .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+        .attach_printable(format!("cannot find connector params for this connector {} in this flow",connector))?;
 
         let router_data = types::RouterDataV2 {
             flow: PhantomData::<router_flow_types::BillingConnectorPaymentsSync>,
@@ -1044,12 +1048,16 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
         .parse_value("ConnectorAuthType")
         .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)?;
 
-        let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params_using_connector_name(
+        let connector = common_enums::connector_enums::Connector::from_str(connector_name)
+                .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)
+                .attach_printable("Cannot find connector from the connector_name")?;
+
+        let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params(
             &state.conf.connectors,
-            connector_name.to_string()
+            connector
         )
         .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
-        .attach_printable(format!("cannot find connector params for this connector_name {} in this flow",connector_name))?;
+        .attach_printable(format!("cannot find connector params for this connector {} in this flow",connector))?;
 
         let router_data = types::RouterDataV2 {
             flow: PhantomData::<router_flow_types::BillingConnectorInvoiceSync>,
