@@ -3182,9 +3182,26 @@ pub async fn switch_org_for_user(
             .clone(),
     };
 
-    lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
-        .await;
+    let _ = state
+        .global_store
+        .update_user_by_user_id(
+            &user_from_token.user_id,
+            storage_user::UserUpdate::LineageContextUpdate {
+                lineage_context: Some(
+                    serde_json::to_value(&lineage_context)
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Failed to serialize LineageContext to JSON")?,
+                ),
+            },
+        )
+        .await
+        .map_err(|e| {
+            logger::error!(
+                "Failed to update lineage context for user {}: {:?}",
+                user_from_token.user_id,
+                e
+            )
+        });
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3394,9 +3411,26 @@ pub async fn switch_merchant_for_user_in_org(
             .clone(),
     };
 
-    lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
-        .await;
+    let _ = state
+        .global_store
+        .update_user_by_user_id(
+            &user_from_token.user_id,
+            storage_user::UserUpdate::LineageContextUpdate {
+                lineage_context: Some(
+                    serde_json::to_value(&lineage_context)
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Failed to serialize LineageContext to JSON")?,
+                ),
+            },
+        )
+        .await
+        .map_err(|e| {
+            logger::error!(
+                "Failed to update lineage context for user {}: {:?}",
+                user_from_token.user_id,
+                e
+            )
+        });
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3527,9 +3561,26 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             .clone(),
     };
 
-    lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
-        .await;
+    let _ = state
+        .global_store
+        .update_user_by_user_id(
+            &user_from_token.user_id,
+            storage_user::UserUpdate::LineageContextUpdate {
+                lineage_context: Some(
+                    serde_json::to_value(&lineage_context)
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Failed to serialize LineageContext to JSON")?,
+                ),
+            },
+        )
+        .await
+        .map_err(|e| {
+            logger::error!(
+                "Failed to update lineage context for user {}: {:?}",
+                user_from_token.user_id,
+                e
+            )
+        });
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,

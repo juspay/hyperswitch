@@ -888,6 +888,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             last_password_modified_at: value
                 .password
                 .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
+            lineage_context: None,
         })
     }
 }

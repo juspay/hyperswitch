@@ -6,6 +6,7 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 use masking::Secret;
+use router_env::logger;
 
 use super::UserFromStorage;
 use crate::{
@@ -129,10 +130,34 @@ impl JWTFlow {
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
         let user_id = next_flow.user.get_user_id();
-        let cached_lineage_context =
-            LineageContext::try_get_lineage_context_from_cache(state, user_id).await;
+        let lineage_context_from_db = state
+            .global_store
+            .find_user_by_id(user_id)
+            .await
+            .map(|user| user.lineage_context)
+            .map_err(|e| {
+                logger::error!(
+                    "Failed to fetch lineage context from DB for user {}: {:?}",
+                    user_id,
+                    e
+                );
+                e
+            })
+            .ok()
+            .flatten()
+            .and_then(|val| {
+                serde_json::from_value::<LineageContext>(val.clone())
+                    .inspect_err(|e| {
+                        logger::error!(
+                            "Failed to deserialize lineage context for user {}: {:?}",
+                            user_id,
+                            e
+                        );
+                    })
+                    .ok()
+            });
 
-        let new_lineage_context = match cached_lineage_context {
+        let new_lineage_context = match lineage_context_from_db {
             Some(ctx) => {
                 let tenant_id = ctx.tenant_id.clone();
                 let user_role_match_v1 = state
@@ -179,9 +204,26 @@ impl JWTFlow {
             }
         };
 
-        new_lineage_context
-            .try_set_lineage_context_in_cache(state, user_id)
-            .await;
+        let _ = state
+            .global_store
+            .update_user_by_user_id(
+                user_id,
+                diesel_models::user::UserUpdate::LineageContextUpdate {
+                    lineage_context: Some(
+                        serde_json::to_value(&new_lineage_context)
+                            .change_context(UserErrors::InternalServerError)
+                            .attach_printable("Failed to serialize LineageContext to JSON")?,
+                    ),
+                },
+            )
+            .await
+            .map_err(|e| {
+                logger::error!(
+                    "Failed to update lineage context for user {}: {:?}",
+                    user_id,
+                    e
+                )
+            });
 
         auth::AuthToken::new_token(
             new_lineage_context.user_id,

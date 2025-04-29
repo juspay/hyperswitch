@@ -163,6 +163,7 @@ impl UserInterface for MockDb {
             totp_secret: user_data.totp_secret,
             totp_recovery_codes: user_data.totp_recovery_codes,
             last_password_modified_at: user_data.last_password_modified_at,
+            lineage_context: user_data.lineage_context,
         };
         users.push(user.clone());
         Ok(user)
@@ -239,6 +240,12 @@ impl UserInterface for MockDb {
                         last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
+                    storage::UserUpdate::LineageContextUpdate { lineage_context } => {
+                        storage::User {
+                            lineage_context: lineage_context.clone(),
+                            ..user.to_owned()
+                        }
+                    }
                 };
                 user.to_owned()
             })
@@ -287,6 +294,12 @@ impl UserInterface for MockDb {
                         last_password_modified_at: Some(common_utils::date_time::now()),
                         ..user.to_owned()
                     },
+                    storage::UserUpdate::LineageContextUpdate { lineage_context } => {
+                        storage::User {
+                            lineage_context: lineage_context.clone(),
+                            ..user.to_owned()
+                        }
+                    }
                 };
                 user.to_owned()
             })
