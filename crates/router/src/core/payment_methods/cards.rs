@@ -4,6 +4,9 @@ use std::{
     str::FromStr,
 };
 
+use ::payment_methods::configs::payment_connector_required_fields::{
+    get_billing_required_fields, get_shipping_required_fields,
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -91,10 +94,7 @@ use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
-    configs::{
-        defaults::{get_billing_required_fields, get_shipping_required_fields},
-        settings,
-    },
+    configs::settings,
     consts as router_consts,
     core::{
         errors::{self, StorageErrorExt},
@@ -3458,61 +3458,6 @@ pub async fn list_payment_methods(
         "The Payment Methods available after Constraint Graph filtering are {:?}",
         response
     );
-
-    // Filter out wallet payment method from mca if customer has already saved it
-    customer
-        .as_ref()
-        .async_map(|customer| async {
-            let wallet_pm_exists = response
-                .iter()
-                .any(|mca| mca.payment_method == enums::PaymentMethod::Wallet);
-            if wallet_pm_exists {
-                match db
-                    .find_payment_method_by_customer_id_merchant_id_status(
-                        &((&state).into()),
-                        &key_store,
-                        &customer.customer_id,
-                        merchant_account.get_id(),
-                        common_enums::PaymentMethodStatus::Active,
-                        None,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                {
-                    Ok(customer_payment_methods) => {
-                        let customer_wallet_pm = customer_payment_methods
-                            .iter()
-                            .filter(|cust_pm| {
-                                cust_pm.get_payment_method_type() == Some(enums::PaymentMethod::Wallet)
-                            })
-                            .collect::<Vec<_>>();
-
-                        response.retain(|mca| {
-                            !(mca.payment_method == enums::PaymentMethod::Wallet
-                                && customer_wallet_pm.iter().any(|cust_pm| {
-                                    cust_pm.get_payment_method_subtype() == Some(mca.payment_method_type)
-                                }))
-                        });
-
-                        logger::debug!("Filtered out wallet payment method from mca since customer has already saved it");
-                        Ok(())
-                    }
-                    Err(error) => {
-                        if error.current_context().is_db_not_found() {
-                            Ok(())
-                        } else {
-                            Err(error)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("failed to find payment methods for a customer")
-                        }
-                    }
-                }
-            } else {
-                Ok(())
-            }
-        })
-        .await
-        .transpose()?;
 
     let mut pmt_to_auth_connector: HashMap<
         enums::PaymentMethod,

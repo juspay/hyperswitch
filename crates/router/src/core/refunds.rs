@@ -1,6 +1,3 @@
-pub mod transformers;
-pub mod validator;
-
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
@@ -27,7 +24,10 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, access_token, helpers},
         refunds::transformers::SplitRefundInput,
-        utils as core_utils,
+        utils::{
+            self as core_utils, refunds_transformers as transformers,
+            refunds_validator as validator,
+        },
     },
     db, logger,
     routes::{metrics, SessionState},

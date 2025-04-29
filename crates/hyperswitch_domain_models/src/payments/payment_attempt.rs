@@ -15,7 +15,7 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy, MinorUnit,
     },
 };
 use diesel_models::{
@@ -114,6 +114,15 @@ pub trait PaymentAttemptInterface {
         &self,
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
@@ -454,6 +463,10 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
+    pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    pub created_by: Option<CreatedBy>,
 }
 
 impl PaymentAttempt {
@@ -583,6 +596,8 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             feature_metadata: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
         })
     }
 
@@ -670,6 +685,8 @@ impl PaymentAttempt {
             feature_metadata: None,
             id,
             card_discovery: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
         })
     }
 
@@ -767,6 +784,8 @@ impl PaymentAttempt {
             }),
             card_discovery: None,
             charges: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
         })
     }
 
@@ -859,6 +878,10 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
+    pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
@@ -1015,7 +1038,7 @@ impl PaymentAttempt {
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
-        todo!();
+        self.amount_details.surcharge_amount
     }
 }
 
@@ -1109,6 +1132,10 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    /// merchant who owns the credentials of the processor, i.e. processor owner
+    pub processor_merchant_id: id_type::MerchantId,
+    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
@@ -1859,6 +1886,8 @@ impl behaviour::Conversion for PaymentAttempt {
             setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
         })
     }
 
@@ -1877,7 +1906,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .cloned();
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 attempt_id: storage_model.attempt_id,
                 status: storage_model.status,
                 net_amount: NetAmount::new(
@@ -1947,6 +1976,12 @@ impl behaviour::Conversion for PaymentAttempt {
                 charges: storage_model.charges,
                 issuer_error_code: storage_model.issuer_error_code,
                 issuer_error_message: storage_model.issuer_error_message,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
             })
         }
@@ -2033,6 +2068,8 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
         })
     }
@@ -2103,6 +2140,8 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            processor_merchant_id,
+            created_by,
         } = self;
 
         let AttemptAmountDetails {
@@ -2195,6 +2234,8 @@ impl behaviour::Conversion for PaymentAttempt {
             network_error_message: error
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
         })
     }
 
@@ -2266,7 +2307,7 @@ impl behaviour::Conversion for PaymentAttempt {
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id,
+                merchant_id: storage_model.merchant_id.clone(),
                 id: storage_model.id,
                 status: storage_model.status,
                 amount_details,
@@ -2311,6 +2352,12 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
                 feature_metadata: storage_model.feature_metadata.map(From::from),
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             })
         }
         .await
@@ -2367,6 +2414,8 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            processor_merchant_id,
+            created_by,
         } = self;
 
         let card_network = payment_method_data
@@ -2456,6 +2505,8 @@ impl behaviour::Conversion for PaymentAttempt {
             network_error_message: error_details
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
         })
     }
 }

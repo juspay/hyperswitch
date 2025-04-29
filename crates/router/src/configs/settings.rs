@@ -6,7 +6,7 @@ use std::{
 
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
-use api_models::{enums, payment_methods::RequiredFieldInfo};
+use api_models::enums;
 use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -25,6 +25,11 @@ use hyperswitch_interfaces::secrets_interface::secret_state::{
     RawSecret, SecretState, SecretStateContainer, SecuredSecret,
 };
 use masking::Secret;
+pub use payment_methods::configs::settings::{
+    ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
+    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -140,8 +145,15 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub authentication_providers: AuthenticationProviders,
+    pub open_router: OpenRouter,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OpenRouter {
+    pub enabled: bool,
+    pub url: String,
+}
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,
@@ -417,19 +429,6 @@ pub struct ForexApi {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct PaymentMethodAuth {
-    pub redis_expiry: i64,
-    pub pm_auth_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct EligiblePaymentMethods {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub sdk_eligible_payment_methods: HashSet<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DefaultExchangeRates {
     pub base_currency: String,
     pub conversion: HashMap<String, Conversion>,
@@ -510,15 +509,29 @@ pub struct CorsSettings {
     pub allowed_methods: HashSet<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Mandates {
-    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
-    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationProviders {
+    #[serde(deserialize_with = "deserialize_connector_list")]
+    pub click_to_pay: HashSet<enums::Connector>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct ZeroMandates {
-    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        connector_list: String,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    wrapper
+        .connector_list
+        .split(',')
+        .map(|s| s.trim().parse().map_err(D::Error::custom))
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -543,22 +556,6 @@ pub struct NetworkTokenizationService {
     pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodsForMandate(
-    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodTypesForMandate(
-    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForMandate>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedConnectorsForMandate {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -646,34 +643,6 @@ pub struct NotAvailableFlows {
 #[derive(Debug, Deserialize, Clone)]
 #[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payout_required_fields.toml
 pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
-
-#[derive(Debug, Deserialize, Clone)]
-#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payment_required_fields.toml
-pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFieldFinal {
-    pub mandate: HashMap<String, RequiredFieldInfo>,
-    pub non_mandate: HashMap<String, RequiredFieldInfo>,
-    pub common: HashMap<String, RequiredFieldInfo>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFieldFinal {
-    pub mandate: Option<Vec<RequiredFieldInfo>>,
-    pub non_mandate: Option<Vec<RequiredFieldInfo>>,
-    pub common: Option<Vec<RequiredFieldInfo>>,
-}
 
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
@@ -819,6 +788,7 @@ pub struct DrainerSettings {
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
+    pub redis_lock_expiry_seconds: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
