@@ -1842,11 +1842,6 @@ impl<const T: u8>
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
