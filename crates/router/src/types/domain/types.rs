@@ -1,11 +1,12 @@
-use ::payment_methods::state::PaymentMethodsState;
+use ::payment_methods::state as pm_state;
 use common_utils::types::keymanager::KeyManagerState;
+use crate::routes::app;
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
 
-impl From<&crate::SessionState> for KeyManagerState {
-    fn from(state: &crate::SessionState) -> Self {
+impl From<&app::SessionState> for KeyManagerState {
+    fn from(state: &app::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
         Self {
             global_tenant_id: state.conf.multitenancy.global_tenant.tenant_id.clone(),
@@ -23,8 +24,8 @@ impl From<&crate::SessionState> for KeyManagerState {
     }
 }
 
-impl From<&crate::SessionState> for PaymentMethodsState {
-    fn from(state: &crate::SessionState) -> Self {
+impl From<&app::SessionState> for pm_state::PaymentMethodsState {
+    fn from(state: &app::SessionState) -> Self {
         Self {
             store: state.store.get_payment_methods_store(),
             key_store: None,

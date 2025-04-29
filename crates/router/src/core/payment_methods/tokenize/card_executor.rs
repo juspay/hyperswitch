@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ::payment_methods::{cards::PaymentMethodsController, core::migration};
+use ::payment_methods::{controller::PaymentMethodsController, core::migration};
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use common_utils::{
     consts,

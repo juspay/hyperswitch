@@ -1,4 +1,4 @@
-use ::payment_methods::cards::PaymentMethodsController;
+use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")

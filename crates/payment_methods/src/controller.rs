@@ -6,10 +6,7 @@ use api_models::{enums as api_enums, payment_methods as api};
 use common_enums::enums as common_enums;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::encryption;
-use common_utils::{
-    crypto, ext_traits, id_type, type_name,
-    types::keymanager::{Identifier, KeyManagerState},
-};
+use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
 use diesel_models::payment_method;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
@@ -271,7 +268,7 @@ pub trait PaymentMethodsController {
 }
 
 pub async fn create_encrypted_data<T>(
-    key_manager_state: &KeyManagerState,
+    key_manager_state: &keymanager::KeyManagerState,
     key_store: &merchant_key_store::MerchantKeyStore,
     data: T,
 ) -> Result<
@@ -282,7 +279,7 @@ where
     T: Debug + Serialize,
 {
     let key = key_store.key.get_inner().peek();
-    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+    let identifier = keymanager::Identifier::Merchant(key_store.merchant_id.clone());
 
     let encoded_data = ext_traits::Encode::encode_to_value(&data)
         .change_context(storage_errors::StorageError::SerializationFailed)

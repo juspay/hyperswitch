@@ -1,5 +1,5 @@
 use ::payment_methods::{
-    cards::PaymentMethodsController,
+    controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
 };
 #[cfg(all(

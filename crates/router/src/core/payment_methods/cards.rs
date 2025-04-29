@@ -5,7 +5,7 @@ use std::{
 };
 
 use ::payment_methods::{
-    cards::PaymentMethodsController,
+    controller::PaymentMethodsController,
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
     },

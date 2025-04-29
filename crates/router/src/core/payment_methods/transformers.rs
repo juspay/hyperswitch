@@ -1,4 +1,4 @@
-pub use ::payment_methods::cards::{DataDuplicationCheck, DeleteCardResp};
+pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},

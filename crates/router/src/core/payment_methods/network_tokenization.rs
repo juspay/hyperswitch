@@ -1,7 +1,7 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::fmt::Debug;
 
-use ::payment_methods::cards::PaymentMethodsController;
+use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use cards::{CardNumber, NetworkToken};

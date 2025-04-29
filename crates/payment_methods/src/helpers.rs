@@ -3,14 +3,14 @@ use common_utils::ext_traits::AsyncExt;
 pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain};
 use router_env::logger;
 
-use crate::state::PaymentMethodsStorageInterface;
+use crate::state;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
-    db: Box<dyn PaymentMethodsStorageInterface>,
+    db: Box<dyn state::PaymentMethodsStorageInterface>,
 ) -> api_models::payment_methods::CardDetail {
     let card_isin: Option<_> = Some(card_details.card_number.get_card_isin());
     if card_details.card_issuer.is_some()
@@ -68,7 +68,7 @@ pub async fn populate_bin_details_for_payment_method_create(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn populate_bin_details_for_payment_method_create(
     _card_details: api_models::payment_methods::CardDetail,
-    _db: &dyn PaymentMethodsStorageInterface,
+    _db: &dyn state::PaymentMethodsStorageInterface,
 ) -> api_models::payment_methods::CardDetail {
     todo!()
 }

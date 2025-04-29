@@ -3,11 +3,11 @@ use common_utils::{
     ext_traits::ValueExt,
     fp_utils::when,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::ResultExt;
 
-use crate::errors::api_error_response::ApiErrorResponse;
+use crate::errors::api_error_response;
 
-pub type DomainResult<T> = CustomResult<T, ApiErrorResponse>;
+pub type DomainResult<T> = CustomResult<T, api_error_response::ApiErrorResponse>;
 pub trait OptionExt<T> {
     fn check_value_present(&self, field_name: &'static str) -> DomainResult<()>;
 
@@ -31,10 +31,10 @@ pub trait OptionExt<T> {
 impl<T> OptionExt<T> for Option<T> {
     fn check_value_present(&self, field_name: &'static str) -> DomainResult<()> {
         when(self.is_none(), || {
-            Err(
-                Report::new(ApiErrorResponse::MissingRequiredField { field_name })
-                    .attach_printable(format!("Missing required field {field_name}")),
+            Err(error_stack::Report::new(
+                api_error_response::ApiErrorResponse::MissingRequiredField { field_name },
             )
+            .attach_printable(format!("Missing required field {field_name}")))
         })
     }
 
@@ -43,10 +43,10 @@ impl<T> OptionExt<T> for Option<T> {
     fn get_required_value(self, field_name: &'static str) -> DomainResult<T> {
         match self {
             Some(v) => Ok(v),
-            None => Err(
-                Report::new(ApiErrorResponse::MissingRequiredField { field_name })
-                    .attach_printable(format!("Missing required field {field_name}")),
-            ),
+            None => Err(error_stack::Report::new(
+                api_error_response::ApiErrorResponse::MissingRequiredField { field_name },
+            )
+            .attach_printable(format!("Missing required field {field_name}"))),
         }
     }
 
