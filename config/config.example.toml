@@ -160,6 +160,7 @@ max_age = 365     # Max age of a refund in days.
 
 [webhooks]
 outgoing_enabled = true
+redis_lock_expiry_seconds = 180
 
 # Validity of an Ephemeral Key in Hours
 [eph_key]

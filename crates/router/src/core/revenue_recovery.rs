@@ -18,6 +18,7 @@ use hyperswitch_domain_models::{
     behaviour::ReverseConversion,
     errors::api_error_response,
     merchant_connector_account,
+    merchant_context::{Context, MerchantContext},
     payments::{PaymentIntent, PaymentStatusData},
     ApiModelToDieselModelConvertor,
 };
@@ -205,17 +206,19 @@ pub async fn call_psync_api(
     };
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
+    let merchant_context_from_pcr_data = MerchantContext::NormalMerchant(Box::new(Context(
+        pcr_data.merchant_account.clone(),
+        pcr_data.key_store.clone(),
+    )));
     let get_tracker_response = operation
         .to_get_tracker()?
         .get_trackers(
             state,
             global_payment_id,
             &req,
-            &pcr_data.merchant_account,
+            &merchant_context_from_pcr_data,
             &pcr_data.profile,
-            &pcr_data.key_store,
             &hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
         )
         .await?;
 
@@ -228,8 +231,7 @@ pub async fn call_psync_api(
     >(
         state,
         state.get_req_state(),
-        pcr_data.merchant_account.clone(),
-        pcr_data.key_store.clone(),
+        merchant_context_from_pcr_data,
         &pcr_data.profile,
         operation,
         req,
