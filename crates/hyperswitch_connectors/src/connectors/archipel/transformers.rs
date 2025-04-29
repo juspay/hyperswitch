@@ -1,4 +1,3 @@
-use api_models::payments::MandateReferenceId;
 use bytes::Bytes;
 use common_enums::{
     self, AttemptStatus, AuthorizationStatus, CaptureMethod, Currency, FutureUsage,
@@ -232,9 +231,9 @@ pub struct ArchipelBillingAddress {
     postal_code: Secret<String>,
 }
 
-impl TryFrom<AddressDetails> for ArchipelBillingAddress {
+impl TryFrom<&AddressDetails> for ArchipelBillingAddress {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(address_details: AddressDetails) -> Result<Self, Self::Error> {
+    fn try_from(address_details: &AddressDetails) -> Result<Self, Self::Error> {
         Ok(Self {
             address: address_details.get_combined_address_line()?,
             postal_code: address_details.get_zip()?.clone(),
@@ -290,16 +289,9 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
             .application_primary_account_number
             .clone();
 
-        let expiry_year_2_digit = {
-            Secret::new(
-                apple_pay_decrypt_data
-                    .application_expiration_date
-                    .get(0..2)
-                    .ok_or_else(|| errors::ConnectorError::ParsingFailed)?
-                    .to_string(),
-            )
-        };
+        let expiry_year_2_digit = apple_pay_decrypt_data.get_two_digit_expiry_year()?;
         let expiry_month = apple_pay_decrypt_data.get_expiry_month()?;
+
         Ok(Self {
             card_data: ArchipelTokenizedCard {
                 expiry: CardExpiryDate {
@@ -618,7 +610,7 @@ pub struct ArchipelTransactionMetadata {
     pub issuer_transaction_id: Option<String>,
     pub response_code: Option<String>,
     pub authorization_code: Option<String>,
-    pub payment_account_reference: Option<String>,
+    pub payment_account_reference: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -633,7 +625,7 @@ pub struct ArchipelPaymentsResponse {
     issuer_transaction_id: Option<String>,
     response_code: Option<String>,
     authorization_code: Option<String>,
-    payment_account_reference: Option<String>,
+    payment_account_reference: Option<Secret<String>>,
 }
 
 impl From<&ArchipelPaymentsResponse> for ArchipelTransactionMetadata {
@@ -698,19 +690,13 @@ impl TryFrom<(ArchipelAmount, &PaymentsAuthorizeRouterData)> for ArchipelPayment
             initiator: transaction_initiator.clone(),
         };
 
-        let address = router_data.get_billing()?.clone();
-        let card_holder_name = address.get_optional_full_name();
-
-        let billing_address = address
-            .address
-            .map(ArchipelBillingAddress::try_from)
-            .transpose()?
-            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address",
-            })?;
-
+        let card_holder_name = router_data.get_billing()?.get_optional_full_name();
         let cardholder = Some(ArchipelCardHolder {
-            billing_address: Some(billing_address),
+            billing_address: Some(
+                router_data
+                    .get_billing_address()
+                    .and_then(ArchipelBillingAddress::try_from)?,
+            ),
         });
 
         let indicator_status = if is_subsequent_trx {
@@ -722,26 +708,15 @@ impl TryFrom<(ArchipelAmount, &PaymentsAuthorizeRouterData)> for ArchipelPayment
         let stored_on_file =
             is_saved_card_payment | router_data.request.is_customer_initiated_mandate_payment();
 
-        let credential_indicator = stored_on_file.then(|| {
-            let transaction_id = router_data
-                .request
-                .mandate_id
-                .as_ref()
-                .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                    Some(MandateReferenceId::NetworkMandateId(network_trx_id)) => {
-                        Some(network_trx_id.to_string())
-                    }
-                    _ => None,
-                });
-
-            ArchipelCredentialIndicator {
-                status: indicator_status.clone(),
-                recurring: Some(is_recurring_payment),
-                transaction_id: match indicator_status {
-                    ArchipelCredentialIndicatorStatus::Initial => None,
-                    ArchipelCredentialIndicatorStatus::Subsequent => transaction_id,
-                },
-            }
+        let credential_indicator = stored_on_file.then(|| ArchipelCredentialIndicator {
+            status: indicator_status.clone(),
+            recurring: Some(is_recurring_payment),
+            transaction_id: match indicator_status {
+                ArchipelCredentialIndicatorStatus::Initial => None,
+                ArchipelCredentialIndicatorStatus::Subsequent => {
+                    router_data.request.get_optional_network_transaction_id()
+                }
+            },
         });
 
         Ok(Self {
@@ -1086,20 +1061,16 @@ impl TryFrom<(ArchipelAmount, &SetupMandateRouterData)> for ArchipelPaymentInfor
             certainty: ArchipelPaymentCertainty::Final,
             initiator: ArchipelPaymentInitiator::Customer,
         };
-        let billing_addr = router_data.get_billing()?.clone();
-        let card_holder_name = Some(billing_addr.get_optional_full_name().ok_or_else(|| {
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "card.card_holder_name",
-            }
-        })?);
+
+        let card_holder_name = router_data.get_billing()?.get_optional_full_name();
         let cardholder = Some(ArchipelCardHolder {
-            billing_address: ArchipelBillingAddress::try_from(billing_addr.address.ok_or_else(
-                || errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing.address",
-                },
-            )?)
-            .ok(),
+            billing_address: Some(
+                router_data
+                    .get_billing_address()
+                    .and_then(ArchipelBillingAddress::try_from)?,
+            ),
         });
+
         let stored_on_file = true;
         let credential_indicator = Some(ArchipelCredentialIndicator {
             status: ArchipelCredentialIndicatorStatus::Initial,
