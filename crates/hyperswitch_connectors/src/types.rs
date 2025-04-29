@@ -67,16 +67,22 @@ pub(crate) struct ResponseRouterData<Flow, R, Request, Response> {
     pub(crate) data: RouterData<Flow, Request, Response>,
     pub(crate) http_code: u16,
 }
+#[cfg(feature = "frm")]
 pub(crate) type FrmFulfillmentRouterData =
     RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
 pub(crate) type FrmCheckoutType =
     dyn ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
 pub(crate) type FrmTransactionType =
     dyn ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
 pub(crate) type FrmTransactionRouterData =
     RouterData<Transaction, FraudCheckTransactionData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
 pub(crate) type FrmFulfillmentType =
     dyn ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
 pub(crate) type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
 
