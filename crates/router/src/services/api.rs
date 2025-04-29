@@ -10,6 +10,34 @@ use std::{
     time::{Duration, Instant},
 };
 
+use super::{
+    authentication::AuthenticateAndFetch,
+    connector_integration_interface::BoxedConnectorIntegrationInterface,
+};
+use crate::{
+    configs::Settings,
+    consts,
+    core::{
+        api_locking,
+        errors::{self, CustomResult},
+        payments,
+    },
+    events::{
+        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
+        connector_api_logs::ConnectorEvent,
+    },
+    headers, logger,
+    routes::{
+        app::{AppStateInfo, ReqState, SessionStateInfo},
+        metrics, AppState, SessionState,
+    },
+    services::{
+        connector_integration_interface::RouterDataConversion,
+        generic_link_response::build_generic_link_html,
+    },
+    types::{self, api, ErrorResponse},
+    utils,
+};
 use actix_http::header::HeaderMap;
 use actix_web::{
     body,
@@ -50,38 +78,6 @@ use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Error as TeraError, Tera};
-
-// TODO: remove this before raising a PR
-// use self::request::{HeaderExt, RequestBuilderExt};
-use super::{
-    authentication::AuthenticateAndFetch,
-    connector_integration_interface::BoxedConnectorIntegrationInterface,
-};
-use crate::{
-    configs::Settings,
-    consts,
-    core::{
-        api_locking,
-        errors::{self, CustomResult},
-        payments,
-    },
-    events::{
-        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
-        connector_api_logs::ConnectorEvent,
-    },
-    headers, logger,
-    routes::{
-        app::{AppStateInfo, ReqState, SessionStateInfo},
-        metrics, AppState, SessionState,
-    },
-    services::{
-        connector_integration_interface::RouterDataConversion,
-        generic_link_response::build_generic_link_html,
-    },
-    types::{self, api, ErrorResponse},
-    utils,
-};
-// use external_services::http_client::request::{HeaderExt, RequestBuilderExt};
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;

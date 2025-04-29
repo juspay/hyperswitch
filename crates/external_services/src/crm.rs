@@ -31,7 +31,7 @@ pub struct HubspotSettings {
 }
 
 impl HubspotSettings {
-    /// Validates the AWS S3 file storage configuration.
+    /// Validates Hubspot configuration
     pub(super) fn validate(&self) -> Result<(), InvalidCRMConfig> {
         use common_utils::fp_utils::when;
 
@@ -74,7 +74,7 @@ impl CRMManagerConfig {
         }
     }
 
-    /// Retrieves the appropriate encryption client based on the configuration.
+    /// Retrieves the appropriate CRM client based on the configuration.
     pub async fn get_crm_client(&self) -> Arc<dyn CRMInterface> {
         match self {
             Self::HubspotProxy { hubspot_proxy } => Arc::new(hubspot_proxy.clone()),

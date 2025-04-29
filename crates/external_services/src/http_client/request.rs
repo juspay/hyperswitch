@@ -10,8 +10,6 @@ use hyperswitch_interfaces::errors::HttpClientError;
 pub use masking::{Mask, Maskable};
 use router_env::{instrument, tracing};
 
-// use crate::core::errors::{self, CustomResult};
-
 #[allow(missing_docs, missing_debug_implementations)]
 pub trait HeaderExt {
     fn construct_header_map(self) -> CustomResult<reqwest::header::HeaderMap, HttpClientError>;
@@ -49,7 +47,7 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
     }
 }
 
-/// Error thrown when the file storage config is invalid
+/// Error thrown when the crm config is invalid
 #[derive(Debug, Clone)]
 pub struct InvalidCRMConfig(pub &'static str);
 

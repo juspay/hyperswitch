@@ -743,16 +743,6 @@ pub struct Jwekey {
     pub tunnel_private_key: Secret<String>,
 }
 
-// TODO: remove this before raising a PR
-// #[derive(Debug, Deserialize, Clone)]
-// #[serde(default)]
-// pub struct Proxy {
-//     pub http_url: Option<String>,
-//     pub https_url: Option<String>,
-//     pub idle_pool_connection_timeout: Option<u64>,
-//     pub bypass_proxy_hosts: Option<String>,
-// }
-
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Server {
