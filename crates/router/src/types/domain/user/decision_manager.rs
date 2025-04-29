@@ -130,6 +130,7 @@ impl JWTFlow {
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
         let user_id = next_flow.user.get_user_id();
+        // Fetch lineage context from DB
         let lineage_context_from_db = state
             .global_store
             .find_user_by_id(user_id)
