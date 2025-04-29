@@ -96,6 +96,17 @@ function bankTransferRedirection(
       break;
     case "image_data_url":
       switch (connectorId) {
+        case "facilitapay":
+          switch (paymentMethodType) {
+            case "pix":
+              fetchAndParseImageData(redirectionUrl).then((qrCodeData) => {
+                expect(qrCodeData).to.contains("FacilitaPay"); // image data contains the following value
+              });
+              break;
+            default:
+              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          }
+          break;
         case "itaubank":
           switch (paymentMethodType) {
             case "pix":
@@ -198,12 +209,6 @@ function bankRedirectRedirection(
                 "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
               );
               cy.get("#selectionSubmit").click();
-              cy.get("#user")
-                .should("be.visible")
-                .should("be.enabled")
-                .focus()
-                .type("Verfügernummer");
-              cy.get("input#submitButton.btn.btn-primary").click();
               break;
             case "ideal":
               cy.contains("button", "Select your bank").click();
@@ -468,12 +473,24 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
         try {
           const redirectionHost = new URL(redirectionUrl).host;
           const expectedHost = new URL(expectedUrl).host;
-          if (redirectionHost.endsWith(expectedHost)) {
-            cy.wait(constants.WAIT_TIME / 2);
 
-            cy.window()
-              .its("location")
-              .then((location) => {
+          cy.window()
+            .its("location")
+            .then((location) => {
+              // Check for payment_id in the URL
+              const urlParams = new URLSearchParams(location.search);
+              const paymentId = urlParams.get("payment_id");
+
+              if (!paymentId) {
+                // eslint-disable-next-line cypress/assertion-before-screenshot
+                cy.screenshot("missing-payment-id-error");
+                throw new Error("URL does not contain payment_id parameter");
+              }
+
+              // Proceed with other verifications based on whether redirection host ends with expected host
+              if (redirectionHost.endsWith(expectedHost)) {
+                cy.wait(constants.WAIT_TIME / 2);
+
                 // Check page state before taking screenshots
                 cy.document().then((doc) => {
                   const pageText = doc.body.innerText.toLowerCase();
@@ -495,7 +512,6 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                   }
                 });
 
-                const urlParams = new URLSearchParams(location.search);
                 const paymentStatus = urlParams.get("status");
 
                 if (
@@ -507,21 +523,21 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                     `Redirection failed with payment status: ${paymentStatus}`
                   );
                 }
-              });
-          } else {
-            cy.window().its("location.origin").should("eq", expectedUrl);
+              } else {
+                cy.window().its("location.origin").should("eq", expectedUrl);
 
-            Cypress.on("uncaught:exception", (err, runnable) => {
-              // Log the error details
-              // eslint-disable-next-line no-console
-              console.error(
-                `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
-              );
+                Cypress.on("uncaught:exception", (err, runnable) => {
+                  // Log the error details
+                  // eslint-disable-next-line no-console
+                  console.error(
+                    `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
+                  );
 
-              // Return false to prevent the error from failing the test
-              return false;
+                  // Return false to prevent the error from failing the test
+                  return false;
+                });
+              }
             });
-          }
         } catch (error) {
           throw new Error(`Redirection verification failed: ${error}`);
         }

@@ -352,8 +352,8 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                     | PaymentMethodData::BankDebit(_)
                     | PaymentMethodData::BankTransfer(_)
                     | PaymentMethodData::Crypto(_)
-                    | PaymentMethodData::MandatePayment {}
-                    | PaymentMethodData::Reward {}
+                    | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::Reward
                     | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::Upi(_)
@@ -596,8 +596,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(order.id.to_string()),
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -828,8 +829,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(response.result.transaction.id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -896,8 +898,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(noon_transaction.id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(RefundsResponseData {

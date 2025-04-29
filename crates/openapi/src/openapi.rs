@@ -83,6 +83,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_external_authentication,
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
+        routes::payments::payments_update_metadata,
 
         // Routes for relay
         routes::relay::relay,
@@ -195,6 +196,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for events
         routes::webhook_events::list_initial_webhook_delivery_attempts,
+        routes::webhook_events::list_initial_webhook_delivery_attempts_with_jwtauth,
         routes::webhook_events::list_webhook_delivery_attempts,
         routes::webhook_events::retry_webhook_delivery_attempt,
 
@@ -305,6 +307,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
+        api_models::enums::CountryAlpha3,
         api_models::enums::FieldType,
         api_models::enums::FrmAction,
         api_models::enums::FrmPreferredFlowTypes,
@@ -317,6 +320,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ElementPosition,
         api_models::enums::ElementSize,
         api_models::enums::SizeVariants,
+        api_models::enums::MerchantProductType,
         api_models::enums::PaymentLinkDetailsLayout,
         api_models::enums::PaymentMethodStatus,
         api_models::enums::UIWidgetFormLayout,
@@ -324,6 +328,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentConnectorCategory,
         api_models::enums::CardDiscovery,
         api_models::enums::FeatureStatus,
+        api_models::enums::MerchantProductType,
+        api_models::enums::CtpServiceProvider,
+        api_models::enums::PaymentLinkSdkLabelType,
+        api_models::enums::PaymentLinkShowSdkTerms,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::ConnectorWalletDetails,
@@ -674,6 +682,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::ListBlocklistQuery,
         api_models::enums::BlocklistDataKind,
         api_models::enums::ErrorCategory,
+        api_models::webhook_events::EventListConstraints,
         api_models::webhook_events::EventListItemResponse,
         api_models::webhook_events::EventRetrieveResponse,
         api_models::webhook_events::OutgoingWebhookRequestContent,
@@ -722,7 +731,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::PaymentsPostSessionTokensRequest,
         api_models::payments::PaymentsPostSessionTokensResponse,
+        api_models::payments::PaymentsUpdateMetadataRequest,
+        api_models::payments::PaymentsUpdateMetadataResponse,
         api_models::payments::CtpServiceDetails,
+        api_models::payments::AdyenConnectorMetadata,
+        api_models::payments::AdyenTestingData,
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,

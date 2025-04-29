@@ -2621,8 +2621,9 @@ impl
             status_code: http_code,
             attempt_status,
             connector_transaction_id,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -2853,6 +2854,7 @@ pub enum PaymentMethodDataType {
     OpenBanking,
     NetworkToken,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -3002,6 +3004,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer
+                    }
+                    domain::payments::BankTransferData::InstantBankTransfer {} => {
+                        Self::InstantBankTransfer
                     }
                 }
             }

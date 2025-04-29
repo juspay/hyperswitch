@@ -1,7 +1,7 @@
 use common_utils::types::MinorUnit;
 use time::PrimitiveDateTime;
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct GetAdditionalRevenueRecoveryResponseData {
+pub struct BillingConnectorPaymentsSyncResponse {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: MinorUnit,
     /// currency of the transaction
@@ -15,11 +15,11 @@ pub struct GetAdditionalRevenueRecoveryResponseData {
     /// error message sent by billing connector.
     pub error_message: Option<String>,
     /// mandate token at payment processor end.
-    pub processor_payment_method_token: Option<String>,
+    pub processor_payment_method_token: String,
     /// customer id at payment connector for which mandate is attached.
-    pub connector_customer_id: Option<String>,
+    pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
-    pub connector_account_reference_id: Option<String>,
+    pub connector_account_reference_id: String,
     /// timestamp at which transaction has been created at billing connector
     pub transaction_created_at: Option<PrimitiveDateTime>,
     /// transaction status at billing connector equivalent to payment attempt status.
@@ -33,4 +33,21 @@ pub struct GetAdditionalRevenueRecoveryResponseData {
 #[derive(Debug, Clone)]
 pub struct RevenueRecoveryRecordBackResponse {
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+}
+
+pub struct BillingConnectorInvoiceSyncResponse {
+    /// transaction amount against invoice, accepted in minor unit.
+    pub amount: MinorUnit,
+    /// currency of the transaction
+    pub currency: common_enums::enums::Currency,
+    /// merchant reference id at billing connector. ex: invoice_id
+    pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+    /// No of attempts made against an invoice
+    pub retry_count: Option<u16>,
+    ///  Billing Address of the customer for Invoice
+    pub billing_address: Option<api_models::payments::Address>,
+    /// creation time of the invoice
+    pub created_at: Option<PrimitiveDateTime>,
+    /// Ending time of Invoice
+    pub ends_at: Option<PrimitiveDateTime>,
 }

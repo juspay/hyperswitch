@@ -91,7 +91,8 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN connector_mandate_detail,
     DROP COLUMN charge_id,
     DROP COLUMN issuer_error_code,
-    DROP COLUMN issuer_error_message;
+    DROP COLUMN issuer_error_message,
+    DROP COLUMN setup_future_usage_applied;
 
 
 ALTER TABLE payment_methods
@@ -121,3 +122,9 @@ ALTER TABLE refund DROP COLUMN connector_refund_data,
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE captures DROP COLUMN connector_capture_data;
+
+-- Run below queries only when V1 is deprecated
+ALTER TABLE refund 
+    DROP COLUMN IF EXISTS internal_reference_id,
+    DROP COLUMN IF EXISTS refund_id,
+    DROP COLUMN IF EXISTS merchant_connector_id;

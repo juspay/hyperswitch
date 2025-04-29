@@ -86,7 +86,6 @@ pub async fn signup_with_merchant_id(
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
-        subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
@@ -307,7 +306,6 @@ pub async fn connect_account(
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
-            subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
@@ -363,7 +361,6 @@ pub async fn connect_account(
         let magic_link_email = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
-            subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
@@ -385,7 +382,6 @@ pub async fn connect_account(
         if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
             let welcome_to_community_email = email_types::WelcomeToCommunity {
                 recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-                subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
             };
 
             let welcome_email_result = state
@@ -516,7 +512,6 @@ pub async fn forgot_password(
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
         settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
-        subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
@@ -928,7 +923,6 @@ async fn handle_existing_user_invitation(
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
             settings: state.conf.clone(),
-            subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
@@ -1085,7 +1079,6 @@ async fn handle_new_user_invitation(
             recipient_email: invitee_email,
             user_name: domain::UserName::new(new_user.get_name())?,
             settings: state.conf.clone(),
-            subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
@@ -1237,7 +1230,6 @@ pub async fn resend_invite(
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
         settings: state.conf.clone(),
-        subject: consts::user::EMAIL_SUBJECT_INVITATION,
         entity: email_types::Entity {
             entity_id,
             entity_type,
@@ -1896,7 +1888,6 @@ pub async fn send_verification_mail(
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
-        subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
@@ -2983,7 +2974,7 @@ pub async fn list_merchants_for_user_in_org(
             .map(|merchant_account| user_api::UserMerchantAccountResponse {
                 merchant_name: merchant_account.merchant_name.clone(),
                 merchant_id: merchant_account.get_id().to_owned(),
-                product_type: merchant_account.product_type.clone(),
+                product_type: merchant_account.product_type,
                 version: merchant_account.version,
             })
             .collect::<Vec<_>>(),
@@ -3177,6 +3168,23 @@ pub async fn switch_org_for_user(
             (merchant_id, profile_id, user_role.role_id)
         }
     };
+
+    let lineage_context = domain::LineageContext {
+        user_id: user_from_token.user_id.clone(),
+        merchant_id: merchant_id.clone(),
+        role_id: role_id.clone(),
+        org_id: request.org_id.clone(),
+        profile_id: profile_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
+    };
+
+    lineage_context
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
+        .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3373,6 +3381,23 @@ pub async fn switch_merchant_for_user_in_org(
         }
     };
 
+    let lineage_context = domain::LineageContext {
+        user_id: user_from_token.user_id.clone(),
+        merchant_id: merchant_id.clone(),
+        role_id: role_id.clone(),
+        org_id: org_id.clone(),
+        profile_id: profile_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
+    };
+
+    lineage_context
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
+        .await;
+
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
         user_from_token.user_id,
@@ -3488,6 +3513,23 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             (request.profile_id, user_role.role_id)
         }
     };
+
+    let lineage_context = domain::LineageContext {
+        user_id: user_from_token.user_id.clone(),
+        merchant_id: user_from_token.merchant_id.clone(),
+        role_id: role_id.clone(),
+        org_id: user_from_token.org_id.clone(),
+        profile_id: profile_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
+    };
+
+    lineage_context
+        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
+        .await;
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,

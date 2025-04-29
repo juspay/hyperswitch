@@ -154,7 +154,9 @@ pub fn mk_app(
 
         #[cfg(all(feature = "v2", feature = "oltp"))]
         {
-            server_app = server_app.service(routes::PaymentMethodSession::server(state.clone()));
+            server_app = server_app
+                .service(routes::PaymentMethodSession::server(state.clone()))
+                .service(routes::Refunds::server(state.clone()));
         }
 
         #[cfg(feature = "v1")]
@@ -201,6 +203,11 @@ pub fn mk_app(
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
                 .service(routes::FeatureMatrix::server(state.clone()));
+        }
+
+        #[cfg(feature = "v2")]
+        {
+            server_app = server_app.service(routes::ProcessTracker::server(state.clone()));
         }
     }
 
@@ -374,6 +381,7 @@ pub fn get_application_builder(
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(middleware::AddAcceptLanguageHeader)
+        .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
