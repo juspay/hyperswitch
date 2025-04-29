@@ -17,6 +17,7 @@ use diesel_models::{enums, process_tracker::business_status, types as diesel_typ
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_connector_account,
+    merchant_context::{Context, MerchantContext},
     payments::{
         self as domain_payments, payment_attempt, PaymentConfirmData, PaymentIntent,
         PaymentIntentData,
@@ -473,17 +474,20 @@ async fn call_proxy_api(
 
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
+    let merchant_context_from_pcr_data = MerchantContext::NormalMerchant(Box::new(Context(
+        pcr_data.merchant_account.clone(),
+        pcr_data.key_store.clone(),
+    )));
+
     let get_tracker_response = operation
         .to_get_tracker()?
         .get_trackers(
             state,
             payment_intent.get_id(),
             &req,
-            &pcr_data.merchant_account,
+            &merchant_context_from_pcr_data,
             &pcr_data.profile,
-            &pcr_data.key_store,
             &hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
         )
         .await?;
 
@@ -496,8 +500,7 @@ async fn call_proxy_api(
     >(
         state,
         state.get_req_state(),
-        pcr_data.merchant_account.clone(),
-        pcr_data.key_store.clone(),
+        merchant_context_from_pcr_data,
         pcr_data.profile.clone(),
         operation,
         req,
@@ -517,6 +520,10 @@ pub async fn update_payment_intent_api(
 ) -> RouterResult<PaymentIntentData<payments_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
+    let merchant_context_from_pcr_data = MerchantContext::NormalMerchant(Box::new(Context(
+        pcr_data.merchant_account.clone(),
+        pcr_data.key_store.clone(),
+    )));
     let (payment_data, _req, customer) = payments::payments_intent_operation_core::<
         payments_types::PaymentUpdateIntent,
         _,
@@ -525,14 +532,12 @@ pub async fn update_payment_intent_api(
     >(
         state,
         state.get_req_state(),
-        pcr_data.merchant_account.clone(),
+        merchant_context_from_pcr_data,
         pcr_data.profile.clone(),
-        pcr_data.key_store.clone(),
         operation,
         update_req,
         global_payment_id,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
     )
     .await?;
     Ok(payment_data)
