@@ -1,5 +1,5 @@
 //! Configs interface
-use common_enums::ApplicationError;
+use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
 use masking::Secret;
 use router_derive;
@@ -115,14 +115,14 @@ pub struct Connectors {
 }
 
 impl Connectors {
-    pub fn get_connector_params_using_connector_name(
+    pub fn get_connector_params(
         &self,
-        connector_name: String,
+        connector: connector_enums::Connector,
     ) -> CustomResult<ConnectorParams, api_error_response::ApiErrorResponse> {
-        match connector_name.as_str() {
-            "recurly" => Ok(self.recurly.clone()),
-            "stripebilling" => Ok(self.stripebilling.clone()),
-            "chargebee" => Ok(self.chargebee.clone()),
+        match connector {
+            connector_enums::Connector::Recurly => Ok(self.recurly.clone()),
+            connector_enums::Connector::Stripebilling => Ok(self.stripebilling.clone()),
+            connector_enums::Connector::Chargebee => Ok(self.chargebee.clone()),
             _ => Err(api_error_response::ApiErrorResponse::IncorrectConnectorNameGiven.into()),
         }
     }

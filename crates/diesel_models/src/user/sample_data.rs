@@ -1,20 +1,23 @@
+#[cfg(feature = "v1")]
 use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+#[cfg(feature = "v1")]
 use common_utils::types::{ConnectorTransactionId, MinorUnit};
+#[cfg(feature = "v1")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "v1")]
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v1")]
-use crate::schema::payment_attempt;
-#[cfg(feature = "v2")]
-use crate::schema_v2::payment_attempt;
 use crate::{
     enums::{MandateDataType, MandateDetails},
+    schema::payment_attempt,
     ConnectorMandateReferenceId, PaymentAttemptNew,
 };
 
