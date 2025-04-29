@@ -304,5 +304,4 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .into())
     }
-
 }
