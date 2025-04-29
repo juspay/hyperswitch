@@ -6551,8 +6551,6 @@ where
                 Some(connectors),
             )
             .await;
-
-
         }
     }
 
@@ -7327,10 +7325,13 @@ where
     } else {
         connectors
     };
-    let mut final_connectors = connectors.clone();
-    if let Some(straight_through_connectors) = connector_list {
-        final_connectors.extend(straight_through_connectors);
-    }
+    let final_connectors = if let Some(straight_through_connectors) = connector_list {
+        let mut combined = straight_through_connectors.clone();
+        combined.extend(connectors.clone());
+        combined
+    } else {
+        connectors.clone()
+    };
 
     let connector_data = final_connectors
         .into_iter()
