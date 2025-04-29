@@ -12,11 +12,11 @@ use hyperswitch_domain_models::{
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData,
+        PaymentsCaptureRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -247,7 +247,6 @@ pub enum NoonApiOperations {
     Reverse,
     Refund,
     CancelSubscription,
-    ProcessAuthentication,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -316,7 +315,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                             }))
                         }
                         WalletData::PaypalRedirect(_) => Ok(NoonPaymentData::PayPal(NoonPayPal {
-                            return_url: item.request.get_complete_authorize_url()?,
+                            return_url: item.request.get_router_return_url()?,
                         })),
                         WalletData::AliPayQr(_)
                         | WalletData::AliPayRedirect(_)
@@ -446,116 +445,6 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoonPaymentsCompleteAuthorizeRequest {
-    api_operation: NoonApiOperations,
-    order: NoonCompleteOrder,
-    payment_data: NoonCompletePaymentData,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoonCompleteOrder {
-    id: u64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoonCompletePaymentData {
-    #[serde(rename = "type")]
-    payment_method_type: NoonPaymentMethodType,
-    data: NoonData,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoonData {
-    method: Method,
-    query_data: NoonQueryData,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoonQueryData {
-    status: String,
-    #[serde(rename = "PayerID")]
-    payer_id: Option<Secret<String>>,
-    payment_id: Option<Secret<String>>,
-    token: Option<Secret<String>>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaypalQueryData {
-    status: String,
-    #[serde(rename = "PayerID")]
-    payer_id: Option<Secret<String>>,
-    token: Option<Secret<String>>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum NoonPaymentMethodType {
-    Paypal,
-}
-
-impl TryFrom<&NoonRouterData<&PaymentsCompleteAuthorizeRouterData>>
-    for NoonPaymentsCompleteAuthorizeRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &NoonRouterData<&PaymentsCompleteAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let params = item
-            .router_data
-            .request
-            .redirect_response
-            .as_ref()
-            .and_then(|redirect_response| redirect_response.params.as_ref())
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let query_params: PaypalQueryData = serde_urlencoded::from_str(params.peek())
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-            .attach_printable("Failed to parse connector response")?;
-
-        let payer_id = query_params.payer_id;
-        let token = query_params.token.clone();
-        let payment_id = query_params.token;
-        let status = query_params.status;
-        let payment_method_type = NoonPaymentMethodType::Paypal;
-
-        let order = NoonCompleteOrder {
-            id: item
-                .router_data
-                .request
-                .connector_transaction_id
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                })?
-                .parse::<u64>()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-        };
-        Ok(Self {
-            api_operation: NoonApiOperations::ProcessAuthentication,
-            order,
-            payment_data: NoonCompletePaymentData {
-                payment_method_type,
-                data: NoonData {
-                    method: Method::Get,
-                    query_data: NoonQueryData {
-                        status,
-                        payer_id,
-                        payment_id,
-                        token,
-                    },
-                },
-            },
-        })
-    }
-}
-
 // Auth Struct
 pub struct NoonAuthType {
     pub(super) api_key: Secret<String>,
@@ -622,13 +511,15 @@ fn get_payment_status(data: (NoonPaymentStatus, AttemptStatus)) -> AttemptStatus
         NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => {
             AttemptStatus::AuthenticationFailed
         }
-        NoonPaymentStatus::ThreeDsEnrollInitiated
-        | NoonPaymentStatus::ThreeDsEnrollChecked
-        | NoonPaymentStatus::PaymentInfoAdded => AttemptStatus::AuthenticationPending,
+        NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
+            AttemptStatus::AuthenticationPending
+        }
         NoonPaymentStatus::ThreeDsResultVerified => AttemptStatus::AuthenticationSuccessful,
         NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => AttemptStatus::Failure,
         NoonPaymentStatus::Pending | NoonPaymentStatus::MarkedForReview => AttemptStatus::Pending,
-        NoonPaymentStatus::Initiated | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
+        NoonPaymentStatus::Initiated
+        | NoonPaymentStatus::PaymentInfoAdded
+        | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
         NoonPaymentStatus::Locked => current_status,
     }
 }
@@ -659,25 +550,12 @@ pub struct NoonCheckoutData {
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
     checkout_data: Option<NoonCheckoutData>,
-    payment_data: Option<NoonPaypalPaymentData>,
     subscription: Option<NoonSubscriptionObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoonPaymentsResponse {
     result: NoonPaymentsResponseResult,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NoonPaypalPaymentData {
-    data: PaypalData,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaypalData {
-    url: url::Url,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsResponseData>>
@@ -693,15 +571,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
             item.response
                 .result
                 .checkout_data
-                .map(|checkout_data| RedirectForm::Form {
-                    endpoint: checkout_data.post_url.to_string(),
+                .map(|redirection_data| RedirectForm::Form {
+                    endpoint: redirection_data.post_url.to_string(),
                     method: Method::Post,
                     form_fields: std::collections::HashMap::new(),
-                })
-                .or_else(|| {
-                    item.response.result.payment_data.map(|payment_data| {
-                        RedirectForm::from((payment_data.data.url, Method::Get))
-                    })
                 });
         let mandate_reference =
             item.response
@@ -1103,7 +976,6 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
                     reference: None,
                 },
                 checkout_data: None,
-                payment_data: None,
                 subscription: None,
             },
         }

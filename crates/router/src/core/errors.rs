@@ -348,6 +348,18 @@ pub enum RoutingError {
     SuccessRateCalculationError,
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
     SuccessRateClientInitializationError,
+    #[error("Elimination client from dynamic routing gRPC service not initialized")]
+    EliminationClientInitializationError,
+    #[error("Unable to analyze elimination routing config from dynamic routing service")]
+    EliminationRoutingCalculationError,
+    #[error("Params not found in elimination based routing config")]
+    EliminationBasedRoutingParamsNotFoundError,
+    #[error("Unable to retrieve elimination based routing config")]
+    EliminationRoutingConfigError,
+    #[error(
+        "Invalid elimination based connector label received from dynamic routing service: '{0}'"
+    )]
+    InvalidEliminationBasedConnectorLabel(String),
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
@@ -368,6 +380,10 @@ pub enum RoutingError {
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
+    #[error("Failed to perform {algo} in open_router")]
+    OpenRouterCallFailed { algo: String },
+    #[error("Error from open_router: {0}")]
+    OpenRouterError(String),
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

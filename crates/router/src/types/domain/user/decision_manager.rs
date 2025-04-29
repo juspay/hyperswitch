@@ -1,6 +1,9 @@
 use common_enums::TokenPurpose;
 use common_utils::id_type;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRole,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -10,6 +13,7 @@ use crate::{
     db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authentication as auth,
+    types::domain::LineageContext,
     utils,
 };
 
@@ -124,23 +128,93 @@ impl JWTFlow {
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
+        let user_id = next_flow.user.get_user_id();
+        let cached_lineage_context =
+            LineageContext::try_get_lineage_context_from_cache(state, user_id).await;
+
+        let new_lineage_context = match cached_lineage_context {
+            Some(ctx) => {
+                let tenant_id = ctx.tenant_id.clone();
+                let user_role_match_v1 = state
+                    .global_store
+                    .find_user_role_by_user_id_and_lineage(
+                        &ctx.user_id,
+                        &tenant_id,
+                        &ctx.org_id,
+                        &ctx.merchant_id,
+                        &ctx.profile_id,
+                        UserRoleVersion::V1,
+                    )
+                    .await
+                    .is_ok();
+
+                if user_role_match_v1 {
+                    ctx
+                } else {
+                    let user_role_match_v2 = state
+                        .global_store
+                        .find_user_role_by_user_id_and_lineage(
+                            &ctx.user_id,
+                            &tenant_id,
+                            &ctx.org_id,
+                            &ctx.merchant_id,
+                            &ctx.profile_id,
+                            UserRoleVersion::V2,
+                        )
+                        .await
+                        .is_ok();
+
+                    if user_role_match_v2 {
+                        ctx
+                    } else {
+                        // fallback to default lineage if cached context is invalid
+                        Self::resolve_lineage_from_user_role(state, user_role, user_id).await?
+                    }
+                }
+            }
+            None =>
+            // no cached context found
+            {
+                Self::resolve_lineage_from_user_role(state, user_role, user_id).await?
+            }
+        };
+
+        new_lineage_context
+            .try_set_lineage_context_in_cache(state, user_id)
+            .await;
+
+        auth::AuthToken::new_token(
+            new_lineage_context.user_id,
+            new_lineage_context.merchant_id,
+            new_lineage_context.role_id,
+            &state.conf,
+            new_lineage_context.org_id,
+            new_lineage_context.profile_id,
+            Some(new_lineage_context.tenant_id),
+        )
+        .await
+        .map(|token| token.into())
+    }
+
+    pub async fn resolve_lineage_from_user_role(
+        state: &SessionState,
+        user_role: &UserRole,
+        user_id: &str,
+    ) -> UserResult<LineageContext> {
         let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
         let merchant_id =
             utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
         let profile_id =
             utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
 
-        auth::AuthToken::new_token(
-            next_flow.user.get_user_id().to_string(),
-            merchant_id,
-            user_role.role_id.clone(),
-            &state.conf,
+        Ok(LineageContext {
+            user_id: user_id.to_string(),
             org_id,
+            merchant_id,
             profile_id,
-            Some(user_role.tenant_id.clone()),
-        )
-        .await
-        .map(|token| token.into())
+            role_id: user_role.role_id.clone(),
+            tenant_id: user_role.tenant_id.clone(),
+        })
     }
 }
 
