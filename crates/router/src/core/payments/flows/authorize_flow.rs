@@ -38,8 +38,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccount,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -55,8 +54,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -68,8 +66,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -81,10 +78,9 @@ impl
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                key_store,
+                merchant_context,
                 connector,
                 state,
-                merchant_account,
             )
             .await?
         } else {
@@ -108,8 +104,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -128,8 +123,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -141,8 +135,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -154,10 +147,9 @@ impl
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                key_store,
+                merchant_context,
                 connector,
                 state,
-                merchant_account,
             )
             .await?
         } else {
@@ -240,10 +232,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
             .await
     }
 
@@ -344,6 +336,37 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     )
                     .to_payment_failed_response()?;
 
+                // Check if the connector supports mandate payment
+                // if the payment_method_type does not support mandate for the given connector, downgrade the setup future usage to on session
+                if self.request.setup_future_usage
+                    == Some(diesel_models::enums::FutureUsage::OffSession)
+                    && !self
+                        .request
+                        .payment_method_type
+                        .and_then(|payment_method_type| {
+                            state
+                                .conf
+                                .mandates
+                                .supported_payment_methods
+                                .0
+                                .get(&enums::PaymentMethod::from(payment_method_type))
+                                .and_then(|supported_pm_for_mandates| {
+                                    supported_pm_for_mandates.0.get(&payment_method_type).map(
+                                        |supported_connector_for_mandates| {
+                                            supported_connector_for_mandates
+                                                .connector_list
+                                                .contains(&connector.connector_name)
+                                        },
+                                    )
+                                })
+                        })
+                        .unwrap_or(false)
+                {
+                    // downgrade the setup future usage to on session
+                    self.request.setup_future_usage =
+                        Some(diesel_models::enums::FutureUsage::OnSession);
+                };
+
                 if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
                 ) {
@@ -354,7 +377,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             self.request.payment_method_data.clone(),
                         )
                         .to_payment_failed_response()?;
-                }
+                };
 
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Authorize,

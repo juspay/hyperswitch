@@ -51,9 +51,8 @@ pub trait Domain<F, D>: Send + Sync {
         req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        key_store: domain::MerchantKeyStore,
     ) -> RouterResult<Option<FrmRouterData>>
     where
         F: Send + Clone;
@@ -63,9 +62,8 @@ pub trait Domain<F, D>: Send + Sync {
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        key_store: domain::MerchantKeyStore,
     ) -> RouterResult<FrmRouterData>
     where
         F: Send + Clone;
@@ -78,14 +76,12 @@ pub trait Domain<F, D>: Send + Sync {
         _state: &SessionState,
         _req_state: ReqState,
         frm_data: &mut FrmData,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
-        _key_store: domain::MerchantKeyStore,
         _payment_data: &mut D,
         _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<Option<FrmData>>
     where
         F: Send + Clone,

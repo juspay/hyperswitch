@@ -12,7 +12,7 @@ use crate::{
 pub async fn retrieve_poll_status(
     state: SessionState,
     req: crate::types::api::PollId,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
 ) -> RouterResponse<PollResponse> {
     let redis_conn = state
         .store
@@ -21,7 +21,10 @@ pub async fn retrieve_poll_status(
         .attach_printable("Failed to get redis connection")?;
     let request_poll_id = req.poll_id;
     // prepend 'poll_{merchant_id}_' to restrict access to only fetching Poll IDs, as this is a freely passed string in the request
-    let poll_id = super::utils::get_poll_id(merchant_account.get_id(), request_poll_id.clone());
+    let poll_id = super::utils::get_poll_id(
+        merchant_context.get_merchant_account().get_id(),
+        request_poll_id.clone(),
+    );
     let redis_value = redis_conn
         .get_key::<Option<String>>(&poll_id.as_str().into())
         .await
