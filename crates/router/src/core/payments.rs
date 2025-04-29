@@ -16,7 +16,8 @@ pub mod types;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
+    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, str::FromStr, time::Instant,
+    vec::IntoIter,
 };
 
 #[cfg(feature = "v2")]
@@ -4156,6 +4157,7 @@ where
                 key_store,
                 value,
                 payment_data.get_payment_intent(),
+                business_profile.get_id(),
             )
             .await?;
             payment_data.push_sessions_token(session_token);
@@ -4177,6 +4179,7 @@ pub async fn get_session_token_for_click_to_pay(
     key_store: &domain::MerchantKeyStore,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    profile_id: &id_type::ProfileId,
 ) -> RouterResult<api_models::payments::SessionToken> {
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
@@ -4230,12 +4233,16 @@ pub async fn get_session_token_for_click_to_pay(
         _ => None,
     };
 
+    let card_brands =
+        get_card_brands_based_on_active_merchant_connector_account(state, profile_id, key_store)
+            .await?;
+
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
         api_models::payments::ClickToPaySessionResponse {
             dpa_id: click_to_pay_metadata.dpa_id,
             dpa_name: click_to_pay_metadata.dpa_name,
             locale: click_to_pay_metadata.locale,
-            card_brands: click_to_pay_metadata.card_brands,
+            card_brands,
             acquirer_bin: click_to_pay_metadata.acquirer_bin,
             acquirer_merchant_id: click_to_pay_metadata.acquirer_merchant_id,
             merchant_category_code: click_to_pay_metadata.merchant_category_code,
@@ -4249,6 +4256,63 @@ pub async fn get_session_token_for_click_to_pay(
             dpa_client_id: click_to_pay_metadata.dpa_client_id.clone(),
         },
     )))
+}
+
+#[cfg(feature = "v1")]
+async fn get_card_brands_based_on_active_merchant_connector_account(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<HashSet<enums::CardNetwork>> {
+    let key_manager_state = &(state).into();
+    let merchant_configured_payment_connectors = state
+        .store
+        .list_enabled_connector_accounts_by_profile_id(
+            key_manager_state,
+            profile_id,
+            key_store,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error when fetching merchant connector accounts")?;
+
+    let payment_connectors_eligible_for_click_to_pay =
+        state.conf.authentication_providers.click_to_pay.clone();
+
+    let filtered_payment_connector_accounts: Vec<
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    > = merchant_configured_payment_connectors
+        .into_iter()
+        .filter(|account| {
+            enums::Connector::from_str(&account.connector_name)
+                .ok()
+                .map(|connector| payment_connectors_eligible_for_click_to_pay.contains(&connector))
+                .unwrap_or(false)
+        })
+        .collect();
+
+    let mut card_brands = HashSet::new();
+
+    for account in filtered_payment_connector_accounts {
+        if let Some(values) = &account.payment_methods_enabled {
+            for val in values {
+                let payment_methods_enabled: api_models::admin::PaymentMethodsEnabled =
+                    serde_json::from_value(val.peek().to_owned()).inspect_err(|err| {
+                        logger::error!("Failed to parse Payment methods enabled data set from dashboard because {}", err)
+                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                if let Some(payment_method_types) = payment_methods_enabled.payment_method_types {
+                    for payment_method_type in payment_method_types {
+                        if let Some(networks) = payment_method_type.card_networks {
+                            card_brands.extend(networks);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(card_brands)
 }
 
 fn validate_customer_details_for_click_to_pay(customer_details: &CustomerData) -> RouterResult<()> {
