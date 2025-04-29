@@ -907,25 +907,22 @@ static GOCARDLESS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         gocardless_supported_payment_methods
     });
 
-static GOCARDLESS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "GoCardless",
         description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
-    vec![
-        enums::EventClass::Payments,
-        enums::EventClass::Refunds,
-        enums::EventClass::Mandates,
-    ]
-});
+static GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
 
 impl ConnectorSpecifications for Gocardless {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*GOCARDLESS_CONNECTOR_INFO)
+        Some(&GOCARDLESS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -933,6 +930,6 @@ impl ConnectorSpecifications for Gocardless {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

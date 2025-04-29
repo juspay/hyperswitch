@@ -905,18 +905,17 @@ static WORLDLINE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         worldline_supported_payment_methods
     });
 
-static WORLDLINE_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| ConnectorInfo {
+static WORLDLINE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldline",
     description: "Worldline, Europe's leading payment service provider",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-});
+};
 
-static WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(|| vec![enums::EventClass::Payments]);
+static WORLDLINE_SUPPORTED_WEBHOOK_FLOWS:  [enums::EventClass; 1]= [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Worldline {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*WORLDLINE_CONNECTOR_INFO)
+        Some(&WORLDLINE_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -924,6 +923,6 @@ impl ConnectorSpecifications for Worldline {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*WORLDLINE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&WORLDLINE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

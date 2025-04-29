@@ -1023,26 +1023,24 @@ static RAPYD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     rapyd_supported_payment_methods
 });
 
-static RAPYD_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static RAPYD_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Rapyd",
         description:
             "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static RAPYD_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(|| {
-    vec![
+static RAPYD_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 3] = 
+    [
         enums::EventClass::Payments,
         enums::EventClass::Refunds,
         enums::EventClass::Disputes,
-    ]
-});
+    ];
 
 impl ConnectorSpecifications for Rapyd {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*RAPYD_CONNECTOR_INFO)
+        Some(&RAPYD_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1050,6 +1048,6 @@ impl ConnectorSpecifications for Rapyd {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*RAPYD_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&RAPYD_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

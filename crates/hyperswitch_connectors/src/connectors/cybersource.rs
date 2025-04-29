@@ -1838,18 +1838,17 @@ static CYBERSOURCE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
         cybersource_supported_payment_methods
     });
 
-static CYBERSOURCE_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| ConnectorInfo {
+static CYBERSOURCE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Cybersource",
     description: "Cybersource is an American payment gateway founded in 1994",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-});
+};
 
-static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS:  [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Cybersource {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*CYBERSOURCE_CONNECTOR_INFO)
+        Some(&CYBERSOURCE_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1857,6 +1856,6 @@ impl ConnectorSpecifications for Cybersource {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

@@ -795,20 +795,18 @@ static BAMBORAAPAC_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
         bamboraapac_supported_payment_methods
     });
 
-static BAMBORAAPAC_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static BAMBORAAPAC_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Bambora Asia-Pacific",
         description: "Bambora Asia-Pacific, provides comprehensive payment solutions, offering merchants smart and smooth payment processing capabilities.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Bamboraapac {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*BAMBORAAPAC_CONNECTOR_INFO)
+        Some(&BAMBORAAPAC_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -816,6 +814,6 @@ impl ConnectorSpecifications for Bamboraapac {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

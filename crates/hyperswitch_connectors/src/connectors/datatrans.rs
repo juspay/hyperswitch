@@ -840,21 +840,19 @@ static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         datatrans_supported_payment_methods
     });
 
-static DATATRANS_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static DATATRANS_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Datatrans",
         description:
             "Datatrans is a payment gateway that facilitates the processing of payments, including hosting smart payment forms and correctly routing payment information.",
         connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static DATATRANS_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<common_enums::enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static DATATRANS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Datatrans {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*DATATRANS_CONNECTOR_INFO)
+        Some(&DATATRANS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -862,6 +860,6 @@ impl ConnectorSpecifications for Datatrans {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
-        Some(&*DATATRANS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&DATATRANS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

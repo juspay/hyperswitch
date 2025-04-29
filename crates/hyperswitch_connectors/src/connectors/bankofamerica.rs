@@ -1143,21 +1143,19 @@ static BANKOFAMERICA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
         bankofamerica_supported_payment_methods
     });
 
-static BANKOFAMERICA_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static BANKOFAMERICA_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Bank Of America",
         description:
             "It is the second-largest banking institution in the United States and the second-largest bank in the world by market capitalization ",
         connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    }
-});
+    };
 
-static BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Bankofamerica {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*BANKOFAMERICA_CONNECTOR_INFO)
+        Some(&BANKOFAMERICA_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1165,6 +1163,6 @@ impl ConnectorSpecifications for Bankofamerica {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&BANKOFAMERICA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

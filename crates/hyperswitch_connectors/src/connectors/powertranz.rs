@@ -663,21 +663,19 @@ static POWERTRANZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         powertranz_supported_payment_methods
     });
 
-static POWERTRANZ_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Powertranz",
         description:
             "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(Vec::new);
+static POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Powertranz {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*POWERTRANZ_CONNECTOR_INFO)
+        Some(&POWERTRANZ_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -685,6 +683,6 @@ impl ConnectorSpecifications for Powertranz {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

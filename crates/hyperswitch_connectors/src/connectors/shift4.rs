@@ -946,21 +946,21 @@ static SHIFT4_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     shift4_supported_payment_methods
 });
 
-static SHIFT4_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static SHIFT4_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Shift4",
         description:
             "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static SHIFT4_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> =
-    LazyLock::new(|| vec![enums::EventClass::Payments]);
+static SHIFT4_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [
+    enums::EventClass::Payments,
+];
 
 impl ConnectorSpecifications for Shift4 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*SHIFT4_CONNECTOR_INFO)
+        Some(&SHIFT4_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -968,6 +968,6 @@ impl ConnectorSpecifications for Shift4 {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

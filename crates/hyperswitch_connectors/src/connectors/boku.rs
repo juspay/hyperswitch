@@ -771,20 +771,19 @@ static BOKU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
     boku_supported_payment_methods
 });
 
-static BOKU_CONNECTOR_INFO: LazyLock<ConnectorInfo> = LazyLock::new(|| {
+static BOKU_CONNECTOR_INFO: ConnectorInfo = 
     ConnectorInfo {
         display_name: "Boku",
         description:
             "Boku, Inc. is a mobile payments company that allows businesses to collect online payments through both carrier billing and mobile wallets, and is headquartered in San Francisco, California.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    }
-});
+    };
 
-static BOKU_SUPPORTED_WEBHOOK_FLOWS: LazyLock<Vec<enums::EventClass>> = LazyLock::new(Vec::new);
+static BOKU_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Boku {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*BOKU_CONNECTOR_INFO)
+        Some(&BOKU_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -792,6 +791,6 @@ impl ConnectorSpecifications for Boku {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*BOKU_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&BOKU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
