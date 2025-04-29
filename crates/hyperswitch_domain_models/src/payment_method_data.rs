@@ -79,7 +79,7 @@ impl PaymentMethodData {
     }
 
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
-        if let PaymentMethodData::Card(card) = self {
+        if let Self::Card(card) = self {
             card.co_badged_card_data.as_ref()
         } else {
             None
@@ -735,6 +735,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 bank_code: None,
                 nick_name,
                 card_holder_name,
+                co_badged_card_data: None,
             })),
         }
     }
@@ -801,14 +802,18 @@ impl
     )> for Card
 {
     fn from(
-        (value, co_badged_card_data): (
+        (value, co_badged_card_data_optional): (
             api_models::payments::Card,
             Option<payment_methods::CoBadgedCardData>,
         ),
     ) -> Self {
-        let a = co_badged_card_data
-            .clone()
-            .map(|x| x.co_badged_card_networks[0].clone());
+        let first_co_badged_card_network =
+            co_badged_card_data_optional
+                .as_ref()
+                .and_then(|co_badged_card_data| {
+                    co_badged_card_data.co_badged_card_networks.first().cloned()
+                });
+
         let api_models::payments::Card {
             card_number,
             card_exp_month,
@@ -829,13 +834,13 @@ impl
             card_exp_year,
             card_cvc,
             card_issuer,
-            card_network: a.or(card_network),
+            card_network: first_co_badged_card_network.or(card_network),
             card_type,
             card_issuing_country,
             bank_code,
             nick_name,
             card_holder_name,
-            co_badged_card_data,
+            co_badged_card_data: co_badged_card_data_optional,
         }
     }
 }
@@ -1903,7 +1908,7 @@ pub enum PaymentMethodsData {
 
 impl PaymentMethodsData {
     pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
-        if let PaymentMethodsData::Card(card) = self {
+        if let Self::Card(card) = self {
             card.co_badged_card_data.clone()
         } else {
             None
@@ -1963,6 +1968,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            co_badged_card_data: None,
         }
     }
 }

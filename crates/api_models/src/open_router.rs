@@ -71,24 +71,24 @@ pub struct DebitRoutingOutput {
 
 impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
     fn from(output: &DebitRoutingOutput) -> Self {
-        payment_methods::CoBadgedCardData {
+        Self {
             co_badged_card_networks: output.co_badged_card_networks.clone(),
-            issuer_country: output.issuer_country.clone(),
-            is_regulated: output.is_regulated.clone(),
-            regulated_name: output.regulated_name.clone(),
-            card_type: output.card_type.clone(),
+            issuer_country: output.issuer_country,
+            is_regulated: output.is_regulated,
+            regulated_name: output.regulated_name,
+            card_type: output.card_type,
         }
     }
 }
 
 impl From<payment_methods::CoBadgedCardData> for DebitRoutingRequestData {
     fn from(output: payment_methods::CoBadgedCardData) -> Self {
-        DebitRoutingRequestData {
-            co_badged_card_networks: output.co_badged_card_networks.clone(),
-            issuer_country: output.issuer_country.clone(),
-            is_regulated: output.is_regulated.clone(),
-            regulated_name: output.regulated_name.clone(),
-            card_type: output.card_type.clone(),
+        Self {
+            co_badged_card_networks: output.co_badged_card_networks,
+            issuer_country: output.issuer_country,
+            is_regulated: output.is_regulated,
+            regulated_name: output.regulated_name,
+            card_type: output.card_type,
         }
     }
 }

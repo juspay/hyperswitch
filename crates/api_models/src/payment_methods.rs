@@ -1324,6 +1324,7 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            co_badged_card_data: None,
         }
     }
 }
@@ -1368,6 +1369,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: None,
         }
     }
 }

@@ -243,114 +243,6 @@ where
     None
 }
 
-// pub async fn get_sorted_co_badged_networks_by_fee<
-//     F: Clone,
-//     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
-// >(
-//     state: &SessionState,
-//     payment_data: &mut D,
-//     acquirer_country: enums::CountryAlpha2,
-// ) -> Option<Vec<enums::CardNetwork>> {
-//     logger::debug!("Fetching sorted card networks based on their respective network fees");
-
-//     let payment_method_data_optional = payment_data.get_payment_method_data();
-//     let payment_attempt = payment_data.get_payment_attempt();
-
-//     let debit_routing_output_optional = if let Some(
-//         hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card),
-//     ) = payment_data
-//         .get_payment_method_info()
-//         .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
-//     {
-//         if let Some(saved_co_badged_card_data) = &card.co_badged_card_data {
-//             logger::debug!("Co-badged card data is present in the saved payment method");
-//             let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
-//                 merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
-//                 acquirer_country,
-//                 co_badged_card_data: Some(api_models::open_router::DebitRoutingRequestData::from(
-//                     saved_co_badged_card_data,
-//                 )),
-//             };
-
-//             let debit_routing_output_optional = routing::perform_open_routing_for_debit_routing(
-//                 state,
-//                 payment_attempt,
-//                 co_badged_card_request,
-//                 None,
-//             )
-//             .await
-//             .map_err(|error| {
-//                 logger::warn!(?error, "Failed to calculate total fees per network");
-//             })
-//             .ok();
-//             debit_routing_output_optional
-//         } else if let Some(saved_card_isin) = &card.card_isin {
-//             logger::debug!("Co-badged card data is not present; proceeding with the flow using the saved card BIN.");
-//             let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
-//                 merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
-//                 acquirer_country,
-//                 co_badged_card_data: None,
-//             };
-
-//             let debit_routing_output_optional = routing::perform_open_routing_for_debit_routing(
-//                 state,
-//                 payment_attempt,
-//                 co_badged_card_request,
-//                 Some(Secret::new(saved_card_isin.clone())),
-//             )
-//             .await
-//             .map_err(|error| {
-//                 logger::warn!(?error, "Failed to calculate total fees per network");
-//             })
-//             .ok();
-//             debit_routing_output_optional
-//         } else {
-//             None
-//         }
-//     } else if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
-//         card,
-//     )) = payment_method_data_optional
-//     {
-//         logger::debug!(
-//             "Co-badged card data is not present; proceeding with card data form the request."
-//         );
-//         let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
-//             merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
-//             acquirer_country,
-//             co_badged_card_data: None,
-//         };
-
-//         // perform_open_routing_for_debit_routing
-//         let debit_routing_output_optional = routing::perform_open_routing_for_debit_routing(
-//             state,
-//             payment_attempt,
-//             co_badged_card_request,
-//             Some(Secret::new(card.card_number.get_card_isin())),
-//         )
-//         .await
-//         .map_err(|error| {
-//             logger::warn!(?error, "Failed to calculate total fees per network");
-//         })
-//         .ok();
-//         debit_routing_output_optional
-//     } else {
-//         None
-//     };
-
-//     debit_routing_output_optional
-//         .as_ref()
-//         .map(|debit_routing_output| {
-//             payment_data.set_co_badged_card_data(payment_methods::CoBadgedCardData::from(
-//                 debit_routing_output,
-//             ))
-//         });
-
-//     let co_badged_card_networks =
-//         debit_routing_output_optional.map(|data| data.co_badged_card_networks);
-
-//     co_badged_card_networks
-// }
-
 pub async fn get_sorted_co_badged_networks_by_fee<
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
@@ -416,25 +308,6 @@ pub async fn get_sorted_co_badged_networks_by_fee<
         }
     };
 
-    // let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
-    //     merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
-    //     acquirer_country,
-    //     co_badged_card_data: saved_co_badged_card_data
-    //         .map(api_models::open_router::DebitRoutingRequestData::from),
-    // };
-
-    // let debit_routing_output_optional = routing::perform_open_routing_for_debit_routing(
-    //     state,
-    //     payment_attempt,
-    //     co_badged_card_request,
-    //     card_isin,
-    // )
-    // .await
-    // .map_err(|error| {
-    //     logger::warn!(?error, "Failed to calculate total fees per network");
-    // })
-    // .ok();
-
     debit_routing_output_optional
         .as_ref()
         .map(|debit_routing_output| {
@@ -443,10 +316,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<
             ))
         });
 
-    let co_badged_card_networks =
-        debit_routing_output_optional.map(|data| data.co_badged_card_networks);
-
-    co_badged_card_networks
+    debit_routing_output_optional.map(|data| data.co_badged_card_networks)
 }
 
 async fn handle_retryable_connector<F, D>(

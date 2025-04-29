@@ -2269,6 +2269,7 @@ pub enum MandateStatus {
 /// Indicates the card network.
 #[derive(
     Clone,
+    Copy,
     Debug,
     Eq,
     Hash,

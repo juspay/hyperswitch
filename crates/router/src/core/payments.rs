@@ -8391,15 +8391,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
                 card.co_badged_card_data = Some(co_badged_card_data);
                 logger::debug!("set co-badged card data in payment method data");
-        } else {
-            if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card)) = &mut self
-                .get_payment_method_info()
-                .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
-                {
-                    card.co_badged_card_data = Some(co_badged_card_data);
-                    logger::debug!("set co-badged card data in payment method info");
-                };
-        };
+        } else if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card)) = &mut self
+            .get_payment_method_info()
+            .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
+            {
+                card.co_badged_card_data = Some(co_badged_card_data);
+            logger::debug!("set co-badged card data in payment method info");
+            };
     }
     
 

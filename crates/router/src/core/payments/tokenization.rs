@@ -269,7 +269,7 @@ where
                     save_payment_method_data.request.get_payment_method_data(),
                 ) {
                     (Some(card), _) => Some(PaymentMethodsData::Card(
-                        CardDetailsPaymentMethod::from((card.clone(), co_badged_card_data.clone())),
+                        CardDetailsPaymentMethod::from((card.clone(), co_badged_card_data)),
                     )),
                     (
                         _,
