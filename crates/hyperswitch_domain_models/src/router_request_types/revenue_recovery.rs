@@ -28,8 +28,3 @@ pub struct BillingConnectorInvoiceSyncRequest {
     /// connector params of the connector
     pub connector_params: configs::ConnectorParams,
 }
-
-#[derive(Debug, Clone)]
-pub struct BillingConnectorInvoiceSyncRequest {
-    pub billing_connector_invoice_id: String,
-}
