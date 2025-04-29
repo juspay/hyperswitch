@@ -1,3 +1,11 @@
+use api_models::payments as payments_api;
+use common_utils::id_type;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    merchant_context::{Context, MerchantContext},
+    payments as payments_domain,
+};
+
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -11,14 +19,6 @@ use crate::{
         api::payments as api_types,
         storage::{self, revenue_recovery as revenue_recovery_types},
     },
-};
-use api_models::payments as payments_api;
-use common_utils::id_type;
-use error_stack::ResultExt;
-
-use hyperswitch_domain_models::{
-    merchant_context::{Context, MerchantContext},
-    payments as payments_domain,
 };
 
 pub async fn call_psync_api(
