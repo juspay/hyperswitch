@@ -608,6 +608,7 @@ billwerk = {long_lived_token = false, payment_method = "card"}
 
 [webhooks]
 outgoing_enabled = true
+redis_lock_expiry_seconds = 180
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"        # List of connectors which has additional source verification api-call
@@ -635,3 +636,6 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
+
+[authentication_providers]
+click_to_pay = {connector_list = "adyen, cybersource"}

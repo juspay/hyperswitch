@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.29.0
+
+### Features
+
+- **core:**
+  - Add cardbrand union fetch logic for click to pay session response ([#7858](https://github.com/juspay/hyperswitch/pull/7858)) ([`d2ff66b`](https://github.com/juspay/hyperswitch/commit/d2ff66bb7e08e983fbcc29b4afafc93a77a73c58))
+  - Add redis lock during insertion of event in event table during initial attempt of outgoing webhook delivery ([#7579](https://github.com/juspay/hyperswitch/pull/7579)) ([`eed84fe`](https://github.com/juspay/hyperswitch/commit/eed84fe63b27138d04bc54f06ed74226047a2761))
+
+### Refactors
+
+- **refunds:** Set Instant as the default RefundType ([#7824](https://github.com/juspay/hyperswitch/pull/7824)) ([`ac66cbe`](https://github.com/juspay/hyperswitch/commit/ac66cbe3daaadf171097797be8af486c8f5be34d))
+
+**Full Changelog:** [`2025.04.28.1...2025.04.29.0`](https://github.com/juspay/hyperswitch/compare/2025.04.28.1...2025.04.29.0)
+
+
+- - -
+
 ## 2025.04.28.1
 
 ### Refactors

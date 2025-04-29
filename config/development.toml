@@ -209,6 +209,7 @@ max_age = 365
 
 [webhooks]
 outgoing_enabled = true
+redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
 [eph_key]
 validity = 1
@@ -1048,6 +1049,9 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
+
+[authentication_providers]
+click_to_pay = {connector_list = "adyen, cybersource"}
 
 [open_router]
 enabled = false

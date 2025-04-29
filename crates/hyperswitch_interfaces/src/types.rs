@@ -259,7 +259,7 @@ pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
     BillingConnectorInvoiceSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegration<RecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+/// Type alias for `ConnectorIntegrationV2<RecoveryRecordBack, RevenueRecoveryRecordBackData, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
 pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
     RecoveryRecordBack,
     flow_common_types::RevenueRecoveryRecordBackData,
@@ -267,7 +267,7 @@ pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
     RevenueRecoveryRecordBackResponse,
 >;
 
-/// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
+/// Type alias for `ConnectorIntegrationV2<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
 pub type BillingConnectorPaymentsSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorPaymentsSync,
     flow_common_types::BillingConnectorPaymentsSyncFlowData,
@@ -275,7 +275,7 @@ pub type BillingConnectorPaymentsSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorPaymentsSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegration<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
+/// Type alias for `ConnectorIntegrationV2<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncFlowData, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
 pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSync,
     flow_common_types::BillingConnectorInvoiceSyncFlowData,
