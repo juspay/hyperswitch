@@ -325,6 +325,8 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Interac => Ok(dirval!(CardNetwork = Interac)),
             Self::RuPay => Ok(dirval!(CardNetwork = RuPay)),
             Self::Maestro => Ok(dirval!(CardNetwork = Maestro)),
+            Self::Cirrus => Ok(dirval!(CardNetwork = Cirrus)),
+            Self::Hipercard => Ok(dirval!(CardNetwork = Hipercard)),
         }
     }
 }

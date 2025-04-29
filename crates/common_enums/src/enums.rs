@@ -2308,6 +2308,10 @@ pub enum CardNetwork {
     RuPay,
     #[serde(alias = "MAESTRO")]
     Maestro,
+    #[serde(alias = "CIRRUS")]
+    Cirrus,
+    #[serde(alias = "HIPERCARD")]
+    Hipercard,
 }
 
 /// Stage of the dispute

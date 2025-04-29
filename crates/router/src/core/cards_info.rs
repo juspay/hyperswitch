@@ -299,7 +299,7 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_issuer: card_info.card_issuer,
                 card_network: card_info.card_network.map(|cn| cn.to_string()),
                 card_type: card_info.card_type,
-                card_sub_type: card_info.card_subtype,
+                card_subtype: card_info.card_subtype,
                 card_issuing_country: card_info.card_issuing_country,
             },
             None => cards_info_api_types::CardInfoMigrateResponseRecord {
@@ -307,7 +307,7 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
-                card_sub_type: None,
+                card_subtype: None,
                 card_issuing_country: None,
             },
         }

@@ -192,6 +192,8 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                     (None, Some("AMERICAN EXPRESS")) => "american-express".to_string(),
                     (None, Some("CB")) => "cb".to_string(),
                     (None, Some("BCMC")) => "bcmc".to_string(),
+                    (None, Some("CIRRUS")) => "cirrus".to_string(),
+                    (None, Some("HIPERCARD")) => "hipercard".to_string(),
                     (None, _) => match req_card.card_network {
                         Some(CardNetwork::Visa) => "visa".to_string(),
                         Some(CardNetwork::Mastercard) => "mastercard".to_string(),
@@ -204,6 +206,8 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                         Some(CardNetwork::Interac) => "interac".to_string(),
                         Some(CardNetwork::RuPay) => "rupay".to_string(),
                         Some(CardNetwork::Maestro) => "maestro".to_string(),
+                        Some(CardNetwork::Cirrus) => "cirrus".to_string(),
+                        Some(CardNetwork::Hipercard) => "hipercard".to_string(),
                         None => "".to_string(),
                     },
                 },
