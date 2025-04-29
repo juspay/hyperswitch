@@ -3026,6 +3026,8 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::MandiriVa
                 | api_enums::PaymentMethodType::LocalBankTransfer
                 | api_enums::PaymentMethodType::InstantBankTransfer
+                | api_enums::PaymentMethodType::InstantBankTransferFinland
+                | api_enums::PaymentMethodType::InstantBankTransferPoland
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,

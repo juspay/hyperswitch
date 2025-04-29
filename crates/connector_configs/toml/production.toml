@@ -3043,6 +3043,10 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   payment_method_type = "sepa_bank_transfer"
 [[trustpay.bank_transfer]]
   payment_method_type = "instant_bank_transfer"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_finland"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_poland"
 [trustpay.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Project ID"

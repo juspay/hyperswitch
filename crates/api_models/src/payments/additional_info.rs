@@ -152,6 +152,8 @@ pub enum BankTransferAdditionalData {
     Pse {},
     LocalBankTransfer(Box<LocalBankTransferAdditionalData>),
     InstantBankTransfer {},
+    InstantBankTransferFinland {},
+    InstantBankTransferPoland {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

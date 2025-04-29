@@ -1918,6 +1918,8 @@ pub enum PaymentMethodType {
     OpenBankingPIS,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
 }
 
 impl PaymentMethodType {
@@ -1972,6 +1974,8 @@ impl PaymentMethodType {
             Self::Interac => "Interac",
             Self::Indomaret => "Indomaret",
             Self::InstantBankTransfer => "Instant Bank Transfer",
+            Self::InstantBankTransferFinland => "Instant Bank Transfer Finland",
+            Self::InstantBankTransferPoland => "Instant Bank Transfer Poland",
             Self::Klarna => "Klarna",
             Self::KakaoPay => "KakaoPay",
             Self::LocalBankRedirect => "Local Bank Redirect",

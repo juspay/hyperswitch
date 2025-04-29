@@ -124,6 +124,8 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::PermataBankTransfer => Self::PermataBankTransfer,
             enums::BankTransferType::LocalBankTransfer => Self::LocalBankTransfer,
             enums::BankTransferType::InstantBankTransfer => Self::InstantBankTransfer,
+            enums::BankTransferType::InstantBankTransferFinland => Self::InstantBankTransferFinland,
+            enums::BankTransferType::InstantBankTransferPoland => Self::InstantBankTransferPoland,
         }
     }
 }
