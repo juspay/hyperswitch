@@ -56,8 +56,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        construct_not_implemented_error_report, is_mandate_supported, to_connector_meta,
-        PaymentMethodDataType, PaymentsSyncRequestData,
+        is_mandate_supported, to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData,
     },
 };
 
@@ -863,7 +862,7 @@ static NEXINETS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
 static NEXINETS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nexinets",
-        description: "Itau Bank is a leading Brazilian financial institution offering a wide range of banking services, including retail banking, loans, and investment solutions.",
+        description: "Nexi and Nets join forces to create The European PayTech leader, a strategic combination to offer future-proof innovative payment solutions.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 

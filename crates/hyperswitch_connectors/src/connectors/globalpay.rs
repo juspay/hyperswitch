@@ -64,8 +64,8 @@ use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils::{
-        construct_not_supported_error_report, convert_amount, get_header_key_value,
-        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
+        convert_amount, get_header_key_value, is_mandate_supported, ForeignTryFrom,
+        PaymentMethodDataType, RefundsRequestData,
     },
 };
 
