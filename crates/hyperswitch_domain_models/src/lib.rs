@@ -13,6 +13,7 @@ pub mod errors;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;
@@ -427,6 +428,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
+            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -454,6 +456,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text,
             payment_form_label_type,
             show_card_terms,
+            is_setup_mandate_flow,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -485,6 +488,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text,
             payment_form_label_type,
             show_card_terms,
+            is_setup_mandate_flow,
         }
     }
 }

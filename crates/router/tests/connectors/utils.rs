@@ -410,6 +410,7 @@ pub trait ConnectorActions: Connector {
                 merchant_account_id: None,
                 merchant_config_currency: None,
                 capture_method: None,
+                additional_payment_method_data: None,
             }),
             payment_info,
         );
@@ -988,6 +989,7 @@ impl Default for PaymentAuthorizeType {
             shipping_cost: None,
             merchant_account_id: None,
             merchant_config_currency: None,
+            connector_testing_data: None,
         };
         Self(data)
     }
@@ -1081,6 +1083,7 @@ impl Default for PaymentRefundType {
             merchant_account_id: None,
             merchant_config_currency: None,
             capture_method: None,
+            additional_payment_method_data: None,
         };
         Self(data)
     }

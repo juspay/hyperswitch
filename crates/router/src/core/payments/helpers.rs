@@ -429,8 +429,7 @@ pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
-    merchant_account: &domain::MerchantAccount,
-    merchant_key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
@@ -469,9 +468,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                     key_manager_state,
-                                    merchant_account.get_id(),
+                                    merchant_context.get_merchant_account().get_id(),
                                     mca_id,
-                                    merchant_key_store,
+                                    merchant_context.get_merchant_key_store(),
                                 )
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -505,8 +504,7 @@ pub async fn get_token_pm_type_mandate_details(
                             let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
                                 state,
                                 request,
-                                merchant_account,
-                                merchant_key_store,
+                                merchant_context,
                                 mandate_id.to_owned(),
                             ))
                             .await?;
@@ -528,9 +526,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 .store
                                 .find_payment_method(
                                     &(state.into()),
-                                    merchant_key_store,
+                                    merchant_context.get_merchant_key_store(),
                                     payment_method_id,
-                                    merchant_account.storage_scheme,
+                                    merchant_context.get_merchant_account().storage_scheme,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -542,7 +540,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                             verify_mandate_details_for_recurring_payments(
                                 &payment_method_info.merchant_id,
-                                merchant_account.get_id(),
+                                merchant_context.get_merchant_account().get_id(),
                                 &payment_method_info.customer_id,
                                 customer_id,
                             )?;
@@ -564,8 +562,7 @@ pub async fn get_token_pm_type_mandate_details(
                         let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
                             state,
                             request,
-                            merchant_account,
-                            merchant_key_store,
+                            merchant_context,
                             mandate_id,
                         ))
                         .await?;
@@ -596,9 +593,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
                                     &(state.into()),
-                                    merchant_key_store,
+                                    merchant_context.get_merchant_key_store(),
                                     customer_id,
-                                    merchant_account.get_id(),
+                                    merchant_context.get_merchant_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -652,9 +649,9 @@ pub async fn get_token_pm_type_mandate_details(
                                     .store
                                     .find_payment_method(
                                         &(state.into()),
-                                        merchant_key_store,
+                                        merchant_context.get_merchant_key_store(),
                                         &payment_method_id,
-                                        merchant_account.storage_scheme,
+                                        merchant_context.get_merchant_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -683,9 +680,9 @@ pub async fn get_token_pm_type_mandate_details(
                         .store
                         .find_payment_method(
                             &(state.into()),
-                            merchant_key_store,
+                            merchant_context.get_merchant_key_store(),
                             &payment_method_id,
-                            merchant_account.storage_scheme,
+                            merchant_context.get_merchant_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -718,17 +715,16 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &SessionState,
     req: &api::PaymentsRequest,
-    merchant_account: &domain::MerchantAccount,
-    merchant_key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     mandate_id: String,
 ) -> RouterResult<MandateGenericData> {
     let db = &*state.store;
 
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             mandate_id.as_str(),
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -741,8 +737,8 @@ pub async fn get_token_for_recurring_mandate(
                 &key_manager_state,
                 payment_id,
                 &mandate.merchant_id,
-                merchant_key_store,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -759,7 +755,7 @@ pub async fn get_token_for_recurring_mandate(
                 &payment_intent.payment_id,
                 &mandate.merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -798,9 +794,9 @@ pub async fn get_token_for_recurring_mandate(
     let payment_method = db
         .find_payment_method(
             &(state.into()),
-            merchant_key_store,
+            merchant_context.get_merchant_key_store(),
             payment_method_id.as_str(),
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -818,7 +814,7 @@ pub async fn get_token_for_recurring_mandate(
                 state,
                 &token,
                 &payment_method,
-                merchant_key_store,
+                merchant_context.get_merchant_key_store(),
             )
             .await?;
         }
@@ -3293,8 +3289,7 @@ pub async fn make_ephemeral_key(
 pub async fn make_client_secret(
     state: SessionState,
     resource_id: api_models::ephemeral_key::ResourceId,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
@@ -3305,9 +3300,9 @@ pub async fn make_client_secret(
             db.find_customer_by_global_id(
                 key_manager_state,
                 global_customer_id,
-                merchant_account.get_id(),
-                &key_store,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -3320,10 +3315,14 @@ pub async fn make_client_secret(
         }
     };
 
-    let client_secret = create_client_secret(&state, merchant_account.get_id(), resource_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create client secret")?;
+    let client_secret = create_client_secret(
+        &state,
+        merchant_context.get_merchant_account().get_id(),
+        resource_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to create client secret")?;
 
     let response = ClientSecretResponse::foreign_try_from(client_secret)
         .attach_printable("Only customer is supported as resource_id in response")?;
@@ -3658,8 +3657,7 @@ pub(crate) fn validate_pm_or_token_given(
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     todo!()
@@ -3669,8 +3667,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -3689,9 +3686,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .find_payment_intent_by_payment_id_merchant_id(
                     &state.into(),
                     &payment_id,
-                    merchant_account.get_id(),
-                    key_store,
-                    merchant_account.storage_scheme,
+                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -3719,9 +3716,10 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
-    let primary_business_details = merchant_account
+    let primary_business_details = merchant_context
+        .get_merchant_account()
         .primary_business_details
         .clone()
         .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
@@ -4828,6 +4826,12 @@ pub async fn get_additional_payment_data(
                     details: None,
                 },
             )),
+            domain::BankRedirectData::OnlineBankingFpx { issuer } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: Some(issuer.to_owned()),
+                    details: None,
+                },
+            )),
             domain::BankRedirectData::Ideal { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
@@ -5373,9 +5377,8 @@ pub fn get_applepay_metadata(
 #[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     payment_data: &D,
-    key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::Profile,
@@ -5392,9 +5395,9 @@ where
 
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         payment_data.get_creds_identifier(),
-        key_store,
+        merchant_context.get_merchant_key_store(),
         profile_id,
         &pre_decided_connector_data_first
             .connector_data
@@ -5414,9 +5417,9 @@ where
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &state.into(),
-                merchant_account.get_id(),
+                merchant_context.get_merchant_account().get_id(),
                 false,
-                key_store,
+                merchant_context.get_merchant_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -7336,8 +7339,7 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    merchant_account: &domain::MerchantAccount,
-    merchant_key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
@@ -7345,9 +7347,9 @@ pub async fn validate_allowed_payment_method_types_request(
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &state.into(),
-                merchant_account.get_id(),
+                merchant_context.get_merchant_account().get_id(),
                 false,
-                merchant_key_store,
+                merchant_context.get_merchant_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7401,7 +7403,10 @@ pub async fn validate_allowed_payment_method_types_request(
         if !unsupported_payment_methods.is_empty() {
             metrics::PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC.add(
                 1,
-                router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
+                router_env::metric_attributes!((
+                    "merchant_id",
+                    merchant_context.get_merchant_account().get_id().clone()
+                )),
             );
         }
 

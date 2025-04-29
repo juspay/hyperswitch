@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::enums::{Currency, PaymentMethod, RoutableConnectors};
+use crate::enums::{Currency, PaymentMethod};
 use crate::payment_methods;
 use common_utils::{id_type, types::MinorUnit};
 pub use euclid::{
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 pub struct OpenRouterDecideGatewayRequest {
     pub payment_info: PaymentInfo,
     pub merchant_id: id_type::ProfileId,
-    pub eligible_gateway_list: Option<Vec<RoutableConnectors>>,
+    pub eligible_gateway_list: Option<Vec<String>>,
     pub ranking_algorithm: Option<RankingAlgorithm>,
     pub elimination_enabled: Option<bool>,
 }
@@ -131,7 +131,7 @@ pub struct UnifiedError {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateScorePayload {
     pub merchant_id: id_type::ProfileId,
-    pub gateway: RoutableConnectors,
+    pub gateway: String,
     pub status: TxnStatus,
     pub payment_id: id_type::PaymentId,
 }
@@ -142,7 +142,7 @@ pub enum TxnStatus {
     Started,
     AuthenticationFailed,
     JuspayDeclined,
-    PendingVBV,
+    PendingVbv,
     VBVSuccessful,
     Authorized,
     AuthorizationFailed,
@@ -161,13 +161,4 @@ pub enum TxnStatus {
     Pending,
     Failure,
     Declined,
-}
-
-impl From<bool> for TxnStatus {
-    fn from(value: bool) -> Self {
-        match value {
-            true => Self::Charged,
-            _ => Self::Failure,
-        }
-    }
 }
