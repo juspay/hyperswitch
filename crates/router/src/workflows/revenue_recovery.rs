@@ -27,6 +27,7 @@ use crate::{
     errors::StorageError,
     types::{
         api::{self as api_types},
+        domain,
         storage::revenue_recovery as pcr_storage_types,
     },
 };
@@ -60,6 +61,11 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         };
         let revenue_recovery_payment_data =
             extract_data_and_perform_action(state, &tracking_data).await?;
+        let merchant_context_from_revenue_recovery_payment_data =
+            domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+                revenue_recovery_payment_data.merchant_account.clone(),
+                revenue_recovery_payment_data.key_store.clone(),
+            )));
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,
@@ -68,14 +74,12 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         >(
             state,
             state.get_req_state(),
-            revenue_recovery_payment_data.merchant_account.clone(),
+            merchant_context_from_revenue_recovery_payment_data,
             revenue_recovery_payment_data.profile.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
             payments::operations::PaymentGetIntent,
             request,
             tracking_data.global_payment_id.clone(),
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            None,
         )
         .await?;
 

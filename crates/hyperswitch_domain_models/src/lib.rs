@@ -13,6 +13,7 @@ pub mod errors;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;

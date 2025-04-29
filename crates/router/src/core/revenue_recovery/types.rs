@@ -16,6 +16,7 @@ use diesel_models::{enums, process_tracker::business_status, types as diesel_typ
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_connector_account,
+    merchant_context::{Context, MerchantContext},
     payments::{
         self as domain_payments, payment_attempt, PaymentConfirmData, PaymentIntent,
         PaymentIntentData,
