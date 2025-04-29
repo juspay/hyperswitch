@@ -11,14 +11,7 @@ use common_utils::{
     types::{FloatMajorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
-};
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types as recovery_flow_common_types,
@@ -34,12 +27,9 @@ use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::utils;
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData, ResponseRouterDataV2},
-    utils::PaymentsAuthorizeRequestData,
-};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use crate::{types::ResponseRouterDataV2, utils::PaymentsAuthorizeRequestData};
 
-//TODO: Fill the struct with respective fields
 pub struct RecurlyRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -55,47 +45,6 @@ impl<T> From<(StringMinorUnit, T)> for RecurlyRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct RecurlyPaymentsRequest {
-    amount: StringMinorUnit,
-    card: RecurlyCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct RecurlyCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&RecurlyRouterData<&PaymentsAuthorizeRouterData>> for RecurlyPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &RecurlyRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = RecurlyCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct RecurlyAuthType {
     pub(super) api_key: Secret<String>,
@@ -110,133 +59,6 @@ impl TryFrom<&ConnectorAuthType> for RecurlyAuthType {
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
-    }
-}
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Copy)]
-#[serde(rename_all = "lowercase")]
-pub enum RecurlyPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RecurlyPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: RecurlyPaymentStatus) -> Self {
-        match item {
-            RecurlyPaymentStatus::Succeeded => Self::Charged,
-            RecurlyPaymentStatus::Failed => Self::Failure,
-            RecurlyPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct RecurlyPaymentsResponse {
-    status: RecurlyPaymentStatus,
-    id: String,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, RecurlyPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, RecurlyPaymentsResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct RecurlyRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
-impl<F> TryFrom<&RecurlyRouterData<&RefundsRouterData<F>>> for RecurlyRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &RecurlyRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone, Copy)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
     }
 }
 
@@ -543,6 +365,7 @@ pub struct RecurlyInvoiceTransactionsStatus {
     pub status: String,
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     TryFrom<
         ResponseRouterDataV2<

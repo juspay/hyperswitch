@@ -1,13 +1,9 @@
 pub mod transformers;
 
 use base64::Engine;
-use common_utils::{
-    consts,
-    errors::CustomResult,
-    ext_traits::BytesExt,
-    request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
-};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
+use common_utils::{consts, errors::CustomResult, ext_traits::BytesExt};
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -18,53 +14,35 @@ use hyperswitch_domain_models::{
     types as recovery_router_data_types,
 };
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_data_v2::{RouterDataV2, UasFlowData},
-    router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync},
-        unified_authentication_service::{
-            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        },
+    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data_v2::UasFlowData,
+    router_flow_types::unified_authentication_service::{
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
-    router_request_types::{
-        unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
-        },
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
-    },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+    router_request_types::unified_authentication_service::{
+        UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
+        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_interfaces::types;
 use hyperswitch_interfaces::{
-    api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
-    },
+    api::{self, ConnectorCommon, ConnectorSpecifications, ConnectorValidation},
     configs::Connectors,
     connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::Response,
     webhooks,
 };
 use masking::{Mask, PeekInterface};
 use transformers as recurly;
 
+use crate::{connectors::recurly::transformers::RecurlyWebhookBody, constants::headers};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData};
 use crate::{
-    connectors::recurly::transformers::RecurlyWebhookBody,
-    constants::headers,
-    types::{ResponseRouterData, ResponseRouterDataV2},
+    connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData},
+    types::ResponseRouterDataV2,
     utils,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -76,13 +54,13 @@ const RECURLY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
 
 #[derive(Clone)]
 pub struct Recurly {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    // amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Recurly {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            // amount_converter: &StringMinorUnitForConnector,
         }
     }
 
@@ -104,18 +82,6 @@ impl Recurly {
     }
 }
 
-// impl api::Payment for Recurly {}
-// impl api::PaymentSession for Recurly {}
-// impl api::ConnectorAccessToken for Recurly {}
-// impl api::MandateSetup for Recurly {}
-// impl api::PaymentAuthorize for Recurly {}
-// impl api::PaymentSync for Recurly {}
-// impl api::PaymentCapture for Recurly {}
-// impl api::PaymentVoid for Recurly {}
-// impl api::Refund for Recurly {}
-// impl api::RefundExecute for Recurly {}
-// impl api::RefundSync for Recurly {}
-// impl api::PaymentToken for Recurly {}
 impl api::PayoutsV2 for Recurly {}
 impl api::UnifiedAuthenticationServiceV2 for Recurly {}
 impl api::UasPreAuthenticationV2 for Recurly {}
@@ -164,7 +130,6 @@ impl
     //TODO: implement sessions flow
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
@@ -267,10 +232,6 @@ impl
         header.append(&mut api_key);
         Ok(header)
     }
-
-    // fn get_content_type(&self) -> &'static str {
-    //     self.common_get_content_type()
-    // }
 
     fn get_url(
         &self,
