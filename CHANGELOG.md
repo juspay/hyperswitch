@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix7
+
+### Miscellaneous Tasks
+
+- **analytics:** Opensearch client creation based on config ([#7881](https://github.com/juspay/hyperswitch/pull/7881)) ([`a387bd4`](https://github.com/juspay/hyperswitch/commit/a387bd4711a12c826f8ac0f66df17336778720c5))
+- **docker:** Docker compose changes for stable release ([#7894](https://github.com/juspay/hyperswitch/pull/7894)) ([`95e4835`](https://github.com/juspay/hyperswitch/commit/95e4835deb038762519b9bd63e38f35dbb617ba0))
+
+**Full Changelog:** [`2025.04.09.0-hotfix6...2025.04.09.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix6...2025.04.09.0-hotfix7)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix6
 
 ### Bug Fixes
