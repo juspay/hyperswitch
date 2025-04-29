@@ -6,16 +6,13 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        Accept, AccessTokenAuth, Authorize, Capture, Checkout, Defend, Evidence, Fulfillment,
-        PSync, PostProcessing, PreProcessing, Session, Transaction, Upload, Void,
+        Accept, AccessTokenAuth, Authorize, Capture, Defend, Evidence, PSync, PostProcessing,
+        PreProcessing, Session, Upload, Void,
     },
     router_request_types::{
         authentication::{
             ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
             PreAuthNRequestData,
-        },
-        fraud_check::{
-            FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckTransactionData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
@@ -23,10 +20,17 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
-        fraud_check::FraudCheckResponseData, AcceptDisputeResponse, AuthenticationResponseData,
-        DefendDisputeResponse, PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse,
-        UploadFileResponse,
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse, UploadFileResponse,
     },
+};
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::{
+    router_flow_types::{Checkout, Fulfillment, Transaction},
+    router_request_types::fraud_check::{
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckTransactionData,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::api::ConnectorIntegration;
 
