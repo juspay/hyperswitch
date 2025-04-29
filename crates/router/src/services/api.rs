@@ -53,7 +53,6 @@ use tera::{Context, Error as TeraError, Tera};
 
 // TODO: remove this before raising a PR
 // use self::request::{HeaderExt, RequestBuilderExt};
-
 use super::{
     authentication::AuthenticateAndFetch,
     connector_integration_interface::BoxedConnectorIntegrationInterface,

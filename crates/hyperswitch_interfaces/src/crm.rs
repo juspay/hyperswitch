@@ -1,8 +1,12 @@
+use common_enums::CountryAlpha2;
+use common_utils::{
+    errors::CustomResult,
+    request::{Request, RequestContent},
+};
+use masking::Secret;
+
 use super::types::Proxy;
 use crate::errors::HttpClientError;
-use common_enums::CountryAlpha2;
-use common_utils::{errors::CustomResult, request::Request, request::RequestContent};
-use masking::Secret;
 
 /// CRM Payload structure
 #[derive(Clone, Debug, serde::Serialize, Default)]

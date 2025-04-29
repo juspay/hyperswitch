@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use base64::Engine;
 use common_utils::consts::BASE64_ENGINE;
 pub use common_utils::errors::CustomResult;
@@ -5,7 +7,6 @@ use error_stack::ResultExt;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use masking::ExposeInterface;
 use once_cell::sync::OnceCell;
-use std::time::Duration;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 

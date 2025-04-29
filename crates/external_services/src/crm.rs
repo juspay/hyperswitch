@@ -1,17 +1,24 @@
 use std::sync::Arc;
 
-use crate::http_client;
-use crate::http_client::request::InvalidCRMConfig;
-use crate::hubspot_proxy::core::HubspotRequest;
-use common_utils::request::Request;
-use common_utils::request::{Method, RequestBuilder, RequestContent};
-use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ConfigExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+};
+use error_stack::ResultExt;
 use http::header;
-use hyperswitch_interfaces::crm::{CRMInterface, CRMPayload};
-use hyperswitch_interfaces::errors::HttpClientError;
-use hyperswitch_interfaces::types::Proxy;
+use hyperswitch_interfaces::{
+    crm::{CRMInterface, CRMPayload},
+    errors::HttpClientError,
+    types::Proxy,
+};
 use masking::PeekInterface;
 use reqwest;
+use router_env::logger;
+
+use crate::{
+    http_client, http_client::request::InvalidCRMConfig, hubspot_proxy::core::HubspotRequest,
+};
 
 /// Hubspot CRM configuration
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -39,11 +46,13 @@ impl HubspotSettings {
 }
 
 #[derive(Debug, Clone)]
-/// NoCRM struct
-pub struct NoCRM;
+/// NoCrm struct
+pub struct NoCrm;
 
 /// Enum representing different CRM configurations
 #[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(tag = "crm_manager")]
+#[serde(rename_all = "snake_case")]
 pub enum CRMManagerConfig {
     /// Hubspot CRM configuration
     HubspotProxy {
@@ -53,7 +62,7 @@ pub enum CRMManagerConfig {
 
     /// No CRM configuration
     #[default]
-    NoCRM,
+    NoCrm,
 }
 
 impl CRMManagerConfig {
@@ -61,7 +70,7 @@ impl CRMManagerConfig {
     pub fn validate(&self) -> Result<(), InvalidCRMConfig> {
         match self {
             Self::HubspotProxy { hubspot_proxy } => hubspot_proxy.validate(),
-            Self::NoCRM => Ok(()),
+            Self::NoCrm => Ok(()),
         }
     }
 
@@ -69,19 +78,19 @@ impl CRMManagerConfig {
     pub async fn get_crm_client(&self) -> Arc<dyn CRMInterface> {
         match self {
             Self::HubspotProxy { hubspot_proxy } => Arc::new(hubspot_proxy.clone()),
-            Self::NoCRM => Arc::new(NoCRM),
+            Self::NoCrm => Arc::new(NoCrm),
         }
     }
 }
 
 #[async_trait::async_trait]
-impl CRMInterface for NoCRM {
+impl CRMInterface for NoCrm {
     async fn make_body(&self, _details: CRMPayload) -> RequestContent {
-        todo!()
+        RequestContent::Json(Box::new(serde_json::json!({})))
     }
 
     async fn make_request(&self, _body: RequestContent, _origin_base_url: String) -> Request {
-        todo!()
+        RequestBuilder::default().build()
     }
 
     async fn send_request(
@@ -89,7 +98,9 @@ impl CRMInterface for NoCRM {
         _proxy: &Proxy,
         _request: Request,
     ) -> CustomResult<reqwest::Response, HttpClientError> {
-        todo!()
+        logger::info!("NO CRM manager is not configured, resolving with a 200 OK response");
+        Err(HttpClientError::UnexpectedState)
+            .attach_printable("NO CRM manager is not configured, resolving with a 200 OK response")
     }
 }
 

@@ -1,13 +1,14 @@
-use std::str::FromStr;
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
 
-pub use common_utils::errors::CustomResult;
-pub use common_utils::request::ContentType;
 use common_utils::request::Headers;
+pub use common_utils::{errors::CustomResult, request::ContentType};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::errors::HttpClientError;
 pub use masking::{Mask, Maskable};
 use router_env::{instrument, tracing};
-use std::fmt::{Display, Formatter};
 
 // use crate::core::errors::{self, CustomResult};
 

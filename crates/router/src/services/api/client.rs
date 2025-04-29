@@ -1,10 +1,5 @@
 use std::time::Duration;
 
-use super::{request::Maskable, Request};
-use crate::{
-    core::errors::{ApiClientError, CustomResult},
-    routes::SessionState,
-};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 pub use external_services::http_client::{self, client};
@@ -13,6 +8,12 @@ use hyperswitch_interfaces::types::Proxy;
 use masking::PeekInterface;
 use reqwest::multipart::Form;
 use router_env::tracing_actix_web::RequestId;
+
+use super::{request::Maskable, Request};
+use crate::{
+    core::errors::{ApiClientError, CustomResult},
+    routes::SessionState,
+};
 
 pub trait RequestBuilder: Send + Sync {
     fn json(&mut self, body: serde_json::Value);

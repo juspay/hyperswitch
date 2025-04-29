@@ -1,6 +1,7 @@
 use api_models::{admin::MerchantConnectorUpdate, connector_onboarding as api};
 use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
+pub use external_services::http_client;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
@@ -13,7 +14,6 @@ use crate::{
     utils::connector_onboarding as utils,
     SessionState,
 };
-pub use external_services::http_client;
 
 fn build_referral_url(state: SessionState) -> String {
     format!(

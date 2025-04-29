@@ -12,6 +12,7 @@ use hyperswitch_interfaces::crm::CRMPayload;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
+use router_env::logger;
 #[cfg(feature = "email")]
 use router_env::logger;
 
@@ -552,11 +553,12 @@ async fn insert_metadata(
                 .crm_client
                 .send_request(&state.conf.proxy, hubspot_request)
                 .await
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable(format!(
-                    "Failed to send data to hubspot for user_id {}",
-                    user.user_id,
-                ));
+                .inspect_err(|_| {
+                    logger::info!(
+                        "Failed to send data to hubspot for user_id {}",
+                        user.user_id,
+                    );
+                });
 
             metadata
         }

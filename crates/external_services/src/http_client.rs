@@ -8,11 +8,11 @@ pub mod client;
 pub mod metrics;
 /// request module
 pub mod request;
+use std::{error::Error, time::Duration};
+
 use common_utils::request::RequestContent;
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
-
 use error_stack::ResultExt;
-use std::{error::Error, time::Duration};
 
 #[allow(missing_docs, missing_debug_implementations)]
 #[instrument(skip_all)]
@@ -25,8 +25,7 @@ pub async fn send_request(
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
 
-    let client =
-        client::create_client(&client_proxy, request.certificate, request.certificate_key)?;
+    let client = client::create_client(client_proxy, request.certificate, request.certificate_key)?;
 
     let headers = request.headers.construct_header_map()?;
     let metrics_tag = router_env::metric_attributes!((
