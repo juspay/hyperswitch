@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use api_models::user as user_api;
-use common_enums::UserAuthType;
+use common_enums::{connector_enums, UserAuthType};
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
@@ -24,7 +24,7 @@ use crate::{
     },
     types::{
         domain::{self, LineageContext, MerchantAccount, UserFromStorage},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
