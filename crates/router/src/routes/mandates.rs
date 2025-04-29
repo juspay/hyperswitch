@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, mandate},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::mandates,
+    types::{api::mandates, domain},
 };
 
 /// Mandates - Retrieve Mandate
@@ -42,7 +42,10 @@ pub async fn get_mandate(
         &req,
         mandate_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            mandate::get_mandate(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            mandate::get_mandate(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -70,7 +73,10 @@ pub async fn revoke_mandate(
         &req,
         mandate_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            mandate::revoke_mandate(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            mandate::revoke_mandate(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -117,7 +123,10 @@ pub async fn retrieve_mandates_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            mandate::retrieve_mandates_list(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            mandate::retrieve_mandates_list(state, merchant_context, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
