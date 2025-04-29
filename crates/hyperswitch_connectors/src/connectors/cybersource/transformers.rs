@@ -4304,9 +4304,9 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
+        common_enums::CardNetwork::Hipercard => Some("050"),
         common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::Cirrus
-        | common_enums::CardNetwork::Hipercard
         | common_enums::CardNetwork::RuPay => None,
     }
 }
