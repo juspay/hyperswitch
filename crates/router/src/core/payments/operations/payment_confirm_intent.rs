@@ -128,11 +128,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsConfirmIntentRequest, Pa
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsConfirmIntentRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         };
 
@@ -150,19 +150,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_account.storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
-            .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -182,8 +185,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                     },
                 ),
             ),
-            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
-            key_store.key.peek(),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -208,7 +211,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
                 key_manager_state,
-                key_store,
+                merchant_context.get_merchant_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
             )
@@ -329,12 +332,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
-        mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         use crate::core::payments::OperationSessionSetters;
 

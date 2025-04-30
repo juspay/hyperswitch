@@ -1516,6 +1516,7 @@ pub async fn perform_open_routing(
         profile.get_id().get_string_repr()
     );
 
+    let is_elimination_enabled = dynamic_routing_algo_ref.is_elimination_enabled();
     let connectors = dynamic_routing_algo_ref
         .success_based_algorithm
         .async_map(|algo| {
@@ -1524,15 +1525,33 @@ pub async fn perform_open_routing(
                 routable_connectors.clone(),
                 profile.get_id(),
                 algo,
-                payment_data,
+                &payment_data,
+                is_elimination_enabled,
             )
         })
         .await
-        .transpose()
-        .inspect_err(|e| logger::error!(dynamic_routing_error=?e))
-        .ok()
-        .flatten()
+        .transpose()?
         .unwrap_or(routable_connectors);
+
+    if is_elimination_enabled {
+        // This will initiate the elimination process for the connector.
+        // Penalize the elimination score of the connector before making a payment.
+        // Once the payment is made, we will update the score based on the payment status
+        if let Some(connector) = connectors.first() {
+            logger::debug!(
+                "penalizing the elimination score of the gateway with id {} in open router for profile {}",
+                connector, profile.get_id().get_string_repr()
+            );
+            update_success_rate_score_with_open_router(
+                state,
+                connector.clone(),
+                profile.get_id(),
+                &payment_data.payment_id,
+                common_enums::AttemptStatus::AuthenticationPending,
+            )
+            .await?
+        }
+    }
 
     Ok(connectors)
 }
@@ -1634,7 +1653,8 @@ pub async fn perform_success_based_routing_with_open_router(
     mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
     success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
-    payment_attempt: oss_storage::PaymentAttempt,
+    payment_attempt: &oss_storage::PaymentAttempt,
+    is_elimination_enabled: bool,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     if success_based_algo_ref.enabled_feature
         == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
@@ -1646,11 +1666,9 @@ pub async fn perform_success_based_routing_with_open_router(
 
         let open_router_req_body = OpenRouterDecideGatewayRequest::construct_sr_request(
             payment_attempt,
-            routable_connectors
-                .iter()
-                .map(|gateway| gateway.connector)
-                .collect::<Vec<_>>(),
+            routable_connectors.clone(),
             Some(or_types::RankingAlgorithm::SrBasedRouting),
+            is_elimination_enabled,
         );
 
         let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
@@ -1724,15 +1742,15 @@ pub async fn perform_success_based_routing_with_open_router(
 #[instrument(skip_all)]
 pub async fn update_success_rate_score_with_open_router(
     state: &SessionState,
-    payment_connector: common_enums::RoutableConnectors,
+    payment_connector: api_routing::RoutableConnectorChoice,
     profile_id: &common_utils::id_type::ProfileId,
     payment_id: &common_utils::id_type::PaymentId,
-    payment_status: bool,
+    payment_status: common_enums::AttemptStatus,
 ) -> RoutingResult<()> {
     let open_router_req_body = or_types::UpdateScorePayload {
         merchant_id: profile_id.clone(),
-        gateway: payment_connector,
-        status: payment_status.into(),
+        gateway: payment_connector.to_string(),
+        status: payment_status.foreign_into(),
         payment_id: payment_id.clone(),
     };
 
@@ -1763,7 +1781,8 @@ pub async fn update_success_rate_score_with_open_router(
             )?;
 
             logger::debug!(
-                "Open router update_gateway_score response: {:?}",
+                "Open router update_gateway_score response for gateway with id {}: {:?}",
+                payment_connector,
                 update_score_resp
             );
 

@@ -57,7 +57,8 @@ pub use hyperswitch_interfaces::{
         },
         fraud_check::FraudCheck,
         revenue_recovery::{
-            BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack,
+            BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+            RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
@@ -390,15 +391,19 @@ impl ConnectorData {
                 enums::Connector::DummyConnector7 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<7>,
                 ))),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
+                    &connector::DummyConnector::<8>,
+                ))),
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
-                // enums::Connector::Facilitapay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay)))
-                // }
+                enums::Connector::Facilitapay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }

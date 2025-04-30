@@ -205,6 +205,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
