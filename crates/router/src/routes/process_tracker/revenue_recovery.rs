@@ -32,7 +32,6 @@ pub async fn revenue_recovery_pt_retrieve_api(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileRevenueRecoveryRead,
-            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))

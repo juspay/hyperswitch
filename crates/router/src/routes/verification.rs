@@ -38,7 +38,6 @@ pub async fn apple_pay_merchant_registration(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -76,7 +75,6 @@ pub async fn retrieve_apple_pay_verified_domains(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

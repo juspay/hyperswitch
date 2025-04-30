@@ -57,7 +57,6 @@ pub async fn refunds_create(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -91,7 +90,6 @@ pub async fn refunds_create(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -160,7 +158,6 @@ pub async fn refunds_retrieve(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -310,7 +307,6 @@ pub async fn refunds_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -365,7 +361,6 @@ pub async fn refunds_list_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -415,7 +410,6 @@ pub async fn refunds_filter_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -460,7 +454,6 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -512,7 +505,6 @@ pub async fn get_refunds_filters_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -549,7 +541,6 @@ pub async fn get_refunds_aggregates(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -618,7 +609,6 @@ pub async fn get_refunds_aggregate_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

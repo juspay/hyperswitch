@@ -440,7 +440,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -489,7 +488,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -546,7 +544,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -597,7 +594,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -646,7 +642,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -703,7 +698,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -754,7 +748,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -803,7 +796,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -860,7 +852,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -895,7 +886,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -935,7 +925,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -976,7 +965,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1016,7 +1004,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1047,7 +1034,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1076,7 +1062,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1105,7 +1090,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1142,7 +1126,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1171,7 +1154,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1202,7 +1184,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1231,7 +1212,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1268,7 +1248,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1293,7 +1272,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1323,7 +1301,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1356,7 +1333,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1390,7 +1366,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1423,7 +1398,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1475,7 +1449,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1525,7 +1498,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1582,7 +1554,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1633,7 +1604,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1682,7 +1652,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1739,7 +1708,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1791,7 +1759,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1841,7 +1808,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1897,7 +1863,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1949,7 +1914,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1999,7 +1963,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2055,7 +2018,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileReportRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2094,7 +2056,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2119,7 +2080,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2151,7 +2111,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2299,7 +2258,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2450,7 +2408,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2481,7 +2438,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2518,7 +2474,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2547,7 +2502,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2588,7 +2542,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2635,7 +2588,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2674,7 +2626,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2706,7 +2657,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2736,7 +2686,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::OrganizationAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2774,7 +2723,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                role_type: auth::RoleType::Any,
             },
             api_locking::LockAction::NotApplicable,
         ))

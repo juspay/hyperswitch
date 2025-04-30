@@ -126,7 +126,6 @@ pub async fn retrieve_mandates_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

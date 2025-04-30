@@ -651,7 +651,6 @@ pub async fn list_customer_payment_method_api(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -686,7 +685,6 @@ pub async fn get_total_payment_method_count(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -867,14 +865,12 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorWrite,
-            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))

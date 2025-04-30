@@ -31,7 +31,6 @@ pub async fn customers_create(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -62,7 +61,6 @@ pub async fn customers_create(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -85,7 +83,6 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
-            role_type: auth::RoleType::Any,
         })
     } else {
         let api_auth = auth::ApiKeyAuth::default();
@@ -134,7 +131,6 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         &auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
-            role_type: auth::RoleType::Any,
         }
     } else {
         api_or_client_auth(
@@ -191,7 +187,6 @@ pub async fn customers_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -230,7 +225,6 @@ pub async fn customers_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -275,7 +269,6 @@ pub async fn customers_update(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -317,7 +310,6 @@ pub async fn customers_update(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -351,7 +343,6 @@ pub async fn customers_delete(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -385,7 +376,6 @@ pub async fn customers_delete(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),
@@ -424,7 +414,6 @@ pub async fn get_customer_mandates(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
-                role_type: auth::RoleType::Any,
             },
             req.headers(),
         ),

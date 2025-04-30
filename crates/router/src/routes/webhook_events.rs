@@ -90,7 +90,6 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileWebhookEventRead,
-            role_type: auth::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))

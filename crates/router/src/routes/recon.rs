@@ -39,7 +39,6 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         |state, user, _, _| recon::send_recon_request(state, user),
         &authentication::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            role_type: authentication::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -56,7 +55,6 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         |state, user, _, _| recon::generate_recon_token(state, user),
         &authentication::JWTAuth {
             permission: Permission::MerchantReconTokenRead,
-            role_type: authentication::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -74,7 +72,6 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         |state, user, _req, _| recon::verify_recon_token(state, user),
         &authentication::JWTAuth {
             permission: Permission::MerchantReconTokenRead,
-            role_type: authentication::RoleType::Any,
         },
         api_locking::LockAction::NotApplicable,
     ))
