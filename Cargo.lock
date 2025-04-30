@@ -2936,6 +2936,7 @@ dependencies = [
  "dyn-clone",
  "error-stack",
  "hex",
+ "http 0.2.12",
  "http-body-util",
  "hyper 0.14.30",
  "hyper-proxy",
@@ -2945,6 +2946,8 @@ dependencies = [
  "masking",
  "once_cell",
  "prost",
+ "quick-xml",
+ "reqwest 0.11.27",
  "router_env",
  "serde",
  "thiserror 1.0.63",
@@ -2953,6 +2956,7 @@ dependencies = [
  "tonic-build",
  "tonic-reflection",
  "tonic-types",
+ "url",
  "vaultrs",
 ]
 
