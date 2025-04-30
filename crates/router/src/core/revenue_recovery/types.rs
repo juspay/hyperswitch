@@ -776,16 +776,15 @@ pub fn construct_recovery_record_back_router_data(
         .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
         .attach_printable("Cannot find connector from the connector_name")?;
 
-    let connector_params =
-        hyperswitch_domain_models::configs::Connectors::get_connector_params(
-            &state.conf.connectors,
-            connector,
-        )
-        .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-        .attach_printable(format!(
-            "cannot find connector params for this connector {} in this flow",
-            connector
-        ))?;
+    let connector_params = hyperswitch_domain_models::configs::Connectors::get_connector_params(
+        &state.conf.connectors,
+        connector,
+    )
+    .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+    .attach_printable(format!(
+        "cannot find connector params for this connector {} in this flow",
+        connector
+    ))?;
 
     let router_data = router_data_v2::RouterDataV2 {
         flow: PhantomData::<router_flow_types::RecoveryRecordBack>,
@@ -802,7 +801,7 @@ pub fn construct_recovery_record_back_router_data(
                 .connector_payment_id
                 .as_ref()
                 .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id.clone())),
-            connector_params
+            connector_params,
         },
         response: Err(types::ErrorResponse::default()),
     };
