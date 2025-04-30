@@ -1,5 +1,5 @@
 use common_enums::TokenPurpose;
-use common_utils::id_type;
+use common_utils::{id_type, types::user::LineageContext};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     user_role::UserRole,
@@ -14,7 +14,6 @@ use crate::{
     db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authentication as auth,
-    types::domain::LineageContext,
     utils,
 };
 
@@ -135,28 +134,15 @@ impl JWTFlow {
             .global_store
             .find_user_by_id(user_id)
             .await
-            .map(|user| user.lineage_context)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 logger::error!(
                     "Failed to fetch lineage context from DB for user {}: {:?}",
                     user_id,
                     e
-                );
-                e
+                )
             })
             .ok()
-            .flatten()
-            .and_then(|val| {
-                serde_json::from_value::<LineageContext>(val.clone())
-                    .inspect_err(|e| {
-                        logger::error!(
-                            "Failed to deserialize lineage context for user {}: {:?}",
-                            user_id,
-                            e
-                        );
-                    })
-                    .ok()
-            });
+            .and_then(|user| user.lineage_context);
 
         let new_lineage_context = match lineage_context_from_db {
             Some(ctx) => {
@@ -210,11 +196,7 @@ impl JWTFlow {
             .update_user_by_user_id(
                 user_id,
                 diesel_models::user::UserUpdate::LineageContextUpdate {
-                    lineage_context: Some(
-                        serde_json::to_value(&new_lineage_context)
-                            .change_context(UserErrors::InternalServerError)
-                            .attach_printable("Failed to serialize LineageContext to JSON")?,
-                    ),
+                    lineage_context: new_lineage_context.clone(),
                 },
             )
             .await

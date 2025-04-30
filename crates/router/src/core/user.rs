@@ -8,7 +8,10 @@ use api_models::{
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::{EntityType, UserAuthType};
-use common_utils::{type_name, types::keymanager::Identifier};
+use common_utils::{
+    type_name,
+    types::{keymanager::Identifier, user::LineageContext},
+};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -3169,7 +3172,7 @@ pub async fn switch_org_for_user(
         }
     };
 
-    let lineage_context = domain::LineageContext {
+    let lineage_context = LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3182,26 +3185,20 @@ pub async fn switch_org_for_user(
             .clone(),
     };
 
-    let _ = state
+    if let Err(e) = state
         .global_store
         .update_user_by_user_id(
             &user_from_token.user_id,
-            storage_user::UserUpdate::LineageContextUpdate {
-                lineage_context: Some(
-                    serde_json::to_value(&lineage_context)
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Failed to serialize LineageContext to JSON")?,
-                ),
-            },
+            storage_user::UserUpdate::LineageContextUpdate { lineage_context },
         )
         .await
-        .map_err(|e| {
-            logger::error!(
-                "Failed to update lineage context for user {}: {:?}",
-                user_from_token.user_id,
-                e
-            )
-        });
+    {
+        logger::error!(
+            "Failed to update lineage context for user {}: {:?}",
+            user_from_token.user_id,
+            e
+        );
+    }
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3398,7 +3395,7 @@ pub async fn switch_merchant_for_user_in_org(
         }
     };
 
-    let lineage_context = domain::LineageContext {
+    let lineage_context = LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3411,26 +3408,20 @@ pub async fn switch_merchant_for_user_in_org(
             .clone(),
     };
 
-    let _ = state
+    if let Err(e) = state
         .global_store
         .update_user_by_user_id(
             &user_from_token.user_id,
-            storage_user::UserUpdate::LineageContextUpdate {
-                lineage_context: Some(
-                    serde_json::to_value(&lineage_context)
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Failed to serialize LineageContext to JSON")?,
-                ),
-            },
+            storage_user::UserUpdate::LineageContextUpdate { lineage_context },
         )
         .await
-        .map_err(|e| {
-            logger::error!(
-                "Failed to update lineage context for user {}: {:?}",
-                user_from_token.user_id,
-                e
-            )
-        });
+    {
+        logger::error!(
+            "Failed to update lineage context for user {}: {:?}",
+            user_from_token.user_id,
+            e
+        );
+    }
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3548,7 +3539,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         }
     };
 
-    let lineage_context = domain::LineageContext {
+    let lineage_context = LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: user_from_token.merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3561,26 +3552,20 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             .clone(),
     };
 
-    let _ = state
+    if let Err(e) = state
         .global_store
         .update_user_by_user_id(
             &user_from_token.user_id,
-            storage_user::UserUpdate::LineageContextUpdate {
-                lineage_context: Some(
-                    serde_json::to_value(&lineage_context)
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Failed to serialize LineageContext to JSON")?,
-                ),
-            },
+            storage_user::UserUpdate::LineageContextUpdate { lineage_context },
         )
         .await
-        .map_err(|e| {
-            logger::error!(
-                "Failed to update lineage context for user {}: {:?}",
-                user_from_token.user_id,
-                e
-            )
-        });
+    {
+        logger::error!(
+            "Failed to update lineage context for user {}: {:?}",
+            user_from_token.user_id,
+            e
+        );
+    }
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,

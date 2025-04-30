@@ -1,4 +1,4 @@
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, pii, types::user::LineageContext};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -24,7 +24,7 @@ pub struct User {
     #[diesel(deserialize_as = OptionalDieselArray<Secret<String>>)]
     pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
-    pub lineage_context: Option<serde_json::Value>,
+    pub lineage_context: Option<LineageContext>,
 }
 
 #[derive(
@@ -43,7 +43,7 @@ pub struct UserNew {
     pub totp_secret: Option<Encryption>,
     pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
-    pub lineage_context: Option<serde_json::Value>,
+    pub lineage_context: Option<LineageContext>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -57,7 +57,7 @@ pub struct UserUpdateInternal {
     totp_secret: Option<Encryption>,
     totp_recovery_codes: Option<Vec<Secret<String>>>,
     last_password_modified_at: Option<PrimitiveDateTime>,
-    lineage_context: Option<serde_json::Value>,
+    lineage_context: Option<LineageContext>,
 }
 
 #[derive(Debug)]
@@ -76,7 +76,7 @@ pub enum UserUpdate {
         password: Secret<String>,
     },
     LineageContextUpdate {
-        lineage_context: Option<serde_json::Value>,
+        lineage_context: LineageContext,
     },
 }
 
@@ -143,7 +143,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_status: None,
                 totp_secret: None,
                 totp_recovery_codes: None,
-                lineage_context,
+                lineage_context: Some(lineage_context),
             },
         }
     }

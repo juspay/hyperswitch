@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_utils::types::theme::ThemeLineage;
+use common_utils::types::user::ThemeLineage;
 use diesel::{
     associations::HasTable,
     debug_query,
