@@ -416,11 +416,11 @@ crypto_currency = { country = "US, CA, GB, AU, BR, MX, SG, PH, NZ, ZA, JP, AT, B
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
 [pm_filters.boku]
-dana = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
-momo = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
-gcash = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
-go_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
-kakao_pay = { country = "AE,AR,AT,AU,BA,BE,BR,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HK,HR,HU,ID,IE,IN,IT,JP,LT,LV,MY,NL,NO,PH,PL,PT,RO,RS,SA,SE,SG,SI,SK,TH,TR,TW,UA,US", currency = "AUD,BRL,CAD,CHF,EUR,GBP,SEK,USD" }
+dana = { country = "ID", currency = "HKD,IDR,SDG,USD" }
+momo = { country = "VN", currency = "USD,VND" }
+gcash = { country = "PH", currency = "HKD,PHP,SGD,USD" }
+go_pay = { country = "ID", currency = "BGN,CZK,EUR,GBP,HUF,IDR,PLN,RON,USD" }
+kakao_pay = { country = "KR", currency = "HKD,KRW,SGD,USD" }
 
 [pm_filters.datatrans]
 credit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }

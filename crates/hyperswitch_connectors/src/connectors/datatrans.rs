@@ -803,7 +803,7 @@ static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethod::Card,
             PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: common_enums::enums::FeatureStatus::NotSupported,
+                mandates: common_enums::enums::FeatureStatus::Supported,
                 refunds: common_enums::enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -822,7 +822,7 @@ static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethod::Card,
             PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: common_enums::enums::FeatureStatus::NotSupported,
+                mandates: common_enums::enums::FeatureStatus::Supported,
                 refunds: common_enums::enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(

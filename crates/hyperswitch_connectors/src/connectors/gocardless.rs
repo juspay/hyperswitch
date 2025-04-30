@@ -916,7 +916,7 @@ static GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
     enums::EventClass::Payments,
     enums::EventClass::Refunds,
-    enums::EventClass::Disputes,
+    enums::EventClass::Mandates,
 ];
 
 impl ConnectorSpecifications for Gocardless {
