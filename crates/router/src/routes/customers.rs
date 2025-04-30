@@ -6,7 +6,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, customers::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::customers,
+    types::{api::customers, domain},
 };
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
@@ -22,7 +22,10 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            create_customer(state, merchant_context, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -52,7 +55,10 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            create_customer(state, merchant_context, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -98,13 +104,10 @@ pub async fn customers_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            retrieve_customer(
-                state,
-                auth.merchant_account,
-                auth.profile_id,
-                auth.key_store,
-                customer_id,
-            )
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            retrieve_customer(state, merchant_context, auth.profile_id, customer_id)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -149,7 +152,10 @@ pub async fn customers_retrieve(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            retrieve_customer(state, auth.merchant_account, auth.key_store, id)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            retrieve_customer(state, merchant_context, id)
         },
         auth,
         api_locking::LockAction::NotApplicable,
@@ -255,12 +261,10 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            update_customer(
-                state,
-                auth.merchant_account,
-                request_internal,
-                auth.key_store,
-            )
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            update_customer(state, merchant_context, request_internal)
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
@@ -296,12 +300,10 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            update_customer(
-                state,
-                auth.merchant_account,
-                request_internal,
-                auth.key_store,
-            )
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            update_customer(state, merchant_context, request_internal)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -334,7 +336,10 @@ pub async fn customers_delete(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            delete_customer(state, auth.merchant_account, id, auth.key_store)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            delete_customer(state, merchant_context, id)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -367,7 +372,10 @@ pub async fn customers_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            delete_customer(state, auth.merchant_account, customer_id, auth.key_store)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            delete_customer(state, merchant_context, customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -400,12 +408,10 @@ pub async fn get_customer_mandates(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            crate::core::mandate::get_customer_mandates(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                customer_id,
-            )
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            crate::core::mandate::get_customer_mandates(state, merchant_context, customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
