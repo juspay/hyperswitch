@@ -42,8 +42,8 @@ use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, merchant_context, payment_address, payment_method_data, routing,
-    ApiModelToDieselModelConvertor,
+    merchant_connector_account, merchant_context, payment_address, payment_method_data,
+    revenue_recovery, routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -683,6 +683,64 @@ impl PaymentIntent {
         self.feature_metadata.clone()
     }
 
+    pub fn create_revenue_recovery_attempt_data(
+        &self,
+        revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
+        billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> CustomResult<
+        revenue_recovery::RevenueRecoveryAttemptData,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let merchant_reference_id = self.merchant_reference_id.clone().ok_or_else(|| {
+            error_stack::report!(
+                errors::api_error_response::ApiErrorResponse::GenericNotFoundError {
+                    message: "mandate reference id not found".to_string()
+                }
+            )
+        })?;
+
+        let connector_account_reference_id = billing_connector_account
+            .get_account_reference_id_using_payment_merchant_connector_account_id(
+                revenue_recovery_metadata.active_attempt_payment_connector_id,
+            )
+            .ok_or_else(|| {
+                error_stack::report!(
+                    errors::api_error_response::ApiErrorResponse::GenericNotFoundError {
+                        message: "connector account reference id not found".to_string()
+                    }
+                )
+            })?;
+
+        Ok(revenue_recovery::RevenueRecoveryAttemptData {
+            amount: self.amount_details.order_amount,
+            currency: self.amount_details.currency,
+            merchant_reference_id,
+            connector_transaction_id: None, // No connector id
+            error_code: None,
+            error_message: None,
+            processor_payment_method_token: revenue_recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token,
+            connector_customer_id: revenue_recovery_metadata
+                .billing_connector_payment_details
+                .connector_customer_id,
+            connector_account_reference_id,
+            transaction_created_at: None, // would unwrap_or as now
+            status: common_enums::AttemptStatus::Started,
+            payment_method_type: self
+                .get_payment_method_type()
+                .unwrap_or(revenue_recovery_metadata.payment_method_type),
+            payment_method_sub_type: self
+                .get_payment_method_sub_type()
+                .unwrap_or(revenue_recovery_metadata.payment_method_subtype),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            retry_count: None,
+            invoice_next_billing_time: None,
+        })
+    }
+
     pub fn get_optional_customer_id(
         &self,
     ) -> CustomResult<Option<id_type::CustomerId>, common_utils::errors::ValidationError> {
@@ -863,6 +921,7 @@ pub struct RevenueRecoveryData {
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    pub triggered_by: storage_enums::enums::TriggeredBy,
 }
 
 #[cfg(feature = "v2")]
