@@ -40,13 +40,13 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
         match intent_status {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Processing => Ok(()),
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
