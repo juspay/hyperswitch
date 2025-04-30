@@ -1328,7 +1328,10 @@ pub async fn elimination_routing_update_configs(
             .await
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
