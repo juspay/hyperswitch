@@ -287,7 +287,7 @@ impl From<&HipayTokenResponse> for AdditionalPaymentMethodConnectorResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HipayErrorResponse {
-    pub code: u8,
+    pub code: String,
     pub message: String,
     pub description: Option<String>,
 }
