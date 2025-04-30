@@ -2984,6 +2984,7 @@ default_imp_for_new_connector_integration_vault_insert!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Vgs,
     connectors::Worldpay,
     connectors::Wellsfargo,
     connectors::Xendit,

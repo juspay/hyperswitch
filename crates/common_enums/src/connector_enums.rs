@@ -469,8 +469,7 @@ impl Connector {
             | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
-            | Self::Datatrans
-            | Self::Vgs => false,
+            | Self::Datatrans => false,
             Self::Checkout | Self::Nmi |Self::Cybersource => true,
         }
     }
@@ -513,7 +512,6 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
-            RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
@@ -711,7 +709,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
-            Connector::Vgs => Ok(Self::Vgs),
             Connector::Volt => Ok(Self::Volt),
             Connector::Wellsfargo => Ok(Self::Wellsfargo),
             Connector::Wise => Ok(Self::Wise),
