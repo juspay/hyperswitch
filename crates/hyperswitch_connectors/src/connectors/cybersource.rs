@@ -1844,7 +1844,7 @@ static CYBERSOURCE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS:  [common_enums::EventClass; 0] = [];
+static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Cybersource {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -771,8 +771,7 @@ static BOKU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
     boku_supported_payment_methods
 });
 
-static BOKU_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static BOKU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Boku",
         description:
             "Boku, Inc. is a mobile payments company that allows businesses to collect online payments through both carrier billing and mobile wallets, and is headquartered in San Francisco, California.",

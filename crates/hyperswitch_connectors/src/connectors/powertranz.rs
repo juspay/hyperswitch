@@ -663,8 +663,7 @@ static POWERTRANZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         powertranz_supported_payment_methods
     });
 
-static POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static POWERTRANZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Powertranz",
         description:
             "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",

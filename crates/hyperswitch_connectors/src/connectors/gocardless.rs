@@ -907,8 +907,7 @@ static GOCARDLESS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         gocardless_supported_payment_methods
     });
 
-static GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "GoCardless",
         description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,

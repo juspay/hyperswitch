@@ -531,16 +531,15 @@ static CRYPTOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         cryptopay_supported_payment_methods
     });
 
-static CRYPTOPAY_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static CRYPTOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Cryptopay",
         description:
             "Simple and secure solution to buy and manage crypto. Make quick international transfers, spend your BTC, ETH and other crypto assets.",
         connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-static CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS: [common_enums::enums::EventClass; 1] = [
-    common_enums::enums::EventClass::Payments];
+static CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS: [common_enums::enums::EventClass; 1] =
+    [common_enums::enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Cryptopay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1143,8 +1143,7 @@ static BANKOFAMERICA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
         bankofamerica_supported_payment_methods
     });
 
-static BANKOFAMERICA_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static BANKOFAMERICA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Bank Of America",
         description:
             "It is the second-largest banking institution in the United States and the second-largest bank in the world by market capitalization ",

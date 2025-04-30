@@ -911,7 +911,7 @@ static WORLDLINE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static WORLDLINE_SUPPORTED_WEBHOOK_FLOWS:  [enums::EventClass; 1]= [enums::EventClass::Payments];
+static WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Worldline {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

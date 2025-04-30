@@ -840,8 +840,7 @@ static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         datatrans_supported_payment_methods
     });
 
-static DATATRANS_CONNECTOR_INFO: ConnectorInfo = 
-    ConnectorInfo {
+static DATATRANS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Datatrans",
         description:
             "Datatrans is a payment gateway that facilitates the processing of payments, including hosting smart payment forms and correctly routing payment information.",
