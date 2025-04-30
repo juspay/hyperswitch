@@ -211,6 +211,7 @@ trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000"
+vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -309,6 +310,7 @@ cards = [
     "trustpay",
     "tsys",
     "unified_authentication_service",
+    "vgs",
     "volt",
     "wellsfargo",
     "wellsfargopayout",

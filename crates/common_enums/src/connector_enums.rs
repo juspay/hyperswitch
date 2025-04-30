@@ -140,6 +140,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
+    // Vgs,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -448,6 +449,7 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
+            | Self::Vgs
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout
@@ -511,6 +513,7 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
@@ -708,6 +711,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
+            Connector::Vgs => Ok(Self::Vgs),
             Connector::Volt => Ok(Self::Volt),
             Connector::Wellsfargo => Ok(Self::Wellsfargo),
             Connector::Wise => Ok(Self::Wise),

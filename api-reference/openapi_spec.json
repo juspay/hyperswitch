@@ -10131,7 +10131,13 @@
           "authentication_processor",
           "tax_processor",
           "billing_processor",
+<<<<<<< HEAD
           "vault_processor"
+||||||| f70824ef5
+          "billing_processor"
+=======
+          "vault"
+>>>>>>> vault-connector-config
         ]
       },
       "ConnectorVolumeSplit": {
@@ -25611,6 +25617,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "vgs",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
