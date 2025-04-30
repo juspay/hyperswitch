@@ -13,8 +13,6 @@ use hyperswitch_interfaces::crm::CRMPayload;
 use masking::ExposeInterface;
 use masking::PeekInterface;
 use router_env::logger;
-#[cfg(feature = "email")]
-use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
@@ -24,10 +22,7 @@ use crate::{
     utils::user::{self as user_utils, dashboard_metadata as utils},
 };
 #[cfg(feature = "email")]
-use crate::{
-    services::email::types as email_types,
-    utils::user::{self as user_utils, theme as theme_utils},
-};
+use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
