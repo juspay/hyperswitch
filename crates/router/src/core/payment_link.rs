@@ -66,8 +66,7 @@ pub async fn retrieve_payment_link(
 #[cfg(feature = "v2")]
 pub async fn form_payment_link_data(
     state: &SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
@@ -77,8 +76,7 @@ pub async fn form_payment_link_data(
 #[cfg(feature = "v1")]
 pub async fn form_payment_link_data(
     state: &SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
@@ -90,8 +88,8 @@ pub async fn form_payment_link_data(
             &(state).into(),
             &payment_id,
             &merchant_id,
-            &key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -101,7 +99,8 @@ pub async fn form_payment_link_data(
         .get_required_value("payment_link_id")
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let merchant_name_from_merchant_account = merchant_account
+    let merchant_name_from_merchant_account = merchant_context
+        .get_merchant_account()
         .merchant_name
         .clone()
         .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -139,6 +138,10 @@ pub async fn form_payment_link_data(
                 sdk_ui_rules: None,
                 payment_link_ui_rules: None,
                 enable_button_only_on_form_ready: DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY,
+                payment_form_header_text: None,
+                payment_form_label_type: None,
+                show_card_terms: None,
+                is_setup_mandate_flow: None,
             }
         };
 
@@ -150,7 +153,11 @@ pub async fn form_payment_link_data(
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -204,6 +211,17 @@ pub async fn form_payment_link_data(
             storage_enums::IntentStatus::RequiresCustomerAction,
         ],
     );
+
+    let attempt_id = payment_intent.active_attempt.get_id().clone();
+    let payment_attempt = db
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_intent.payment_id,
+            &merchant_id,
+            &attempt_id.clone(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     if is_payment_link_terminal_state
         || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
@@ -233,7 +251,7 @@ pub async fn form_payment_link_data(
                 &payment_intent.payment_id,
                 &merchant_id,
                 &attempt_id.clone(),
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -254,6 +272,8 @@ pub async fn form_payment_link_data(
             transaction_details: payment_link_config.transaction_details.clone(),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            capture_method: payment_attempt.capture_method,
+            setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
         };
 
         return Ok((
@@ -271,7 +291,10 @@ pub async fn form_payment_link_data(
         order_details,
         return_url,
         session_expiry,
-        pub_key: merchant_account.publishable_key,
+        pub_key: merchant_context
+            .get_merchant_account()
+            .publishable_key
+            .to_owned(),
         client_secret,
         merchant_logo: payment_link_config.logo.clone(),
         max_items_visible_after_collapse: 3,
@@ -296,6 +319,12 @@ pub async fn form_payment_link_data(
         payment_link_ui_rules: payment_link_config.payment_link_ui_rules.clone(),
         status: payment_intent.status,
         enable_button_only_on_form_ready: payment_link_config.enable_button_only_on_form_ready,
+        payment_form_header_text: payment_link_config.payment_form_header_text.clone(),
+        payment_form_label_type: payment_link_config.payment_form_label_type,
+        show_card_terms: payment_link_config.show_card_terms,
+        is_setup_mandate_flow: payment_link_config.is_setup_mandate_flow,
+        capture_method: payment_attempt.capture_method,
+        setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
     };
 
     Ok((
@@ -307,15 +336,13 @@ pub async fn form_payment_link_data(
 
 pub async fn initiate_secure_payment_link_flow(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let (payment_link, payment_link_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
-            .await?;
+        form_payment_link_data(&state, merchant_context, merchant_id, payment_id).await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -356,6 +383,9 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_link_ui_rules: payment_link_config.payment_link_ui_rules,
                 enable_button_only_on_form_ready: payment_link_config
                     .enable_button_only_on_form_ready,
+                payment_form_header_text: payment_link_config.payment_form_header_text,
+                payment_form_label_type: payment_link_config.payment_form_label_type,
+                show_card_terms: payment_link_config.show_card_terms,
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -410,14 +440,12 @@ pub async fn initiate_secure_payment_link_flow(
 
 pub async fn initiate_payment_link_flow(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let (_, payment_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
-            .await?;
+        form_payment_link_data(&state, merchant_context, merchant_id, payment_id).await?;
 
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
@@ -674,6 +702,10 @@ pub fn get_payment_link_config_based_on_priority(
         payment_button_text_colour,
         sdk_ui_rules,
         payment_link_ui_rules,
+        payment_form_header_text,
+        payment_form_label_type,
+        show_card_terms,
+        is_setup_mandate_flow,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -688,6 +720,10 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_button_text_colour),
         (sdk_ui_rules),
         (payment_link_ui_rules),
+        (payment_form_header_text),
+        (payment_form_label_type),
+        (show_card_terms),
+        (is_setup_mandate_flow),
     );
 
     let payment_link_config =
@@ -716,6 +752,10 @@ pub fn get_payment_link_config_based_on_priority(
             sdk_ui_rules,
             payment_link_ui_rules,
             enable_button_only_on_form_ready,
+            payment_form_header_text,
+            payment_form_label_type,
+            show_card_terms,
+            is_setup_mandate_flow,
         };
 
     Ok((payment_link_config, domain_name))
@@ -744,8 +784,7 @@ fn check_payment_link_invalid_conditions(
 #[cfg(feature = "v2")]
 pub async fn get_payment_link_status(
     _state: SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
+    _merchant_context: domain::MerchantContext,
     _merchant_id: common_utils::id_type::MerchantId,
     _payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -755,8 +794,7 @@ pub async fn get_payment_link_status(
 #[cfg(feature = "v1")]
 pub async fn get_payment_link_status(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -768,8 +806,8 @@ pub async fn get_payment_link_status(
             key_manager_state,
             &payment_id,
             &merchant_id,
-            &key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -780,7 +818,7 @@ pub async fn get_payment_link_status(
             &payment_intent.payment_id,
             &merchant_id,
             &attempt_id.clone(),
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -790,7 +828,8 @@ pub async fn get_payment_link_status(
         .get_required_value("payment_link_id")
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let merchant_name_from_merchant_account = merchant_account
+    let merchant_name_from_merchant_account = merchant_context
+        .get_merchant_account()
         .merchant_name
         .clone()
         .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -827,6 +866,10 @@ pub async fn get_payment_link_status(
             sdk_ui_rules: None,
             payment_link_ui_rules: None,
             enable_button_only_on_form_ready: DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY,
+            payment_form_header_text: None,
+            payment_form_label_type: None,
+            show_card_terms: None,
+            is_setup_mandate_flow: None,
         }
     };
 
@@ -856,7 +899,11 @@ pub async fn get_payment_link_status(
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -909,6 +956,8 @@ pub async fn get_payment_link_status(
         transaction_details: payment_link_config.transaction_details,
         unified_code: Some(unified_code),
         unified_message: unified_translated_message,
+        capture_method: payment_attempt.capture_method,
+        setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

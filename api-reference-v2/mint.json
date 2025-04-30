@@ -67,7 +67,8 @@
         "api-reference/payment-method-session/payment-method-session--retrieve",
         "api-reference/payment-method-session/payment-method-session--list-payment-methods",
         "api-reference/payment-method-session/payment-method-session--update-a-saved-payment-method",
-        "api-reference/payment-method-session/payment-method-session--confirm-a-payment-method-session"
+        "api-reference/payment-method-session/payment-method-session--confirm-a-payment-method-session",
+        "api-reference/payment-method-session/payment-method-session--delete-a-saved-payment-method"
       ]
     },
     {

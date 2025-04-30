@@ -106,14 +106,21 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
+pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::BillingConnectorInvoiceSyncFlowData,
+        Req,
+        Res,
+    >;
 
 pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;
 
-pub type BoxedGetAdditionalRecoveryRecoveryDetailsIntegrationInterface<T, Req, Res> =
+pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
-        common_types::GetAdditionalRevenueRecoveryFlowCommonData,
+        common_types::BillingConnectorPaymentsSyncFlowData,
         Req,
         Res,
     >;
@@ -170,8 +177,9 @@ where
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             } else {
                 None
@@ -361,8 +369,9 @@ where
                                     status_code: 504,
                                     attempt_status: None,
                                     connector_transaction_id: None,
-                                    issuer_error_code: None,
-                                    issuer_error_message: None,
+                                    network_advice_code: None,
+                                    network_decline_code: None,
+                                    network_error_message: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -871,12 +880,6 @@ where
     );
     state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(
-        status_code.to_string(),
-        flow.to_string(),
-        merchant_id.to_owned(),
-    );
-
     output
 }
 
@@ -930,18 +933,15 @@ where
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
 
-    let server_wrap_util_res = metrics::request::record_request_time_metric(
-        server_wrap_util(
-            &flow,
-            state.clone(),
-            incoming_request_header,
-            request,
-            payload,
-            func,
-            api_auth,
-            lock_action,
-        ),
+    let server_wrap_util_res = server_wrap_util(
         &flow,
+        state.clone(),
+        incoming_request_header,
+        request,
+        payload,
+        func,
+        api_auth,
+        lock_action,
     )
     .await
     .map(|response| {
@@ -1268,6 +1268,7 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     }
 }
 
+impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}

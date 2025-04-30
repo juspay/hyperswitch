@@ -27,6 +27,8 @@ pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
 pub enum CardType {
     Credit,
     Debit,
+    #[cfg(feature = "v2")]
+    Card,
 }
 
 #[derive(
@@ -201,7 +203,7 @@ pub enum OpenBankingType {
 pub enum BankTransferType {
     Multibanco,
     Ach,
-    Sepa,
+    SepaBankTransfer,
     Bacs,
     BcaBankTransfer,
     BniVa,
@@ -213,6 +215,7 @@ pub enum BankTransferType {
     Pix,
     Pse,
     LocalBankTransfer,
+    InstantBankTransfer,
 }
 
 #[derive(

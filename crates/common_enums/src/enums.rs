@@ -1,7 +1,10 @@
 mod accounts;
 mod payments;
 mod ui;
-use std::num::{ParseFloatError, TryFromIntError};
+use std::{
+    collections::HashSet,
+    num::{ParseFloatError, TryFromIntError},
+};
 
 pub use accounts::MerchantProductType;
 pub use payments::ProductType;
@@ -21,7 +24,8 @@ pub mod diesel_exports {
         DbDisputeStatus as DisputeStatus, DbFraudCheckStatus as FraudCheckStatus,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
+        DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
@@ -208,6 +212,29 @@ pub enum CardDiscovery {
     ClickToPay,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryAlgorithmType {
+    Monitoring,
+    Smart,
+    Cascading,
+}
+
 /// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
 #[derive(
     Clone,
@@ -330,9 +357,15 @@ pub enum AuthorizationStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum SessionUpdateStatus {
+pub enum PaymentResourceUpdateStatus {
     Success,
     Failure,
+}
+
+impl PaymentResourceUpdateStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Success)
+    }
 }
 
 #[derive(
@@ -1357,6 +1390,7 @@ impl Currency {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1377,10 +1411,49 @@ pub enum EventClass {
     Payouts,
 }
 
+impl EventClass {
+    #[inline]
+    pub fn event_types(self) -> HashSet<EventType> {
+        match self {
+            Self::Payments => HashSet::from([
+                EventType::PaymentSucceeded,
+                EventType::PaymentFailed,
+                EventType::PaymentProcessing,
+                EventType::PaymentCancelled,
+                EventType::PaymentAuthorized,
+                EventType::PaymentCaptured,
+                EventType::ActionRequired,
+            ]),
+            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Disputes => HashSet::from([
+                EventType::DisputeOpened,
+                EventType::DisputeExpired,
+                EventType::DisputeAccepted,
+                EventType::DisputeCancelled,
+                EventType::DisputeChallenged,
+                EventType::DisputeWon,
+                EventType::DisputeLost,
+            ]),
+            Self::Mandates => HashSet::from([EventType::MandateActive, EventType::MandateRevoked]),
+            #[cfg(feature = "payouts")]
+            Self::Payouts => HashSet::from([
+                EventType::PayoutSuccess,
+                EventType::PayoutFailed,
+                EventType::PayoutInitiated,
+                EventType::PayoutProcessing,
+                EventType::PayoutCancelled,
+                EventType::PayoutExpired,
+                EventType::PayoutReversed,
+            ]),
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     PartialEq,
     serde::Deserialize,
@@ -1392,6 +1465,7 @@ pub enum EventClass {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+// Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
 pub enum EventType {
     /// Authorize + Capture success
     PaymentSucceeded,
@@ -1413,12 +1487,19 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    #[cfg(feature = "payouts")]
     PayoutSuccess,
+    #[cfg(feature = "payouts")]
     PayoutFailed,
+    #[cfg(feature = "payouts")]
     PayoutInitiated,
+    #[cfg(feature = "payouts")]
     PayoutProcessing,
+    #[cfg(feature = "payouts")]
     PayoutCancelled,
+    #[cfg(feature = "payouts")]
     PayoutExpired,
+    #[cfg(feature = "payouts")]
     PayoutReversed,
 }
 
@@ -1754,6 +1835,8 @@ pub enum PaymentMethodType {
     BcaBankTransfer,
     BniVa,
     BriVa,
+    #[cfg(feature = "v2")]
+    Card,
     CardRedirect,
     CimbVa,
     #[serde(rename = "classic")]
@@ -1810,6 +1893,7 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Sepa,
+    SepaBankTransfer,
     Sofort,
     Swish,
     TouchNGo,
@@ -1833,11 +1917,121 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+        matches!(
+            self,
+            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+        )
+    }
+    pub fn to_display_name(&self) -> String {
+        let display_name = match self {
+            Self::Ach => "ACH Direct Debit",
+            Self::Bacs => "BACS Direct Debit",
+            Self::Affirm => "Affirm",
+            Self::AfterpayClearpay => "Afterpay Clearpay",
+            Self::Alfamart => "Alfamart",
+            Self::AliPay => "Alipay",
+            Self::AliPayHk => "AlipayHK",
+            Self::Alma => "Alma",
+            Self::AmazonPay => "Amazon Pay",
+            Self::ApplePay => "Apple Pay",
+            Self::Atome => "Atome",
+            Self::BancontactCard => "Bancontact Card",
+            Self::Becs => "BECS Direct Debit",
+            Self::Benefit => "Benefit",
+            Self::Bizum => "Bizum",
+            Self::Blik => "BLIK",
+            Self::Boleto => "Boleto Bancário",
+            Self::BcaBankTransfer => "BCA Bank Transfer",
+            Self::BniVa => "BNI Virtual Account",
+            Self::BriVa => "BRI Virtual Account",
+            Self::CardRedirect => "Card Redirect",
+            Self::CimbVa => "CIMB Virtual Account",
+            Self::ClassicReward => "Classic Reward",
+            #[cfg(feature = "v2")]
+            Self::Card => "Card",
+            Self::Credit => "Credit Card",
+            Self::CryptoCurrency => "Crypto",
+            Self::Cashapp => "Cash App",
+            Self::Dana => "DANA",
+            Self::DanamonVa => "Danamon Virtual Account",
+            Self::Debit => "Debit Card",
+            Self::DuitNow => "DuitNow",
+            Self::Efecty => "Efecty",
+            Self::Eft => "EFT",
+            Self::Eps => "EPS",
+            Self::Fps => "FPS",
+            Self::Evoucher => "Evoucher",
+            Self::Giropay => "Giropay",
+            Self::Givex => "Givex",
+            Self::GooglePay => "Google Pay",
+            Self::GoPay => "GoPay",
+            Self::Gcash => "GCash",
+            Self::Ideal => "iDEAL",
+            Self::Interac => "Interac",
+            Self::Indomaret => "Indomaret",
+            Self::InstantBankTransfer => "Instant Bank Transfer",
+            Self::Klarna => "Klarna",
+            Self::KakaoPay => "KakaoPay",
+            Self::LocalBankRedirect => "Local Bank Redirect",
+            Self::MandiriVa => "Mandiri Virtual Account",
+            Self::Knet => "KNET",
+            Self::MbWay => "MB WAY",
+            Self::MobilePay => "MobilePay",
+            Self::Momo => "MoMo",
+            Self::MomoAtm => "MoMo ATM",
+            Self::Multibanco => "Multibanco",
+            Self::OnlineBankingThailand => "Online Banking Thailand",
+            Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic",
+            Self::OnlineBankingFinland => "Online Banking Finland",
+            Self::OnlineBankingFpx => "Online Banking FPX",
+            Self::OnlineBankingPoland => "Online Banking Poland",
+            Self::OnlineBankingSlovakia => "Online Banking Slovakia",
+            Self::Oxxo => "OXXO",
+            Self::PagoEfectivo => "PagoEfectivo",
+            Self::PermataBankTransfer => "Permata Bank Transfer",
+            Self::OpenBankingUk => "Open Banking UK",
+            Self::PayBright => "PayBright",
+            Self::Paypal => "PayPal",
+            Self::Paze => "Paze",
+            Self::Pix => "Pix",
+            Self::PaySafeCard => "PaySafeCard",
+            Self::Przelewy24 => "Przelewy24",
+            Self::PromptPay => "PromptPay",
+            Self::Pse => "PSE",
+            Self::RedCompra => "RedCompra",
+            Self::RedPagos => "RedPagos",
+            Self::SamsungPay => "Samsung Pay",
+            Self::Sepa => "SEPA Direct Debit",
+            Self::SepaBankTransfer => "SEPA Bank Transfer",
+            Self::Sofort => "Sofort",
+            Self::Swish => "Swish",
+            Self::TouchNGo => "Touch 'n Go",
+            Self::Trustly => "Trustly",
+            Self::Twint => "TWINT",
+            Self::UpiCollect => "UPI Collect",
+            Self::UpiIntent => "UPI Intent",
+            Self::Vipps => "Vipps",
+            Self::VietQr => "VietQR",
+            Self::Venmo => "Venmo",
+            Self::Walley => "Walley",
+            Self::WeChatPay => "WeChat Pay",
+            Self::SevenEleven => "7-Eleven",
+            Self::Lawson => "Lawson",
+            Self::MiniStop => "Mini Stop",
+            Self::FamilyMart => "FamilyMart",
+            Self::Seicomart => "Seicomart",
+            Self::PayEasy => "PayEasy",
+            Self::LocalBankTransfer => "Local Bank Transfer",
+            Self::Mifinity => "MiFinity",
+            Self::OpenBankingPIS => "Open Banking PIS",
+            Self::DirectCarrierBilling => "Direct Carrier Billing",
+        };
+        display_name.to_string()
     }
 }
 
@@ -1928,6 +2122,26 @@ pub enum ScaExemptionType {
     #[default]
     LowValue,
     TransactionRiskAnalysis,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CtpServiceProvider {
+    Visa,
+    Mastercard,
 }
 
 #[derive(
@@ -2217,7 +2431,7 @@ pub enum RequestIncrementalAuthorization {
     Default,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, strum::Display,)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
 #[rustfmt::skip]
 pub enum CountryAlpha3 {
     AFG, ALA, ALB, DZA, ASM, AND, AGO, AIA, ATA, ATG, ARG, ARM, ABW, AUS, AUT,
@@ -6420,6 +6634,66 @@ pub enum RomaniaStatesAbbreviation {
 }
 
 #[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BrazilStatesAbbreviation {
+    #[strum(serialize = "AC")]
+    Acre,
+    #[strum(serialize = "AL")]
+    Alagoas,
+    #[strum(serialize = "AP")]
+    Amapá,
+    #[strum(serialize = "AM")]
+    Amazonas,
+    #[strum(serialize = "BA")]
+    Bahia,
+    #[strum(serialize = "CE")]
+    Ceará,
+    #[strum(serialize = "DF")]
+    DistritoFederal,
+    #[strum(serialize = "ES")]
+    EspíritoSanto,
+    #[strum(serialize = "GO")]
+    Goiás,
+    #[strum(serialize = "MA")]
+    Maranhão,
+    #[strum(serialize = "MT")]
+    MatoGrosso,
+    #[strum(serialize = "MS")]
+    MatoGrossoDoSul,
+    #[strum(serialize = "MG")]
+    MinasGerais,
+    #[strum(serialize = "PA")]
+    Pará,
+    #[strum(serialize = "PB")]
+    Paraíba,
+    #[strum(serialize = "PR")]
+    Paraná,
+    #[strum(serialize = "PE")]
+    Pernambuco,
+    #[strum(serialize = "PI")]
+    Piauí,
+    #[strum(serialize = "RJ")]
+    RioDeJaneiro,
+    #[strum(serialize = "RN")]
+    RioGrandeDoNorte,
+    #[strum(serialize = "RS")]
+    RioGrandeDoSul,
+    #[strum(serialize = "RO")]
+    Rondônia,
+    #[strum(serialize = "RR")]
+    Roraima,
+    #[strum(serialize = "SC")]
+    SantaCatarina,
+    #[strum(serialize = "SP")]
+    SãoPaulo,
+    #[strum(serialize = "SE")]
+    Sergipe,
+    #[strum(serialize = "TO")]
+    Tocantins,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -6682,6 +6956,7 @@ pub enum AuthenticationConnectors {
     CtpMastercard,
     UnifiedAuthenticationService,
     Juspaythreedsserver,
+    CtpVisa,
 }
 
 impl AuthenticationConnectors {
@@ -6691,7 +6966,8 @@ impl AuthenticationConnectors {
             | Self::Netcetera
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
-            | Self::Juspaythreedsserver => false,
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa => false,
             Self::Gpayments => true,
         }
     }
@@ -6978,6 +7254,7 @@ pub enum Resource {
     ReconReports,
     RunRecon,
     ReconConfig,
+    RevenueRecovery,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -7604,6 +7881,17 @@ pub enum ErrorCategory {
     ProcessorDeclineIncorrectData,
 }
 
+impl ErrorCategory {
+    pub fn should_perform_elimination_routing(self) -> bool {
+        match self {
+            Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Debug,
@@ -7783,10 +8071,13 @@ pub enum AdyenSplitType {
     Vat,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, Default,
+)]
 #[serde(rename = "snake_case")]
 pub enum PaymentConnectorTransmission {
     /// Failed to call the payment connector
+    #[default]
     ConnectorCallUnsuccessful,
     /// Payment Connector call succeeded
     ConnectorCallSucceeded,
@@ -7815,6 +8106,60 @@ pub enum TriggeredBy {
     Internal,
     /// Denotes payment attempt is been created by external system.
     External,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ProcessTrackerStatus {
+    // Picked by the producer
+    Processing,
+    // State when the task is added
+    New,
+    // Send to retry
+    Pending,
+    // Picked by consumer
+    ProcessStarted,
+    // Finished by consumer
+    Finish,
+    // Review the task
+    Review,
+}
+
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    strum::EnumString,
+    strum::Display,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProcessTrackerRunner {
+    PaymentsSyncWorkflow,
+    RefundWorkflowRouter,
+    DeleteTokenizeDataWorkflow,
+    ApiKeyExpiryWorkflow,
+    OutgoingWebhookRetryWorkflow,
+    AttachPayoutAccountWorkflow,
+    PaymentMethodStatusUpdateWorkflow,
+    PassiveRecoveryWorkflow,
 }
 
 #[derive(Debug)]

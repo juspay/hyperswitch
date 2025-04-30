@@ -19,7 +19,10 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefreshTokenRouterData, RefundExecuteRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
+use hyperswitch_interfaces::{
+    consts::{self, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
@@ -116,6 +119,7 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                 decoupled_challenge_return_url: None,
                 status_url: item.router_data.request.webhook_url.clone(),
                 three_ds_method_return_url: None,
+                cancel_url: get_return_url(item.router_data),
             }),
             authorization_mode: None,
             cashback_amount: None,
@@ -278,6 +282,7 @@ fn get_payment_response(
     status: common_enums::AttemptStatus,
     response: GlobalpayPaymentsResponse,
     redirection_data: Option<RedirectForm>,
+    status_code: u16,
 ) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let mandate_reference = response.payment_method.as_ref().and_then(|pm| {
         pm.card
@@ -294,12 +299,33 @@ fn get_payment_response(
         common_enums::AttemptStatus::Failure => Err(Box::new(ErrorResponse {
             message: response
                 .payment_method
-                .and_then(|pm| pm.message)
+                .as_ref()
+                .and_then(|payment_method| payment_method.message.clone())
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            ..Default::default()
+            code: response
+                .payment_method
+                .as_ref()
+                .and_then(|payment_method| payment_method.result.clone())
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            reason: response
+                .payment_method
+                .as_ref()
+                .and_then(|payment_method| payment_method.message.clone()),
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: Some(response.id),
+            network_decline_code: response
+                .payment_method
+                .as_ref()
+                .and_then(|payment_method| payment_method.result.clone()),
+            network_advice_code: None,
+            network_error_message: response
+                .payment_method
+                .as_ref()
+                .and_then(|payment_method| payment_method.message.clone()),
         })),
         _ => Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(response.id),
+            resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
@@ -335,9 +361,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
             })
             .transpose()?;
         let redirection_data = redirect_url.map(|url| RedirectForm::from((url, Method::Get)));
+        let status_code = item.http_code;
         Ok(Self {
             status,
-            response: get_payment_response(status, item.response, redirection_data)
+            response: get_payment_response(status, item.response, redirection_data, status_code)
                 .map_err(|err| *err),
             ..item.data
         })
@@ -477,7 +504,14 @@ fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
         payment_method_data::PaymentMethodData::Wallet(
             payment_method_data::WalletData::PaypalRedirect(_),
-        ) => item.request.complete_authorize_url.clone(),
+        ) => {
+            // Return URL handling for PayPal via Globalpay:
+            // - PayPal inconsistency: Return URLs work with HTTP, but cancel URLs require HTTPS
+            // - Local development: When testing locally, expose your server via HTTPS and replace
+            //   the base URL with an HTTPS URL to ensure proper cancellation flow
+            // - Refer to commit 6499d429da87 for more information
+            item.request.complete_authorize_url.clone()
+        }
         _ => item.request.router_return_url.clone(),
     }
 }

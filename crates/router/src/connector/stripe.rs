@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 use common_utils::{
     request::RequestContent,
@@ -19,7 +19,6 @@ use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsReques
 use super::utils::{PayoutsData, RouterData};
 use crate::{
     configs::settings,
-    connector::utils::PaymentsPreProcessingData,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -129,8 +128,9 @@ impl ConnectorCommon for Stripe {
             reason: response.error.message,
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -177,6 +177,7 @@ impl ConnectorValidation for Stripe {
 impl api::Payment for Stripe {}
 
 impl api::PaymentAuthorize for Stripe {}
+impl api::PaymentUpdateMetadata for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
@@ -201,142 +202,6 @@ impl
     > for Stripe
 {
     // Not Implemented (R)
-}
-
-impl api::PaymentsPreProcessing for Stripe {}
-
-impl
-    services::ConnectorIntegration<
-        api::PreProcessing,
-        types::PaymentsPreProcessingData,
-        types::PaymentsResponseData,
-    > for Stripe
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsPreProcessingType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_currency = req.request.get_currency()?;
-        let req_amount = req.request.get_minor_amount()?;
-        let amount =
-            connector_utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
-        let connector_req =
-            stripe::StripeCreditTransferSourceRequest::try_from((req, amount, req_currency))?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsPreProcessingType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsPreProcessingRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: stripe::StripeSourceResponse = res
-            .response
-            .parse_struct("StripeSourceResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
-        })
-    }
 }
 
 impl api::ConnectorCustomer for Stripe {}
@@ -460,6 +325,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -467,8 +333,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -590,6 +457,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -597,8 +465,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -745,6 +614,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -752,8 +622,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -917,6 +788,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -924,8 +796,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -978,29 +851,14 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match &req.request.payment_method_data {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data.deref() {
-                    domain::BankTransferData::AchBankTransfer { .. }
-                    | domain::BankTransferData::MultibancoBankTransfer { .. } => {
-                        Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
-                    }
-                    _ => Ok(format!(
-                        "{}{}",
-                        self.base_url(connectors),
-                        "v1/payment_intents"
-                    )),
-                }
-            }
-            _ => Ok(format!(
-                "{}{}",
-                self.base_url(connectors),
-                "v1/payment_intents"
-            )),
-        }
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "v1/payment_intents"
+        ))
     }
 
     fn get_request_body(
@@ -1013,16 +871,9 @@ impl
             req.request.minor_amount,
             req.request.currency,
         )?;
-        match &req.request.payment_method_data {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref(), amount)
-            }
-            _ => {
-                let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
+        let connector_req = stripe::PaymentIntentRequest::try_from((req, amount))?;
 
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-            }
-        }
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1053,94 +904,31 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match &data.request.payment_method_data {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data
-                .deref()
-            {
-                domain::BankTransferData::AchBankTransfer { .. }
-                | domain::BankTransferData::MultibancoBankTransfer { .. } => {
-                    let response: stripe::ChargesResponse = res
-                        .response
-                        .parse_struct("ChargesResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: stripe::PaymentIntentResponse = res
+            .response
+            .parse_struct("PaymentIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                    let response_integrity_object =
-                        connector_utils::get_authorise_integrity_object(
-                            self.amount_converter,
-                            response.amount,
-                            response.currency.clone(),
-                        )?;
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
 
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
-                    let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    });
+        let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
-                    new_router_data.map(|mut router_data| {
-                        router_data.request.integrity_object = Some(response_integrity_object);
-                        router_data
-                    })
-                }
-                _ => {
-                    let response: stripe::PaymentIntentResponse = res
-                        .response
-                        .parse_struct("PaymentIntentResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                    let response_integrity_object =
-                        connector_utils::get_authorise_integrity_object(
-                            self.amount_converter,
-                            response.amount,
-                            response.currency.clone(),
-                        )?;
-
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-
-                    let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    });
-
-                    new_router_data.map(|mut router_data| {
-                        router_data.request.integrity_object = Some(response_integrity_object);
-                        router_data
-                    })
-                }
-            },
-            _ => {
-                let response: stripe::PaymentIntentResponse = res
-                    .response
-                    .parse_struct("PaymentIntentResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                let response_integrity_object = connector_utils::get_authorise_integrity_object(
-                    self.amount_converter,
-                    response.amount,
-                    response.currency.clone(),
-                )?;
-
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-
-                let new_router_data = types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed);
-
-                new_router_data.map(|mut router_data| {
-                    router_data.request.integrity_object = Some(response_integrity_object);
-                    router_data
-                })
-            }
-        }
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -1169,6 +957,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1176,9 +965,104 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
+    }
+}
+
+impl
+    services::ConnectorIntegration<
+        api::UpdateMetadata,
+        types::PaymentsUpdateMetadataData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::UpdateMetadata,
+            types::PaymentsUpdateMetadataData,
+            types::PaymentsResponseData,
+        >,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsUpdateMetadataRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}v1/payment_intents/{}",
+            self.base_url(connectors),
+            payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsUpdateMetadataRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = stripe::UpdateMetadataRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsUpdateMetadataRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsUpdateMetadataType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(types::PaymentsUpdateMetadataType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PaymentsUpdateMetadataType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsUpdateMetadataRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsUpdateMetadataRouterData, errors::ConnectorError> {
+        router_env::logger::debug!("skipped parsing of the response");
+        // If 200 status code, then metadata was updated successfully.
+        let status = if res.status_code == 200 {
+            enums::PaymentResourceUpdateStatus::Success
+        } else {
+            enums::PaymentResourceUpdateStatus::Failure
+        };
+        Ok(types::PaymentsUpdateMetadataRouterData {
+            response: Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { status }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1298,6 +1182,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1305,8 +1190,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1460,6 +1346,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1467,8 +1354,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1631,6 +1519,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1638,8 +1527,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1767,6 +1657,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1774,8 +1665,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -1923,6 +1815,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -1930,8 +1823,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -2038,6 +1932,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -2045,8 +1940,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }
@@ -2171,6 +2067,7 @@ impl
                 response
                     .error
                     .decline_code
+                    .clone()
                     .map(|decline_code| {
                         format!("message - {}, decline_code - {}", message, decline_code)
                     })
@@ -2178,8 +2075,9 @@ impl
             }),
             attempt_status: None,
             connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.network_decline_code,
+            network_error_message: response.error.decline_code.or(response.error.advice_code),
         })
     }
 }

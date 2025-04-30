@@ -20,8 +20,8 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus, DbRefundType as RefundType, DbRelayStatus as RelayStatus,
         DbRelayType as RelayType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
-        DbScaExemptionType as ScaExemptionType,
+        DbRevenueRecoveryAlgorithmType as RevenueRecoveryAlgorithmType, DbRoleScope as RoleScope,
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
         DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
@@ -78,41 +78,11 @@ pub enum EventObjectType {
     PayoutDetails,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ProcessTrackerStatus {
-    // Picked by the producer
-    Processing,
-    // State when the task is added
-    New,
-    // Send to retry
-    Pending,
-    // Picked by consumer
-    ProcessStarted,
-    // Finished by consumer
-    Finish,
-    // Review the task
-    Review,
-}
-
 // Refund
 #[derive(
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     serde::Serialize,
@@ -125,7 +95,6 @@ pub enum ProcessTrackerStatus {
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
-    #[default]
     RegularRefund,
     RetryRefund,
 }
@@ -284,6 +253,7 @@ pub enum DashboardMetadata {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
     OnboardingSurvey,
+    ReconStatus,
 }
 
 #[derive(

@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{admin::*, api_locking},
     services::{api, authentication as auth, authorization::permissions},
-    types::api::admin,
+    types::{api::admin, domain},
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -26,10 +26,13 @@ pub async fn profile_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_profile(state, req, auth_data.merchant_account, auth_data.key_store)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth_data.merchant_account, auth_data.key_store),
+            ));
+            create_profile(state, req, merchant_context)
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
@@ -62,7 +65,12 @@ pub async fn profile_create(
              key_store,
          },
          req,
-         _| { create_profile(state, req, merchant_account, key_store) },
+         _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account, key_store),
+            ));
+            create_profile(state, req, merchant_context)
+        },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
@@ -95,7 +103,7 @@ pub async fn profile_retrieve(
         profile_id,
         |state, auth_data, profile_id, _| retrieve_profile(state, profile_id, auth_data.key_store),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountRead,
@@ -158,7 +166,7 @@ pub async fn profile_update(
         json_payload.into_inner(),
         |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
@@ -243,7 +251,7 @@ pub async fn profiles_list(
         merchant_id.clone(),
         |state, _auth, merchant_id, _| list_profile(state, merchant_id, None),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
@@ -309,7 +317,7 @@ pub async fn profiles_list_at_profile_level(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileAccountRead,
@@ -343,7 +351,10 @@ pub async fn toggle_connector_agnostic_mit(
             connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,
             },
@@ -402,7 +413,7 @@ pub async fn payment_connector_list_profile(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileConnectorRead,
