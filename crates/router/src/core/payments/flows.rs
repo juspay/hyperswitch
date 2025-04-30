@@ -222,7 +222,6 @@ impl<const T: u8>
 
 default_imp_for_complete_authorize!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wise,
     connector::Wellsfargopayout
 );
@@ -254,7 +253,6 @@ impl<const T: u8>
 }
 default_imp_for_webhook_source_verification!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -286,11 +284,7 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_create_customer!(
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+default_imp_for_create_customer!(connector::Wellsfargopayout, connector::Wise);
 
 macro_rules! default_imp_for_connector_redirect_response {
     ($($path:ident::$connector:ident),*) => {
@@ -321,11 +315,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
     }
 }
 
-default_imp_for_connector_redirect_response!(
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+default_imp_for_connector_redirect_response!(connector::Wellsfargopayout, connector::Wise);
 
 macro_rules! default_imp_for_connector_request_id {
     ($($path:ident::$connector:ident),*) => {
@@ -340,7 +330,6 @@ impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {
 
 default_imp_for_connector_request_id!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -377,7 +366,6 @@ impl<const T: u8>
 
 default_imp_for_accept_dispute!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -431,11 +419,7 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_file_upload!(
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+default_imp_for_file_upload!(connector::Wellsfargopayout, connector::Wise);
 
 macro_rules! default_imp_for_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
@@ -464,11 +448,7 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_submit_evidence!(
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+default_imp_for_submit_evidence!(connector::Wellsfargopayout, connector::Wise);
 
 macro_rules! default_imp_for_defend_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -499,7 +479,6 @@ impl<const T: u8>
 
 default_imp_for_defend_dispute!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -548,7 +527,6 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -567,7 +545,6 @@ impl<const T: u8>
 
 default_imp_for_post_processing_steps!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -583,7 +560,7 @@ macro_rules! default_imp_for_payouts {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
-default_imp_for_payouts!(connector::Threedsecureio, connector::Wellsfargopayout);
+default_imp_for_payouts!(connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_create {
@@ -613,7 +590,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_create!(connector::Threedsecureio, connector::Wellsfargopayout);
+default_imp_for_payouts_create!(connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_retrieve {
@@ -645,7 +622,6 @@ impl<const T: u8>
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -681,11 +657,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_eligibility!(
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
+default_imp_for_payouts_eligibility!(connector::Stripe, connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_fulfill {
@@ -715,7 +687,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_fulfill!(connector::Threedsecureio, connector::Wellsfargopayout);
+default_imp_for_payouts_fulfill!(connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_cancel {
@@ -745,7 +717,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_cancel!(connector::Threedsecureio, connector::Wellsfargopayout);
+default_imp_for_payouts_cancel!(connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_quote {
@@ -775,11 +747,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_quote!(
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
+default_imp_for_payouts_quote!(connector::Stripe, connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_recipient {
@@ -809,7 +777,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient!(connector::Threedsecureio, connector::Wellsfargopayout);
+default_imp_for_payouts_recipient!(connector::Wellsfargopayout);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_recipient_account {
@@ -842,11 +810,7 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient_account!(
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+default_imp_for_payouts_recipient_account!(connector::Wellsfargopayout, connector::Wise);
 
 macro_rules! default_imp_for_approve {
     ($($path:ident::$connector:ident),*) => {
@@ -877,7 +841,6 @@ impl<const T: u8>
 
 default_imp_for_approve!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -911,7 +874,6 @@ impl<const T: u8>
 
 default_imp_for_reject!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -931,7 +893,6 @@ impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -967,7 +928,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1003,7 +963,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1039,7 +998,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1075,7 +1033,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1111,7 +1068,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1145,7 +1101,6 @@ impl<const T: u8>
 
 default_imp_for_incremental_authorization!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1175,11 +1130,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_revoking_mandates!(
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wise
-);
+default_imp_for_revoking_mandates!(connector::Stripe, connector::Wise);
 
 macro_rules! default_imp_for_connector_authentication {
     ($($path:ident::$connector:ident),*) => {
@@ -1299,7 +1250,6 @@ impl<const T: u8>
 }
 default_imp_for_authorize_session_token!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1331,7 +1281,6 @@ impl<const T: u8>
 
 default_imp_for_calculate_tax!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1363,7 +1312,6 @@ impl<const T: u8>
 
 default_imp_for_session_update!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1395,7 +1343,6 @@ impl<const T: u8>
 
 default_imp_for_post_session_tokens!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1425,11 +1372,7 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_update_metadata!(
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+default_imp_for_update_metadata!(connector::Wellsfargopayout, connector::Wise);
 
 macro_rules! default_imp_for_uas_pre_authentication {
     ($($path:ident::$connector:ident),*) => {
@@ -1461,7 +1404,6 @@ impl<const T: u8>
 
 default_imp_for_uas_pre_authentication!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1493,7 +1435,6 @@ impl<const T: u8>
 
 default_imp_for_uas_post_authentication!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1514,7 +1455,6 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 
 default_imp_for_uas_authentication_confirmation!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1559,7 +1499,6 @@ impl<const T: u8>
 
 default_imp_for_uas_authentication!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1687,7 +1626,7 @@ impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 default_imp_for_revenue_recovery! {
 
     connector::Stripe,
-    connector::Threedsecureio,
+
     connector::Wellsfargopayout,
     connector::Wise
 }
@@ -1723,7 +1662,6 @@ impl<const T: u8>
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );
@@ -1759,7 +1697,6 @@ impl<const T: u8>
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
     connector::Stripe,
-    connector::Threedsecureio,
     connector::Wellsfargopayout,
     connector::Wise
 );

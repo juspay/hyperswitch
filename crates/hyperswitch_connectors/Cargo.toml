@@ -22,6 +22,8 @@ encoding_rs = "0.8.33"
 error-stack = "0.4.1"
 hex = "0.4.3"
 http = "0.2.12"
+iso_currency = "0.4.4"
+isocountry = "0.3.2"
 image = { version = "0.25.1", default-features = false, features = ["png"] }
 josekit = { git = "https://github.com/sumanmaji4/josekit-rs.git", rev = "5ab54876c29a84f86aef8c169413a46026883efe", features = ["support-empty-payload"]}
 mime = "0.3.17"
