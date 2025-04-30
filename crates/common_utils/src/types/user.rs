@@ -1,8 +1,8 @@
+/// User related types
+pub mod core;
+
 /// Theme related types
 pub mod theme;
 
-/// User related types
-pub mod user;
-
+pub use core::*;
 pub use theme::*;
-pub use user::*;
