@@ -242,7 +242,7 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::LineageContextUpdate { lineage_context } => {
                         storage::User {
-                            lineage_context: lineage_context.clone(),
+                            lineage_context: Some(lineage_context.clone()),
                             ..user.to_owned()
                         }
                     }
@@ -296,7 +296,7 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::LineageContextUpdate { lineage_context } => {
                         storage::User {
-                            lineage_context: lineage_context.clone(),
+                            lineage_context: Some(lineage_context.clone()),
                             ..user.to_owned()
                         }
                     }
