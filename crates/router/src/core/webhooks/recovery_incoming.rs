@@ -1056,7 +1056,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
             )
             .change_context(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)
             .attach_printable(
-                "Cannot construct router data for making the billing connector invoicr api call",
+                "Cannot construct router data for making the billing connector invoice api call",
             )?;
 
         Ok(Self(old_router_data))
