@@ -7325,12 +7325,11 @@ where
     } else {
         connectors
     };
-    let final_connectors = if let Some(straight_through_connectors) = connector_list {
-        let mut combined = straight_through_connectors.clone();
-        combined.extend(connectors.clone());
-        combined
+    let final_connectors = if let Some(mut straight_through_connectors) = connector_list {
+        straight_through_connectors.extend(connectors);
+        straight_through_connectors
     } else {
-        connectors.clone()
+        connectors
     };
 
     let connector_data = final_connectors
