@@ -136,8 +136,6 @@ impl From<UserUpdate> for UserUpdateInternal {
                 name: None,
                 password: None,
                 is_verified: None,
-                // updating last_modified_at because of lineage context update will make it difficult to
-                // track the last modified time of other operations done by the user
                 last_modified_at,
                 last_password_modified_at: None,
                 totp_status: None,
