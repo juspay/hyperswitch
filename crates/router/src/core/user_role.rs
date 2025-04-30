@@ -40,6 +40,8 @@ pub async fn get_authorization_info_with_groups(
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
             info::get_group_authorization_info()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("No visible groups found")?
                 .into_iter()
                 .map(user_role_api::AuthorizationInfo::Group)
                 .collect(),
@@ -60,10 +62,12 @@ pub async fn get_authorization_info_with_group_tag(
                 },
             )
             .into_iter()
-            .map(|(name, value)| user_role_api::ParentInfo {
-                name: name.clone(),
-                description: info::get_parent_group_description(name),
-                groups: value,
+            .filter_map(|(name, value)| {
+                Some(user_role_api::ParentInfo {
+                    name: name.clone(),
+                    description: info::get_parent_group_description(name)?,
+                    groups: value,
+                })
             })
             .collect()
     });
@@ -99,6 +103,7 @@ pub async fn get_parent_group_info(
         role_info.get_entity_type(),
         PermissionGroup::iter().collect(),
     )
+    .unwrap_or_default()
     .into_iter()
     .map(|(parent_group, description)| role_api::ParentGroupInfo {
         name: parent_group.clone(),
