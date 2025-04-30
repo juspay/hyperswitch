@@ -1,6 +1,6 @@
-use crate::id_type;
-
 use diesel::{deserialize::FromSqlRow, expression::AsExpression};
+
+use crate::id_type;
 
 /// Struct for lineageContext
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, AsExpression, FromSqlRow)]
