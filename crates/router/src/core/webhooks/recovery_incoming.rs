@@ -5,16 +5,15 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     id_type,
 };
-use diesel_models::{process_tracker as storage, schema::process_tracker::retry_count};
+use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    errors::api_error_response, revenue_recovery, router_data_v2::flow_common_types,
+    payments as domain_payments, revenue_recovery, router_data_v2::flow_common_types,
     router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use router_env::{instrument, tracing};
-use serde_with::rust::unwrap_or_skip;
 
 use crate::{
     core::{
@@ -387,7 +386,20 @@ impl RevenueRecoveryAttempt {
             },
         )
     }
-
+    pub fn get_revenue_recovery_attempt(
+        payment_intent: &domain_payments::PaymentIntent,
+        revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
+        billing_connector_account: &domain::MerchantConnectorAccount,
+    ) -> CustomResult<Self, errors::RevenueRecoveryError> {
+        let revenue_recovery_data = payment_intent
+            .create_revenue_recovery_attempt_data(
+                revenue_recovery_metadata.clone(),
+                billing_connector_account,
+            )
+            .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
+            .attach_printable("Failed to build recovery attempt data")?;
+        Ok(Self(revenue_recovery_data))
+    }
     async fn get_payment_attempt(
         &self,
         state: &SessionState,
@@ -478,8 +490,15 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let request_payload = self
-            .create_payment_record_request(billing_connector_account_id, payment_connector_account);
+        let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
+        let request_payload = self.create_payment_record_request(
+            billing_connector_account_id,
+            payment_connector_id,
+            payment_connector_account
+                .as_ref()
+                .map(|account| account.connector_name),
+            common_enums::TriggeredBy::External,
+        );
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
@@ -523,7 +542,9 @@ impl RevenueRecoveryAttempt {
     pub fn create_payment_record_request(
         &self,
         billing_merchant_connector_account_id: &id_type::MerchantConnectorAccountId,
-        payment_merchant_connector_account: Option<domain::MerchantConnectorAccount>,
+        payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
+        payment_connector: Option<common_enums::connector_enums::Connector>,
+        triggered_by: common_enums::TriggeredBy,
     ) -> api_payments::PaymentsAttemptRecordRequest {
         let revenue_recovery_attempt_data = &self.0;
         let amount_details =
@@ -531,7 +552,7 @@ impl RevenueRecoveryAttempt {
         let feature_metadata = api_payments::PaymentAttemptFeatureMetadata {
             revenue_recovery: Some(api_payments::PaymentAttemptRevenueRecoveryData {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
-                attempt_triggered_by: common_enums::TriggeredBy::External,
+                attempt_triggered_by: triggered_by,
             }),
         };
         let error =
@@ -541,11 +562,13 @@ impl RevenueRecoveryAttempt {
             status: revenue_recovery_attempt_data.status,
             billing: None,
             shipping: None,
-            connector : payment_merchant_connector_account.as_ref().map(|account| account.connector_name),
-            payment_merchant_connector_id: payment_merchant_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone()),
+            connector: payment_connector,
+            payment_merchant_connector_id: payment_merchant_connector_account_id,
             error,
             description: None,
-            connector_transaction_id: revenue_recovery_attempt_data.connector_transaction_id.clone(),
+            connector_transaction_id: revenue_recovery_attempt_data
+                .connector_transaction_id
+                .clone(),
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
@@ -553,10 +576,13 @@ impl RevenueRecoveryAttempt {
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
-            processor_payment_method_token: revenue_recovery_attempt_data.processor_payment_method_token.clone(),
+            processor_payment_method_token: revenue_recovery_attempt_data
+                .processor_payment_method_token
+                .clone(),
             connector_customer_id: revenue_recovery_attempt_data.connector_customer_id.clone(),
             retry_count: revenue_recovery_attempt_data.retry_count,
-            invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time
+            invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
+            triggered_by,
         }
     }
 
@@ -697,13 +723,14 @@ impl RevenueRecoveryAttempt {
             ))
             .attach_printable("payment attempt id is required for pcr workflow tracking")?;
 
-        let execute_workflow_tracking_data = storage_churn_recovery::PcrWorkflowTrackingData {
-            billing_mca_id: billing_mca_id.clone(),
-            global_payment_id: payment_id.clone(),
-            merchant_id,
-            profile_id,
-            payment_attempt_id,
-        };
+        let execute_workflow_tracking_data =
+            storage_churn_recovery::RevenueRecoveryWorkflowTrackingData {
+                billing_mca_id: billing_mca_id.clone(),
+                global_payment_id: payment_id.clone(),
+                merchant_id,
+                profile_id,
+                payment_attempt_id,
+            };
 
         let tag = ["PCR"];
 
