@@ -21,7 +21,9 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
+use hyperswitch_domain_models::payment_method_data::{
+    NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
+};
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 
@@ -612,27 +614,27 @@ pub async fn get_token_from_tokenization_service(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
         }?;
 
-    let token_decrypted: api_payment_methods::CardDetailFromLocker = pm_data
+    let token_decrypted = pm_data
         .network_token_payment_method_data
         .clone()
-        .map(|x| x.into_inner())
-        .and_then(|pmd| match pmd {
-            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(token) => {
-                Some(api::CardDetailFromLocker::from(token))
-            }
+        .map(|value| value.into_inner())
+        .and_then(|payment_method_data| match payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::NetworkToken(
+                token,
+            ) => Some(token),
             _ => None,
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to obtain decrypted token object from db")?;
 
     let network_token_data = domain::NetworkTokenData {
-        network_token: cards::NetworkToken::from(token_response.authentication_details.token),
+        network_token: token_response.authentication_details.token,
         cryptogram: Some(token_response.authentication_details.cryptogram),
         network_token_exp_month: token_decrypted
-            .expiry_month
+            .network_token_expiry_month
             .unwrap_or(token_response.token_details.exp_month),
         network_token_exp_year: token_decrypted
-            .expiry_year
+            .network_token_expiry_year
             .unwrap_or(token_response.token_details.exp_year),
         card_holder_name: token_decrypted.card_holder_name,
         nick_name: token_decrypted.nick_name.or(token_response.nickname),

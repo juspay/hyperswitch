@@ -270,10 +270,19 @@ pub struct GetCardToken {
     pub card_reference: String,
     pub customer_id: id_type::GlobalCustomerId,
 }
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
     pub token: CardNumber, //network token
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Deserialize)]
+pub struct AuthenticationDetails {
+    pub cryptogram: Secret<String>,
+    pub token: NetworkToken, //network token
 }
 
 #[derive(Debug, Serialize, Deserialize)]

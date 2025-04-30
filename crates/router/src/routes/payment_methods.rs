@@ -646,6 +646,7 @@ pub async fn get_payment_method_token_data(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile,
                 req,
                 payment_method_id.clone(),
             )

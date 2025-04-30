@@ -1858,7 +1858,7 @@ pub enum PaymentMethodsData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
-    pub issuer_country: Option<String>,
+    pub issuer_country: Option<common_enums::CountryAlpha2>,
     pub network_token_expiry_month: Option<Secret<String>>,
     pub network_token_expiry_year: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
@@ -1911,37 +1911,10 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<CardDetailsPaymentMethod> for payment_methods::CardDetailFromLocker {
-    fn from(item: CardDetailsPaymentMethod) -> Self {
-        Self {
-            issuer_country: item
-                .issuer_country
-                .as_ref()
-                .map(|c| api_enums::CountryAlpha2::from_str(c))
-                .transpose()
-                .ok()
-                .flatten(),
-            last4_digits: item.last4_digits,
-            card_number: None,
-            expiry_month: item.expiry_month,
-            expiry_year: item.expiry_year,
-            card_holder_name: item.card_holder_name,
-            card_fingerprint: None,
-            nick_name: item.nick_name,
-            card_isin: item.card_isin,
-            card_issuer: item.card_issuer,
-            card_network: item.card_network,
-            card_type: item.card_type,
-            saved_to_locker: item.saved_to_locker,
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetails) -> Self {
         Self {
-            issuer_country: item.card_issuing_country.map(|c| c.to_string()),
+            issuer_country: item.card_issuing_country,
             last4_digits: Some(item.network_token.get_last4()),
             network_token_expiry_month: Some(item.network_token_exp_month),
             network_token_expiry_year: Some(item.network_token_exp_year),

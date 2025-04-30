@@ -130,12 +130,6 @@ impl NetworkToken {
     }
 }
 
-impl From<CardNumber> for NetworkToken {
-    fn from(card_number: CardNumber) -> Self {
-        Self(card_number.0)
-    }
-}
-
 impl FromStr for CardNumber {
     type Err = CardNumberValidationErr;
 

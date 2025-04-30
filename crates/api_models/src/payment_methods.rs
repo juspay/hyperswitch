@@ -992,7 +992,7 @@ pub struct CardDetailsPaymentMethod {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
-    pub issuer_country: Option<String>,
+    pub issuer_country: Option<common_enums::CountryAlpha2>,
     #[schema(value_type = Option<String>)]
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     #[schema(value_type = Option<String>)]
@@ -1925,7 +1925,6 @@ pub struct CustomerPaymentMethodsListResponse {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-//List Payment Method
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetTokenDataRequest {

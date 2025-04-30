@@ -1371,6 +1371,7 @@ pub async fn get_token_data_for_payment_method(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
     request: payment_methods::GetTokenDataRequest,
     payment_method_id: id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::TokenDataResponse> {
@@ -1389,7 +1390,7 @@ pub async fn get_token_data_for_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token_data_response =
-        generate_token_data_response(&state, request, &payment_method).await?;
+        generate_token_data_response(&state, request, profile, &payment_method).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         token_data_response,
@@ -1401,10 +1402,18 @@ pub async fn get_token_data_for_payment_method(
 pub async fn generate_token_data_response(
     state: &SessionState,
     request: payment_methods::GetTokenDataRequest,
+    profile: domain::Profile,
     payment_method: &domain_payment_methods::PaymentMethod,
 ) -> RouterResult<api::TokenDataResponse> {
     let token_details = match request.token_type {
         common_enums::TokenDataType::NetworkToken => {
+            let is_network_tokenization_enabled = profile.is_network_tokenization_enabled;
+            if !is_network_tokenization_enabled {
+                return Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Network tokenization is not enabled for this profile".to_string(),
+                }
+                .into());
+            }
             let network_token_requestor_ref_id = payment_method
                 .network_token_requestor_reference_id
                 .clone()
