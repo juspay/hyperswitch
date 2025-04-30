@@ -1,6 +1,18 @@
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::{AttemptStatus, Currency, FraudCheckStatus, PaymentMethod};
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
 pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
+use hyperswitch_domain_models::{
+    router_data::RouterData,
+    router_flow_types::Fulfillment,
+    router_request_types::{
+        fraud_check::{self, FraudCheckFulfillmentData, FrmFulfillmentRequest},
+        ResponseId,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
@@ -8,17 +20,15 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
-    connector::utils::{
-        AddressDetailsData, FraudCheckCheckoutRequest, FraudCheckRecordReturnRequest,
-        FraudCheckSaleRequest, FraudCheckTransactionRequest, RouterData,
-    },
-    core::{errors, fraud_check::types as core_types},
     types::{
-        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
-        transformers::ForeignFrom, ResponseId, ResponseRouterData,
+        FrmCheckoutRouterData, FrmFulfillmentRouterData, FrmRecordReturnRouterData,
+        FrmSaleRouterData, FrmTransactionRouterData, ResponseRouterData,
+    },
+    utils::{
+        AddressDetailsData as _, FraudCheckCheckoutRequest, FraudCheckRecordReturnRequest as _,
+        FraudCheckSaleRequest as _, FraudCheckTransactionRequest as _, RouterData as _,
     },
 };
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -36,7 +46,7 @@ pub struct Purchase {
     total_price: i64,
     products: Vec<Products>,
     shipments: Shipments,
-    currency: Option<common_enums::Currency>,
+    currency: Option<Currency>,
     total_shipping_cost: Option<i64>,
     confirmation_email: Option<Email>,
     confirmation_phone: Option<Secret<String>>,
@@ -136,9 +146,9 @@ pub struct SignifydFrmMetadata {
     pub order_channel: OrderChannel,
 }
 
-impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &frm_types::FrmSaleRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &FrmSaleRouterData) -> Result<Self, Self::Error> {
         let products = item
             .request
             .get_order_details()?
@@ -159,11 +169,11 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
         let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "frm_metadata",
             })?
             .parse_value("Signifyd Frm Metadata")
-            .change_context(errors::ConnectorError::InvalidDataFormat {
+            .change_context(ConnectorError::InvalidDataFormat {
                 field_name: "frm_metadata",
             })?;
         let ship_address = item.get_shipping_address()?;
@@ -239,7 +249,7 @@ pub enum SignifydPaymentStatus {
     Reject,
 }
 
-impl From<SignifydPaymentStatus> for storage_enums::FraudCheckStatus {
+impl From<SignifydPaymentStatus> for FraudCheckStatus {
     fn from(item: SignifydPaymentStatus) -> Self {
         match item {
             SignifydPaymentStatus::Accept => Self::Legit,
@@ -257,20 +267,17 @@ pub struct SignifydPaymentsResponse {
     decision: Decision,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, frm_types::FraudCheckResponseData>>
-    for types::RouterData<F, T, frm_types::FraudCheckResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, SignifydPaymentsResponse, T, frm_types::FraudCheckResponseData>,
+        item: ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(frm_types::FraudCheckResponseData::TransactionResponse {
+            response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id),
-                status: storage_enums::FraudCheckStatus::from(
-                    item.response.decision.checkpoint_action,
-                ),
+                status: FraudCheckStatus::from(item.response.decision.checkpoint_action),
                 connector_metadata: None,
                 score: item.response.decision.score.and_then(|data| data.to_i32()),
                 reason: item
@@ -295,9 +302,9 @@ pub struct SignifydErrorResponse {
 pub struct Transactions {
     transaction_id: String,
     gateway_status_code: String,
-    payment_method: storage_enums::PaymentMethod,
+    payment_method: PaymentMethod,
     amount: i64,
-    currency: storage_enums::Currency,
+    currency: Currency,
     gateway: Option<String>,
 }
 
@@ -309,20 +316,20 @@ pub struct SignifydPaymentsTransactionRequest {
     transactions: Transactions,
 }
 
-impl From<storage_enums::AttemptStatus> for GatewayStatusCode {
-    fn from(item: storage_enums::AttemptStatus) -> Self {
+impl From<AttemptStatus> for GatewayStatusCode {
+    fn from(item: AttemptStatus) -> Self {
         match item {
-            storage_enums::AttemptStatus::Pending => Self::Pending,
-            storage_enums::AttemptStatus::Failure => Self::Failure,
-            storage_enums::AttemptStatus::Charged => Self::Success,
+            AttemptStatus::Pending => Self::Pending,
+            AttemptStatus::Failure => Self::Failure,
+            AttemptStatus::Charged => Self::Success,
             _ => Self::Pending,
         }
     }
 }
 
-impl TryFrom<&frm_types::FrmTransactionRouterData> for SignifydPaymentsTransactionRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &frm_types::FrmTransactionRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&FrmTransactionRouterData> for SignifydPaymentsTransactionRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &FrmTransactionRouterData) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
         let transactions = Transactions {
             amount: item.request.amount,
@@ -373,9 +380,9 @@ pub struct SignifydPaymentsCheckoutRequest {
     coverage_requests: Option<CoverageRequests>,
 }
 
-impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &frm_types::FrmCheckoutRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
         let products = item
             .request
             .get_order_details()?
@@ -396,11 +403,11 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
         let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "frm_metadata",
             })?
             .parse_value("Signifyd Frm Metadata")
-            .change_context(errors::ConnectorError::InvalidDataFormat {
+            .change_context(ConnectorError::InvalidDataFormat {
                 field_name: "frm_metadata",
             })?;
         let ship_address = item.get_shipping_address()?;
@@ -499,9 +506,9 @@ pub struct Product {
     pub item_id: String,
 }
 
-impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &frm_types::FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&FrmFulfillmentRouterData> for FrmFulfillmentSignifydRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &FrmFulfillmentRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             order_id: item.request.fulfillment_req.order_id.clone(),
             fulfillment_status: item
@@ -510,47 +517,48 @@ impl TryFrom<&frm_types::FrmFulfillmentRouterData> for FrmFulfillmentSignifydReq
                 .fulfillment_status
                 .as_ref()
                 .map(|fulfillment_status| FulfillmentStatus::from(&fulfillment_status.clone())),
-            fulfillments: Vec::<Fulfillments>::foreign_from(&item.request.fulfillment_req),
+            fulfillments: get_signifyd_fulfillments_from_frm_fulfillment_request(
+                &item.request.fulfillment_req,
+            ),
         })
     }
 }
 
-impl From<&core_types::FulfillmentStatus> for FulfillmentStatus {
-    fn from(status: &core_types::FulfillmentStatus) -> Self {
+impl From<&fraud_check::FulfillmentStatus> for FulfillmentStatus {
+    fn from(status: &fraud_check::FulfillmentStatus) -> Self {
         match status {
-            core_types::FulfillmentStatus::PARTIAL => Self::PARTIAL,
-            core_types::FulfillmentStatus::COMPLETE => Self::COMPLETE,
-            core_types::FulfillmentStatus::REPLACEMENT => Self::REPLACEMENT,
-            core_types::FulfillmentStatus::CANCELED => Self::CANCELED,
+            fraud_check::FulfillmentStatus::PARTIAL => Self::PARTIAL,
+            fraud_check::FulfillmentStatus::COMPLETE => Self::COMPLETE,
+            fraud_check::FulfillmentStatus::REPLACEMENT => Self::REPLACEMENT,
+            fraud_check::FulfillmentStatus::CANCELED => Self::CANCELED,
         }
     }
 }
-
-impl ForeignFrom<&core_types::FrmFulfillmentRequest> for Vec<Fulfillments> {
-    fn foreign_from(fulfillment_req: &core_types::FrmFulfillmentRequest) -> Self {
-        fulfillment_req
-            .fulfillments
-            .iter()
-            .map(|fulfillment| Fulfillments {
-                shipment_id: fulfillment.shipment_id.clone(),
-                products: fulfillment
-                    .products
-                    .as_ref()
-                    .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
-                destination: Destination::from(fulfillment.destination.clone()),
-                tracking_urls: fulfillment_req.tracking_urls.clone(),
-                tracking_numbers: fulfillment_req.tracking_numbers.clone(),
-                fulfillment_method: fulfillment_req.fulfillment_method.clone(),
-                carrier: fulfillment_req.carrier.clone(),
-                shipment_status: fulfillment_req.shipment_status.clone(),
-                shipped_at: fulfillment_req.shipped_at.clone(),
-            })
-            .collect()
-    }
+pub(crate) fn get_signifyd_fulfillments_from_frm_fulfillment_request(
+    fulfillment_req: &FrmFulfillmentRequest,
+) -> Vec<Fulfillments> {
+    fulfillment_req
+        .fulfillments
+        .iter()
+        .map(|fulfillment| Fulfillments {
+            shipment_id: fulfillment.shipment_id.clone(),
+            products: fulfillment
+                .products
+                .as_ref()
+                .map(|products| products.iter().map(|p| Product::from(p.clone())).collect()),
+            destination: Destination::from(fulfillment.destination.clone()),
+            tracking_urls: fulfillment_req.tracking_urls.clone(),
+            tracking_numbers: fulfillment_req.tracking_numbers.clone(),
+            fulfillment_method: fulfillment_req.fulfillment_method.clone(),
+            carrier: fulfillment_req.carrier.clone(),
+            shipment_status: fulfillment_req.shipment_status.clone(),
+            shipped_at: fulfillment_req.shipped_at.clone(),
+        })
+        .collect()
 }
 
-impl From<core_types::Product> for Product {
-    fn from(product: core_types::Product) -> Self {
+impl From<fraud_check::Product> for Product {
+    fn from(product: fraud_check::Product) -> Self {
         Self {
             item_name: product.item_name,
             item_quantity: product.item_quantity,
@@ -559,8 +567,8 @@ impl From<core_types::Product> for Product {
     }
 }
 
-impl From<core_types::Destination> for Destination {
-    fn from(destination: core_types::Destination) -> Self {
+impl From<fraud_check::Destination> for Destination {
+    fn from(destination: fraud_check::Destination) -> Self {
         Self {
             full_name: destination.full_name,
             organization: destination.organization,
@@ -570,8 +578,8 @@ impl From<core_types::Destination> for Destination {
     }
 }
 
-impl From<core_types::Address> for Address {
-    fn from(address: core_types::Address) -> Self {
+impl From<fraud_check::Address> for Address {
+    fn from(address: fraud_check::Address) -> Self {
         Self {
             street_address: address.street_address,
             unit: address.unit,
@@ -596,27 +604,22 @@ impl
         ResponseRouterData<
             Fulfillment,
             FrmFulfillmentSignifydApiResponse,
-            frm_types::FraudCheckFulfillmentData,
-            frm_types::FraudCheckResponseData,
+            FraudCheckFulfillmentData,
+            FraudCheckResponseData,
         >,
-    >
-    for types::RouterData<
-        Fulfillment,
-        frm_types::FraudCheckFulfillmentData,
-        frm_types::FraudCheckResponseData,
-    >
+    > for RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
             Fulfillment,
             FrmFulfillmentSignifydApiResponse,
-            frm_types::FraudCheckFulfillmentData,
-            frm_types::FraudCheckResponseData,
+            FraudCheckFulfillmentData,
+            FraudCheckResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(frm_types::FraudCheckResponseData::FulfillmentResponse {
+            response: Ok(FraudCheckResponseData::FulfillmentResponse {
                 order_id: item.response.order_id,
                 shipment_ids: item.response.shipment_ids,
             }),
@@ -631,7 +634,7 @@ impl
 pub struct SignifydRefund {
     method: RefundMethod,
     amount: String,
-    currency: storage_enums::Currency,
+    currency: Currency,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -653,26 +656,20 @@ pub struct SignifydPaymentsRecordReturnResponse {
 }
 
 impl<F, T>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            SignifydPaymentsRecordReturnResponse,
-            T,
-            frm_types::FraudCheckResponseData,
-        >,
-    > for types::RouterData<F, T, frm_types::FraudCheckResponseData>
+    TryFrom<ResponseRouterData<F, SignifydPaymentsRecordReturnResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
             F,
             SignifydPaymentsRecordReturnResponse,
             T,
-            frm_types::FraudCheckResponseData,
+            FraudCheckResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(frm_types::FraudCheckResponseData::RecordReturnResponse {
+            response: Ok(FraudCheckResponseData::RecordReturnResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id),
                 return_id: Some(item.response.return_id.to_string()),
                 connector_metadata: None,
@@ -682,9 +679,9 @@ impl<F, T>
     }
 }
 
-impl TryFrom<&frm_types::FrmRecordReturnRouterData> for SignifydPaymentsRecordReturnRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &frm_types::FrmRecordReturnRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&FrmRecordReturnRouterData> for SignifydPaymentsRecordReturnRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &FrmRecordReturnRouterData) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
         let refund = SignifydRefund {
             method: item.request.refund_method.clone(),
@@ -714,7 +711,7 @@ pub enum ReviewDisposition {
     Good,
 }
 
-impl From<ReviewDisposition> for api::IncomingWebhookEvent {
+impl From<ReviewDisposition> for IncomingWebhookEvent {
     fn from(value: ReviewDisposition) -> Self {
         match value {
             ReviewDisposition::Fraudulent => Self::FrmRejected,

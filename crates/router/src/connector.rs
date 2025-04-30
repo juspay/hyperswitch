@@ -1,6 +1,6 @@
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
-pub mod signifyd;
+
 pub mod stripe;
 pub mod threedsecureio;
 pub mod utils;
@@ -33,17 +33,16 @@ pub use hyperswitch_connectors::connectors::{
     paystack, paystack::Paystack, payu, payu::Payu, placetopay, placetopay::Placetopay,
     plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd,
     rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly::Recurly, redsys, redsys::Redsys,
-    riskified, riskified::Riskified, shift4, shift4::Shift4, square, square::Square, stax,
-    stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes,
-    thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
-    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    riskified, riskified::Riskified, shift4, shift4::Shift4, signifyd, signifyd::Signifyd, square,
+    square::Square, stax, stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar,
+    taxjar::Taxjar, thunes, thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys,
+    unified_authentication_service, unified_authentication_service::UnifiedAuthenticationService,
+    volt, volt::Volt, wellsfargo, wellsfargo::Wellsfargo, worldline, worldline::Worldline,
+    worldpay, worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
-    wellsfargopayout::Wellsfargopayout, wise::Wise,
+    stripe::Stripe, threedsecureio::Threedsecureio, wellsfargopayout::Wellsfargopayout, wise::Wise,
 };

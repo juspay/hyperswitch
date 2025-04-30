@@ -3858,6 +3858,7 @@ dependencies = [
  "lazy_static",
  "masking",
  "mime",
+ "num-traits",
  "once_cell",
  "qrcode",
  "quick-xml",
@@ -3880,6 +3881,7 @@ dependencies = [
  "unidecode",
  "url",
  "urlencoding",
+ "utoipa",
  "uuid",
 ]
 

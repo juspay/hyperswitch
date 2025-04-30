@@ -28,6 +28,11 @@ use hyperswitch_domain_models::{
         UploadFileResponse,
     },
 };
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::{
+    router_flow_types::{RecordReturn, Sale},
+    router_request_types::fraud_check::{FraudCheckRecordReturnData, FraudCheckSaleData},
+};
 use hyperswitch_interfaces::api::ConnectorIntegration;
 
 pub(crate) type PaymentsSyncResponseRouterData<R> =
@@ -111,3 +116,14 @@ pub type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegration<
 
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmSaleRouterData = RouterData<Sale, FraudCheckSaleData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmRecordReturnRouterData =
+    RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmRecordReturnType =
+    dyn ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmSaleType =
+    dyn ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>;
