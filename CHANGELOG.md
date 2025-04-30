@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.30.0
+
+### Features
+
+- **core:** Adds Billing Connector Invoice Sync flow in Revenue Recovery ([#7799](https://github.com/juspay/hyperswitch/pull/7799)) ([`3d0dd5b`](https://github.com/juspay/hyperswitch/commit/3d0dd5bd1a8d764757fce4a37c668c0ff548d59c))
+- **dynamic_routing:** Add open router integration for elimination routing ([#7896](https://github.com/juspay/hyperswitch/pull/7896)) ([`4745ce9`](https://github.com/juspay/hyperswitch/commit/4745ce976419950234136f5f13422789be3d4c30))
+- **merchant_context:** Add struct `merchant_context` and replace all instances of `merchant_account` and `key_store` in core ([#7882](https://github.com/juspay/hyperswitch/pull/7882)) ([`693f901`](https://github.com/juspay/hyperswitch/commit/693f9019cc6bac365ead2676847285d0dcdf583b))
+
+### Miscellaneous Tasks
+
+- Resolve v2 warnings in diesel_models ([#7359](https://github.com/juspay/hyperswitch/pull/7359)) ([`212ac27`](https://github.com/juspay/hyperswitch/commit/212ac27057762f9d4cd2073d93c2216f61711cfe))
+
+**Full Changelog:** [`2025.04.29.0...2025.04.30.0`](https://github.com/juspay/hyperswitch/compare/2025.04.29.0...2025.04.30.0)
+
+
+- - -
+
 ## 2025.04.29.0
 
 ### Features
