@@ -1,6 +1,3 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
-
 use api_models::{
     mandates,
     payment_methods::{self},
