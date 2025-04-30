@@ -9284,7 +9284,9 @@
           "UnionPay",
           "Interac",
           "RuPay",
-          "Maestro"
+          "Maestro",
+          "Cirrus",
+          "Hipercard"
         ]
       },
       "CardNetworkTokenizeRequest": {
