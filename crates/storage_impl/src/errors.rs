@@ -273,7 +273,7 @@ pub enum RecoveryError {
     ProcessTrackerFailure,
     #[error("The encountered task is invalid")]
     InvalidTask,
-    #[error("The Intended data was not found")]
+    #[error("The Process Tracker data was not found")]
     ValueNotFound,
     #[error("Failed to update billing connector")]
     RecordBackToBillingConnectorFailed,
