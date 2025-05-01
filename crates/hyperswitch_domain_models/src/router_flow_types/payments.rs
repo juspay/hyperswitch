@@ -73,3 +73,6 @@ pub struct RecordAttempt;
 
 #[derive(Debug, Clone)]
 pub struct UpdateMetadata;
+
+#[derive(Debug, Clone)]
+pub struct VaultCard;

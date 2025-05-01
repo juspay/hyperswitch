@@ -4,8 +4,8 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_request_types::{ResponseId, VaultRequestData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData, VaultResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, VaultRouterData},
     vault::PaymentMethodVaultingData,
 };
@@ -138,24 +138,18 @@ pub struct VgsPaymentsResponse {
     data: Vec<VgsTokenResponseItem>,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, VgsPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, VgsPaymentsResponse, VaultRequestData, VaultResponseData>>
+    for RouterData<F, VaultRequestData, VaultResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, VgsPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, VgsPaymentsResponse, VaultRequestData, VaultResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::Failure,
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId("null".to_string()),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+            response: Ok(VaultResponseData::VaultInsertResponse {
+                connector_vault_id: item.response.data[0].aliases[0].alias.clone(),
+                fingerprint_id: item.response.data[0].aliases[0].alias.clone(),
             }),
             ..item.data
         })
