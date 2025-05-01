@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.01.0
+
+### Features
+
+- **connector:** [MULTISAFEPAY, CASHTOCODE, WORLDPAY, WELLSFARGO] Supported features for feature matrix ([#7149](https://github.com/juspay/hyperswitch/pull/7149)) ([`8c77da7`](https://github.com/juspay/hyperswitch/commit/8c77da7a4c0a9c01026e8d87868bbd818be9e5a6))
+- **process_tracker:** Task implementation for psync payments ([#7178](https://github.com/juspay/hyperswitch/pull/7178)) ([`9e9a922`](https://github.com/juspay/hyperswitch/commit/9e9a922949521e63553f09650a71d46f3e6da36f))
+
+### Bug Fixes
+
+- **required_fields_v2:** Add `payment_required_fields` file in docker ([#7720](https://github.com/juspay/hyperswitch/pull/7720)) ([`d7d02e2`](https://github.com/juspay/hyperswitch/commit/d7d02e2516393c54d61cd5d79d0fd24606c934ad))
+- **router:**
+  - Conditionally store saved cards with cvc in temp locker based on config ([#7773](https://github.com/juspay/hyperswitch/pull/7773)) ([`9f94900`](https://github.com/juspay/hyperswitch/commit/9f94900ccdce3cde15df34395e88bd1b4c4d446e))
+  - Validate 'card' as a PaymentMethodType ([#7919](https://github.com/juspay/hyperswitch/pull/7919)) ([`3f1d598`](https://github.com/juspay/hyperswitch/commit/3f1d598153728f3386af55c8b578fe16a7353f38))
+
+### Refactors
+
+- **configs:** Prod base url updated for connectors ([#7582](https://github.com/juspay/hyperswitch/pull/7582)) ([`0250f16`](https://github.com/juspay/hyperswitch/commit/0250f1695854a0915c9dbc0c2b97dcfa2c1fe09a))
+
+### Miscellaneous Tasks
+
+- Resolve v2 warnings in api_models ([#7353](https://github.com/juspay/hyperswitch/pull/7353)) ([`8bca14e`](https://github.com/juspay/hyperswitch/commit/8bca14e960de0bbf8a7ff89028b7bdef83f5bdb7))
+
+**Full Changelog:** [`2025.04.30.0...2025.05.01.0`](https://github.com/juspay/hyperswitch/compare/2025.04.30.0...2025.05.01.0)
+
+
+- - -
+
 ## 2025.04.30.0
 
 ### Features
