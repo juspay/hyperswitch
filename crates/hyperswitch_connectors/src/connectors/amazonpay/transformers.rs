@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::RouterData as _,
+    utils::{is_refund_failure, RouterData as _},
 };
 
 pub struct AmazonpayRouterData<T> {
@@ -36,7 +36,6 @@ impl<T> From<(StringMajorUnit, T)> for AmazonpayRouterData<T> {
 #[serde(rename_all = "camelCase")]
 pub struct AmazonpayFinalizeRequest {
     charge_amount: ChargeAmount,
-    total_order_amount: Option<TotalOrderAmount>,
     shipping_address: AddressDetails,
     payment_intent: PaymentIntent,
 }
@@ -46,15 +45,6 @@ pub struct AmazonpayFinalizeRequest {
 pub struct ChargeAmount {
     amount: StringMajorUnit,
     currency_code: common_enums::Currency,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct TotalOrderAmount {
-    amount: Option<StringMajorUnit>,
-    currency_code: Option<common_enums::Currency>,
-    can_handle_pending_authorization: Option<bool>,
-    supplementary_data: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -108,7 +98,6 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
         let payment_intent = get_amazonpay_capture_type(item.router_data.request.capture_method)?;
         Ok(Self {
             charge_amount,
-            total_order_amount: None,
             shipping_address,
             payment_intent,
         })
@@ -297,7 +286,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
                         reason: Some("Checkout was not successfully completed due to buyer abandoment, payment decline, or because checkout wasn't confirmed with Finalize Checkout Session.".to_owned()),
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(item.response.checkout_session_id),
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -450,14 +439,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
         match item.response.status_details.state {
             AmazonpayPaymentStatus::Canceled => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Voided,
+                    status: common_enums::AttemptStatus::Failure,
                     response: Err(ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_owned(),
                         message: "Charge was canceled by Amazon or by the merchant".to_owned(),
                         reason: Some("Charge was canceled due to expiration, Amazon, buyer, merchant action, or charge permission cancellation.".to_owned()),
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(item.response.charge_id),
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -474,7 +463,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
                         reason: Some("Charge was declined due to soft/hard decline, Amazon rejection, or internal processing failure.".to_owned()),
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(item.response.charge_id),
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -578,7 +567,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                         reason: Some("Amazon has declined the refund because maximum amount has been refunded or there was some other issue.".to_owned()),
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(item.response.charge_id),
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -604,34 +593,29 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        match item.response.status_details.state {
-            RefundStatus::Declined => {
-                Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
-                    response: Err(ErrorResponse {
-                        code: consts::NO_ERROR_CODE.to_owned(),
-                        message: "Amazon has declined the refund.".to_owned(),
-                        reason: Some("Amazon has declined the refund because maximum amount has been refunded or there was some other issue.".to_owned()),
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        network_decline_code: None,
-                        network_advice_code: None,
-                        network_error_message: None,
-                    }),
-                    ..item.data
-                })
-            }
-            _ => {
-                Ok(Self {
-                    response: Ok(RefundsResponseData {
-                        connector_refund_id: item.response.refund_id,
-                        refund_status: enums::RefundStatus::from(item.response.status_details.state),
-                    }),
-                    ..item.data
-                })
-            }
-        }
+        let refund_status = enums::RefundStatus::from(item.response.status_details.state);
+        let response = if is_refund_failure(refund_status) {
+            Err(ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_owned(),
+                message: "Amazon has declined the refund.".to_owned(),
+                reason: Some("Amazon has declined the refund because maximum amount has been refunded or there was some other issue.".to_owned()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.refund_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
+                connector_refund_id: item.response.refund_id.to_string(),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
+            ..item.data
+        })
     }
 }
 
