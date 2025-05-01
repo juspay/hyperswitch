@@ -285,6 +285,55 @@ pub enum DirKeyKind {
         props(Category = "Payment Method Types")
     )]
     MobilePaymentType,
+    #[strum(
+        serialize = "issuer_name",
+        detailed_message = "Name of the card issuing bank",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "issuer_name")]
+    IssuerName,
+    #[strum(
+        serialize = "issuer_country",
+        detailed_message = "Country of the card issuing bank",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "issuer_country")]
+    IssuerCountry,
+    #[strum(
+        serialize = "customer_device_platform",
+        detailed_message = "Platform of the customer's device (Web, Android, iOS)",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "customer_device_platform")]
+    CustomerDevicePlatform,
+    #[strum(
+        serialize = "customer_device_type",
+        detailed_message = "Type of the customer's device (Mobile, Tablet, Desktop, Gaming Console)",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "customer_device_type")]
+    CustomerDeviceType,
+    #[strum(
+        serialize = "customer_device_display_size",
+        detailed_message = "Display size of the customer's device (e.g., 500x600)",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "customer_device_display_size")]
+    CustomerDeviceDisplaySize,
+    #[strum(
+        serialize = "acquirer_country",
+        detailed_message = "Country of the acquiring bank",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "acquirer_country")]
+    AcquirerCountry,
+    #[strum(
+        serialize = "acquirer_fraud_rate",
+        detailed_message = "Fraud rate of the acquiring bank",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "acquirer_fraud_rate")]
+    AcquirerFraudRate,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -335,6 +384,13 @@ impl DirKeyKind {
             Self::RealTimePaymentType => types::DataType::EnumVariant,
             Self::OpenBankingType => types::DataType::EnumVariant,
             Self::MobilePaymentType => types::DataType::EnumVariant,
+            Self::IssuerName => types::DataType::StrValue,
+            Self::IssuerCountry => types::DataType::EnumVariant,
+            Self::CustomerDevicePlatform => types::DataType::EnumVariant,
+            Self::CustomerDeviceType => types::DataType::EnumVariant,
+            Self::CustomerDeviceDisplaySize => types::DataType::EnumVariant,
+            Self::AcquirerCountry => types::DataType::EnumVariant,
+            Self::AcquirerFraudRate => types::DataType::Number,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -472,6 +528,33 @@ impl DirKeyKind {
                     .map(DirValue::MobilePaymentType)
                     .collect(),
             ),
+            Self::IssuerName => None,
+            Self::IssuerCountry => Some(
+                enums::Country::iter()
+                    .map(DirValue::IssuerCountry)
+                    .collect(),
+            ),
+            Self::CustomerDevicePlatform => Some(
+                enums::CustomerDevicePlatform::iter()
+                    .map(DirValue::CustomerDevicePlatform)
+                    .collect(),
+            ),
+            Self::CustomerDeviceType => Some(
+                enums::CustomerDeviceType::iter()
+                    .map(DirValue::CustomerDeviceType)
+                    .collect(),
+            ),
+            Self::CustomerDeviceDisplaySize => Some(
+                enums::CustomerDeviceDisplaySize::iter()
+                    .map(DirValue::CustomerDeviceDisplaySize)
+                    .collect(),
+            ),
+            Self::AcquirerCountry => Some(
+                enums::Country::iter()
+                    .map(DirValue::AcquirerCountry)
+                    .collect(),
+            ),
+            Self::AcquirerFraudRate => None,
         }
     }
 }
@@ -543,6 +626,20 @@ pub enum DirValue {
     OpenBankingType(enums::OpenBankingType),
     #[serde(rename = "mobile_payment")]
     MobilePaymentType(enums::MobilePaymentType),
+    #[serde(rename = "issuer_name")]
+    IssuerName(types::StrValue),
+    #[serde(rename = "issuer_country")]
+    IssuerCountry(enums::Country),
+    #[serde(rename = "customer_device_platform")]
+    CustomerDevicePlatform(enums::CustomerDevicePlatform),
+    #[serde(rename = "customer_device_type")]
+    CustomerDeviceType(enums::CustomerDeviceType),
+    #[serde(rename = "customer_device_display_size")]
+    CustomerDeviceDisplaySize(enums::CustomerDeviceDisplaySize),
+    #[serde(rename = "acquirer_country")]
+    AcquirerCountry(enums::Country),
+    #[serde(rename = "acquirer_fraud_rate")]
+    AcquirerFraudRate(types::NumValue),
 }
 
 impl DirValue {
@@ -579,6 +676,13 @@ impl DirValue {
             Self::RealTimePaymentType(_) => (DirKeyKind::RealTimePaymentType, None),
             Self::OpenBankingType(_) => (DirKeyKind::OpenBankingType, None),
             Self::MobilePaymentType(_) => (DirKeyKind::MobilePaymentType, None),
+            Self::IssuerName(_) => (DirKeyKind::IssuerName, None),
+            Self::IssuerCountry(_) => (DirKeyKind::IssuerCountry, None),
+            Self::CustomerDevicePlatform(_) => (DirKeyKind::CustomerDevicePlatform, None),
+            Self::CustomerDeviceType(_) => (DirKeyKind::CustomerDeviceType, None),
+            Self::CustomerDeviceDisplaySize(_) => (DirKeyKind::CustomerDeviceDisplaySize, None),
+            Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
+            Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
         };
 
         DirKey::new(kind, data)
@@ -616,12 +720,20 @@ impl DirValue {
             Self::RealTimePaymentType(_) => None,
             Self::OpenBankingType(_) => None,
             Self::MobilePaymentType(_) => None,
+            Self::IssuerName(_) => None,
+            Self::IssuerCountry(_) => None,
+            Self::CustomerDevicePlatform(_) => None,
+            Self::CustomerDeviceType(_) => None,
+            Self::CustomerDeviceDisplaySize(_) => None,
+            Self::AcquirerCountry(_) => None,
+            Self::AcquirerFraudRate(_) => None,
         }
     }
 
     pub fn get_str_val(&self) -> Option<types::StrValue> {
         match self {
             Self::CardBin(val) => Some(val.clone()),
+            Self::IssuerName(val) => Some(val.clone()),
             _ => None,
         }
     }
@@ -629,6 +741,7 @@ impl DirValue {
     pub fn get_num_value(&self) -> Option<types::NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::AcquirerFraudRate(val) => Some(val.clone()),
             _ => None,
         }
     }
@@ -662,6 +775,13 @@ impl DirValue {
             (Self::UpiType(ut1), Self::UpiType(ut2)) => ut1 == ut2,
             (Self::VoucherType(vt1), Self::VoucherType(vt2)) => vt1 == vt2,
             (Self::CardRedirectType(crt1), Self::CardRedirectType(crt2)) => crt1 == crt2,
+            (Self::IssuerName(n1), Self::IssuerName(n2)) => n1 == n2,
+            (Self::IssuerCountry(c1), Self::IssuerCountry(c2)) => c1 == c2,
+            (Self::CustomerDevicePlatform(p1), Self::CustomerDevicePlatform(p2)) => p1 == p2,
+            (Self::CustomerDeviceType(t1), Self::CustomerDeviceType(t2)) => t1 == t2,
+            (Self::CustomerDeviceDisplaySize(s1), Self::CustomerDeviceDisplaySize(s2)) => s1 == s2,
+            (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
+            (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
             _ => false,
         }
     }

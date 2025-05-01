@@ -10,7 +10,10 @@ use crate::{
     enums,
     frontend::{
         ast,
-        dir::{DirKeyKind, DirValue, EuclidDirFilter},
+        dir::{
+            enums::{CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType},
+            DirKeyKind, DirValue, EuclidDirFilter,
+        },
     },
 };
 
@@ -60,7 +63,22 @@ pub enum EuclidKey {
     BusinessLabel,
     #[strum(serialize = "setup_future_usage")]
     SetupFutureUsage,
+    #[strum(serialize = "issuer_name")]
+    IssuerName,
+    #[strum(serialize = "issuer_country")]
+    IssuerCountry,
+    #[strum(serialize = "acquirer_country")]
+    AcquirerCountry,
+    #[strum(serialize = "acquirer_fraud_rate")]
+    AcquirerFraudRate,
+    #[strum(serialize = "customer_device_type")]
+    CustomerDeviceType,
+    #[strum(serialize = "customer_device_display_size")]
+    CustomerDeviceDisplaySize,
+    #[strum(serialize = "customer_device_platform")]
+    CustomerDevicePlatform,
 }
+
 impl EuclidDirFilter for DummyOutput {
     const ALLOWED: &'static [DirKeyKind] = &[
         DirKeyKind::AuthenticationType,
@@ -138,6 +156,13 @@ impl EuclidKey {
             Self::PaymentType => DataType::EnumVariant,
             Self::BusinessLabel => DataType::StrValue,
             Self::SetupFutureUsage => DataType::EnumVariant,
+            Self::IssuerName => DataType::StrValue,
+            Self::IssuerCountry => DataType::EnumVariant,
+            Self::AcquirerCountry => DataType::EnumVariant,
+            Self::AcquirerFraudRate => DataType::Number,
+            Self::CustomerDeviceType => DataType::EnumVariant,
+            Self::CustomerDeviceDisplaySize => DataType::EnumVariant,
+            Self::CustomerDevicePlatform => DataType::EnumVariant,
         }
     }
 }
@@ -253,6 +278,13 @@ pub enum EuclidValue {
     BillingCountry(enums::Country),
     BusinessLabel(StrValue),
     SetupFutureUsage(enums::SetupFutureUsage),
+    IssuerName(StrValue),
+    IssuerCountry(enums::Country),
+    AcquirerCountry(enums::Country),
+    AcquirerFraudRate(NumValue),
+    CustomerDeviceType(CustomerDeviceType),
+    CustomerDeviceDisplaySize(CustomerDeviceDisplaySize),
+    CustomerDevicePlatform(CustomerDevicePlatform),
 }
 
 impl EuclidValue {
@@ -281,6 +313,13 @@ impl EuclidValue {
             Self::BillingCountry(_) => EuclidKey::BillingCountry,
             Self::BusinessLabel(_) => EuclidKey::BusinessLabel,
             Self::SetupFutureUsage(_) => EuclidKey::SetupFutureUsage,
+            Self::IssuerName(_) => EuclidKey::IssuerName,
+            Self::IssuerCountry(_) => EuclidKey::IssuerCountry,
+            Self::AcquirerCountry(_) => EuclidKey::AcquirerCountry,
+            Self::AcquirerFraudRate(_) => EuclidKey::AcquirerFraudRate,
+            Self::CustomerDeviceType(_) => EuclidKey::CustomerDeviceType,
+            Self::CustomerDeviceDisplaySize(_) => EuclidKey::CustomerDeviceDisplaySize,
+            Self::CustomerDevicePlatform(_) => EuclidKey::CustomerDevicePlatform,
         }
     }
 }

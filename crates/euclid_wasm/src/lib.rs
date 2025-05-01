@@ -11,6 +11,7 @@ use api_models::{
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
+use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
     connector,
@@ -248,6 +249,12 @@ pub fn get_surcharge_keys() -> JsResult {
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
+#[wasm_bindgen(js_name= getThreeDsDecisionRuleEngineKeys)]
+pub fn get_three_ds_decision_rule_engine_keys() -> JsResult {
+    let keys = <ThreeDSDecisionRule as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
+}
+
 #[wasm_bindgen(js_name=parseToString)]
 pub fn parser(val: String) -> String {
     ron_parser::my_parse(val)
@@ -284,12 +291,21 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
         dir::DirKeyKind::OpenBankingType => dir_enums::OpenBankingType::VARIANTS,
         dir::DirKeyKind::MobilePaymentType => dir_enums::MobilePaymentType::VARIANTS,
+        dir::DirKeyKind::IssuerCountry => dir_enums::Country::VARIANTS,
+        dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
+        dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
+        dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::CustomerDeviceDisplaySize => {
+            dir_enums::CustomerDeviceDisplaySize::VARIANTS
+        }
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
         | dir::DirKeyKind::BusinessLabel
-        | dir::DirKeyKind::MetaData => Err("Key does not have variants".to_string())?,
+        | dir::DirKeyKind::MetaData
+        | dir::DirKeyKind::IssuerName
+        | dir::DirKeyKind::AcquirerFraudRate => Err("Key does not have variants".to_string())?,
     };
 
     Ok(serde_wasm_bindgen::to_value(variants)?)
