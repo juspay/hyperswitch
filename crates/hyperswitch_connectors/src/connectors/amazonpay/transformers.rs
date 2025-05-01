@@ -315,23 +315,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct AmazonpayPaymentsRequest {
-    charge_amount: ChargeAmount,
-    charge_permission_id: String,
-    capture_now: Option<bool>,
-}
-
-#[derive(Debug, Serialize, Eq, PartialEq)]
-pub struct AmazonpayCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
 pub struct AmazonpayAuthType {
     pub(super) public_key: Secret<String>,
     pub(super) private_key: Secret<String>,
