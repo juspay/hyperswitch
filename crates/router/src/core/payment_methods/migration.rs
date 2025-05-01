@@ -16,8 +16,7 @@ pub async fn migrate_payment_methods(
     state: routes::SessionState,
     payment_methods: Vec<PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
@@ -41,14 +40,7 @@ pub async fn migrate_payment_methods(
                 continue;
             }
         };
-        let res = migrate_payment_method(
-            state.clone(),
-            req?,
-            merchant_id,
-            merchant_account,
-            key_store,
-        )
-        .await;
+        let res = migrate_payment_method(state.clone(), req?, merchant_id, merchant_context).await;
         result.push(PaymentMethodMigrationResponse::from((
             match res {
                 Ok(services::api::ApplicationResponse::Json(response)) => Ok(response),

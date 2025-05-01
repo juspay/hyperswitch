@@ -1,4 +1,3 @@
-// use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
 use api_models::{
     cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
@@ -247,7 +246,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
-            // api_enums::Connector::Facilitapay => Self::Facilitapay,
+            api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
@@ -335,6 +334,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Xendit => Self::Xendit,
             api_enums::Connector::Zen => Self::Zen,
             api_enums::Connector::Zsl => Self::Zsl,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyBillingConnector => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "stripe_billing_test is not a routable connector".to_string(),
+                })?
+            }
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
             #[cfg(feature = "dummy_connector")]
@@ -2186,6 +2191,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
+            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
 }
@@ -2220,6 +2226,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
+            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
 }
