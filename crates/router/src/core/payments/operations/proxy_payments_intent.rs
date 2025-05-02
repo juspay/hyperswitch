@@ -40,13 +40,13 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
         match intent_status {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Processing => Ok(()),
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -188,26 +188,40 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
 
-        let payment_attempt_domain_model: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
-            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
-                &payment_intent,
-                cell_id,
-                storage_scheme,
-                request,
-                encrypted_data
-            )
-            .await?;
+        let payment_attempt = match payment_intent.active_attempt_id.clone() {
+            Some(ref active_attempt_id) => db
+                .find_payment_attempt_by_id(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    active_attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Could not find payment attempt")?,
 
-        let payment_attempt = db
-            .insert_payment_attempt(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
-                payment_attempt_domain_model,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not insert payment attempt")?;
+            None => {
+                let payment_attempt_domain_model: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
+                    &payment_intent,
+                    cell_id,
+                    storage_scheme,
+                    request,
+                    encrypted_data
+                )
+                .await?;
+                db.insert_payment_attempt(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    payment_attempt_domain_model,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not insert payment attempt")?
+            }
+        };
+
         let processor_payment_token = request.recurring_details.processor_payment_token.clone();
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(

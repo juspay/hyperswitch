@@ -522,4 +522,6 @@ pub enum RevenueRecoveryError {
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
     BillingThresholdRetryCountFetchFailed,
+    #[error("Failed to create the revenue recovery attempt data")]
+    RevenueRecoveryAttemptDataCreateFailed,
 }
