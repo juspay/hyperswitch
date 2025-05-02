@@ -1,26 +1,28 @@
 use std::sync::Arc;
 
-use api_models::user as user_api;
 #[cfg(feature = "v1")]
 use api_models::admin as admin_api;
-use common_enums::UserAuthType;
+use api_models::user as user_api;
 #[cfg(feature = "v1")]
 use common_enums::connector_enums;
+use common_enums::UserAuthType;
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
-#[cfg(feature = "v1")]
-use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount as DomainMerchantConnectorAccount;
-use masking::{ExposeInterface, Secret};
 #[cfg(feature = "v1")]
 use masking::PeekInterface;
+use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 use router_env::env;
 
+#[cfg(feature = "v1")]
+use crate::types::AdditionalMerchantData;
 use crate::{
     consts::user::{
         LINEAGE_CONTEXT_PREFIX, LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS, REDIS_SSO_PREFIX,
@@ -37,8 +39,6 @@ use crate::{
         transformers::ForeignFrom,
     },
 };
-#[cfg(feature = "v1")]
-use crate::types::AdditionalMerchantData;
 
 pub mod dashboard_metadata;
 pub mod password;

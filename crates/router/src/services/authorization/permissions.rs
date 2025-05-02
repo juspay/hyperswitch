@@ -115,7 +115,9 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Customer, _) => Some("Customers"),
         (Resource::Payout, _) => Some("Payouts"),
         (Resource::ApiKey, _) => Some("Api Keys"),
-        (Resource::Connector, _) => Some("Payment Processors, Payout Processors, Fraud & Risk Managers"),
+        (Resource::Connector, _) => {
+            Some("Payment Processors, Payout Processors, Fraud & Risk Managers")
+        }
         (Resource::Routing, _) => Some("Routing"),
         (Resource::RevenueRecovery, _) => Some("Revenue Recovery"),
         (Resource::ThreeDsDecisionManager, _) => Some("3DS Decision Manager"),
@@ -135,7 +137,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Merchant) => Some("Merchant Account"),
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
-        (Resource::InternalConnector, _) => None
+        (Resource::InternalConnector, _) => None,
     }
 }
 
