@@ -1,8 +1,21 @@
 use common_utils::impl_to_sql_from_sql_json;
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
-use euclid::frontend::dir::{DirKeyKind, EuclidDirFilter};
+use euclid::frontend::{
+    ast::Program,
+    dir::{DirKeyKind, EuclidDirFilter},
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[diesel(sql_type = Jsonb)]
+/// Record representing the 3DS Decision Rule
+pub struct ThreeDSDecisionRuleRecord {
+    /// Program to be executed
+    pub program: Program<ThreeDSDecisionRule>,
+}
+
+impl_to_sql_from_sql_json!(ThreeDSDecisionRuleRecord);
 
 /// Enum representing the possible outcomes of the 3DS Decision Rule Engine.
 #[derive(
