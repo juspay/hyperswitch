@@ -296,6 +296,7 @@ pub struct StripebillingWebhookObject {
     #[serde(rename = "amount_remaining")]
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
+    pub payment_intent: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -346,7 +347,12 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripebillingRecoveryDetailsData {
+pub struct StripebillingBillingConnectorPaymentSyncResponseData {
+    pub latest_charge: StripebillingLatestChargeData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct StripebillingLatestChargeData {
     #[serde(rename = "id")]
     pub charge_id: String,
     pub status: StripebillingChargeStatus,
@@ -410,7 +416,7 @@ impl
     TryFrom<
         ResponseRouterData<
             recovery_router_flows::BillingConnectorPaymentsSync,
-            StripebillingRecoveryDetailsData,
+            StripebillingBillingConnectorPaymentSyncResponseData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
@@ -420,45 +426,45 @@ impl
     fn try_from(
         item: ResponseRouterData<
             recovery_router_flows::BillingConnectorPaymentsSync,
-            StripebillingRecoveryDetailsData,
+            StripebillingBillingConnectorPaymentSyncResponseData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let merchant_reference_id = id_type::PaymentReferenceId::from_str(
-            &item.response.invoice_id,
-        )
-        .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "invoice_id",
-        })?;
+        let charge_details = item.response.latest_charge;
+        let merchant_reference_id =
+            id_type::PaymentReferenceId::from_str(charge_details.invoice_id.as_str())
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "invoice_id",
+                })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
-            item.response.charge_id,
+            charge_details.charge_id,
         ));
 
         Ok(Self {
             response: Ok(
                 recovery_response_types::BillingConnectorPaymentsSyncResponse {
-                    status: item.response.status.into(),
-                    amount: item.response.amount,
-                    currency: item.response.currency,
+                    status: charge_details.status.into(),
+                    amount: charge_details.amount,
+                    currency: charge_details.currency,
                     merchant_reference_id,
                     connector_account_reference_id:
                         MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA
                             .to_string(),
                     connector_transaction_id,
-                    error_code: item.response.failure_code,
-                    error_message: item.response.failure_message,
-                    processor_payment_method_token: item.response.payment_method,
-                    connector_customer_id: item.response.customer,
-                    transaction_created_at: Some(item.response.created),
+                    error_code: charge_details.failure_code,
+                    error_message: charge_details.failure_message,
+                    processor_payment_method_token: charge_details.payment_method,
+                    connector_customer_id: charge_details.customer,
+                    transaction_created_at: Some(charge_details.created),
                     payment_method_sub_type: common_enums::PaymentMethodType::from(
-                        item.response
+                        charge_details
                             .payment_method_details
                             .card_funding_type
                             .funding,
                     ),
                     payment_method_type: common_enums::PaymentMethod::from(
-                        item.response.payment_method_details.type_of_payment_method,
+                        charge_details.payment_method_details.type_of_payment_method,
                     ),
                 },
             ),
