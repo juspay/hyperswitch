@@ -478,7 +478,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
             txn_details,
             payment_method,
             instruction: None,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
         })
     }
 }
@@ -504,7 +504,7 @@ impl
             txn_details,
             payment_method,
             instruction: None,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
         })
     }
 }
@@ -522,27 +522,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             txn_details,
             payment_method,
             instruction: None,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
-        })
-    }
-}
-
-impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPaymentsRequest {
-    type Error = Error;
-    fn try_from(
-        value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &Card),
-    ) -> Result<Self, Self::Error> {
-        let (item, card_data) = value;
-        let card_holder_name = item.router_data.get_optional_billing_full_name();
-        let txn_details = get_transaction_details(item)?;
-        let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
-        let instruction = get_instruction_details(item);
-
-        Ok(Self {
-            txn_details,
-            payment_method,
-            instruction,
-            shopper_result_url: None,
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
         })
     }
 }
@@ -568,7 +548,27 @@ impl
             txn_details,
             payment_method: PaymentDetails::Mandate,
             instruction,
-            shopper_result_url: item.router_data.request.router_return_url.clone(),
+            shopper_result_url: item.router_data.request.get_router_return_url().ok(),
+        })
+    }
+}
+
+impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPaymentsRequest {
+    type Error = Error;
+    fn try_from(
+        value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &Card),
+    ) -> Result<Self, Self::Error> {
+        let (item, card_data) = value;
+        let card_holder_name = item.router_data.get_optional_billing_full_name();
+        let txn_details = get_transaction_details(item)?;
+        let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
+        let instruction = get_instruction_details(item);
+
+        Ok(Self {
+            txn_details,
+            payment_method,
+            instruction,
+            shopper_result_url: None,
         })
     }
 }
