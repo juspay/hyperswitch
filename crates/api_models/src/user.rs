@@ -113,13 +113,13 @@ pub struct CloneConnectorSource {
     pub mca_id: id_type::MerchantConnectorAccountId,
     pub profile_id: id_type::ProfileId,
     pub merchant_id: id_type::MerchantId,
-    pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CloneConnectorDestination {
     pub connector_label: Option<String>,
-    // Add other destination-specific fields here if needed in the future
+    pub profile_id: id_type::ProfileId,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

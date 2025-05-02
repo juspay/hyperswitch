@@ -3641,7 +3641,7 @@ pub async fn clone_connector(
 
     let merchant_connector_create = utils::user::build_cloned_connector_create_request(
         source_mca,
-        Some(user_from_token.profile_id.clone()),
+        Some(request.destination.profile_id.clone()),
         request.destination.connector_label,
     )
     .await?;
@@ -3650,7 +3650,7 @@ pub async fn clone_connector(
         .store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            &user_from_token.merchant_id,
+            &request.destination.merchant_id, // Use merchant_id from request
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -3660,18 +3660,22 @@ pub async fn clone_connector(
         .store
         .find_merchant_account_by_merchant_id(
             key_manager_state,
-            &user_from_token.merchant_id,
+            &request.destination.merchant_id, // Use merchant_id from request
             &destination_key_store,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let destination_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        destination_merchant_account,
+        destination_key_store,
+    )));
+
     admin::create_connector(
         state,
         merchant_connector_create,
-        destination_merchant_account,
-        Some(user_from_token.profile_id),
-        destination_key_store,
+        destination_context,
+        Some(request.destination.profile_id),
     )
     .await
     .map_err(|e| {
