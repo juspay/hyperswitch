@@ -4658,7 +4658,7 @@ default_imp_for_vault!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Wellsfargo,
-    connectors::Vgs,
+    // connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
@@ -4765,7 +4765,7 @@ default_imp_for_vault_insert!(
     connectors::Worldpay,
     connectors::Wellsfargo,
     connectors::Volt,
-    connectors::Vgs,
+    // connectors::Vgs,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl

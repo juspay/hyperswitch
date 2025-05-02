@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
         webhooks::VerifyWebhookSource,
-        VaultCard,
+        VaultInsertFlow,
     },
     router_request_types::{
         revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
@@ -76,9 +76,9 @@ pub type PaymentsAuthorizeType =
 /// Type alias for `ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>`
 pub type PaymentsTaxCalculationType =
     dyn ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
-/// Type alias for `ConnectorIntegration<VaultCard, PaymentsTaxCalculationData, TaxCalculationResponseData>`
-pub type PaymentsVaultCardType =
-    dyn ConnectorIntegration<VaultCard, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<VaultInsertFlow, PaymentsTaxCalculationData, TaxCalculationResponseData>`
+pub type ExternalVaultInsertType =
+    dyn ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData>;
 /// Type alias for `ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>`
 pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
     PostSessionTokens,

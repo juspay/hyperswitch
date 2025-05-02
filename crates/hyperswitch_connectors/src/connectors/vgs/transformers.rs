@@ -82,15 +82,17 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsPaymentsRequest {
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct VgsAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for VgsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                username: api_key.to_owned(),
+                password: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -158,9 +160,15 @@ impl<F> TryFrom<ResponseRouterData<F, VgsPaymentsResponse, VaultRequestData, Vau
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct VgsErrorResponse {
-    pub status_code: u16,
+pub struct VgsErrorItem {
+    pub status: u16,
     pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub detail: Option<String>,
+}
+
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct VgsErrorResponse {
+    pub errors: Vec<VgsErrorItem>,
+    pub trace_id: String,
 }

@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -14,7 +15,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        VaultCard,
+        VaultInsertFlow,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -68,6 +69,8 @@ impl api::Refund for Vgs {}
 impl api::RefundExecute for Vgs {}
 impl api::RefundSync for Vgs {}
 impl api::PaymentToken for Vgs {}
+impl api::VaultInsert for Vgs {}
+impl api::Vault for Vgs {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Vgs
@@ -120,9 +123,19 @@ impl ConnectorCommon for Vgs {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = vgs::VgsAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_value = auth
+            .username
+            .zip(auth.password)
+            .map(|(project_id, secret_key)| {
+                format!(
+                    "Basic {}",
+                    common_utils::consts::BASE64_ENGINE
+                        .encode(format!("{}:{}", project_id, secret_key))
+                )
+            });
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth_value.into_masked(),
         )])
     }
 
@@ -141,9 +154,9 @@ impl ConnectorCommon for Vgs {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.errors[0].code.clone(),
+            message: response.errors[0].code.clone(),
+            reason: response.errors[0].detail.clone(),
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -177,10 +190,41 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Vgs {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Vgs {}
 
-impl ConnectorIntegration<VaultCard, VaultRequestData, VaultResponseData> for Vgs {
+impl ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData> for Vgs {
+    fn get_url(
+        &self,
+        _req: &VaultRouterData<VaultInsertFlow>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}aliases", self.base_url(connectors)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &VaultRouterData<VaultInsertFlow>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_value = auth
+            .username
+            .zip(auth.password)
+            .map(|(project_id, secret_key)| {
+                format!(
+                    "Basic {}",
+                    common_utils::consts::BASE64_ENGINE
+                        .encode(format!("{}:{}", project_id, secret_key))
+                )
+            });
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth_value.into_masked(),
+        )])
+    }
+
     fn get_request_body(
         &self,
-        req: &VaultRouterData<VaultCard>,
+        req: &VaultRouterData<VaultInsertFlow>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         // let connector_router_data = vgs::VgsRouterData::from((amount, req));
@@ -190,20 +234,20 @@ impl ConnectorIntegration<VaultCard, VaultRequestData, VaultResponseData> for Vg
 
     fn build_request(
         &self,
-        req: &VaultRouterData<VaultCard>,
+        req: &VaultRouterData<VaultInsertFlow>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsVaultCardType::get_url(
+                .url(&types::ExternalVaultInsertType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsVaultCardType::get_headers(
+                .headers(types::ExternalVaultInsertType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsVaultCardType::get_request_body(
+                .set_body(types::ExternalVaultInsertType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -212,10 +256,10 @@ impl ConnectorIntegration<VaultCard, VaultRequestData, VaultResponseData> for Vg
 
     fn handle_response(
         &self,
-        data: &VaultRouterData<VaultCard>,
+        data: &VaultRouterData<VaultInsertFlow>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<VaultRouterData<VaultCard>, errors::ConnectorError> {
+    ) -> CustomResult<VaultRouterData<VaultInsertFlow>, errors::ConnectorError> {
         let response: vgs::VgsPaymentsResponse = res
             .response
             .parse_struct("Vgs PaymentsAuthorizeResponse")
