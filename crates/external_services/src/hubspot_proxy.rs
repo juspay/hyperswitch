@@ -1,5 +1,5 @@
 /// Lead source constant for Hubspot
-pub const HUBSPOT_LEAD_SOURCE: &str = "Hyperswitch Dashboard"; // hubspot lead source
+pub const HUBSPOT_LEAD_SOURCE: &str = "Hyperswitch Dashboard";
 
 /// Struct representing a request to Hubspot
 #[derive(Clone, Debug, serde::Serialize, Default)]

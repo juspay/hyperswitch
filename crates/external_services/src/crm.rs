@@ -11,7 +11,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use http::header;
 use hyperswitch_interfaces::{
-    crm::{CRMInterface, CRMPayload},
+    crm::{CrmInterface, CrmPayload},
     errors::HttpClientError,
     types::Proxy,
 };
@@ -21,7 +21,7 @@ use router_env::logger;
 
 use crate::{http_client, hubspot_proxy::HubspotRequest};
 
-/// Hubspot CRM configuration
+/// Hubspot Crm configuration
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct HubspotProxyConfig {
     /// The ID of the Hubspot form to be submitted.
@@ -33,26 +33,26 @@ pub struct HubspotProxyConfig {
 
 impl HubspotProxyConfig {
     /// Validates Hubspot configuration
-    pub(super) fn validate(&self) -> Result<(), InvalidCRMConfig> {
+    pub(super) fn validate(&self) -> Result<(), InvalidCrmConfig> {
         use common_utils::fp_utils::when;
 
         when(self.request_url.is_default_or_empty(), || {
-            Err(InvalidCRMConfig("request url must not be empty"))
+            Err(InvalidCrmConfig("request url must not be empty"))
         })?;
 
         when(self.form_id.is_default_or_empty(), || {
-            Err(InvalidCRMConfig("form_id must not be empty"))
+            Err(InvalidCrmConfig("form_id must not be empty"))
         })
     }
 }
 
 /// Error thrown when the crm config is invalid
 #[derive(Debug, Clone)]
-pub struct InvalidCRMConfig(pub &'static str);
+pub struct InvalidCrmConfig(pub &'static str);
 
-impl std::error::Error for InvalidCRMConfig {}
+impl std::error::Error for InvalidCrmConfig {}
 
-impl Display for InvalidCRMConfig {
+impl Display for InvalidCrmConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "crm: {}", self.0)
     }
@@ -62,33 +62,33 @@ impl Display for InvalidCRMConfig {
 /// NoCrm struct
 pub struct NoCrm;
 
-/// Enum representing different CRM configurations
+/// Enum representing different Crm configurations
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(tag = "crm_manager")]
 #[serde(rename_all = "snake_case")]
-pub enum CRMManagerConfig {
-    /// Hubspot CRM configuration
+pub enum CrmManagerConfig {
+    /// Hubspot Crm configuration
     HubspotProxy {
-        /// Hubspot CRM configuration
+        /// Hubspot Crm configuration
         hubspot_proxy: HubspotProxyConfig,
     },
 
-    /// No CRM configuration
+    /// No Crm configuration
     #[default]
     NoCrm,
 }
 
-impl CRMManagerConfig {
+impl CrmManagerConfig {
     /// Verifies that the client configuration is usable
-    pub fn validate(&self) -> Result<(), InvalidCRMConfig> {
+    pub fn validate(&self) -> Result<(), InvalidCrmConfig> {
         match self {
             Self::HubspotProxy { hubspot_proxy } => hubspot_proxy.validate(),
             Self::NoCrm => Ok(()),
         }
     }
 
-    /// Retrieves the appropriate CRM client based on the configuration.
-    pub async fn get_crm_client(&self) -> Arc<dyn CRMInterface> {
+    /// Retrieves the appropriate Crm client based on the configuration.
+    pub async fn get_crm_client(&self) -> Arc<dyn CrmInterface> {
         match self {
             Self::HubspotProxy { hubspot_proxy } => Arc::new(hubspot_proxy.clone()),
             Self::NoCrm => Arc::new(NoCrm),
@@ -97,8 +97,8 @@ impl CRMManagerConfig {
 }
 
 #[async_trait::async_trait]
-impl CRMInterface for NoCrm {
-    async fn make_body(&self, _details: CRMPayload) -> RequestContent {
+impl CrmInterface for NoCrm {
+    async fn make_body(&self, _details: CrmPayload) -> RequestContent {
         RequestContent::Json(Box::new(()))
     }
 
@@ -117,8 +117,8 @@ impl CRMInterface for NoCrm {
 }
 
 #[async_trait::async_trait]
-impl CRMInterface for HubspotProxyConfig {
-    async fn make_body(&self, details: CRMPayload) -> RequestContent {
+impl CrmInterface for HubspotProxyConfig {
+    async fn make_body(&self, details: CrmPayload) -> RequestContent {
         RequestContent::FormUrlEncoded(Box::new(HubspotRequest::new(
             details.business_country_name.unwrap_or_default(),
             self.form_id.clone(),

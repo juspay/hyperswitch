@@ -8,9 +8,9 @@ use masking::Secret;
 use super::types::Proxy;
 use crate::errors::HttpClientError;
 
-/// CRM Payload structure
+/// Crm Payload structure
 #[derive(Clone, Debug, serde::Serialize, Default)]
-pub struct CRMPayload {
+pub struct CrmPayload {
     /// The legal name of the business.
     pub legal_business_name: Option<String>,
 
@@ -44,7 +44,7 @@ pub struct CRMPayload {
     /// Additional comments or notes about the business.
     pub comments: Option<String>,
 
-    /// Indicates whether the CRM process for the business is completed.
+    /// Indicates whether the Crm process for the business is completed.
     pub is_completed: bool,
 
     /// The name of the country where the business is located.
@@ -53,9 +53,9 @@ pub struct CRMPayload {
 
 /// Trait defining the interface for encryption management
 #[async_trait::async_trait]
-pub trait CRMInterface: Send + Sync {
+pub trait CrmInterface: Send + Sync {
     /// Make body for the request
-    async fn make_body(&self, details: CRMPayload) -> RequestContent;
+    async fn make_body(&self, details: CrmPayload) -> RequestContent;
 
     /// Encrypt the given input data
     async fn make_request(&self, body: RequestContent, origin_base_url: String) -> Request;

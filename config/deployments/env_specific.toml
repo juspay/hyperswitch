@@ -304,11 +304,11 @@ key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [crm]
-crm_manager = "hubspot_proxy" # CRM manager client to be used
+crm_manager = "hubspot_proxy" # Crm manager client to be used
 
 [crm.hubspot_proxy]
 form_id=""     # Form ID for Hubspot integration
-request_url="" # Request URL for Hubspot  API
+request_url="" # Request URL for Hubspot API
 
 
 [multitenancy]

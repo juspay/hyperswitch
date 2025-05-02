@@ -17,7 +17,7 @@ use external_services::{
     grpc_client::{GrpcClients, GrpcHeaders},
 };
 use hyperswitch_interfaces::{
-    crm::CRMInterface,
+    crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
@@ -125,7 +125,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
-    pub crm_client: Arc<dyn CRMInterface>,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -233,7 +233,7 @@ pub struct AppState {
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
-    pub crm_client: Arc<dyn CRMInterface>,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {

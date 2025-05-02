@@ -8,7 +8,7 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_interfaces::crm::CRMPayload;
+use hyperswitch_interfaces::crm::CrmPayload;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
@@ -520,9 +520,9 @@ async fn insert_metadata(
             }
 
             // Hubspot integration
-            let hubspotbody = state
+            let hubspot_body = state
                 .crm_client
-                .make_body(CRMPayload {
+                .make_body(CrmPayload {
                     legal_business_name: data.legal_business_name,
                     business_label: data.business_label,
                     business_location: data.business_location,
@@ -541,17 +541,18 @@ async fn insert_metadata(
             let base_url = user_utils::get_base_url(state);
             let hubspot_request = state
                 .crm_client
-                .make_request(hubspotbody, base_url.to_string())
+                .make_request(hubspot_body, base_url.to_string())
                 .await;
 
             let _ = state
                 .crm_client
                 .send_request(&state.conf.proxy, hubspot_request)
                 .await
-                .inspect_err(|_| {
-                    logger::info!(
-                        "Failed to send data to hubspot for user_id {}",
+                .inspect_err(|err| {
+                    logger::error!(
+                        "An error occurred while sending data to hubspot for user_id {}: {:?}",
                         user.user_id,
+                        err
                     );
                 });
 

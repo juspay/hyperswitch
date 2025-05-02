@@ -24,5 +24,5 @@ pub mod secrets_interface;
 pub mod types;
 pub mod webhooks;
 
-/// CRM interface
+/// Crm interface
 pub mod crm;

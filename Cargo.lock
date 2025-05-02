@@ -6520,7 +6520,6 @@ dependencies = [
  "openssl",
  "payment_methods",
  "pm_auth",
- "quick-xml",
  "rand",
  "rand_chacha",
  "rdkafka",
