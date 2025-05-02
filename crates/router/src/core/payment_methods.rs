@@ -1771,13 +1771,13 @@ pub async fn vault_payment_method_external(
     pmd: &domain::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
-    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let mut router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account,
         &merchant_connector_account,
-        pmd,
+        Some(pmd.clone()),
+        None,
     )
     .await?;
 
@@ -1869,14 +1869,8 @@ pub async fn vault_payment_method(
         )
         .await?;
 
-        vault_payment_method_external(
-            state,
-            pmd,
-            merchant_account,
-            merchant_connector_account,
-            key_store,
-        )
-        .await
+        vault_payment_method_external(state, pmd, merchant_account, merchant_connector_account)
+            .await
     } else {
         vault_payment_method_internal(
             state,
@@ -2126,12 +2120,15 @@ pub async fn update_payment_method_core(
         },
     )?;
 
-    let pmd: domain::PaymentMethodVaultingData =
-        vault::retrieve_payment_method_from_vault(state, merchant_account, &payment_method)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
+    let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
+        state,
+        merchant_account,
+        key_store,
+        profile,
+        &payment_method,
+    )
+    .await?
+    .data;
 
     let vault_request_data = request.payment_method_data.map(|payment_method_data| {
         pm_transforms::generate_pm_vaulting_req_from_update_request(pmd, payment_method_data)

@@ -1987,7 +1987,8 @@ pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
-    pmd: &domain::PaymentMethodVaultingData,
+    payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
+    connector_vault_id: Option<String>,
 ) -> RouterResult<VaultRouterData<F>> {
     let connector_name = merchant_connector_account
         .get_connector_name()
@@ -2024,8 +2025,8 @@ pub async fn construct_vault_router_data<F>(
         minor_amount_captured: None,
         payment_method_status: None,
         request: types::VaultRequestData {
-            payment_method_vaulting_data: Some(pmd.clone()),
-            connector_vault_id: None,
+            payment_method_vaulting_data,
+            connector_vault_id,
         },
         response: Ok(types::VaultResponseData::default()),
         access_token: None,
