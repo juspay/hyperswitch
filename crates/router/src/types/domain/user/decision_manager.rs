@@ -196,7 +196,7 @@ impl JWTFlow {
             let user_id = user_id.to_string();
             let new_lineage_context = new_lineage_context.clone();
             async move {
-                let _ = state
+                if let Err(e) = state
                     .global_store
                     .update_user_by_user_id(
                         &user_id,
@@ -205,13 +205,15 @@ impl JWTFlow {
                         },
                     )
                     .await
-                    .map_err(|e| {
-                        logger::error!(
-                            "Failed to update lineage context for user {}: {:?}",
-                            user_id,
-                            e
-                        );
-                    });
+                {
+                    logger::error!(
+                        "Failed to update lineage context for user {}: {:?}",
+                        user_id,
+                        e
+                    );
+                } else {
+                    logger::debug!("Lineage context updated for user {}", user_id);
+                }
             }
         });
 

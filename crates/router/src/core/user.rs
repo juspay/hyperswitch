@@ -3190,20 +3190,22 @@ pub async fn switch_org_for_user(
         let lineage_context = lineage_context.clone();
         let user_id = user_from_token.user_id.clone();
         async move {
-            let _ = state
+            if let Err(e) = state
                 .global_store
                 .update_user_by_user_id(
                     &user_id,
                     diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
                 )
                 .await
-                .map_err(|e| {
-                    logger::error!(
-                        "Failed to update lineage context for user {}: {:?}",
-                        user_id,
-                        e
-                    );
-                });
+            {
+                logger::error!(
+                    "Failed to update lineage context for user {}: {:?}",
+                    user_id,
+                    e
+                );
+            } else {
+                logger::debug!("Successfully updated lineage context for user {}", user_id);
+            }
         }
     });
 
