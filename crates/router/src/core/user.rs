@@ -3185,20 +3185,27 @@ pub async fn switch_org_for_user(
             .clone(),
     };
 
-    if let Err(e) = state
-        .global_store
-        .update_user_by_user_id(
-            &user_from_token.user_id,
-            storage_user::UserUpdate::LineageContextUpdate { lineage_context },
-        )
-        .await
-    {
-        logger::error!(
-            "Failed to update lineage context for user {}: {:?}",
-            user_from_token.user_id,
-            e
-        );
-    }
+    tokio::spawn({
+        let state = state.clone();
+        let lineage_context = lineage_context.clone();
+        let user_id = user_from_token.user_id.clone();
+        async move {
+            let _ = state
+                .global_store
+                .update_user_by_user_id(
+                    &user_id,
+                    diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
+                        "Failed to update lineage context for user {}: {:?}",
+                        user_id,
+                        e
+                    );
+                });
+        }
+    });
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3408,20 +3415,27 @@ pub async fn switch_merchant_for_user_in_org(
             .clone(),
     };
 
-    if let Err(e) = state
-        .global_store
-        .update_user_by_user_id(
-            &user_from_token.user_id,
-            storage_user::UserUpdate::LineageContextUpdate { lineage_context },
-        )
-        .await
-    {
-        logger::error!(
-            "Failed to update lineage context for user {}: {:?}",
-            user_from_token.user_id,
-            e
-        );
-    }
+    tokio::spawn({
+        let state = state.clone();
+        let lineage_context = lineage_context.clone();
+        let user_id = user_from_token.user_id.clone();
+        async move {
+            let _ = state
+                .global_store
+                .update_user_by_user_id(
+                    &user_id,
+                    diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
+                        "Failed to update lineage context for user {}: {:?}",
+                        user_id,
+                        e
+                    );
+                });
+        }
+    });
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3552,20 +3566,27 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             .clone(),
     };
 
-    if let Err(e) = state
-        .global_store
-        .update_user_by_user_id(
-            &user_from_token.user_id,
-            storage_user::UserUpdate::LineageContextUpdate { lineage_context },
-        )
-        .await
-    {
-        logger::error!(
-            "Failed to update lineage context for user {}: {:?}",
-            user_from_token.user_id,
-            e
-        );
-    }
+    tokio::spawn({
+        let state = state.clone();
+        let lineage_context = lineage_context.clone();
+        let user_id = user_from_token.user_id.clone();
+        async move {
+            let _ = state
+                .global_store
+                .update_user_by_user_id(
+                    &user_id,
+                    diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!(
+                        "Failed to update lineage context for user {}: {:?}",
+                        user_id,
+                        e
+                    );
+                });
+        }
+    });
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
