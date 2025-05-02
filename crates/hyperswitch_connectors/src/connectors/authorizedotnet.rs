@@ -441,6 +441,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // Check if 3DS authentication is requested
+        if req.request.authentication_type == Some(enums::AuthenticationType::ThreeDs) {
+            return Err(errors::ConnectorError::NotImplemented {
+                message: "3DS authentication is not supported by Authorize.net since October 2022".to_string(),
+            });
+        }
+
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -801,6 +808,13 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // Check if 3DS authentication is requested
+        if req.request.authentication_type == Some(enums::AuthenticationType::ThreeDs) {
+            return Err(errors::ConnectorError::NotImplemented {
+                message: "3DS authentication is not supported by Authorize.net since October 2022".to_string(),
+            });
+        }
+
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
