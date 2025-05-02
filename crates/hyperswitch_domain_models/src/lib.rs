@@ -13,6 +13,7 @@ pub mod errors;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;
@@ -615,6 +616,22 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
     for payments::payment_attempt::AttemptAmountDetailsSetter
 {
     fn from(amount: &api_models::payments::PaymentAttemptAmountDetails) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
+    for api_models::payments::PaymentAttemptAmountDetails
+{
+    fn from(amount: &payments::payment_attempt::AttemptAmountDetailsSetter) -> Self {
         Self {
             net_amount: amount.net_amount,
             amount_to_capture: amount.amount_to_capture,
