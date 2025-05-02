@@ -69,8 +69,8 @@ common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
-host = "http://127.0.0.1:3001"
-host_rs = "http://127.0.0.1:3001"
+host = "http://127.0.0.1:3000"
+host_rs = "http://127.0.0.1:3000"
 mock_locker = true
 basilisk_host = ""
 locker_enabled = true
