@@ -3571,7 +3571,6 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 pub async fn clone_connector(
     state: SessionState,
     request: user_api::CloneConnectorRequest,
-    user_from_token: auth::UserFromToken,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
     let whitelist = &state.conf.clone_connector_whitelist;
 
@@ -3586,18 +3585,6 @@ pub async fn clone_connector(
             ))
         },
     )?;
-
-    let _role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
-        &state,
-        &user_from_token.role_id,
-        &user_from_token.org_id,
-        user_from_token
-            .tenant_id
-            .as_ref()
-            .unwrap_or(&state.tenant.tenant_id),
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?;
 
     let key_manager_state = &(&state).into();
 
@@ -3624,7 +3611,7 @@ pub async fn clone_connector(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to retrieve source merchant connector account")?;
 
-    let source_mca_name = source_mca // Use the variable directly (assuming it's domain model)
+    let source_mca_name = source_mca
         .connector_name
         .parse::<connector_enums::Connector>()
         .change_context(UserErrors::InternalServerError)
@@ -3650,7 +3637,7 @@ pub async fn clone_connector(
         .store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            &request.destination.merchant_id, // Use merchant_id from request
+            &request.destination.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -3660,7 +3647,7 @@ pub async fn clone_connector(
         .store
         .find_merchant_account_by_merchant_id(
             key_manager_state,
-            &request.destination.merchant_id, // Use merchant_id from request
+            &request.destination.merchant_id,
             &destination_key_store,
         )
         .await

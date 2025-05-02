@@ -2568,7 +2568,7 @@ pub async fn get_payments_aggregates_profile(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantPaymentRead,
+            permission: Permission::ProfilePaymentRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -3072,7 +3072,7 @@ pub async fn payments_capture(
                 is_platform_allowed: false,
             },
             &auth::JWTAuth {
-                permission: Permission::MerchantPaymentRead,
+                permission: Permission::ProfilePaymentRead,
             },
             req.headers(),
         ),

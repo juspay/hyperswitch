@@ -1005,7 +1005,7 @@ pub async fn clone_connector(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, user_from_token, req, _| user_core::clone_connector(state, req, user_from_token),
+        |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
         &auth::JWTAuth {
             permission: Permission::MerchantInternalConnectorWrite,
         },
