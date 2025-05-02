@@ -133,6 +133,7 @@ pub struct CreateInternalUserRequest {
     pub name: Secret<String>,
     pub email: pii::Email,
     pub password: Secret<String>,
+    pub role_id: String,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]

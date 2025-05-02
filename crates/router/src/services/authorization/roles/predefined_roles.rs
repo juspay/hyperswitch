@@ -67,6 +67,31 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             is_internal: true,
         },
     );
+    roles.insert(
+        common_utils::consts::ROLE_ID_INTERNAL_DEMO,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::WorkflowsView,
+                PermissionGroup::AnalyticsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::MerchantDetailsView,
+                PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::InternalManage,
+            ],
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_DEMO.to_string(),
+            role_name: "internal_demo".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: false,
+            is_deletable: false,
+            is_updatable: false,
+            is_internal: true,
+        },
+    );
 
     // Tenant Roles
     roles.insert(

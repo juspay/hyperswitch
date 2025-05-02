@@ -1,13 +1,23 @@
 use std::sync::Arc;
 
 use api_models::user as user_api;
+#[cfg(feature = "v1")]
+use api_models::admin as admin_api;
 use common_enums::UserAuthType;
+#[cfg(feature = "v1")]
+use common_enums::connector_enums;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount as DomainMerchantConnectorAccount;
 use masking::{ExposeInterface, Secret};
+#[cfg(feature = "v1")]
+use masking::PeekInterface;
 use redis_interface::RedisConnectionPool;
 use router_env::env;
 
@@ -27,6 +37,8 @@ use crate::{
         transformers::ForeignFrom,
     },
 };
+#[cfg(feature = "v1")]
+use crate::types::AdditionalMerchantData;
 
 pub mod dashboard_metadata;
 pub mod password;
@@ -408,4 +420,104 @@ pub async fn set_lineage_context_in_cache(
         .attach_printable("Failed to set lineage context in redis")?;
 
     Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn build_cloned_connector_create_request(
+    source_mca: DomainMerchantConnectorAccount,
+    destination_profile_id: Option<id_type::ProfileId>,
+    destination_connector_label: Option<String>,
+) -> UserResult<admin_api::MerchantConnectorCreate> {
+    let source_mca_name = source_mca
+        .connector_name
+        .parse::<connector_enums::Connector>()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    let payment_methods_enabled = source_mca
+        .payment_methods_enabled
+        .clone()
+        .map(|data| {
+            let val = data.into_iter().map(|secret| secret.expose()).collect();
+            serde_json::Value::Array(val)
+                .parse_value("PaymentMethods")
+                .change_context(UserErrors::InternalServerError)
+        })
+        .transpose()?;
+
+    let frm_configs = source_mca
+        .frm_configs
+        .as_ref()
+        .map(|configs_vec| {
+            configs_vec
+                .iter()
+                .map(|config_secret| {
+                    config_secret
+                        .peek()
+                        .clone()
+                        .parse_value("FrmConfigs")
+                        .change_context(UserErrors::InternalServerError)
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+
+    let connector_webhook_details = source_mca
+        .connector_webhook_details
+        .map(|webhook_details| {
+            serde_json::Value::parse_value(
+                webhook_details.expose(),
+                "MerchantConnectorWebhookDetails",
+            )
+            .attach_printable("Unable to deserialize connector_webhook_details")
+            .change_context(UserErrors::InternalServerError)
+        })
+        .transpose()?;
+
+    let connector_wallets_details = source_mca
+        .connector_wallets_details
+        .map(|secret_value| {
+            secret_value
+                .into_inner()
+                .expose()
+                .parse_value::<admin_api::ConnectorWalletDetails>("ConnectorWalletDetails")
+                .attach_printable("Unable to parse ConnectorWalletDetails from Value")
+                .change_context(UserErrors::InternalServerError)
+        })
+        .transpose()?;
+
+    let additional_merchant_data = source_mca
+        .additional_merchant_data
+        .map(|secret_value| {
+            secret_value
+                .into_inner()
+                .expose()
+                .parse_value::<AdditionalMerchantData>("AdditionalMerchantData")
+                .attach_printable("Unable to parse AdditionalMerchantData from Value")
+                .change_context(UserErrors::InternalServerError)
+        })
+        .transpose()?
+        .map(admin_api::AdditionalMerchantData::foreign_from);
+
+    Ok(admin_api::MerchantConnectorCreate {
+        connector_type: source_mca.connector_type,
+        connector_name: source_mca_name,
+        connector_label: destination_connector_label.or(source_mca.connector_label.clone()),
+        merchant_connector_id: None,
+        connector_account_details: Some(source_mca.connector_account_details.clone().into_inner()),
+        test_mode: source_mca.test_mode,
+        disabled: source_mca.disabled,
+        payment_methods_enabled,
+        metadata: source_mca.metadata,
+        business_country: source_mca.business_country.clone(),
+        business_label: source_mca.business_label.clone(),
+        business_sub_label: source_mca.business_sub_label.clone(),
+        frm_configs,
+        connector_webhook_details,
+        profile_id: destination_profile_id,
+        pm_auth_config: source_mca.pm_auth_config.clone(),
+        connector_wallets_details,
+        status: Some(source_mca.status),
+        additional_merchant_data,
+    })
 }

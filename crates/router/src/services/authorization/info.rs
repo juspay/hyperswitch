@@ -1,12 +1,16 @@
+use std::ops::Not;
+
 use api_models::user_role::GroupInfo;
 use common_enums::{ParentGroup, PermissionGroup};
 use strum::IntoEnumIterator;
 
 // TODO: To be deprecated
 pub fn get_group_authorization_info() -> Option<Vec<GroupInfo>> {
-    PermissionGroup::iter()
-        .map(get_group_info_from_permission_group)
-        .collect()
+    let groups = PermissionGroup::iter()
+        .filter_map(get_group_info_from_permission_group)
+        .collect::<Vec<_>>();
+
+    groups.is_empty().not().then_some(groups)
 }
 
 // TODO: To be deprecated

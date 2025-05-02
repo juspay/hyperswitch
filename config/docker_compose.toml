@@ -920,3 +920,7 @@ enabled = true
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
+
+[clone_connector_whitelist]
+merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
+connector_names = "connector_names"     # Comma-separated list of allowed connector names

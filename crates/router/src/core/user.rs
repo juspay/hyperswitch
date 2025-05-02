@@ -8,6 +8,8 @@ use api_models::{
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::{connector_enums, EntityType, UserAuthType};
+#[cfg(feature = "v1")]
+use common_utils::fp_utils;
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -1362,6 +1364,13 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
+    let role_info = roles::RoleInfo::from_predefined_roles(request.role_id.as_str())
+        .ok_or(UserErrors::InvalidRoleId)?;
+
+    fp_utils::when(role_info.is_internal().not(), || {
+        Err(UserErrors::InvalidRoleId)
+    })?;
+
     let key_manager_state = &(&state).into();
     let key_store = state
         .store
@@ -1427,10 +1436,7 @@ pub async fn create_internal_user(
         .map(domain::user::UserFromStorage::from)?;
 
     new_user
-        .get_no_level_user_role(
-            common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
-            UserStatus::Active,
-        )
+        .get_no_level_user_role(role_info.get_role_id().to_string(), UserStatus::Active)
         .add_entity(domain::MerchantLevel {
             tenant_id: default_tenant_id,
             org_id: internal_merchant.organization_id,
@@ -3567,7 +3573,19 @@ pub async fn clone_connector(
     request: user_api::CloneConnectorRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
-    use common_utils::ext_traits::ValueExt;
+    let whitelist = &state.conf.clone_connector_whitelist;
+
+    fp_utils::when(
+        whitelist
+            .merchant_ids
+            .contains(&request.source.merchant_id)
+            .not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed from this merchant".to_string(),
+            ))
+        },
+    )?;
 
     let _role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
@@ -3580,57 +3598,6 @@ pub async fn clone_connector(
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
-
-    // if role_info.is_internal() {
-    //     return Err(UserErrors::InvalidRoleOperationWithMessage(
-    //         "Internal roles are not allowed for this operation".to_string(),
-    //     )
-    //     .into());
-    // }
-
-    // Get the source connector details and extract the inner JSON response
-    // let source_connector_details = match admin::retrieve_connector(
-    //     state.clone(),
-    //     request.source.merchant_id.clone(),
-    //     Some(request.source.profile_id.clone()),
-    //     request.source.mca_id.clone(),
-    // )
-    // .await
-    // .change_context(UserErrors::InternalServerError)
-    // .attach_printable("Failed to retrieve source connector details")?
-    // {
-    //     ApplicationResponse::Json(details) => details,
-    //     _ => return Err(UserErrors::InternalServerError.into()),
-    // };
-    //
-    // let merchant_connector_create = api_models::admin::MerchantConnectorCreate {
-    //     connector_type: source_connector_details.connector_type,
-    //     connector_name: source_connector_details
-    //         .connector_name
-    //         .parse::<connector_enums::Connector>()
-    //         .change_context(UserErrors::InternalServerError)
-    //         .attach_printable("Invalid connector name received")?,
-    //     connector_label: request
-    //         .destination
-    //         .connector_label
-    //         .or(source_connector_details.connector_label),
-    //     merchant_connector_id: None,
-    //     connector_account_details: Some(source_connector_details.connector_account_details),
-    //     test_mode: source_connector_details.test_mode,
-    //     disabled: source_connector_details.disabled,
-    //     payment_methods_enabled: source_connector_details.payment_methods_enabled,
-    //     metadata: source_connector_details.metadata,
-    //     business_country: source_connector_details.business_country,
-    //     business_label: source_connector_details.business_label,
-    //     business_sub_label: source_connector_details.business_sub_label,
-    //     frm_configs: source_connector_details.frm_configs,
-    //     connector_webhook_details: source_connector_details.connector_webhook_details,
-    //     profile_id: Some(user_from_token.profile_id.clone()),
-    //     pm_auth_config: source_connector_details.pm_auth_config,
-    //     connector_wallets_details: source_connector_details.connector_wallets_details,
-    //     status: Some(source_connector_details.status),
-    //     additional_merchant_data: source_connector_details.additional_merchant_data,
-    // };
 
     let key_manager_state = &(&state).into();
 
@@ -3657,6 +3624,28 @@ pub async fn clone_connector(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to retrieve source merchant connector account")?;
 
+    let source_mca_name = source_mca // Use the variable directly (assuming it's domain model)
+        .connector_name
+        .parse::<connector_enums::Connector>()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    fp_utils::when(
+        whitelist.connector_names.contains(&source_mca_name).not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed for this connector".to_string(),
+            ))
+        },
+    )?;
+
+    let merchant_connector_create = utils::user::build_cloned_connector_create_request(
+        source_mca,
+        Some(user_from_token.profile_id.clone()),
+        request.destination.connector_label,
+    )
+    .await?;
+
     let destination_key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
@@ -3677,99 +3666,6 @@ pub async fn clone_connector(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let payment_methods_enabled = source_mca
-        .payment_methods_enabled
-        .clone()
-        .map(|data| {
-            let val = data.into_iter().map(|secret| secret.expose()).collect();
-            serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(UserErrors::InternalServerError)
-        })
-        .transpose()?;
-
-    let frm_configs = source_mca
-        .frm_configs
-        .clone()
-        .map(|data| {
-            data.iter()
-                .map(|config| {
-                    config
-                        .peek()
-                        .clone()
-                        .parse_value("FrmConfigs")
-                        .change_context(UserErrors::InternalServerError)
-                })
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .transpose()?;
-
-    let connector_webhook_details = source_mca
-        .connector_webhook_details
-        .map(|webhook_details| {
-            serde_json::Value::parse_value(
-                webhook_details.expose(),
-                "MerchantConnectorWebhookDetails",
-            )
-            .attach_printable("Unable to deserialize connector_webhook_details")
-            .change_context(UserErrors::InternalServerError)
-        })
-        .transpose()?;
-
-    let connector_wallets_details = source_mca
-        .connector_wallets_details
-        .map(|data| {
-            data.into_inner()
-                .expose()
-                .parse_value::<api_models::admin::ConnectorWalletDetails>("ConnectorWalletDetails")
-                .attach_printable("Unable to deserialize connector_wallets_details")
-                .change_context(UserErrors::InternalServerError)
-        })
-        .transpose()?;
-
-    let additional_merchant_data = source_mca
-        .additional_merchant_data
-        .map(|data| {
-            let data = data.into_inner();
-            serde_json::Value::parse_value::<crate::types::AdditionalMerchantData>(
-                data.expose(),
-                "AdditionalMerchantData",
-            )
-            .attach_printable("Unable to deserialize additional_merchant_data")
-            .change_context(UserErrors::InternalServerError)
-        })
-        .transpose()?
-        .map(api_models::admin::AdditionalMerchantData::foreign_from);
-
-    let merchant_connector_create = api_models::admin::MerchantConnectorCreate {
-        connector_type: source_mca.connector_type,
-        connector_name: source_mca
-            .connector_name
-            .parse::<connector_enums::Connector>()
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Invalid connector name received")?,
-        connector_label: request
-            .destination
-            .connector_label
-            .or(source_mca.connector_label),
-        merchant_connector_id: None,
-        connector_account_details: Some(source_mca.connector_account_details.into_inner()),
-        test_mode: source_mca.test_mode,
-        disabled: source_mca.disabled,
-        payment_methods_enabled,
-        metadata: source_mca.metadata,
-        business_country: source_mca.business_country,
-        business_label: source_mca.business_label,
-        business_sub_label: source_mca.business_sub_label,
-        frm_configs,
-        connector_webhook_details,
-        profile_id: Some(user_from_token.profile_id.clone()),
-        pm_auth_config: source_mca.pm_auth_config,
-        connector_wallets_details,
-        status: Some(source_mca.status),
-        additional_merchant_data,
-    };
-
     admin::create_connector(
         state,
         merchant_connector_create,
@@ -3778,6 +3674,9 @@ pub async fn clone_connector(
         destination_key_store,
     )
     .await
-    .change_context(UserErrors::InternalServerError)
+    .map_err(|e| {
+        let message = e.current_context().error_message();
+        e.change_context(UserErrors::ErrorCloningConnector(message))
+    })
     .attach_printable("Failed to create cloned connector")
 }

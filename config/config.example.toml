@@ -992,3 +992,7 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List 
 [open_router]
 enabled = true                          # Enable or disable Open Router
 url = "http://localhost:8080"           # Open Router URL
+
+[clone_connector_whitelist]
+merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
+connector_names = "connector_names"     # Comma-separated list of allowed connector names
