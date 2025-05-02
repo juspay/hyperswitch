@@ -4,6 +4,67 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.01.0
+
+### Features
+
+- **connector:** [MULTISAFEPAY, CASHTOCODE, WORLDPAY, WELLSFARGO] Supported features for feature matrix ([#7149](https://github.com/juspay/hyperswitch/pull/7149)) ([`8c77da7`](https://github.com/juspay/hyperswitch/commit/8c77da7a4c0a9c01026e8d87868bbd818be9e5a6))
+- **process_tracker:** Task implementation for psync payments ([#7178](https://github.com/juspay/hyperswitch/pull/7178)) ([`9e9a922`](https://github.com/juspay/hyperswitch/commit/9e9a922949521e63553f09650a71d46f3e6da36f))
+
+### Bug Fixes
+
+- **required_fields_v2:** Add `payment_required_fields` file in docker ([#7720](https://github.com/juspay/hyperswitch/pull/7720)) ([`d7d02e2`](https://github.com/juspay/hyperswitch/commit/d7d02e2516393c54d61cd5d79d0fd24606c934ad))
+- **router:**
+  - Conditionally store saved cards with cvc in temp locker based on config ([#7773](https://github.com/juspay/hyperswitch/pull/7773)) ([`9f94900`](https://github.com/juspay/hyperswitch/commit/9f94900ccdce3cde15df34395e88bd1b4c4d446e))
+  - Validate 'card' as a PaymentMethodType ([#7919](https://github.com/juspay/hyperswitch/pull/7919)) ([`3f1d598`](https://github.com/juspay/hyperswitch/commit/3f1d598153728f3386af55c8b578fe16a7353f38))
+
+### Refactors
+
+- **configs:** Prod base url updated for connectors ([#7582](https://github.com/juspay/hyperswitch/pull/7582)) ([`0250f16`](https://github.com/juspay/hyperswitch/commit/0250f1695854a0915c9dbc0c2b97dcfa2c1fe09a))
+
+### Miscellaneous Tasks
+
+- Resolve v2 warnings in api_models ([#7353](https://github.com/juspay/hyperswitch/pull/7353)) ([`8bca14e`](https://github.com/juspay/hyperswitch/commit/8bca14e960de0bbf8a7ff89028b7bdef83f5bdb7))
+
+**Full Changelog:** [`2025.04.30.0...2025.05.01.0`](https://github.com/juspay/hyperswitch/compare/2025.04.30.0...2025.05.01.0)
+
+
+- - -
+
+## 2025.04.30.0
+
+### Features
+
+- **core:** Adds Billing Connector Invoice Sync flow in Revenue Recovery ([#7799](https://github.com/juspay/hyperswitch/pull/7799)) ([`3d0dd5b`](https://github.com/juspay/hyperswitch/commit/3d0dd5bd1a8d764757fce4a37c668c0ff548d59c))
+- **dynamic_routing:** Add open router integration for elimination routing ([#7896](https://github.com/juspay/hyperswitch/pull/7896)) ([`4745ce9`](https://github.com/juspay/hyperswitch/commit/4745ce976419950234136f5f13422789be3d4c30))
+- **merchant_context:** Add struct `merchant_context` and replace all instances of `merchant_account` and `key_store` in core ([#7882](https://github.com/juspay/hyperswitch/pull/7882)) ([`693f901`](https://github.com/juspay/hyperswitch/commit/693f9019cc6bac365ead2676847285d0dcdf583b))
+
+### Miscellaneous Tasks
+
+- Resolve v2 warnings in diesel_models ([#7359](https://github.com/juspay/hyperswitch/pull/7359)) ([`212ac27`](https://github.com/juspay/hyperswitch/commit/212ac27057762f9d4cd2073d93c2216f61711cfe))
+
+**Full Changelog:** [`2025.04.29.0...2025.04.30.0`](https://github.com/juspay/hyperswitch/compare/2025.04.29.0...2025.04.30.0)
+
+
+- - -
+
+## 2025.04.29.0
+
+### Features
+
+- **core:**
+  - Add cardbrand union fetch logic for click to pay session response ([#7858](https://github.com/juspay/hyperswitch/pull/7858)) ([`d2ff66b`](https://github.com/juspay/hyperswitch/commit/d2ff66bb7e08e983fbcc29b4afafc93a77a73c58))
+  - Add redis lock during insertion of event in event table during initial attempt of outgoing webhook delivery ([#7579](https://github.com/juspay/hyperswitch/pull/7579)) ([`eed84fe`](https://github.com/juspay/hyperswitch/commit/eed84fe63b27138d04bc54f06ed74226047a2761))
+
+### Refactors
+
+- **refunds:** Set Instant as the default RefundType ([#7824](https://github.com/juspay/hyperswitch/pull/7824)) ([`ac66cbe`](https://github.com/juspay/hyperswitch/commit/ac66cbe3daaadf171097797be8af486c8f5be34d))
+
+**Full Changelog:** [`2025.04.28.1...2025.04.29.0`](https://github.com/juspay/hyperswitch/compare/2025.04.28.1...2025.04.29.0)
+
+
+- - -
+
 ## 2025.04.28.1
 
 ### Refactors

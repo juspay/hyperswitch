@@ -2,6 +2,7 @@
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
+    router_data_v2::RouterDataV2,
     router_flow_types::{
         Accept, AccessTokenAuth, Authorize, Capture, Checkout, Defend, Evidence, Fulfillment,
         PSync, PreProcessing, Session, Transaction, Upload, Void,
@@ -71,3 +72,9 @@ pub type FrmFulfillmentType =
     dyn ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
 pub type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+
+pub struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
+    pub response: R,
+    pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
+    pub http_code: u16,
+}

@@ -2,16 +2,20 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 
 use crate::{
     router_data::{AccessToken, RouterData},
+    router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
-        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
+        CompleteAuthorize, CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync,
+        PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing,
+        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
-        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        revenue_recovery::{
+            BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -27,7 +31,8 @@ use crate::{
     },
     router_response_types::{
         revenue_recovery::{
-            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+            BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            RevenueRecoveryRecordBackResponse,
         },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VerifyWebhookSourceResponseData,
@@ -108,4 +113,31 @@ pub type BillingConnectorPaymentsSyncRouterData = RouterData<
     BillingConnectorPaymentsSync,
     BillingConnectorPaymentsSyncRequest,
     BillingConnectorPaymentsSyncResponse,
+>;
+
+pub type BillingConnectorInvoiceSyncRouterData = RouterData<
+    BillingConnectorInvoiceSync,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+pub type BillingConnectorInvoiceSyncRouterDataV2 = RouterDataV2<
+    BillingConnectorInvoiceSync,
+    router_data_v2::flow_common_types::BillingConnectorInvoiceSyncFlowData,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+pub type BillingConnectorPaymentsSyncRouterDataV2 = RouterDataV2<
+    BillingConnectorPaymentsSync,
+    router_data_v2::flow_common_types::BillingConnectorPaymentsSyncFlowData,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
+>;
+
+pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
+    RecoveryRecordBack,
+    router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
 >;
