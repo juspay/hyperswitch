@@ -307,6 +307,7 @@ pub struct StripebillingInvoiceObject {
     pub currency: enums::Currency,
     #[serde(rename = "amount_remaining")]
     pub amount: common_utils::types::MinorUnit,
+    pub attempt_count: Option<u16>,
 }
 
 impl StripebillingWebhookBody {
@@ -342,6 +343,8 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             currency: item.data.object.currency,
             merchant_reference_id,
             billing_address: None,
+            retry_count: None,
+            next_billing_at: None,
         })
     }
 }
