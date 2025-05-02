@@ -209,17 +209,20 @@ impl UserInterface for MockDb {
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
+        let last_modified_at = common_utils::date_time::now();
         users
             .iter_mut()
             .find(|user| user.user_id == user_id)
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {
+                        last_modified_at,
                         is_verified: true,
                         ..user.to_owned()
                     },
                     storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
+                        last_modified_at,
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         ..user.to_owned()
                     },
@@ -228,6 +231,7 @@ impl UserInterface for MockDb {
                         totp_secret,
                         totp_recovery_codes,
                     } => storage::User {
+                        last_modified_at,
                         totp_status: totp_status.unwrap_or(user.totp_status),
                         totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
                         totp_recovery_codes: totp_recovery_codes
@@ -242,6 +246,7 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::LineageContextUpdate { lineage_context } => {
                         storage::User {
+                            last_modified_at,
                             lineage_context: Some(lineage_context.clone()),
                             ..user.to_owned()
                         }
@@ -263,17 +268,20 @@ impl UserInterface for MockDb {
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
+        let last_modified_at = common_utils::date_time::now();
         users
             .iter_mut()
             .find(|user| user.email.eq(user_email.get_inner()))
             .map(|user| {
                 *user = match &update_user {
                     storage::UserUpdate::VerifyUser => storage::User {
+                        last_modified_at,
                         is_verified: true,
                         ..user.to_owned()
                     },
                     storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
+                        last_modified_at,
                         is_verified: is_verified.unwrap_or(user.is_verified),
                         ..user.to_owned()
                     },
@@ -282,6 +290,7 @@ impl UserInterface for MockDb {
                         totp_secret,
                         totp_recovery_codes,
                     } => storage::User {
+                        last_modified_at,
                         totp_status: totp_status.unwrap_or(user.totp_status),
                         totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
                         totp_recovery_codes: totp_recovery_codes
@@ -296,6 +305,7 @@ impl UserInterface for MockDb {
                     },
                     storage::UserUpdate::LineageContextUpdate { lineage_context } => {
                         storage::User {
+                            last_modified_at,
                             lineage_context: Some(lineage_context.clone()),
                             ..user.to_owned()
                         }
