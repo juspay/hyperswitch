@@ -1,20 +1,23 @@
+#[cfg(feature = "v1")]
 use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+#[cfg(feature = "v1")]
 use common_utils::types::{ConnectorTransactionId, MinorUnit};
+#[cfg(feature = "v1")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "v1")]
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v1")]
-use crate::schema::payment_attempt;
-#[cfg(feature = "v2")]
-use crate::schema_v2::payment_attempt;
 use crate::{
     enums::{MandateDataType, MandateDetails},
+    schema::payment_attempt,
     ConnectorMandateReferenceId, PaymentAttemptNew,
 };
 
@@ -210,6 +213,8 @@ pub struct PaymentAttemptBatchNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
@@ -293,6 +298,8 @@ impl PaymentAttemptBatchNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by,
             setup_future_usage_applied: self.setup_future_usage_applied,
         }
     }

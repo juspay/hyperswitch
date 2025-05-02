@@ -262,6 +262,18 @@ pub mod business_status {
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW: &str =
         "COMPLETED_EXECUTE_TASK_TO_TRIGGER_REVIEW";
 
+    /// This status indicates that the requeue was triggered for execute task
+    pub const EXECUTE_WORKFLOW_REQUEUE: &str = "TRIGGER_REQUEUE_FOR_EXECUTE_WORKFLOW";
+
     /// This status indicates the completion of a psync task
     pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
+
+    /// This status indicates that the psync task was completed to trigger the review task
+    pub const PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW: &str = "COMPLETED_PSYNC_TASK_TO_TRIGGER_REVIEW";
+
+    /// This status indicates that the requeue was triggered for psync task
+    pub const PSYNC_WORKFLOW_REQUEUE: &str = "TRIGGER_REQUEUE_FOR_PSYNC_WORKFLOW";
+
+    /// This status indicates the completion of a review task
+    pub const REVIEW_WORKFLOW_COMPLETE: &str = "COMPLETED_REVIEW_TASK";
 }
