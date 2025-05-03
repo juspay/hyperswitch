@@ -3072,7 +3072,7 @@ pub async fn payments_capture(
                 is_platform_allowed: false,
             },
             &auth::JWTAuth {
-                permission: Permission::ProfilePaymentRead,
+                permission: Permission::ProfileAccountWrite,
             },
             req.headers(),
         ),
