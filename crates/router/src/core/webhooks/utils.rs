@@ -2,6 +2,8 @@ use std::marker::PhantomData;
 
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use redis_interface as redis;
+use router_env::tracing;
 
 use crate::{
     core::{
@@ -9,6 +11,8 @@ use crate::{
         payments::helpers,
     },
     db::{get_and_deserialize_key, StorageInterface},
+    errors::RouterResult,
+    routes::app::SessionStateInfo,
     services::logger,
     types::{self, api, domain, PaymentAddress},
     SessionState,
@@ -61,7 +65,7 @@ pub async fn construct_webhook_router_data(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
@@ -73,7 +77,7 @@ pub async fn construct_webhook_router_data(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
         tenant_id: state.tenant.tenant_id.clone(),
@@ -153,4 +157,107 @@ pub(crate) fn get_idempotent_event_id(
 #[inline]
 pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
+}
+
+const WEBHOOK_LOCK_PREFIX: &str = "WEBHOOK_LOCK";
+
+pub(super) async fn perform_redis_lock<A>(
+    state: &A,
+    unique_locking_key: &str,
+    merchant_id: common_utils::id_type::MerchantId,
+) -> RouterResult<Option<String>>
+where
+    A: SessionStateInfo,
+{
+    let lock_value: String = uuid::Uuid::new_v4().to_string();
+    let redis_conn = state
+        .store()
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error connecting to redis")?;
+
+    let redis_locking_key = format!(
+        "{}_{}_{}",
+        WEBHOOK_LOCK_PREFIX,
+        merchant_id.get_string_repr(),
+        unique_locking_key
+    );
+    let redis_lock_expiry_seconds = state.conf().webhooks.redis_lock_expiry_seconds;
+
+    let redis_lock_result = redis_conn
+        .set_key_if_not_exists_with_expiry(
+            &redis_locking_key.as_str().into(),
+            lock_value.clone(),
+            Some(i64::from(redis_lock_expiry_seconds)),
+        )
+        .await;
+
+    match redis_lock_result {
+        Ok(redis::SetnxReply::KeySet) => {
+            logger::info!("Lock acquired for for {redis_locking_key}");
+            Ok(Some(lock_value))
+        }
+        Ok(redis::SetnxReply::KeyNotSet) => {
+            logger::info!("Lock already held for {redis_locking_key}");
+            Ok(None)
+        }
+        Err(err) => Err(err
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error acquiring redis lock")),
+    }
+}
+
+pub(super) async fn free_redis_lock<A>(
+    state: &A,
+    unique_locking_key: &str,
+    merchant_id: common_utils::id_type::MerchantId,
+    lock_value: Option<String>,
+) -> RouterResult<()>
+where
+    A: SessionStateInfo,
+{
+    let redis_conn = state
+        .store()
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error connecting to redis")?;
+
+    let redis_locking_key = format!(
+        "{}_{}_{}",
+        WEBHOOK_LOCK_PREFIX,
+        merchant_id.get_string_repr(),
+        unique_locking_key
+    );
+    match redis_conn
+        .get_key::<Option<String>>(&redis_locking_key.as_str().into())
+        .await
+    {
+        Ok(val) => {
+            if val == lock_value {
+                match redis_conn
+                    .delete_key(&redis_locking_key.as_str().into())
+                    .await
+                {
+                    Ok(redis::types::DelReply::KeyDeleted) => {
+                        logger::info!("Lock freed {redis_locking_key}");
+                        tracing::Span::current().record("redis_lock_released", redis_locking_key);
+                        Ok(())
+                    }
+                    Ok(redis::types::DelReply::KeyNotDeleted) => Err(
+                        errors::ApiErrorResponse::InternalServerError,
+                    )
+                    .attach_printable("Status release lock called but key is not found in redis"),
+                    Err(error) => Err(error)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error while deleting redis key"),
+                }
+            } else {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("The redis value which acquired the lock is not equal to the redis value requesting for releasing the lock")
+            }
+        }
+        Err(error) => Err(error)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while deleting redis key"),
+    }
 }

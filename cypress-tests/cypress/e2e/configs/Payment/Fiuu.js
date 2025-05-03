@@ -35,7 +35,7 @@ const multiUseMandateData = {
 };
 
 const billingDetails = {
-    address: {
+  address: {
     line1: "1467",
     line2: "Harrison Street",
     line3: "Harrison Street",

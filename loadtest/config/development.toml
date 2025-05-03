@@ -67,6 +67,7 @@ vault_private_key = ""
 
 [webhooks]
 outgoing_enabled = true
+redis_lock_expiry_seconds = 180
 
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -550,3 +551,5 @@ redsys = { payment_method = "card" }
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
+[billing_connectors_invoice_sync]
+billing_connectors_which_requires_invoice_sync_call = "recurly"
