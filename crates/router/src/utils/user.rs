@@ -509,7 +509,7 @@ pub async fn build_cloned_connector_create_request(
         disabled: source_mca.disabled,
         payment_methods_enabled,
         metadata: source_mca.metadata,
-        business_country: source_mca.business_country.clone(),
+        business_country: source_mca.business_country,
         business_label: source_mca.business_label.clone(),
         business_sub_label: source_mca.business_sub_label.clone(),
         frm_configs,

@@ -8,9 +8,7 @@ use api_models::{
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::{connector_enums, EntityType, UserAuthType};
-#[cfg(feature = "v1")]
-use common_utils::fp_utils;
-use common_utils::{type_name, types::keymanager::Identifier};
+use common_utils::{fp_utils, type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
