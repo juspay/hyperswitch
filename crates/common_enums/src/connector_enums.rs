@@ -140,6 +140,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
+    // Vgs,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -448,6 +449,7 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
+            | Self::Vgs
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout
@@ -467,8 +469,7 @@ impl Connector {
             | Self::CtpVisa
             | Self::Noon
             | Self::Stripe
-            | Self::Datatrans
-            | Self::Vgs => false,
+            | Self::Datatrans => false,
             Self::Checkout | Self::Nmi |Self::Cybersource => true,
         }
     }

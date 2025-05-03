@@ -250,6 +250,7 @@ pub struct ConnectorConfig {
     pub threedsecureio: Option<ConnectorTomlConfig>,
     pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
+    pub vgs: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     pub wellsfargo: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -427,7 +428,7 @@ impl ConnectorConfig {
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Tsys => Ok(connector_data.tsys),
-            Connector::Vgs => Err("VGS is not implemented".to_string()),
+            Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
