@@ -329,6 +329,9 @@ connectors_with_webhook_source_verification_call = "paypal"
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
+[billing_connectors_invoice_sync]
+billing_connectors_which_requires_invoice_sync_call = "recurly"
+
 [scheduler]
 stream = "SCHEDULER_STREAM"
 
