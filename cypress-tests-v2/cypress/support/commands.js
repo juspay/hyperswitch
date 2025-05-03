@@ -1430,6 +1430,61 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
   });
 });
 
+// Customer API Calls
+Cypress.Commands.add(
+  "createCustomerCallTest",
+  (customerCreateBody, globalState) => {
+    // Define the necessary variables and constants
+    const api_key = globalState.get("apiKey");
+    const profile_id = globalState.get("profileId");
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/v2/customers`,
+      headers: {
+        "Authorization": `api-key=${api_key}`,
+        "x-profile-id": profile_id,
+        "Content-Type": "application/json",
+      },
+      body: customerCreateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          globalState.set("customerId", response.body.customer_id);
+
+          expect(response.body.id, "customer_id").to.not.be.empty;
+          expect(customerCreateBody.email, "email").to.equal(
+            response.body.email
+          );
+          expect(customerCreateBody.name, "name").to.equal(response.body.name);
+          expect(customerCreateBody.phone, "phone").to.equal(
+            response.body.phone
+          );
+          expect(customerCreateBody.metadata, "metadata").to.deep.equal(
+            response.body.metadata
+          );
+          expect(customerCreateBody.address, "address").to.deep.equal(
+            response.body.address
+          );
+          expect(
+            customerCreateBody.phone_country_code,
+            "phone_country_code"
+          ).to.equal(response.body.phone_country_code);
+        } else if (response.status === 400) {
+          if (response.body.error.message.includes("already exists")) {
+            expect(response.body.error.code).to.equal("IR_12");
+            expect(response.body.error.message).to.equal(
+              "Customer with the given `customer_id` already exists"
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
 // Payment API calls
 // Update the below commands while following the conventions
 // Below is an example of how the payment intent create call should look like (update the below command as per the need)
