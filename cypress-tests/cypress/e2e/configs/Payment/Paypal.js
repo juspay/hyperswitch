@@ -1,6 +1,15 @@
 import { getCustomExchange } from "./Modifiers";
 
-const successfulNo3DSCardDetails = {
+const successfulThreeDSTestCardDetails = {
+  card_number: "5329879786234393",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  nick_name: "Bank",
+  card_cvc: "123",
+};
+
+const cardDetailsWithoutNickName = {
   card_number: "4012000033330026",
   card_exp_month: "01",
   card_exp_year: "50",
@@ -8,12 +17,9 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const successfulThreeDSTestCardDetails = {
-  card_number: "5329879786234393",
-  card_exp_month: "01",
-  card_exp_year: "50",
-  card_holder_name: "joseph Doe",
-  card_cvc: "123",
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank",
 };
 
 const customerAcceptance = {
@@ -420,6 +426,23 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    SaveCardWithoutCardNickName: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

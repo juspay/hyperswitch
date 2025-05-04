@@ -1,11 +1,16 @@
 import { customerAcceptance } from "./Commons";
 
-const successfulNo3DSCardDetails = {
+const cardDetailsWithoutNickName = {
   card_number: "4111111111111111",
   card_exp_month: "06",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank",
 };
 
 const singleUseMandateData = {
@@ -27,6 +32,26 @@ const multiUseMandateData = {
     },
   },
 };
+
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "CA",
+    line3: "CA",
+    city: "Florence",
+    state: "Tuscany",
+    zip: "12345",
+    country: "IT",
+    first_name: "Max",
+    last_name: "Mustermann",
+  },
+  email: "mauro.morandi@nexi.it",
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -34,24 +59,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Florence",
-            state: "Tuscany",
-            zip: "12345",
-            country: "IT",
-            first_name: "Max",
-            last_name: "Mustermann",
-          },
-          email: "mauro.morandi@nexi.it",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -133,20 +141,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingAddress,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -163,20 +158,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: "johndoe@gmail.com",
-          },
+          billing: billingAddress,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -214,24 +196,7 @@ export const connectorDetails = {
         payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-            email: "mauro.morandi@nexi.it",
-          },
+          billing: billingAddress,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -248,24 +213,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-            email: "mauro.morandi@nexi.it",
-          },
+          billing: billingAddress,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -304,24 +252,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-            email: "mauro.morandi@nexi.it",
-          },
+          billing: billingAddress,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -331,6 +262,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    SaveCardWithoutCardNickName: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+          billing: billingAddress,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

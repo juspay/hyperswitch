@@ -10,6 +10,7 @@ const payment_card_data = {
   card_exp_month: "03",
   card_exp_year: "2030",
   card_holder_name: "John Doe",
+  nick_name: "Bank",
 };
 
 const billing = {

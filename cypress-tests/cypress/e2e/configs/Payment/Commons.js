@@ -10,12 +10,17 @@ export const customerAcceptance = {
   },
 };
 
-const successfulNo3DSCardDetails = {
+const cardDetailsWithoutNickName = {
   card_number: "4111111111111111",
   card_exp_month: "08",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "999",
+  card_cvc: "123",
+};
+
+const successfulNo3DSCardDetails = {
+  ...cardDetailsWithoutNickName,
+  nick_name: "Bank",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -24,6 +29,7 @@ const successfulThreeDSTestCardDetails = {
   card_exp_year: "30",
   card_holder_name: "morino",
   card_cvc: "999",
+  nick_name: "Bank",
 };
 
 const PaymentMethodCardDetails = {
@@ -31,6 +37,7 @@ const PaymentMethodCardDetails = {
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "Joseph Doe",
+  nick_name: "Bank",
 };
 
 const singleUseMandateData = {
@@ -916,6 +923,17 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+    }),
+    SaveCardWithoutCardNickName: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: cardDetailsWithoutNickName,
+        },
+        setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
     }),
