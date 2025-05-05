@@ -6,6 +6,7 @@ use crate::{
     core::{api_locking, blocklist},
     routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
+    types::domain,
 };
 
 #[utoipa::path(
@@ -32,10 +33,16 @@ pub async fn add_entry_to_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            blocklist::add_entry_to_blocklist(state, auth.merchant_account, body)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            blocklist::add_entry_to_blocklist(state, merchant_context, body)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
             },
@@ -70,10 +77,16 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            blocklist::remove_entry_from_blocklist(state, auth.merchant_account, body)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            blocklist::remove_entry_from_blocklist(state, merchant_context, body)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
             },
@@ -110,10 +123,16 @@ pub async fn list_blocked_payment_methods(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            blocklist::list_blocklist_entries(state, auth.merchant_account, query)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            blocklist::list_blocklist_entries(state, merchant_context, query)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
             },
@@ -150,10 +169,16 @@ pub async fn toggle_blocklist_guard(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            blocklist::toggle_blocklist_guard(state, auth.merchant_account, query)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            blocklist::toggle_blocklist_guard(state, merchant_context, query)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
             },

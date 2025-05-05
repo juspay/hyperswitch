@@ -18,6 +18,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
+
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -612,6 +613,10 @@ pub enum BankTransferData {
         cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
         cnpj: Option<Secret<String>>,
+        /// Source bank account UUID
+        source_bank_account_id: Option<MaskedBankAccount>,
+        /// Destination bank account UUID.
+        destination_bank_account_id: Option<MaskedBankAccount>,
     },
     Pse {},
     LocalBankTransfer {
@@ -1450,9 +1455,19 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Self::MandiriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::Pix { pix_key, cpf, cnpj } => {
-                Self::Pix { pix_key, cpf, cnpj }
-            }
+            api_models::payments::BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            } => Self::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
@@ -1478,11 +1493,19 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
             BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
-            BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
+            BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
+                    source_bank_account_id,
+                    destination_bank_account_id,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},

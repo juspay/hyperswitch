@@ -37,8 +37,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     mut connectors: IntoIter<api::ConnectorData>,
     original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
@@ -86,7 +85,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -101,8 +100,7 @@ where
             original_connector_data,
             operation,
             customer,
-            merchant_account,
-            key_store,
+            merchant_context,
             payment_data,
             router_data,
             validate_result,
@@ -125,9 +123,13 @@ where
 
             match get_gsm_decision(gsm) {
                 api_models::gsm::GsmDecision::Retry => {
-                    retries =
-                        get_retries(state, retries, merchant_account.get_id(), business_profile)
-                            .await;
+                    retries = get_retries(
+                        state,
+                        retries,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile,
+                    )
+                    .await;
 
                     if retries.is_none() || retries == Some(0) {
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
@@ -166,8 +168,7 @@ where
                         &connector,
                         operation,
                         customer,
-                        merchant_account,
-                        key_store,
+                        merchant_context,
                         payment_data,
                         router_data,
                         validate_result,
@@ -319,8 +320,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     connector: &api::ConnectorData,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_data: &mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
@@ -349,8 +349,8 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
-        key_store,
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_account().storage_scheme,
         router_data,
         is_step_up,
     )
@@ -359,8 +359,7 @@ where
     let (router_data, _mca) = payments::call_connector_service(
         state,
         req_state,
-        merchant_account,
-        key_store,
+        merchant_context,
         connector.clone(),
         operation,
         payment_data,
@@ -420,6 +419,7 @@ where
         payment_data.get_payment_attempt().clone(),
         new_attempt_count,
         is_step_up,
+        payment_data.get_payment_intent().setup_future_usage,
     );
 
     let db = &*state.store;
@@ -490,6 +490,7 @@ where
                 payment_method_data: additional_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
+                setup_future_usage_applied: None,
             };
 
             #[cfg(feature = "v1")]
@@ -614,6 +615,7 @@ pub fn make_new_payment_attempt(
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
     is_step_up: bool,
+    setup_futture_usage_intent: Option<storage_enums::FutureUsage>,
 ) -> storage::PaymentAttemptNew {
     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
     storage::PaymentAttemptNew {
@@ -682,6 +684,9 @@ pub fn make_new_payment_attempt(
         extended_authorization_applied: Default::default(),
         capture_before: Default::default(),
         card_discovery: old_payment_attempt.card_discovery,
+        processor_merchant_id: old_payment_attempt.processor_merchant_id,
+        created_by: old_payment_attempt.created_by,
+        setup_future_usage_applied: setup_futture_usage_intent, // setup future usage is picked from intent for new payment attempt
     }
 }
 

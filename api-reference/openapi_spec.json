@@ -6069,6 +6069,17 @@
         },
         "additionalProperties": false
       },
+      "AdyenConnectorMetadata": {
+        "type": "object",
+        "required": [
+          "testing"
+        ],
+        "properties": {
+          "testing": {
+            "$ref": "#/components/schemas/AdyenTestingData"
+          }
+        }
+      },
       "AdyenSplitData": {
         "type": "object",
         "description": "Fee information for Split Payments to be charged on the payment being collected for Adyen",
@@ -6141,6 +6152,18 @@
           "TopUp",
           "Vat"
         ]
+      },
+      "AdyenTestingData": {
+        "type": "object",
+        "required": [
+          "holder_name"
+        ],
+        "properties": {
+          "holder_name": {
+            "type": "string",
+            "description": "Holder name to be sent to Adyen for a card payment(CIT) or a generic payment(MIT). This value overrides the values for card.card_holder_name and applies during both CIT and MIT payment transactions."
+          }
+        }
       },
       "AirwallexData": {
         "type": "object",
@@ -8321,6 +8344,18 @@
                     "description": "CNPJ is a Brazilian company tax identification number",
                     "example": "74469027417312",
                     "nullable": true
+                  },
+                  "source_bank_account_id": {
+                    "type": "string",
+                    "description": "Source bank account number",
+                    "example": "8b2812f0-d6c8-4073-97bb-9fa964d08bc5",
+                    "nullable": true
+                  },
+                  "destination_bank_account_id": {
+                    "type": "string",
+                    "description": "Destination bank account number",
+                    "example": "9b95f84e-de61-460b-a14b-f23b4e71c97b",
+                    "nullable": true
                   }
                 }
               }
@@ -9697,8 +9732,9 @@
           "card_brands": {
             "type": "array",
             "items": {
-              "type": "string"
-            }
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "example": "[Visa, Mastercard]"
           },
           "acquirer_bin": {
             "type": "string"
@@ -9792,6 +9828,7 @@
         "type": "string",
         "enum": [
           "adyenplatform",
+          "stripe_billing_test",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -9826,6 +9863,7 @@
           "dlocal",
           "ebanx",
           "elavon",
+          "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -10007,6 +10045,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BraintreeData"
+              }
+            ],
+            "nullable": true
+          },
+          "adyen": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdyenConnectorMetadata"
               }
             ],
             "nullable": true
@@ -12638,6 +12684,18 @@
             "type": "string",
             "enum": [
               "user_bank_account_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_source_bank_account_id"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_destination_bank_account_id"
             ]
           },
           {
@@ -17283,6 +17341,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Boolean to control payment button text for setup mandate calls",
+            "nullable": true
           }
         }
       },
@@ -17445,6 +17508,11 @@
                 "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
               }
             ],
+            "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
           }
         }
@@ -23809,6 +23877,18 @@
             "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
             "example": "**** 417312",
             "nullable": true
+          },
+          "source_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked source bank account number",
+            "example": "********-****-4073-****-9fa964d08bc5",
+            "nullable": true
+          },
+          "destination_bank_account_id": {
+            "type": "string",
+            "description": "Partially masked destination bank account number",
+            "example": "********-****-460b-****-f23b4e71c97b",
+            "nullable": true
           }
         }
       },
@@ -25541,6 +25621,7 @@
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
           "adyenplatform",
+          "stripe_billing_test",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -25573,6 +25654,7 @@
           "dlocal",
           "ebanx",
           "elavon",
+          "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",

@@ -27,7 +27,6 @@ use crate::{
             self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
-        utils::ValidatePlatformMerchant,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
@@ -136,22 +135,22 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsUpdateIntentRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
-        let storage_scheme = merchant_account.storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_intent = db
-            .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        payment_intent
-            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         self.validate_status_for_operation(payment_intent.status)?;
 
@@ -193,8 +192,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                     },
                 ),
             ),
-            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
-            key_store.key.peek(),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -395,11 +394,11 @@ impl<F: Send + Clone>
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsUpdateIntentRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         })
     }
@@ -447,11 +446,10 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         _state: &SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
-        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         Ok(api::ConnectorCallType::Skip)
     }
@@ -460,8 +458,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

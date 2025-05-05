@@ -7,6 +7,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, cards_info},
     services::{api, authentication as auth},
+    types::domain,
 };
 
 #[cfg(feature = "v1")]
@@ -39,7 +40,10 @@ pub async fn card_iin_info(
         card_iin,
     };
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+    let api_auth = auth::ApiKeyAuth::default();
+
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
+    {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -50,7 +54,10 @@ pub async fn card_iin_info(
         &req,
         payload,
         |state, auth, req, _| {
-            cards_info::retrieve_card_info(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            cards_info::retrieve_card_info(state, merchant_context, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
