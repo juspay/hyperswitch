@@ -1808,7 +1808,7 @@ pub async fn vault_payment_method_external(
         None,
     )
     .await
-    .to_payout_failed_response()?;
+    .to_vault_failed_response()?;
 
     match router_data_resp.response {
         Ok(response) => match response {

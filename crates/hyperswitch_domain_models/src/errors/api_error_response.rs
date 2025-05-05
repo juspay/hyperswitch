@@ -283,6 +283,8 @@ pub enum ApiErrorResponse {
     PlatformAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_44", message = "Invalid platform account operation")]
     InvalidPlatformOperation,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
+    ExternalVaultFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -637,6 +639,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::CookieNotFound => {
                 AER::Unauthorized(ApiError::new("IR", 42, "Cookies are not found in the request", None))
+            },
+            Self::ExternalVaultFailed { data } => {
+                AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
             },
 
             Self::WebhookAuthenticationFailed => {

@@ -1401,7 +1401,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         None,
     )
     .await
-    .to_payout_failed_response()?;
+    .to_vault_failed_response()?;
 
     match router_data_resp.response {
         Ok(response) => match response {
@@ -1536,7 +1536,7 @@ pub async fn delete_payment_method_data_from_vault_external(
         None,
     )
     .await
-    .to_payout_failed_response()?;
+    .to_vault_failed_response()?;
 
     match router_data_resp.response {
         Ok(response) => match response {
