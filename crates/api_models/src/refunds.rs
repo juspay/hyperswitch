@@ -189,8 +189,8 @@ pub struct RefundManualUpdateRequest {
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
-    #[default]
     Scheduled,
+    #[default]
     Instant,
 }
 
