@@ -6554,7 +6554,6 @@ dependencies = [
  "totp-rs",
  "tracing-futures",
  "unicode-segmentation",
- "unidecode",
  "url",
  "urlencoding",
  "utoipa",
