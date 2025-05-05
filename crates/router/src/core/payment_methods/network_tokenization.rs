@@ -741,12 +741,12 @@ pub async fn delete_network_token_from_locker_and_token_service(
     payment_method_id: String,
     network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
 ) -> errors::RouterResult<DeleteCardResp> {
     //deleting network token from locker
     let resp = payment_methods::cards::PmCards {
         state,
-        merchant_account,
+        merchant_context,
     }
     .delete_card_from_locker(
         customer_id,

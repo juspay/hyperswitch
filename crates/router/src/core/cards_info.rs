@@ -196,11 +196,12 @@ impl<'a> CardInfoMigrateExecutor<'a> {
 
     async fn add_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
-        let card_info = cards_info::CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
-                message: "CardInfo with given key already exists in our records".to_string(),
-            })?;
+        let card_info =
+            cards_info::CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
+                .await
+                .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+                    message: "CardInfo with given key already exists in our records".to_string(),
+                })?;
         Ok(card_info)
     }
 

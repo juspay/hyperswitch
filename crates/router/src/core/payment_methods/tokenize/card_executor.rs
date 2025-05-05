@@ -566,7 +566,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         };
         PmCards {
             state: self.state,
-            merchant_account: self.merchant_account,
+            merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ))),
         }
         .create_payment_method(
             &payment_method_create,
@@ -577,7 +580,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             None,
             Some(enc_pm_data),
-            self.key_store,
             None,
             None,
             None,

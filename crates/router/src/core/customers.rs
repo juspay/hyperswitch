@@ -839,7 +839,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                         cards::PmCards {
                             state,
-                            merchant_account,
+                            merchant_context,
                         }
                         .delete_card_from_locker(
                             self,
@@ -858,7 +858,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
                             network_token_ref_id,
-                            merchant_account,
+                            merchant_context,
                         )
                         .await
                         .switch()?;

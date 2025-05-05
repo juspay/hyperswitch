@@ -49,7 +49,6 @@ pub trait PaymentMethodsController {
         pm_metadata: Option<serde_json::Value>,
         customer_acceptance: Option<serde_json::Value>,
         payment_method_data: crypto::OptionalEncryptableValue,
-        key_store: &merchant_key_store::MerchantKeyStore,
         connector_mandate_details: Option<serde_json::Value>,
         status: Option<common_enums::PaymentMethodStatus>,
         network_transaction_id: Option<String>,
@@ -107,7 +106,6 @@ pub trait PaymentMethodsController {
     async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
-        key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
     #[cfg(all(
@@ -117,14 +115,12 @@ pub trait PaymentMethodsController {
     async fn retrieve_payment_method(
         &self,
         pm: api::PaymentMethodId,
-        key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,
-        key_store: merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
 
     async fn add_card_hs(
@@ -240,7 +236,6 @@ pub trait PaymentMethodsController {
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
-        key_store: merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         payment_method_id: String,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;

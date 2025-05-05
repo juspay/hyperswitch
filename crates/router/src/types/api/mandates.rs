@@ -80,9 +80,12 @@ impl MandateResponseExt for MandateResponse {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while getting card details")?
             } else {
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store),
+                ));
                 payment_methods::cards::PmCards {
                     state,
-                    merchant_account,
+                    merchant_context: &merchant_context,
                 }
                 .get_card_details_without_locker_fallback(&payment_method)
                 .await?
