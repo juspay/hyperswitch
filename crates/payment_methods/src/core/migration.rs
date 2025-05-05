@@ -2,12 +2,12 @@ use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
 use csv::Reader;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api, merchant_account, merchant_key_store};
+use hyperswitch_domain_models::{api, merchant_context};
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
-use crate::{core::errors, controller as pm, state};
+use crate::{controller as pm, core::errors, state};
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 
@@ -22,8 +22,7 @@ pub async fn migrate_payment_methods(
     state: &state::PaymentMethodsState,
     payment_methods: Vec<pm_api::PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
-    merchant_account: &merchant_account::MerchantAccount,
-    key_store: &merchant_key_store::MerchantKeyStore,
+    merchant_context: &merchant_context::MerchantContext,
     mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     controller: &dyn pm::PaymentMethodsController,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
@@ -44,8 +43,7 @@ pub async fn migrate_payment_methods(
                     state,
                     migrate_request,
                     merchant_id,
-                    merchant_account,
-                    key_store,
+                    merchant_context,
                     controller,
                 )
                 .await;
