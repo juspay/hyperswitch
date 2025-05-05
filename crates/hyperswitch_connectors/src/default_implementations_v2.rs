@@ -323,6 +323,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -432,6 +433,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Wise,
     connectors::Worldline,
     connectors::Volt,
@@ -544,6 +546,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -657,6 +660,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -769,6 +773,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -882,6 +887,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1005,6 +1011,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1120,6 +1127,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1235,6 +1243,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1350,6 +1359,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1465,6 +1475,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1580,6 +1591,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1695,6 +1707,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1810,6 +1823,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -1925,6 +1939,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2038,6 +2053,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2153,6 +2169,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2268,6 +2285,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2383,6 +2401,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2498,6 +2517,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2613,6 +2633,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -2724,6 +2745,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl

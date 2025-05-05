@@ -1,11 +1,20 @@
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::StringMinorUnit;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::PaymentsAuthorizeRequestData as _,
 };
 
 //TODO: Fill the struct with respective fields
@@ -40,15 +49,15 @@ pub struct WellsfargopayoutCard {
     complete: bool,
 }
 
-impl TryFrom<&WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>>
+impl TryFrom<&WellsfargopayoutRouterData<&PaymentsAuthorizeRouterData>>
     for WellsfargopayoutPaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: &WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &WellsfargopayoutRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            PaymentMethodData::Card(req_card) => {
                 let card = WellsfargopayoutCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -61,7 +70,7 @@ impl TryFrom<&WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>>
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
@@ -72,14 +81,14 @@ pub struct WellsfargopayoutAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for WellsfargopayoutAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+impl TryFrom<&ConnectorAuthType> for WellsfargopayoutAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -94,7 +103,7 @@ pub enum WellsfargopayoutPaymentStatus {
     Processing,
 }
 
-impl From<WellsfargopayoutPaymentStatus> for enums::AttemptStatus {
+impl From<WellsfargopayoutPaymentStatus> for AttemptStatus {
     fn from(item: WellsfargopayoutPaymentStatus) -> Self {
         match item {
             WellsfargopayoutPaymentStatus::Succeeded => Self::Charged,
@@ -111,29 +120,17 @@ pub struct WellsfargopayoutPaymentsResponse {
     id: String,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            WellsfargopayoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, WellsfargopayoutPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            WellsfargopayoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, WellsfargopayoutPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+            status: AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -155,12 +152,12 @@ pub struct WellsfargopayoutRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&WellsfargopayoutRouterData<&types::RefundsRouterData<F>>>
+impl<F> TryFrom<&WellsfargopayoutRouterData<&RefundsRouterData<F>>>
     for WellsfargopayoutRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: &WellsfargopayoutRouterData<&types::RefundsRouterData<F>>,
+        item: &WellsfargopayoutRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
@@ -172,19 +169,19 @@ impl<F> TryFrom<&WellsfargopayoutRouterData<&types::RefundsRouterData<F>>>
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
+pub enum WellsfargopayoutRefundStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<WellsfargopayoutRefundStatus> for RefundStatus {
+    fn from(item: WellsfargopayoutRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            WellsfargopayoutRefundStatus::Succeeded => Self::Success,
+            WellsfargopayoutRefundStatus::Failed => Self::Failure,
+            WellsfargopayoutRefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
@@ -194,37 +191,33 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    status: WellsfargopayoutRefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
