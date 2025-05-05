@@ -22,14 +22,16 @@ pub async fn relay(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
+                crate::types::domain::Context(auth.merchant_account, auth.key_store),
+            ));
             relay::relay_flow_decider(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 #[cfg(feature = "v1")]
                 auth.profile_id,
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
-                auth.key_store,
                 req,
             )
         },
@@ -61,14 +63,16 @@ pub async fn relay_retrieve(
         &req,
         relay_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
+                crate::types::domain::Context(auth.merchant_account, auth.key_store),
+            ));
             relay::relay_retrieve(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 #[cfg(feature = "v1")]
                 auth.profile_id,
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
-                auth.key_store,
                 req,
             )
         },

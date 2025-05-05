@@ -2,9 +2,9 @@ use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_data_v2::{
         flow_common_types::{
-            BillingConnectorPaymentsSyncFlowData, DisputesFlowData, MandateRevokeFlowData,
-            PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
-            WebhookSourceVerifyData,
+            BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
+            DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            RevenueRecoveryRecordBackData, WebhookSourceVerifyData,
         },
         AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
     },
@@ -22,13 +22,18 @@ use hyperswitch_domain_models::{
             SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
+        revenue_recovery::{
+            BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+        },
         webhooks::VerifyWebhookSource,
         AccessTokenAuth,
     },
     router_request_types::{
         authentication,
-        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        revenue_recovery::{
+            BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            RevenueRecoveryRecordBackRequest,
+        },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
@@ -42,7 +47,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         revenue_recovery::{
-            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+            BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
@@ -98,8 +104,8 @@ use hyperswitch_interfaces::{
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
-            BillingConnectorPaymentsSyncIntegrationV2, RevenueRecoveryRecordBackV2,
-            RevenueRecoveryV2,
+            BillingConnectorInvoiceSyncIntegrationV2, BillingConnectorPaymentsSyncIntegrationV2,
+            RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
@@ -234,9 +240,9 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
-    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
+    connectors::Adyenplatform,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -281,6 +287,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -346,9 +353,9 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
-    connectors::Adyenplatform,
     connectors::Aci,
     connectors::Adyen,
+    connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Authorizedotnet,
@@ -395,6 +402,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -504,6 +512,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -618,6 +627,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -731,6 +741,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -845,6 +856,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -969,13 +981,14 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
-    connectors::Nmi,
-    connectors::Payone,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Nmi,
+    connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
-    connectors::Nuvei,
+    connectors::Payone,
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payme,
@@ -1085,6 +1098,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Opayo,
@@ -1201,6 +1215,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -1317,6 +1332,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -1433,6 +1449,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -1549,6 +1566,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -1665,6 +1683,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -1781,6 +1800,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -1897,6 +1917,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2011,6 +2032,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2127,6 +2149,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2243,6 +2266,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2359,6 +2383,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2475,6 +2500,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2591,6 +2617,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2704,6 +2731,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2795,6 +2823,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Juspaythreedsserver,
     connectors::Nomupay,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
@@ -2810,6 +2839,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Multisafepay,
     connectors::Rapyd,
     connectors::Razorpay,
+    connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
     connectors::Shift4,
@@ -2907,6 +2937,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Juspaythreedsserver,
     connectors::Nomupay,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Paybox,
@@ -2922,6 +2953,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Razorpay,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Recurly,
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
@@ -2945,13 +2977,14 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
         $(  impl RevenueRecoveryV2 for $path::$connector {}
             impl BillingConnectorPaymentsSyncIntegrationV2 for $path::$connector {}
             impl RevenueRecoveryRecordBackV2 for $path::$connector {}
+            impl BillingConnectorInvoiceSyncIntegrationV2 for $path::$connector {}
             impl
             ConnectorIntegrationV2<
-            RecoveryRecordBack,
-            RevenueRecoveryRecordBackData,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-            > for $path::$connector
+                RecoveryRecordBack,
+                RevenueRecoveryRecordBackData,
+                RevenueRecoveryRecordBackRequest,
+                RevenueRecoveryRecordBackResponse,
+                > for $path::$connector
             {}
             impl
                 ConnectorIntegrationV2<
@@ -2959,6 +2992,14 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
                 BillingConnectorPaymentsSyncFlowData,
                 BillingConnectorPaymentsSyncRequest,
                 BillingConnectorPaymentsSyncResponse,
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                BillingConnectorInvoiceSync,
+                BillingConnectorInvoiceSyncFlowData,
+                BillingConnectorInvoiceSyncRequest,
+                BillingConnectorInvoiceSyncResponse,
             > for $path::$connector
             {}
     )*
@@ -2999,6 +3040,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Juspaythreedsserver,
     connectors::Nomupay,
     connectors::Novalnet,
+    connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Nmi,
