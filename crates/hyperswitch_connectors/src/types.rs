@@ -2,6 +2,7 @@
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
+    router_data_v2::RouterDataV2,
     router_flow_types::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
@@ -89,6 +90,12 @@ pub(crate) type FrmFulfillmentType =
 #[cfg(feature = "frm")]
 pub(crate) type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+
+pub struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
+    pub response: R,
+    pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
+    pub http_code: u16,
+}
 
 pub(crate) type PreAuthNRouterData =
     RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
