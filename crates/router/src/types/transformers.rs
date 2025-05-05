@@ -2044,20 +2044,20 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
     }
 }
 
-impl ForeignFrom<api_models::admin::VaultConnectorDetails>
-    for diesel_models::business_profile::VaultConnectorDetails
+impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
+    for diesel_models::business_profile::ExternalVaultConnectorDetails
 {
-    fn foreign_from(item: api_models::admin::VaultConnectorDetails) -> Self {
+    fn foreign_from(item: api_models::admin::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
         }
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::VaultConnectorDetails>
-    for api_models::admin::VaultConnectorDetails
+impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
+    for api_models::admin::ExternalVaultConnectorDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::VaultConnectorDetails) -> Self {
+    fn foreign_from(item: diesel_models::business_profile::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
         }

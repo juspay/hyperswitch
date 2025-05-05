@@ -282,7 +282,7 @@ pub struct AuthenticationConnectorDetails {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub struct VaultConnectorDetails {
+pub struct ExternalVaultConnectorDetails {
     /// Merchant Connector id to be stored for vault connector
     #[schema(value_type = Option<String>)]
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
@@ -2135,8 +2135,8 @@ pub struct ProfileCreate {
     /// Indicates if external vault is enabled or not.
     pub is_external_vault_enabled: Option<bool>,
 
-    /// Vault Connector Details
-    pub vault_connector_details: Option<VaultConnectorDetails>,
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2440,8 +2440,8 @@ pub struct ProfileResponse {
     /// Indicates if external vault is enabled or not.
     pub is_external_vault_enabled: Option<bool>,
 
-    /// Vault Connector Details
-    pub vault_connector_details: Option<VaultConnectorDetails>,
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2720,8 +2720,8 @@ pub struct ProfileUpdate {
     /// Indicates if external vault is enabled or not.
     pub is_external_vault_enabled: Option<bool>,
 
-    /// Vault Connector Details
-    pub vault_connector_details: Option<VaultConnectorDetails>,
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
