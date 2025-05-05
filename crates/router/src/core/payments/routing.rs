@@ -1491,7 +1491,7 @@ pub fn make_dsl_input_for_surcharge(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_open_routing(
+pub async fn perform_dynamic_routing_with_open_router(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
@@ -1537,7 +1537,7 @@ pub async fn perform_open_routing(
             // Once the payment is made, we will update the score based on the payment status
             if let Some(connector) = connectors.first() {
                 logger::debug!(
-                "penalizing the elimination score of the gateway with id {} in open router for profile {}",
+                "penalizing the elimination score of the gateway with id {} in open_router for profile {}",
                 connector, profile.get_id().get_string_repr()
             );
                 update_gateway_score_with_open_router(
@@ -1559,7 +1559,7 @@ pub async fn perform_open_routing(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_dynamic_routing(
+pub async fn perform_dynamic_routing_with_intelligent_router(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
@@ -1680,11 +1680,9 @@ pub async fn perform_decide_gateway_call_with_open_router(
         open_router_req_body,
     )));
 
-    let response = services::call_connector_api(state, request, "open_router_sr_call")
+    let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
         .await
-        .change_context(errors::RoutingError::OpenRouterCallFailed {
-            algo: "success_rate".into(),
-        })?;
+        .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
     let sr_sorted_connectors = match response {
         Ok(resp) => {
@@ -1697,7 +1695,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
                 logger::debug!(
-                    "Open router gateway_priority_map response: {:?}",
+                    "open_router decide_gateway call response: {:?}",
                     gateway_priority_map
                 );
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
@@ -1725,7 +1723,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 ))?;
             logger::error!("open_router_error_response: {:?}", err_resp);
             Err(errors::RoutingError::OpenRouterError(
-                "Failed to perform decide_gateway call in open router".into(),
+                "Failed to perform decide_gateway call in open_router".into(),
             ))
         }
     }?;
@@ -1763,9 +1761,7 @@ pub async fn update_gateway_score_with_open_router(
     let response =
         services::call_connector_api(state, request, "open_router_update_gateway_score_call")
             .await
-            .change_context(errors::RoutingError::OpenRouterCallFailed {
-                algo: "success_rate".into(),
-            })?;
+            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
     match response {
         Ok(resp) => {
@@ -1776,7 +1772,7 @@ pub async fn update_gateway_score_with_open_router(
             )?;
 
             logger::debug!(
-                "Open router update_gateway_score response for gateway with id {}: {:?}",
+                "open_router update_gateway_score response for gateway with id {}: {:?}",
                 payment_connector,
                 update_score_resp
             );
@@ -1790,9 +1786,9 @@ pub async fn update_gateway_score_with_open_router(
                 .change_context(errors::RoutingError::OpenRouterError(
                     "Failed to parse the response from open_router".into(),
                 ))?;
-            logger::error!("open_router_error_response: {:?}", err_resp);
+            logger::error!("open_router_update_gateway_score_error: {:?}", err_resp);
             Err(errors::RoutingError::OpenRouterError(
-                "Failed to update gateway score for success based routing in open router".into(),
+                "Failed to update gateway score in open_router".into(),
             ))
         }
     }?;

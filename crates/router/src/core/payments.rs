@@ -7243,7 +7243,7 @@ where
 
         if routing_choice.routing_type.is_dynamic_routing() {
             if state.conf.open_router.enabled {
-                routing::perform_open_routing(
+                routing::perform_dynamic_routing_with_open_router(
                     state,
                     connectors.clone(),
                     business_profile,
@@ -7285,7 +7285,7 @@ where
                             .map(|card_isin| card_isin.to_string()),
                     );
 
-                routing::perform_dynamic_routing(
+                routing::perform_dynamic_routing_with_intelligent_router(
                     state,
                     connectors.clone(),
                     business_profile,

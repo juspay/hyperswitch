@@ -733,7 +733,7 @@ pub async fn update_gateway_score_helper_with_open_router(
         };
 
         logger::debug!(
-            "performing update-gateway-score for gateway with id {} in open router for profile: {}",
+            "performing update-gateway-score for gateway with id {} in open_router for profile: {}",
             routable_connector,
             profile_id.get_string_repr()
         );
@@ -746,7 +746,7 @@ pub async fn update_gateway_score_helper_with_open_router(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to update gateway score in open router service")?;
+        .attach_printable("failed to update gateway score in open_router service")?;
     }
 
     Ok(())
