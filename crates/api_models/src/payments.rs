@@ -1,6 +1,7 @@
+#[cfg(feature = "v1")]
+use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
     num::NonZeroI64,
 };
 pub mod additional_info;
@@ -9,6 +10,7 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -26,24 +28,25 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
+#[cfg(feature = "v1")]
+use serde::{de, Deserializer};
+use serde::{ser::Serializer, Deserialize, Serialize};
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
-#[cfg(feature = "v1")]
-use crate::ephemeral_key::EphemeralKeyCreateResponse;
 #[cfg(feature = "v2")]
-use crate::mandates::ProcessorPaymentToken;
+use crate::mandates;
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
-    disputes, enums as api_enums,
+    enums as api_enums,
     mandates::RecurringDetails,
-    refunds, ValidateFieldAndGet,
 };
+#[cfg(feature = "v1")]
+use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -5313,7 +5316,7 @@ pub struct ProxyPaymentsRequest {
 
     pub amount: AmountDetails,
 
-    pub recurring_details: ProcessorPaymentToken,
+    pub recurring_details: mandates::ProcessorPaymentToken,
 
     pub shipping: Option<Address>,
 
@@ -7801,6 +7804,7 @@ mod payment_id_type {
         deserializer.deserialize_any(PaymentIdVisitor)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn deserialize_option<'a, D>(
         deserializer: D,
     ) -> Result<Option<PaymentIdType>, D::Error>
@@ -8604,8 +8608,8 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
-        ProcessorPaymentToken {
+    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+        mandates::ProcessorPaymentToken {
             processor_payment_token: self
                 .billing_connector_payment_details
                 .payment_processor_token
@@ -8705,6 +8709,10 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+
+    /// source where the payment was triggered by
+    #[schema(value_type = TriggeredBy, example = "internal" )]
+    pub triggered_by: common_enums::TriggeredBy,
 }
 
 /// Error details for the payment

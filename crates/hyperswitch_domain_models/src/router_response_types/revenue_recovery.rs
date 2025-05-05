@@ -35,6 +35,7 @@ pub struct RevenueRecoveryRecordBackResponse {
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
 }
 
+#[derive(Debug, Clone)]
 pub struct BillingConnectorInvoiceSyncResponse {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: MinorUnit,

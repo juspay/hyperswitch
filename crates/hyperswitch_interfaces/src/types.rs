@@ -2,6 +2,7 @@
 
 use hyperswitch_domain_models::{
     router_data::AccessToken,
+    router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Evidence},
@@ -61,7 +62,7 @@ use hyperswitch_domain_models::{
     router_response_types::PayoutsResponseData,
 };
 
-use crate::api::ConnectorIntegration;
+use crate::{api::ConnectorIntegration, connector_integration_v2::ConnectorIntegrationV2};
 /// struct Response
 #[derive(Clone, Debug)]
 pub struct Response {
@@ -254,6 +255,30 @@ pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
 /// Type alias for `ConnectorIntegration<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
 pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
     BillingConnectorInvoiceSync,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<RecoveryRecordBack, RevenueRecoveryRecordBackData, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    RecoveryRecordBack,
+    flow_common_types::RevenueRecoveryRecordBackData,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
+pub type BillingConnectorPaymentsSyncTypeV2 = dyn ConnectorIntegrationV2<
+    BillingConnectorPaymentsSync,
+    flow_common_types::BillingConnectorPaymentsSyncFlowData,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncFlowData, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
+pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
+    BillingConnectorInvoiceSync,
+    flow_common_types::BillingConnectorInvoiceSyncFlowData,
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
 >;
