@@ -91,7 +91,7 @@ pub(crate) type FrmFulfillmentType =
 pub(crate) type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
 
-pub struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
+pub(crate) struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
     pub response: R,
     pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
     pub http_code: u16,
