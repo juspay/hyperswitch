@@ -1,5 +1,8 @@
+#[cfg(feature = "v1")]
 use common_types::consts::API_VERSION;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+#[cfg(feature = "v1")]
+use diesel::BoolExpressionMethods;
+use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
 #[cfg(feature = "v1")]

@@ -9732,8 +9732,9 @@
           "card_brands": {
             "type": "array",
             "items": {
-              "type": "string"
-            }
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "example": "[Visa, Mastercard]"
           },
           "acquirer_bin": {
             "type": "string"
@@ -17340,6 +17341,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Boolean to control payment button text for setup mandate calls",
+            "nullable": true
           }
         }
       },
@@ -17502,6 +17508,11 @@
                 "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
               }
             ],
+            "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
           }
         }
