@@ -1,14 +1,20 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use api_models::proxy as proxy_api_models;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, multispace0},
     sequence::{delimited, preceded},
     IResult,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{request, ext_traits::BytesExt};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     core::payments,
     routes::SessionState,
@@ -22,9 +28,10 @@ use crate::{
     logger,
     utils::ConnectorResponseExt,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use serde_json::Value;
 
-
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug)]
 struct TokenReference {
     full_match: String,
@@ -32,7 +39,7 @@ struct TokenReference {
     token: String,
 }
 
-// Update the TokenReference struct and parser
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 fn parse_token(input: &str) -> IResult<&str, TokenReference> {
     let (input, _) = tag("{{")(input)?;
     let (input, _) = multispace0(input)?;
@@ -49,11 +56,12 @@ fn parse_token(input: &str) -> IResult<&str, TokenReference> {
     }))
 }
 
-// Update the contains_token function to handle the new format
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 fn contains_token(s: &str) -> bool {
     s.contains("{{") && s.contains("$") && s.contains("}}")
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 async fn process_value(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -87,7 +95,7 @@ async fn process_value(
     }
 }
 
-// Add the missing extract_field_from_vault_data function
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
     if let Value::Object(obj) = vault_data {
         if let Some(field_value) = obj.get(field_name) {
@@ -115,8 +123,7 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
     Ok(Value::String(format!("Field '{}' not found", field_name)))
 }
 
-
-
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn proxy_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -140,9 +147,6 @@ pub async fn proxy_core(
 
     let processed_body = process_value(&state, &merchant_account, req.req_body, token, &vault_data).await?;
 
-    logger::debug!("processeddd_body: {:?}", processed_body);
-    logger::debug!("destination_url: {:?}", req.destination_url);
-
     let mut request = services::Request::new(services::Method::Post, &req.destination_url);
     request.set_body(request::RequestContent::Json(Box::new(processed_body)));
     
@@ -156,18 +160,9 @@ pub async fn proxy_core(
         });
     }
 
-    logger::debug!(
-        "Proxy Request: {:?}",
-        request
-    );
-
     let response = services::call_connector_api(&state, request, "proxy")
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError);
-    logger::debug!(
-        "Proxy Responseee: {:?}",
-        response
-    );
     let res = response
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while receiving response")
@@ -184,11 +179,6 @@ pub async fn proxy_core(
         .response
         .parse_struct("ProxyResponse")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    logger::debug!(
-        "Proxy Responseeddsd: {:?}",
-        response_body
-    );
 
     Ok(services::ApplicationResponse::Json(
         proxy_api_models::ProxyResponse {

@@ -145,8 +145,7 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
-            .service(routes::Relay::server(state.clone()))
-            .service(routes::Proxy::server(state.clone()));
+            .service(routes::Relay::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
@@ -228,6 +227,11 @@ pub fn mk_app(
             .service(routes::Cards::server(state.clone()));
     }
 
+    #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+    {
+        server_app = server_app.service(routes::Proxy::server(state.clone()));
+    }
+        
     #[cfg(all(feature = "recon", feature = "v1"))]
     {
         server_app = server_app.service(routes::Recon::server(state.clone()));

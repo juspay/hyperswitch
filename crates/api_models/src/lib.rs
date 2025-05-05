@@ -43,6 +43,7 @@ pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod proxy;
 
 pub trait ValidateFieldAndGet<Request> {

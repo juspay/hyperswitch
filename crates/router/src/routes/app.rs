@@ -56,8 +56,10 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    relay, user, user_role, proxy,
+    relay, user, user_role,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use super::proxy;
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -654,9 +656,10 @@ impl Relay {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct Proxy;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
 impl Proxy{
     pub fn server(state: AppState) -> Scope {
         web::scope("/proxy")

@@ -9,9 +9,9 @@ pub struct ProxyRequest {
     /// The destination URL where the request needs to be forwarded
     #[schema(example = "https://api.example.com/endpoint")]
     pub destination_url: String,
-
+    /// The headers that need to be forwarded
     pub headers: Value,
-
+    /// The vault token that is used to fetch sensitive data from the vault
     pub token: String,
 }
 

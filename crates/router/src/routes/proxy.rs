@@ -1,6 +1,8 @@
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
 use actix_web::{web, Responder};
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
 use router_env::{instrument, tracing, Flow};
-
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     self as app,
     core::{api_locking, proxy},
@@ -8,7 +10,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::Proxy))]
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
 pub async fn proxy(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
