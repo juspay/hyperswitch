@@ -193,11 +193,13 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             refund_retrieve_core_with_refund_id(
                 state,
-                auth.merchant_account,
+                merchant_context,
                 auth.profile,
-                auth.key_store,
                 refund_request,
             )
         },

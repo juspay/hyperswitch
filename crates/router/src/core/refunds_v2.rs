@@ -469,24 +469,22 @@ where
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core_with_refund_id(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> errors::RouterResponse<refunds::RefundResponse> {
     let refund_id = request.refund_id.clone();
     let db = &*state.store;
     let profile_id = profile.get_id().to_owned();
     let refund = db
-        .find_refund_by_id(&refund_id, merchant_account.storage_scheme)
+        .find_refund_by_id(&refund_id, merchant_context.get_merchant_account().storage_scheme)
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let response = Box::pin(refund_retrieve_core(
         state.clone(),
-        merchant_account,
+        merchant_context,
         Some(profile_id),
-        key_store,
         request,
         refund,
     ))
@@ -498,9 +496,8 @@ pub async fn refund_retrieve_core_with_refund_id(
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<id_type::ProfileId>,
-    key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
     refund: storage::Refund,
 ) -> errors::RouterResult<storage::Refund> {
@@ -513,8 +510,8 @@ pub async fn refund_retrieve_core(
         .find_payment_intent_by_id(
             key_manager_state,
             payment_id,
-            &key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -528,9 +525,9 @@ pub async fn refund_retrieve_core(
     let payment_attempt = db
         .find_payment_attempt_by_id(
             key_manager_state,
-            &key_store,
+            merchant_context.get_merchant_key_store(),
             &active_attempt_id,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -558,8 +555,7 @@ pub async fn refund_retrieve_core(
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         Box::pin(sync_refund_with_gateway(
             &state,
-            &merchant_account,
-            &key_store,
+            &merchant_context,
             &payment_attempt,
             &payment_intent,
             &refund,
@@ -592,8 +588,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
@@ -610,12 +605,10 @@ pub async fn sync_refund_with_gateway(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
 
-    let storage_scheme = merchant_account.storage_scheme;
-
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
     let mca = db
-        .find_merchant_connector_account_by_id(&state.into(), &mca_id, key_store)
+        .find_merchant_connector_account_by_id(&state.into(), &mca_id, merchant_context.get_merchant_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;
@@ -625,8 +618,7 @@ pub async fn sync_refund_with_gateway(
     let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
         state,
         connector_enum,
-        merchant_account,
-        key_store,
+        merchant_context,
         payment_intent,
         payment_attempt,
         refund,
@@ -635,7 +627,7 @@ pub async fn sync_refund_with_gateway(
     .await?;
 
     let add_access_token_result =
-        access_token::add_access_token(state, &connector, merchant_account, &router_data, None)
+        access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
             .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
@@ -655,8 +647,7 @@ pub async fn sync_refund_with_gateway(
 
     let refund_update = build_refund_update_for_rsync(
         &connector,
-        &storage_scheme,
-        merchant_account,
+        merchant_context,
         connector_response,
     );
 
@@ -665,7 +656,7 @@ pub async fn sync_refund_with_gateway(
         .update_refund(
             refund.to_owned(),
             refund_update,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)
@@ -682,10 +673,13 @@ pub async fn sync_refund_with_gateway(
 
 pub fn build_refund_update_for_rsync(
     connector: &api::ConnectorData,
-    storage_scheme: &enums::MerchantStorageScheme,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     router_data_response: RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
 ) -> storage::RefundUpdate {
+
+    let merchant_account = merchant_context.get_merchant_account();
+    let storage_scheme = &merchant_context.get_merchant_account().storage_scheme;
+
     match router_data_response.response {
         Err(error_message) => {
             let refund_status = match error_message.status_code {
