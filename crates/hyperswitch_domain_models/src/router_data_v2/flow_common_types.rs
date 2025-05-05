@@ -157,6 +157,9 @@ pub struct UasFlowData {
 pub struct BillingConnectorPaymentsSyncFlowData;
 
 #[derive(Debug, Clone)]
+pub struct BillingConnectorInvoiceSyncFlowData;
+
+#[derive(Debug, Clone)]
 pub struct VaultConnectorFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
 }

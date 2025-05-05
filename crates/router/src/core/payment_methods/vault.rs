@@ -1290,12 +1290,12 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponseInternal, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: existing_vault_id
             .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
@@ -1322,11 +1322,11 @@ pub async fn add_payment_method_to_vault(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pm: &domain::PaymentMethod,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: pm
             .locker_id
             .clone()
@@ -1467,11 +1467,11 @@ pub async fn retrieve_payment_method_from_vault(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id,
     }
     .encode_to_vec()
