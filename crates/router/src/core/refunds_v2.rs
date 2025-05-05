@@ -477,7 +477,10 @@ pub async fn refund_retrieve_core_with_refund_id(
     let db = &*state.store;
     let profile_id = profile.get_id().to_owned();
     let refund = db
-        .find_refund_by_id(&refund_id, merchant_context.get_merchant_account().storage_scheme)
+        .find_refund_by_id(
+            &refund_id,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
@@ -608,7 +611,11 @@ pub async fn sync_refund_with_gateway(
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
     let mca = db
-        .find_merchant_connector_account_by_id(&state.into(), &mca_id, merchant_context.get_merchant_key_store())
+        .find_merchant_connector_account_by_id(
+            &state.into(),
+            &mca_id,
+            merchant_context.get_merchant_key_store(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;
@@ -645,11 +652,8 @@ pub async fn sync_refund_with_gateway(
 
     let connector_response = perform_integrity_check(connector_response);
 
-    let refund_update = build_refund_update_for_rsync(
-        &connector,
-        merchant_context,
-        connector_response,
-    );
+    let refund_update =
+        build_refund_update_for_rsync(&connector, merchant_context, connector_response);
 
     let response = state
         .store
@@ -676,7 +680,6 @@ pub fn build_refund_update_for_rsync(
     merchant_context: &domain::MerchantContext,
     router_data_response: RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
 ) -> storage::RefundUpdate {
-
     let merchant_account = merchant_context.get_merchant_account();
     let storage_scheme = &merchant_context.get_merchant_account().storage_scheme;
 
