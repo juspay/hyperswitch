@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.05.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Novalnet] allow debit card MITs ([#7959](https://github.com/juspay/hyperswitch/pull/7959)) ([`0f684bc`](https://github.com/juspay/hyperswitch/commit/0f684bc035c1beece6169b068ce99b961d4bbe51))
+
+**Full Changelog:** [`2025.05.05.0...2025.05.05.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.05.05.0...2025.05.05.0-hotfix1)
+
+
+- - -
+
 ## 2025.05.05.0
 
 ### Features
