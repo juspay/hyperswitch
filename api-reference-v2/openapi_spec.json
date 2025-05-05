@@ -10167,6 +10167,16 @@
           }
         }
       },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          }
+        }
+      },
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [
@@ -19908,10 +19918,10 @@
             "description": "Indicates if external vault is enabled or not.",
             "nullable": true
           },
-          "vault_connector_details": {
+          "external_vault_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultConnectorDetails"
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
               }
             ],
             "nullable": true
@@ -20171,10 +20181,10 @@
             "description": "Indicates if external vault is enabled or not.",
             "nullable": true
           },
-          "vault_connector_details": {
+          "external_vault_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultConnectorDetails"
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
               }
             ],
             "nullable": true
@@ -23393,16 +23403,6 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
-        }
-      },
-      "VaultConnectorDetails": {
-        "type": "object",
-        "properties": {
-          "vault_connector_id": {
-            "type": "string",
-            "description": "Merchant Connector id to be stored for vault connector",
-            "nullable": true
-          }
         }
       },
       "Venmo": {

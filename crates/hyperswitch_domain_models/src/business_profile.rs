@@ -13,7 +13,9 @@ use diesel_models::business_profile::{
     CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
 };
 #[cfg(feature = "v2")]
-use diesel_models::business_profile::{RevenueRecoveryAlgorithmData, VaultConnectorDetails};
+use diesel_models::business_profile::{
+    ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
+};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -906,7 +908,7 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
-    pub vault_connector_details: Option<VaultConnectorDetails>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -960,7 +962,7 @@ pub struct ProfileSetter {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
-    pub vault_connector_details: Option<VaultConnectorDetails>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1019,7 +1021,7 @@ impl From<ProfileSetter> for Profile {
             revenue_recovery_retry_algorithm_type: value.revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: value.revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled: value.is_external_vault_enabled,
-            vault_connector_details: value.vault_connector_details,
+            external_vault_connector_details: value.external_vault_connector_details,
         }
     }
 }
@@ -1084,7 +1086,7 @@ pub struct ProfileGeneralUpdate {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_external_vault_enabled: Option<bool>,
-    pub vault_connector_details: Option<VaultConnectorDetails>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1161,7 +1163,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_debit_routing_enabled,
                     merchant_business_country,
                     is_external_vault_enabled,
-                    vault_connector_details,
+                    external_vault_connector_details,
                 } = *update;
                 Self {
                     profile_name,
@@ -1211,7 +1213,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     revenue_recovery_retry_algorithm_type: None,
                     revenue_recovery_retry_algorithm_data: None,
                     is_external_vault_enabled,
-                    vault_connector_details,
+                    external_vault_connector_details,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1264,7 +1266,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1315,7 +1317,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1366,7 +1368,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1417,7 +1419,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1468,7 +1470,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1519,7 +1521,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1570,7 +1572,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1621,7 +1623,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -1673,7 +1675,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_type: Some(revenue_recovery_retry_algorithm_type),
                 revenue_recovery_retry_algorithm_data,
                 is_external_vault_enabled: None,
-                vault_connector_details: None,
+                external_vault_connector_details: None,
             },
         }
     }
@@ -1746,7 +1748,7 @@ impl super::behaviour::Conversion for Profile {
             revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled: self.is_external_vault_enabled,
-            vault_connector_details: self.vault_connector_details,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 
@@ -1839,7 +1841,7 @@ impl super::behaviour::Conversion for Profile {
                 revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
                 revenue_recovery_retry_algorithm_data: item.revenue_recovery_retry_algorithm_data,
                 is_external_vault_enabled: item.is_external_vault_enabled,
-                vault_connector_details: item.vault_connector_details,
+                external_vault_connector_details: item.external_vault_connector_details,
             })
         }
         .await
@@ -1906,7 +1908,7 @@ impl super::behaviour::Conversion for Profile {
             revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled: self.is_external_vault_enabled,
-            vault_connector_details: self.vault_connector_details,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 }

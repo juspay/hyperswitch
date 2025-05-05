@@ -233,7 +233,7 @@ diesel::table! {
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
         is_external_vault_enabled -> Nullable<Bool>,
-        vault_connector_details -> Nullable<Jsonb>,
+        external_vault_connector_details -> Nullable<Jsonb>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
     }
