@@ -16,6 +16,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
     contract_routing_client::ContractBasedDynamicRouting,
+    elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
 use hyperswitch_domain_models::{mandates, payment_address};
@@ -1266,7 +1267,10 @@ pub async fn toggle_specific_dynamic_routing(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
-        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.clone()),
+            ("algorithm_type", dynamic_routing_type.to_string())
+        ),
     );
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1396,7 +1400,13 @@ pub async fn success_based_routing_update_configs(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         1,
-        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.clone()),
+            (
+                "algorithm_type",
+                routing::DynamicRoutingType::SuccessRateBasedRouting.to_string()
+            )
+        ),
     );
     let db = state.store.as_ref();
 
@@ -1468,9 +1478,8 @@ pub async fn success_based_routing_update_configs(
                     state.get_grpc_headers(),
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Failed to invalidate the routing keys".to_string(),
-                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to invalidate the routing keys")
         })
         .await
         .transpose()?;
@@ -1485,11 +1494,15 @@ pub async fn elimination_routing_update_configs(
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    use external_services::grpc_client::dynamic_routing::elimination_based_client::EliminationBasedRouting;
-
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         1,
-        router_env::metric_attributes!(("profile_id", profile_id.clone())),
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.clone()),
+            (
+                "algorithm_type",
+                routing::DynamicRoutingType::EliminationRouting.to_string()
+            )
+        ),
     );
 
     let db = state.store.as_ref();
@@ -1540,12 +1553,12 @@ pub async fn elimination_routing_update_configs(
         cache_key.into(),
     )];
 
-    let _ = cache::redact_from_redis_and_publish(
+    cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}"));
+    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
 
     let new_record = record.foreign_into();
 
@@ -1566,9 +1579,8 @@ pub async fn elimination_routing_update_configs(
                     state.get_grpc_headers(),
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Failed to invalidate the routing keys".to_string(),
-                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to invalidate the elimination routing keys")
         })
         .await
         .transpose()?;
@@ -1781,7 +1793,13 @@ pub async fn contract_based_routing_update_configs(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         1,
-        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.get_string_repr().to_owned()),
+            (
+                "algorithm_type",
+                routing::DynamicRoutingType::ContractBasedRouting.to_string()
+            )
+        ),
     );
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1892,9 +1910,8 @@ pub async fn contract_based_routing_update_configs(
                     state.get_grpc_headers(),
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Failed to invalidate the contract based routing keys".to_string(),
-                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to invalidate the contract based routing keys")
         })
         .await
         .transpose()?;
