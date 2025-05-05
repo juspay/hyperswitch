@@ -705,6 +705,53 @@ where
     }
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn update_gateway_score_helper_with_open_router(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+) -> RouterResult<()> {
+    let is_success_rate_routing_enabled =
+        dynamic_routing_algo_ref.is_success_rate_routing_enabled();
+    let is_elimination_enabled = dynamic_routing_algo_ref.is_elimination_enabled();
+
+    if is_success_rate_routing_enabled || is_elimination_enabled {
+        let payment_connector = &payment_attempt.connector.clone().ok_or(
+            errors::ApiErrorResponse::GenericNotFoundError {
+                message: "unable to derive payment connector from payment attempt".to_string(),
+            },
+        )?;
+
+        let routable_connector = routing_types::RoutableConnectorChoice {
+            choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+            connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to infer routable_connector from connector")?,
+            merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+        };
+
+        logger::debug!(
+            "performing update-gateway-score for gateway with id {} in open router for profile: {}",
+            routable_connector,
+            profile_id.get_string_repr()
+        );
+        routing::payments_routing::update_gateway_score_with_open_router(
+            state,
+            routable_connector.clone(),
+            profile_id,
+            &payment_attempt.payment_id,
+            payment_attempt.status,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to update gateway score in open router service")?;
+    }
+
+    Ok(())
+}
+
 /// metrics for success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
@@ -740,27 +787,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     .attach_printable("unable to infer routable_connector from connector")?,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
             };
-
-            let should_route_to_open_router = state.conf.open_router.enabled;
-
-            if should_route_to_open_router {
-                logger::debug!(
-                    "performing update-gateway-score for gateway with id {} in open router for profile: {}",
-                    routable_connector, profile_id.get_string_repr()
-                );
-                routing::payments_routing::update_success_rate_score_with_open_router(
-                    state,
-                    routable_connector.clone(),
-                    profile_id,
-                    &payment_attempt.payment_id,
-                    payment_attempt.status,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to update gateway score in open router service")?;
-
-                return Ok(());
-            }
 
             let payment_status_attribute =
                 get_desired_payment_status_for_dynamic_routing_metrics(payment_attempt.status);
