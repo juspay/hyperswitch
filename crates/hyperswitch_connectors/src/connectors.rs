@@ -87,6 +87,7 @@ pub mod tsys;
 pub mod unified_authentication_service;
 pub mod volt;
 pub mod wellsfargo;
+pub mod wise;
 pub mod worldline;
 pub mod worldpay;
 pub mod xendit;
@@ -114,6 +115,6 @@ pub use self::{
     square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
     threedsecureio::Threedsecureio, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
-    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
-    zsl::Zsl,
+    wellsfargo::Wellsfargo, wise::Wise, worldline::Worldline, worldpay::Worldpay, xendit::Xendit,
+    zen::Zen, zsl::Zsl,
 };

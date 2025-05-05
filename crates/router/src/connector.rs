@@ -3,7 +3,6 @@ pub mod dummyconnector;
 pub mod stripe;
 pub mod utils;
 pub mod wellsfargopayout;
-pub mod wise;
 
 pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
@@ -36,10 +35,10 @@ pub use hyperswitch_connectors::connectors::{
     taxjar::Taxjar, threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes,
     trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
-    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    wellsfargo::Wellsfargo, wise, wise::Wise, worldline, worldline::Worldline, worldpay,
+    worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
-pub use self::{stripe::Stripe, wellsfargopayout::Wellsfargopayout, wise::Wise};
+pub use self::{stripe::Stripe, wellsfargopayout::Wellsfargopayout};
