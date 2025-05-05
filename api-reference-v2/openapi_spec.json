@@ -13166,7 +13166,11 @@
             "nullable": true
           },
           "issuer_country": {
-            "type": "string",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "network_token_expiry_month": {
