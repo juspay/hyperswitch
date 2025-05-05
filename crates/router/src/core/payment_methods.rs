@@ -1824,7 +1824,7 @@ pub async fn vault_payment_method_external(
             types::VaultResponseData::VaultRetrieveResponse { .. }
             | types::VaultResponseData::VaultDeleteResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Invalid Vault Reponse"))
+                    .attach_printable("Invalid Vault Response"))
             }
         },
         Err(err) => {
@@ -2216,11 +2216,13 @@ pub async fn delete_payment_method(
     pm_id: api::PaymentMethodId,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-    let response = delete_payment_method_core(state, pm_id, key_store, merchant_account).await?;
+    let response =
+        delete_payment_method_core(&state, pm_id, &key_store, &merchant_account, &profile).await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2228,18 +2230,19 @@ pub async fn delete_payment_method(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn delete_payment_method_core(
-    state: SessionState,
+    state: &SessionState,
     pm_id: id_type::GlobalPaymentMethodId,
-    key_store: domain::MerchantKeyStore,
-    merchant_account: domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    merchant_account: &domain::MerchantAccount,
+    profile: &domain::Profile,
 ) -> RouterResult<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
+    let key_manager_state = &(state).into();
 
     let payment_method = db
         .find_payment_method(
-            &((&state).into()),
-            &key_store,
+            &(state.into()),
+            key_store,
             &pm_id,
             merchant_account.storage_scheme,
         )
@@ -2262,7 +2265,7 @@ pub async fn delete_payment_method_core(
             key_manager_state,
             &payment_method.customer_id,
             merchant_account.get_id(),
-            &key_store,
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
@@ -2275,8 +2278,8 @@ pub async fn delete_payment_method_core(
     };
 
     db.update_payment_method(
-        &((&state).into()),
-        &key_store,
+        &(state.into()),
+        key_store,
         payment_method,
         pm_update,
         merchant_account.storage_scheme,
@@ -2285,10 +2288,14 @@ pub async fn delete_payment_method_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment method in db")?;
 
-    vault::delete_payment_method_data_from_vault(&state, &merchant_account, vault_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from vault")?;
+    vault::delete_payment_method_data_from_vault(
+        state,
+        merchant_account,
+        key_store,
+        profile,
+        vault_id,
+    )
+    .await?;
 
     let response = api::PaymentMethodDeleteResponse { id: pm_id };
 
@@ -2630,6 +2637,7 @@ pub async fn payment_methods_session_delete_payment_method(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
     pm_id: id_type::GlobalPaymentMethodId,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
@@ -2644,9 +2652,10 @@ pub async fn payment_methods_session_delete_payment_method(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let response = delete_payment_method_core(state, pm_id, key_store, merchant_account)
-        .await
-        .attach_printable("Failed to delete saved payment method")?;
+    let response =
+        delete_payment_method_core(&state, pm_id, &key_store, &merchant_account, &profile)
+            .await
+            .attach_printable("Failed to delete saved payment method")?;
 
     Ok(services::ApplicationResponse::Json(response))
 }

@@ -260,6 +260,7 @@ pub async fn payment_method_delete_api(
                 pm,
                 auth.key_store,
                 auth.merchant_account,
+                auth.profile,
             )
         },
         &auth::V2ApiKeyAuth {
@@ -1417,6 +1418,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
                 state,
                 auth.key_store,
                 auth.merchant_account,
+                auth.profile,
                 request.request.payment_method_id,
                 request.payment_method_session_id,
             )

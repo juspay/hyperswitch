@@ -623,7 +623,7 @@ pub enum VaultResponseData {
         vault_data: PaymentMethodVaultingData,
     },
     VaultDeleteResponse {
-        connector_vault_id: Option<String>,
+        connector_vault_id: String,
     },
 }
 
