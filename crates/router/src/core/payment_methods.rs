@@ -990,10 +990,10 @@ pub async fn create_payment_method_core(
             let payment_method = db
                 .update_payment_method(
                     &(state.into()),
-                    key_store,
+                    merchant_context.get_merchant_key_store(),
                     payment_method,
                     pm_update,
-                    merchant_account.storage_scheme,
+                    merchant_context.get_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1007,7 +1007,7 @@ pub async fn create_payment_method_core(
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
-                key_store,
+                merchant_context.get_merchant_key_store(),
                 Some(ext_vaulting_resp.connector_vault_id),
                 Some(ext_vaulting_resp.fingerprint_id),
                 &payment_method,
@@ -1937,8 +1937,7 @@ pub async fn vault_payment_method_external(
 pub async fn vault_payment_method(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
@@ -1957,27 +1956,25 @@ pub async fn vault_payment_method(
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
             state,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             None,
-            key_store,
+            merchant_context.get_merchant_key_store(),
             profile.get_id(),
             "",
             Some(&merchant_connector_id),
         )
         .await?;
 
-        vault_payment_method_external(state, pmd, merchant_account, merchant_connector_account)
-            .await
-    } else {
-        vault_payment_method_internal(
+        vault_payment_method_external(
             state,
             pmd,
-            merchant_account,
-            key_store,
-            existing_vault_id,
-            customer_id,
+            merchant_context.get_merchant_account(),
+            merchant_connector_account,
         )
         .await
+    } else {
+        vault_payment_method_internal(state, pmd, merchant_context, existing_vault_id, customer_id)
+            .await
     }
 }
 
@@ -2169,7 +2166,8 @@ pub async fn update_payment_method(
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let response =
-        update_payment_method_core(&state, &merchant_context, &profile, req, payment_method_id).await?;
+        update_payment_method_core(&state, &merchant_context, &profile, req, payment_method_id)
+            .await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2206,12 +2204,16 @@ pub async fn update_payment_method_core(
         },
     )?;
 
-    let pmd: domain::PaymentMethodVaultingData =
-        vault::retrieve_payment_method_from_vault(state, merchant_context, profile, &payment_method)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
+    let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
+        state,
+        merchant_context,
+        profile,
+        &payment_method,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to retrieve payment method from vault")?
+    .data;
 
     let vault_request_data = request.payment_method_data.map(|payment_method_data| {
         pm_transforms::generate_pm_vaulting_req_from_update_request(pmd, payment_method_data)
@@ -2302,7 +2304,7 @@ pub async fn delete_payment_method(
     let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-    let response = delete_payment_method_core(state, pm_id, merchant_context, &profile).await?;
+    let response = delete_payment_method_core(&state, pm_id, &merchant_context, &profile).await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2367,7 +2369,7 @@ pub async fn delete_payment_method_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment method in db")?;
 
-    vault::delete_payment_method_data_from_vault(&state, &merchant_context, profile, vault_id)
+    vault::delete_payment_method_data_from_vault(state, merchant_context, profile, vault_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;

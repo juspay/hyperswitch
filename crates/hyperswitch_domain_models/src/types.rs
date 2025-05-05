@@ -9,8 +9,8 @@ use crate::{
         BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync,
         PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VaultDeleteFlow, VaultInsertFlow,
-        VaultRetrieveFlow, VerifyWebhookSource, Void,
+        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VaultDeleteFlow,
+        VaultInsertFlow, VaultRetrieveFlow, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
