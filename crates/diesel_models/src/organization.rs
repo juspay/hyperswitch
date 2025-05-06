@@ -114,6 +114,10 @@ impl Organization {
             platform_merchant_id,
         }
     }
+
+    pub fn get_organization_type(&self) -> common_enums::OrganizationType {
+        self.organization_type.unwrap_or_default()
+    }
 }
 
 #[cfg(feature = "v1")]
