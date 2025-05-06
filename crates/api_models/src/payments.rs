@@ -7352,16 +7352,20 @@ pub struct AmazonPaySessionTokenResponse {
     /// Amazon Pay merchant account identifier
     pub merchant_id: String,
     /// Ledger currency provided during registration for the given merchant identifier
+    #[schema(example = "USD", value_type = Currency)]
     pub ledger_currency: common_enums::Currency,
     /// Amazon Pay store ID
     pub store_id: String,
     /// Payment flow for charging the buyer
     pub payment_intent: AmazonPayPaymentIntent,
     /// The total shipping costs
+    #[schema(value_type = String)]
     pub total_shipping_amount: StringMajorUnit,
     /// The total tax amount for the order
+    #[schema(value_type = String)]
     pub total_tax_amount: StringMajorUnit,
     /// The total amount for items in the cart
+    #[schema(value_type = String)]
     pub total_base_amount: StringMajorUnit,
     /// The delivery options available for the provided address
     pub delivery_options: Vec<AmazonPayDeliveryOptions>,
@@ -7395,8 +7399,10 @@ pub struct AmazonPayDeliveryPrice {
     pub amount: MinorUnit,
     #[serde(skip_deserializing)]
     /// Transaction amount in StringMajorUnit
+    #[schema(value_type = String)]
     pub display_amount: StringMajorUnit,
     /// Transaction currency code in ISO 4217 format
+    #[schema(example = "USD", value_type = Currency)]
     pub currency_code: common_enums::Currency,
 }
 
