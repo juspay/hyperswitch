@@ -1449,11 +1449,9 @@ impl RefundInterface for MockDb {
         }
 
         if let Some(connector_id_list) = &refund_details.connector_id_list {
-            connector_id_list
-                .iter()
-                .for_each(|unique_connector_id| {
-                    unique_connector_ids.insert(unique_connector_id);
-                });
+            connector_id_list.iter().for_each(|unique_connector_id| {
+                unique_connector_ids.insert(unique_connector_id);
+            });
         }
 
         if let Some(currencies) = &refund_details.currency {
@@ -1776,11 +1774,9 @@ impl RefundInterface for MockDb {
         }
 
         if let Some(connector_id_list) = &refund_details.connector_id_list {
-            connector_id_list
-                .iter()
-                .for_each(|unique_connector_id| {
-                    unique_connector_ids.insert(unique_connector_id);
-                });
+            connector_id_list.iter().for_each(|unique_connector_id| {
+                unique_connector_ids.insert(unique_connector_id);
+            });
         }
 
         if let Some(currencies) = &refund_details.currency {
