@@ -315,6 +315,37 @@ pub async fn refunds_list(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+pub async fn refunds_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::RefundListRequest>,
+) -> HttpResponse {
+    let flow = Flow::RefundsList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refund_list(state, auth.merchant_account, auth.profile, req)
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantRefundRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "refunds_v2"),

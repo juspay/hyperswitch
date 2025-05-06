@@ -3265,6 +3265,43 @@
         ]
       }
     },
+    "/v2/refunds/list": {
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Refunds - List",
+        "description": "To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
+        "operationId": "List all Refunds",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundListRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "List of refunds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [
@@ -20265,13 +20302,11 @@
                 "nullable": true
               },
               "refund_id": {
-                "type": "string",
-                "description": "The identifier for the refund",
-                "nullable": true
-              },
-              "profile_id": {
-                "type": "string",
-                "description": "The identifier for business profile",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/common_utils.id_type.GlobalRefundId"
+                  }
+                ],
                 "nullable": true
               },
               "limit": {

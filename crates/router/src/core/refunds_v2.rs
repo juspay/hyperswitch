@@ -3,7 +3,8 @@ use std::str::FromStr;
 use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{id_type, types as common_utils_types};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data::{ErrorResponse, RouterData};
+
+use hyperswitch_domain_models::{router_data::{ErrorResponse, RouterData},refunds::RefundListConstraints};
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
 
@@ -442,6 +443,56 @@ where
         .ok();
 
     request.check_integrity(request, connector_refund_id.to_owned())
+}
+
+// ********************************************** Refund list **********************************************
+
+///   If payment-id is provided, lists all the refunds associated with that particular payment-id
+///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
+#[instrument(skip_all)]
+#[cfg(feature = "olap")]
+pub async fn refund_list(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
+    req: refunds::RefundListRequest,
+) -> errors::RouterResponse<refunds::RefundListResponse> {
+    let db = state.store;
+    let limit = refunds_validator::validate_refund_list(req.limit)?;
+    let offset = req.offset.unwrap_or_default();
+
+    let refund_list = db
+        .filter_refund_by_constraints(
+            merchant_account.get_id(),
+            RefundListConstraints::from((req.clone(),profile.clone())),
+            merchant_account.storage_scheme,
+            limit,
+            offset,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let data: Vec<refunds::RefundResponse> = refund_list
+        .into_iter()
+        .map(refunds::RefundResponse::foreign_try_from)
+        .collect::<Result<_, _>>()?;
+
+    let total_count = db
+        .get_total_count_of_refunds(
+            merchant_account.get_id(),
+            RefundListConstraints::from((req,profile)),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::RefundListResponse {
+            count: data.len(),
+            total_count,
+            data,
+        },
+    ))
 }
 
 // ********************************************** VALIDATIONS **********************************************

@@ -9,8 +9,11 @@ use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
     query::generics::db_metrics,
-    schema::refund::dsl,
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+use diesel_models::schema::refund::dsl;
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+use diesel_models::schema_v2::refund::dsl;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 
@@ -23,6 +26,15 @@ pub trait RefundDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn filter_by_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
@@ -48,6 +60,13 @@ pub trait RefundDbExt: Sized {
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn get_refunds_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: refunds::RefundListConstraints,
+    ) -> CustomResult<i64, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -162,6 +181,82 @@ impl RefundDbExt for Refund {
         .await
         .change_context(errors::DatabaseError::NotFound)
         .attach_printable_lazy(|| "Error filtering records by predicate")
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn filter_by_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: refunds::RefundListConstraints,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+        let mut filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(dsl::modified_at.desc())
+            .into_boxed();
+
+        if let Some(payment_id) = &refund_list_details.payment_id {
+            filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
+        }
+
+        if let Some(refund_id) = &refund_list_details.refund_id {
+            filter = filter.filter(dsl::id.eq(refund_id.to_owned()));
+        }
+
+        if let Some(time_range) = &refund_list_details.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector {
+            filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id {
+            filter = filter.filter(dsl::connector_id.eq_any(merchant_connector_id));
+        }
+
+        if let Some(filter_currency) = refund_list_details.currency {
+            filter = filter.filter(dsl::currency.eq_any(filter_currency));
+        }
+
+        if let Some(filter_refund_status) = refund_list_details.refund_status {
+            filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status));
+        }
+
+        filter = filter.limit(limit).offset(offset);
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
+
+        // todo!()
     }
 
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
@@ -298,6 +393,74 @@ impl RefundDbExt for Refund {
 
         if let Some(filter_refund_status) = &refund_list_details.refund_status {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status.clone()));
+        }
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+
+        filter
+            .get_result_async::<i64>(conn)
+            .await
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering count of refunds")
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn get_refunds_count(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: refunds::RefundListConstraints,
+    ) -> CustomResult<i64, errors::DatabaseError> {
+        let mut filter = <Self as HasTable>::table()
+            .count()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        if let Some(payment_id) = &refund_list_details.payment_id {
+            filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
+        }
+
+        if let Some(refund_id) = &refund_list_details.refund_id {
+            filter = filter.filter(dsl::id.eq(refund_id.to_owned()));
+        }
+
+        if let Some(time_range) = refund_list_details.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+
+        filter = match refund_list_details.amount_filter {
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.between(start, end)),
+            Some(AmountFilter {
+                start_amount: Some(start),
+                end_amount: None,
+            }) => filter.filter(dsl::refund_amount.ge(start)),
+            Some(AmountFilter {
+                start_amount: None,
+                end_amount: Some(end),
+            }) => filter.filter(dsl::refund_amount.le(end)),
+            _ => filter,
+        };
+
+        if let Some(connector) = refund_list_details.connector {
+            filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id {
+            filter = filter.filter(dsl::connector_id.eq_any(merchant_connector_id));
+        }
+
+        if let Some(filter_currency) = refund_list_details.currency {
+            filter = filter.filter(dsl::currency.eq_any(filter_currency));
+        }
+
+        if let Some(filter_refund_status) = refund_list_details.refund_status {
+            filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status));
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
