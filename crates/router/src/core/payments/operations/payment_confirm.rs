@@ -79,7 +79,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
-        helpers::allowed_fields_for_payment_update(request, &auth_flow)?;
+        helpers::allowed_fields_for_payment_update(request, auth_flow)?;
         let key_manager_state = &state.into();
         let merchant_id = merchant_context.get_merchant_account().get_id();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;

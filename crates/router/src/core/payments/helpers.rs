@@ -7435,7 +7435,7 @@ pub async fn validate_allowed_payment_method_types_request(
 #[cfg(feature = "v1")]
 pub(crate) fn allowed_fields_for_payment_update(
     request: &api::PaymentsRequest,
-    auth_flow: &services::AuthFlow,
+    auth_flow: services::AuthFlow,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match auth_flow {
         services::AuthFlow::Merchant => Ok(()),

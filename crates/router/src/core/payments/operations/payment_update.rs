@@ -67,7 +67,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let db = &*state.store;
         let key_manager_state = &state.into();
-        helpers::allowed_fields_for_payment_update(request, &auth_flow)?;
+        helpers::allowed_fields_for_payment_update(request, auth_flow)?;
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 key_manager_state,
