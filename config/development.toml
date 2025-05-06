@@ -817,6 +817,9 @@ connectors_with_webhook_source_verification_call = "paypal"
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
+[billing_connectors_invoice_sync]
+billing_connectors_which_requires_invoice_sync_call = "recurly"
+
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
@@ -840,6 +843,7 @@ bank_redirect.ideal.connector_list = "adyen"
 bank_redirect.bancontact_card.connector_list = "adyen"
 bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
+
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
