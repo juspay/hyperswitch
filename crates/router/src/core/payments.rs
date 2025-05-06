@@ -1737,27 +1737,19 @@ pub async fn record_attempt_core(
             &header_payload,
         )
         .await?;
-    let payment_address = PaymentAddress::new(
-        payment_data
-            .payment_intent
-            .shipping_address
-            .clone()
-            .map(|address| address.into_inner()),
-        payment_data
-            .payment_intent
-            .billing_address
-            .clone()
-            .map(|address| address.into_inner()),
-        payment_data
-            .payment_attempt
-            .payment_method_billing_address
-            .clone()
-            .map(|address| address.into_inner()),
-        Some(true),
-    );
+    let default_payment_status_data = PaymentStatusData {
+        flow: PhantomData,
+        payment_intent: payment_data.payment_intent.clone(),
+        payment_attempt: Some(payment_data.payment_attempt.clone()),
+        attempts: None,
+        should_sync_with_connector: false,
+        payment_address: payment_data.payment_address.clone(),
+    };
 
-    let (status_payment_data, _req, connector_http_status_code, external_latency) =
-        Box::pin(proxy_for_payments_operation_core::<
+    let payment_status_data = (req.triggered_by == common_enums::TriggeredBy::Internal)
+    .then(|| default_payment_status_data.clone())
+    .async_unwrap_or_else(|| async {
+        match Box::pin(proxy_for_payments_operation_core::<
             api::PSync,
             _,
             _,
@@ -1766,8 +1758,7 @@ pub async fn record_attempt_core(
         >(
             &state,
             req_state.clone(),
-            merchant_account.clone(),
-            key_store.clone(),
+            merchant_context.clone(),
             profile.clone(),
             operations::PaymentGet,
             api::PaymentsRetrieveRequest {
@@ -1782,21 +1773,31 @@ pub async fn record_attempt_core(
                     payment_attempt: Some(payment_data.payment_attempt.clone()),
                     attempts: None,
                     should_sync_with_connector: true,
-                    payment_address: payment_address.clone(),
+                    payment_address: payment_data.payment_address.clone(),
                 },
             },
             CallConnectorAction::Trigger,
             HeaderPayload::default(),
         ))
-        .await?;
+        .await
+        {
+            Ok((data, _, _, _)) => data,
+            Err(err) => {
+                router_env::logger::error!(error=?err, "proxy_for_payments_operation_core failed for external payment attempt");
+                default_payment_status_data
+            }
+        }
+    })
+    .await;
+
     let record_payment_data = domain_payments::PaymentAttemptRecordData {
         flow: PhantomData,
-        payment_intent: status_payment_data.payment_intent,
-        payment_attempt: status_payment_data
+        payment_intent: payment_status_data.payment_intent,
+        payment_attempt: payment_status_data
             .payment_attempt
-            .unwrap_or(payment_data.payment_attempt),
+            .unwrap_or(payment_data.payment_attempt.clone()),
         revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
-        payment_address,
+        payment_address: payment_data.payment_address.clone(),
     };
 
     let (_operation, final_payment_data) = boxed_operation
