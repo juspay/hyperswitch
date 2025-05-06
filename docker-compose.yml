@@ -66,14 +66,6 @@ services:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
-  mailhog:
-    image: mailhog/mailhog
-    networks:
-      - router_net
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-
   ### Application services
   hyperswitch-server:
     image: docker.juspay.io/juspaydotin/hyperswitch-router:standalone
@@ -456,8 +448,6 @@ services:
       - router_net
     depends_on:
       hyperswitch-server:
-        condition: service_healthy
-      hyperswitch-web:
         condition: service_healthy
     environment:
       - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
