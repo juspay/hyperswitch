@@ -38,7 +38,7 @@ pub use hyperswitch_connectors::connectors::{
     stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, thunes,
     thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
+    wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayxml, worldpayxml::Worldpayxml, xendit,
     xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
