@@ -1481,17 +1481,16 @@ pub fn get_next_connector_with_global_network(
         .attach_printable("Connector with global network not found in connectors iterator")
 }
 
-pub fn get_next_connector_with_diff_network(
+pub fn remove_current_network_and_choose_another(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
-    prev_network: Option<enums::CardNetwork>,
+    prev_network: enums::CardNetwork,
 ) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
-
-    let filtered_prev_network_connectors: Vec<_> = connectors
+    let filtered_connectors: Vec<_> = connectors
         .by_ref()
-        .filter(|connector| connector.network.as_ref() != prev_network.as_ref())
+        .filter(|connector| connector.network != Some(prev_network.clone()))
         .collect();
 
-    *connectors = filtered_prev_network_connectors.into_iter();
+    *connectors = filtered_connectors.into_iter();
 
     connectors
         .find_map(|connector_data| {
@@ -1503,25 +1502,41 @@ pub fn get_next_connector_with_diff_network(
         .attach_printable("Connector with different network not found in connectors iterator")
 }
 
-pub fn get_new_connector(
+pub fn remove_current_connector_and_choose_different_connector(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
     prev_connector: api::ConnectorData,
 ) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
-    let filtered_prev_connector_newtwork_pairs: Vec<_> = connectors
-    .by_ref()
-    .filter(|connector| connector.connector_data.connector_name != prev_connector.connector_name)
-    .collect();
+    let filtered_connectors: Vec<_> = connectors
+        .by_ref()
+        .filter(|connector| connector.connector_data.connector_name != prev_connector.connector_name)
+        .collect();
 
-    *connectors = filtered_prev_connector_newtwork_pairs.into_iter();
+    *connectors = filtered_connectors.into_iter();
 
     connectors
-    .find_map(|connector_data| {
-        connector_data
-            .network
-            .map(|network| (connector_data.connector_data, network))
-    })
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Connector with different network not found in connectors iterator")
+        .find_map(|connector_data| {
+            connector_data
+                .network
+                .map(|network| (connector_data.connector_data, network))
+        })
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector with different connector not found in connectors iterator")
+}
+
+pub fn select_next_connector_network(
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
+    let connector_data = connectors
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("No next connector found in the connectors iterator")?;
+
+    let network = connector_data
+        .network
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Network missing in next connector data")?;
+
+    Ok((connector_data.connector_data, network))
 }
 
 #[cfg(feature = "v2")]

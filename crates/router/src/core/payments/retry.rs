@@ -28,6 +28,209 @@ use crate::{
     types::{self, api, domain, storage},
 };
 
+#[derive(Debug, Clone, Copy)]
+pub enum RetryAction {
+    StepUpRetry,
+    NetworkRetry, //network retry case will be for network errors
+    PanRetry,
+    AutoRetry, // will include connector retry
+}
+
+#[derive(Debug, Clone)]
+pub enum ConnectorSelectionAction {
+    SelectSameConnectorNetwork(
+        api::ConnectorData,
+        CardNetwork,
+    ), 
+    SelectConnectorWithGlobalNetwork,
+    RemoveCurrentNetworkAndChooseAnother(CardNetwork),
+    RemoveCurrentConnectorAndChooseDifferentConnector(api::ConnectorData),
+    SelectNextConnectorNetwork,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AlternateNetworkRetry {
+    AlternateNetworkRetryPossible,
+    AlternateNetworkRetryNotPossible,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StepUpRetry {
+    StepUpRetryPossible,
+    StepUpRetryNotPossible,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PanRetry {
+    PanRetryPossible,
+    PanRetryNotPossible,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PrevNetworkType {
+    PrevNetworkIsGlobal,
+    PrevNetworkIsLocal,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum DebitRoutingStatus {
+    DebitRoutingApplied,
+    DebitRoutingNotApplied,
+}
+
+
+#[derive(Debug, Clone)]
+pub struct RetryContext {
+    pub alternate_network_retry: AlternateNetworkRetry,
+    pub step_up_retry: StepUpRetry,
+    pub pan_retry: PanRetry,
+    pub prev_network_type: PrevNetworkType,
+    pub debit_routing_status: DebitRoutingStatus,
+}
+
+
+impl RetryContext {
+    pub fn new(
+        alternate_network_retry_possible: bool,
+        step_up_retry_possible: bool,
+        should_retry_with_pan: bool,
+        prev_is_global_network: bool,
+        is_debit_routing_performed: bool,
+    ) -> Self {
+        RetryContext {
+            alternate_network_retry: if alternate_network_retry_possible {
+                AlternateNetworkRetry::AlternateNetworkRetryPossible
+            } else {
+                AlternateNetworkRetry::AlternateNetworkRetryNotPossible
+            },
+            step_up_retry: if step_up_retry_possible {
+                StepUpRetry::StepUpRetryPossible
+            } else {
+                StepUpRetry::StepUpRetryNotPossible
+            },
+            pan_retry: if should_retry_with_pan {
+                PanRetry::PanRetryPossible
+            } else {
+                PanRetry::PanRetryNotPossible
+            },
+            prev_network_type: if prev_is_global_network {
+                PrevNetworkType::PrevNetworkIsGlobal
+            } else {
+                PrevNetworkType::PrevNetworkIsLocal
+            },
+            debit_routing_status: if is_debit_routing_performed {
+                DebitRoutingStatus::DebitRoutingApplied
+            } else {
+                DebitRoutingStatus::DebitRoutingNotApplied
+            },
+        }
+    }
+}
+
+pub fn determine_retry_plan(
+    context: &RetryContext,
+    previous_connector: Option<api::ConnectorData>,
+    previous_network: Option<CardNetwork>,
+) -> (RetryAction, ConnectorSelectionAction) {
+    use AlternateNetworkRetry::*;
+    use StepUpRetry::*;
+    use PanRetry::*;
+    use PrevNetworkType::*;
+    use DebitRoutingStatus::*;
+
+    match (
+        context.alternate_network_retry,
+        context.step_up_retry,
+        context.pan_retry,
+        context.prev_network_type,
+        context.debit_routing_status,
+    ) {
+        (AlternateNetworkRetryPossible, StepUpRetryPossible, _, PrevNetworkIsGlobal, _) => (
+            RetryAction::StepUpRetry,
+            ConnectorSelectionAction::SelectSameConnectorNetwork(
+                previous_connector
+                .expect("Previous connector must be available"),
+                previous_network.expect("Previous network must be available"),
+            ),
+        ),
+        (AlternateNetworkRetryPossible, StepUpRetryPossible, _, PrevNetworkIsLocal, _) => (
+            RetryAction::StepUpRetry,
+            ConnectorSelectionAction::SelectConnectorWithGlobalNetwork,
+        ),
+        (AlternateNetworkRetryPossible, StepUpRetryNotPossible, _, _, _) => (
+            RetryAction::NetworkRetry,
+            ConnectorSelectionAction::RemoveCurrentNetworkAndChooseAnother(
+                previous_network.expect("Previous network must be available"),
+            ),
+        ),
+        (AlternateNetworkRetryNotPossible, StepUpRetryPossible, _, _, _) => (
+            RetryAction::StepUpRetry,
+            ConnectorSelectionAction::SelectSameConnectorNetwork(
+                previous_connector
+                .expect("Previous connector must be available"),
+                previous_network.expect("Previous network must be available"),
+            ),
+        ),
+        (AlternateNetworkRetryNotPossible, StepUpRetryNotPossible, PanRetryPossible, _, _) => (
+            RetryAction::PanRetry,
+            ConnectorSelectionAction::SelectSameConnectorNetwork(
+                previous_connector
+                .expect("Previous connector must be available"),
+                previous_network.expect("Previous network must be available"),
+            ),
+        ),
+        (
+            AlternateNetworkRetryNotPossible,
+            StepUpRetryNotPossible,
+            PanRetryNotPossible,
+            _,
+            DebitRoutingApplied,
+        ) => (
+            RetryAction::AutoRetry,
+            ConnectorSelectionAction::RemoveCurrentConnectorAndChooseDifferentConnector(
+                previous_connector.expect("Previous connector must be available"),
+            ),
+        ),
+        (
+            AlternateNetworkRetryNotPossible,
+            StepUpRetryNotPossible,
+            PanRetryNotPossible,
+            _,
+            DebitRoutingNotApplied,
+        ) => (
+            RetryAction::AutoRetry,
+            ConnectorSelectionAction::SelectNextConnectorNetwork,
+        ),
+    }
+}
+
+impl ConnectorSelectionAction {
+    pub fn apply(
+        &self,
+        connectors: &mut IntoIter<api::ConnectorRoutingData>,
+    ) -> RouterResult<(api::ConnectorData, CardNetwork)> {
+        match self {
+            ConnectorSelectionAction::SelectSameConnectorNetwork(prev_connector,prev_network) => {
+                Ok((prev_connector.clone(), prev_network.clone()))
+            }
+            ConnectorSelectionAction::SelectConnectorWithGlobalNetwork => {
+                super::get_next_connector_with_global_network(connectors)
+            }
+            ConnectorSelectionAction::RemoveCurrentNetworkAndChooseAnother(prev_network) => {
+                super::remove_current_network_and_choose_another(connectors, prev_network.clone())
+            }
+            ConnectorSelectionAction::RemoveCurrentConnectorAndChooseDifferentConnector(prev_connector) => {
+                super::remove_current_connector_and_choose_different_connector(connectors, prev_connector.clone())
+            }
+            ConnectorSelectionAction::SelectNextConnectorNetwork => {
+                super::select_next_connector_network(connectors)
+            }
+        }
+    }
+}
+
+
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
@@ -137,178 +340,61 @@ where
                     .map(|net| net.is_global_network())
                     .unwrap_or(false);
 
-                if alternate_network_retry_possible {
-                    if step_up_retry_possible && prev_is_global_network {
-                        // Case: alternate_network_retry_possible = true, step_up = true and prev was global network
-                        // Do: step up retry with same network and connector
-                        router_data = do_retry(
-                            &state.clone(),
-                            req_state.clone(),
-                            original_connector_data,
-                            operation,
-                            customer,
-                            merchant_account,
-                            key_store,
-                            payment_data,
-                            router_data,
-                            validate_result,
-                            schedule_time,
-                            true,
-                            frm_suggestion,
-                            business_profile,
-                            false, //should_retry_with_pan is not applicable for step-up
-                        )
-                        .await?;
-                    }
+                let is_network_token = payment_data
+                    .get_payment_method_data()
+                    .map(|pmd| pmd.is_network_token_payment_method_data())
+                    .unwrap_or(false);
 
-                    if step_up_retry_possible && !prev_is_global_network {
-                        // Case: alternate_network_retry_possible = true, step_up = true and prev was local network
-                        // Do: step up retry with new global network (connector independent)
+                let pan_retry_possible = is_network_token
+                    && initial_gsm
+                        .as_ref()
+                        .map(|gsm| gsm.clear_pan_possible)
+                        .unwrap_or(false)
+                    && business_profile.is_clear_pan_retries_enabled;
 
-                        let (new_connector, new_network) =
-                            super::get_next_connector_with_global_network(
-                                &mut connector_routing_data,
-                            )?;
 
-                        payment_data.set_network(new_network.clone());
+                let retry_context = RetryContext::new(
+                        alternate_network_retry_possible,
+                        step_up_retry_possible,
+                        pan_retry_possible,
+                        prev_is_global_network,
+                        is_debit_routing_performed,
+                    );
+                
+                let (retry_action, connector_selection_action) = determine_retry_plan(
+                        &retry_context,
+                        Some(previous_connector.clone()),
+                        previous_network.clone(),
+                    );
+                    
+                let is_step_up_retry = matches!(retry_action, RetryAction::StepUpRetry);
+                let is_pan_retry = matches!(retry_action, RetryAction::PanRetry);
+                    
+                let (new_connector, new_network) = connector_selection_action.apply(&mut connector_routing_data)?;
+                
+                previous_connector = new_connector.clone();
+                previous_network = Some(new_network.clone());
+                payment_data.set_network(new_network.clone());
 
-                        previous_network = Some(new_network);
+                router_data = do_retry(
+                        &state.clone(),
+                        req_state.clone(),
+                        &new_connector,
+                        operation,
+                        customer,
+                        merchant_account,
+                        key_store,
+                        payment_data,
+                        router_data,
+                        validate_result,
+                        schedule_time,
+                        is_step_up_retry,
+                        frm_suggestion,
+                        business_profile,
+                        is_pan_retry, 
+                    )
+                    .await?;
 
-                        previous_connector = new_connector.clone();
-
-                        router_data = do_retry(
-                            &state.clone(),
-                            req_state.clone(),
-                            &new_connector,
-                            operation,
-                            customer,
-                            merchant_account,
-                            key_store,
-                            payment_data,
-                            router_data,
-                            validate_result,
-                            schedule_time,
-                            true,
-                            frm_suggestion,
-                            business_profile,
-                            false, //should_retry_with_pan is not applicable for step-up
-                        )
-                        .await?;
-                    }
-
-                    if !step_up_retry_possible {
-                        // Case: alternate_network_retry_possible = true, step_up = false => network error cases
-                        // Do: network retry with a new network
-
-                        let (new_connector, new_network) =
-                            super::get_next_connector_with_diff_network(
-                                &mut connector_routing_data,
-                                previous_network,
-                            )?;
-
-                        payment_data.set_network(new_network.clone());
-
-                        previous_network = Some(new_network);
-
-                        previous_connector = new_connector.clone();
-
-                        router_data = do_retry(
-                            &state.clone(),
-                            req_state.clone(),
-                            &new_connector,
-                            operation,
-                            customer,
-                            merchant_account,
-                            key_store,
-                            payment_data,
-                            router_data,
-                            validate_result,
-                            schedule_time,
-                            true,
-                            frm_suggestion,
-                            business_profile,
-                            false,
-                        )
-                        .await?;
-                    }
-                } else {
-                    //existing logic of retries if alternate_network_retry_possible = false
-                    if step_up_retry_possible {
-                        router_data = do_retry(
-                            &state.clone(),
-                            req_state.clone(),
-                            original_connector_data,
-                            operation,
-                            customer,
-                            merchant_account,
-                            key_store,
-                            payment_data,
-                            router_data,
-                            validate_result,
-                            schedule_time,
-                            true,
-                            frm_suggestion,
-                            business_profile,
-                            false, //should_retry_with_pan is not applicable for step-up
-                        )
-                        .await?;
-                    break;
-                    } else {
-                        let is_network_token = payment_data
-                            .get_payment_method_data()
-                            .map(|pmd| pmd.is_network_token_payment_method_data())
-                            .unwrap_or(false);
-
-                        let should_retry_with_pan = is_network_token
-                            && initial_gsm
-                                .as_ref()
-                                .map(|gsm| gsm.clear_pan_possible)
-                                .unwrap_or(false)
-                            && business_profile.is_clear_pan_retries_enabled;
-
-                        let connector = if should_retry_with_pan {
-                            // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
-                            original_connector_data.clone()
-                        } else {
-
-                            if is_debit_routing_performed {
-                                
-                                let (new_connector, new_network) = super::get_new_connector(
-                                    &mut connector_routing_data,
-                                    previous_connector,
-                                )?;
-
-                                previous_network = Some(new_network.clone());
-                                
-                                previous_connector = new_connector.clone();
-
-                                new_connector
-                            }else{
-                                super::get_connector_data(&mut connector_routing_data)?.connector_data
-                            }  
-                        };
-
-                        router_data = do_retry(
-                            &state.clone(),
-                            req_state.clone(),
-                            &connector,
-                            operation,
-                            customer,
-                            merchant_account,
-                            key_store,
-                            payment_data,
-                            router_data,
-                            validate_result,
-                            schedule_time,
-                            //this is an auto retry payment, but not step-up
-                            false,
-                            frm_suggestion,
-                            business_profile,
-                            should_retry_with_pan,
-                        )
-                        .await?;
-                    }
-                }
                 retries = retries.map(|i| i - 1);
             }
             api_models::gsm::GsmDecision::Requeue => {
@@ -324,31 +410,6 @@ where
     }
     Ok(router_data)
 }
-
-//can be used once db/enum changes is done
-// pub struct EffectiveFeatureFlags {
-//     pub step_up_possible: bool,
-//     pub clear_pan_possible: bool,
-//     pub alternate_network_possible: bool,
-// }
-
-// pub fn get_effective_feature_flags(&self) -> EffectiveFeatureFlags {
-//     let feature = self.feature_data.as_ref();
-
-//     EffectiveFeatureFlags {
-//         step_up_possible: feature
-//             .map(|f| f.step_up_possible)
-//             .unwrap_or(self.step_up_possible),
-
-//         clear_pan_possible: feature
-//             .map(|f| f.clear_pan_possible)
-//             .unwrap_or(self.clear_pan_possible),
-
-//         alternate_network_possible: feature
-//             .map(|f| f.alternate_network_possible)
-//             .unwrap_or(false),
-//     }
-// }
 
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
