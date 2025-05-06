@@ -338,10 +338,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.organization_type.unwrap_or_default() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
-
-            OrganizationType::Platform => {
+        let merchant_account_type = match organization.organization_type {
+            Some(OrganizationType::Platform) => {
                 let accounts = state
                     .store
                     .list_merchant_accounts_by_organization_id(
@@ -354,13 +352,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                 let platform_account_exists = accounts
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
-
                 if platform_account_exists {
                     MerchantAccountType::Connected
                 } else {
                     MerchantAccountType::Platform
                 }
             }
+            // For Some(Standard) _or_ None, treat it as Standard
+            Some(OrganizationType::Standard) | None => MerchantAccountType::Standard,
         };
 
         let key = key_store.key.clone().into_inner();
@@ -660,16 +659,17 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.organization_type.unwrap_or_default() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
+        let merchant_account_type = match organization.organization_type {
             // Blocking v2 merchant account create for platform
-            OrganizationType::Platform => {
+            Some(OrganizationType::Platform) => {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Merchant account creation is not allowed for a platform organization"
                         .to_string(),
                 }
-                .into())
+                .into());
             }
+            // For Some(Standard) _or_ None, treat it as Standard
+            Some(OrganizationType::Standard) | None => MerchantAccountType::Standard,
         };
 
         let key = key_store.key.into_inner();
