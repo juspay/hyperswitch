@@ -219,4 +219,11 @@ impl MerchantId {
             ),
         }
     }
+    /// allow payment update via client auth default should be false
+    pub fn get_payment_update_enabled_for_client_auth(&self) -> String {
+        format!(
+            "payment_update_enabled_for_client_auth_{}",
+            self.get_string_repr()
+        )
+    }
 }

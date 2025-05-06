@@ -7431,3 +7431,38 @@ pub async fn validate_allowed_payment_method_types_request(
 
     Ok(())
 }
+
+pub async fn get_payment_update_enabled_for_client_auth(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+) -> bool {
+    let key = merchant_id.get_payment_update_enabled_for_client_auth();
+    let db = &*state.store;
+    let update_enabled = db
+        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
+        .await;
+    match update_enabled {
+        Ok(conf) => conf.config.to_lowercase() == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
+pub async fn allow_payment_update_enabled_for_client_auth(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+    auth_flow: services::AuthFlow,
+) -> Result<(), errors::ApiErrorResponse> {
+    match auth_flow {
+        services::AuthFlow::Client => {
+            if get_payment_update_enabled_for_client_auth(merchant_id, state).await {
+                Ok(())
+            } else {
+                Err(errors::ApiErrorResponse::InternalServerError)
+            }
+        }
+        services::AuthFlow::Merchant => Ok(()),
+    }
+}
