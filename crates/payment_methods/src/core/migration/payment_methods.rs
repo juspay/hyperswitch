@@ -159,8 +159,7 @@ pub async fn migrate_payment_method(
     _state: &state::PaymentMethodsState,
     _req: pm_api::PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
-    _merchant_account: &merchant_account::MerchantAccount,
-    _key_store: &merchant_key_store::MerchantKeyStore,
+    merchant_context: &merchant_context::MerchantContext,
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
@@ -649,8 +648,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     _state: state::PaymentMethodsState,
     _req: &pm_api::PaymentMethodMigrate,
     _merchant_id: id_type::MerchantId,
-    _key_store: &merchant_key_store::MerchantKeyStore,
-    _merchant_account: &merchant_account::MerchantAccount,
+    _merchant_context: &merchant_context::MerchantContext,
     _card: pm_api::CardDetailFromLocker,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
     todo!()

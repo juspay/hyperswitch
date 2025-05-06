@@ -4,10 +4,6 @@
 ))]
 use common_utils::errors::CustomResult;
 use common_utils::types::keymanager;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 use hyperswitch_domain_models::{
     cards_info, customer, merchant_account, merchant_key_store, payment_methods as pm_domain,
 };
