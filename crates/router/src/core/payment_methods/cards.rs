@@ -830,7 +830,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 key_manager_state,
                 customer_id,
                 merchant_id,
-                &self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_merchant_key_store(),
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
             .await
@@ -839,7 +839,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let payment_method = db
             .find_payment_method(
                 &(self.state.into()),
-                &self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_merchant_key_store(),
                 &payment_method_id,
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
@@ -882,7 +882,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 merchant_id.to_owned(),
                 customer,
                 customer_update,
-                &self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_merchant_key_store(),
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
             .await
@@ -1561,7 +1561,7 @@ pub async fn add_payment_method_data(
                                 req.clone(),
                                 &mut pm_resp,
                                 &customer_id,
-                                &merchant_context.get_merchant_key_store(),
+                                merchant_context.get_merchant_key_store(),
                             )
                             .await?;
 
@@ -1676,7 +1676,7 @@ pub async fn add_payment_method_data(
 #[instrument(skip_all)]
 pub async fn update_customer_payment_method(
     state: routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: domain::MerchantContext,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
@@ -1791,7 +1791,7 @@ pub async fn update_customer_payment_method(
             new_pm.validate()?;
             let cards = PmCards {
                 state: &state,
-                merchant_context,
+                merchant_context: &merchant_context,
             };
             // Delete old payment method from locker
             cards

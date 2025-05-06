@@ -778,13 +778,12 @@ pub async fn payment_method_retrieve_api(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            let cards = cards::PmCards {
+            cards::PmCards {
                 state: &state,
                 merchant_context: &merchant_context,
             }
             .retrieve_payment_method(pm)
-            .await;
-            cards
+            .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -823,13 +822,10 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let value = payment_method_id.clone();
-            async move {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
-                cards::update_customer_payment_method(state, &merchant_context, req, &value).await
-            }
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            cards::update_customer_payment_method(state, merchant_context, req, &payment_method_id)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
