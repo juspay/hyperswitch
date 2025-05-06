@@ -1555,7 +1555,7 @@ pub async fn create_platform_account(
         user_api::PlatformAccountCreateResponse {
             org_id: organization.get_organization_id(),
             org_name: organization.get_organization_name(),
-            org_type: organization.organization_type,
+            org_type: organization.organization_type.unwrap_or_default(),
             merchant_id: merchant_account.get_id().to_owned(),
             merchant_account_type: merchant_account.merchant_account_type,
         },
@@ -2959,7 +2959,7 @@ pub async fn list_orgs_for_user(
     .map(|org| user_api::ListOrgsForUserResponse {
         org_id: org.get_organization_id(),
         org_name: org.get_organization_name(),
-        org_type: org.organization_type,
+        org_type: org.organization_type.unwrap_or_default(),
     })
     .collect::<Vec<_>>();
 

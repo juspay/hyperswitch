@@ -54,7 +54,7 @@ pub struct MerchantAccount {
     pub is_platform_account: bool,
     pub id: Option<common_utils::id_type::MerchantId>,
     pub product_type: Option<common_enums::MerchantProductType>,
-    pub merchant_account_type: common_enums::MerchantAccountType,
+    pub merchant_account_type: Option<common_enums::MerchantAccountType>,
 }
 
 #[cfg(feature = "v1")]
@@ -127,7 +127,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version: item.version,
             is_platform_account: item.is_platform_account,
             product_type: item.product_type,
-            merchant_account_type: item.merchant_account_type,
+            merchant_account_type: Some(item.merchant_account_type),
         }
     }
 }
@@ -161,7 +161,7 @@ pub struct MerchantAccount {
     pub is_platform_account: bool,
     pub id: common_utils::id_type::MerchantId,
     pub product_type: Option<common_enums::MerchantProductType>,
-    pub merchant_account_type: common_enums::MerchantAccountType,
+    pub merchant_account_type: Option<common_enums::MerchantAccountType>,
 }
 
 #[cfg(feature = "v2")]
@@ -181,7 +181,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version: item.version,
             is_platform_account: item.is_platform_account,
             product_type: item.product_type,
-            merchant_account_type: item.merchant_account_type,
+            merchant_account_type: Some(item.merchant_account_type),
         }
     }
 }

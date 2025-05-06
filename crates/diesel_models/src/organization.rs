@@ -29,7 +29,7 @@ pub struct Organization {
     #[allow(dead_code)]
     organization_name: Option<String>,
     pub version: common_enums::ApiVersion,
-    pub organization_type: common_enums::OrganizationType,
+    pub organization_type: Option<common_enums::OrganizationType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
@@ -48,7 +48,7 @@ pub struct Organization {
     id: id_type::OrganizationId,
     organization_name: Option<String>,
     pub version: common_enums::ApiVersion,
-    pub organization_type: common_enums::OrganizationType,
+    pub organization_type: Option<common_enums::OrganizationType>,
     pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
@@ -78,9 +78,13 @@ impl Organization {
             created_at,
             modified_at,
             version,
-            organization_type,
+            organization_type: Some(organization_type),
             platform_merchant_id,
         }
+    }
+
+    pub fn get_organization_type(&self) -> common_enums::OrganizationType {
+        self.organization_type.unwrap_or_default()
     }
 }
 
@@ -106,7 +110,7 @@ impl Organization {
             created_at,
             modified_at,
             version,
-            organization_type,
+            organization_type: Some(organization_type),
             platform_merchant_id,
         }
     }

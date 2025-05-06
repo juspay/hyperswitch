@@ -338,7 +338,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.organization_type {
+        let merchant_account_type = match organization.organization_type.unwrap_or_default() {
             OrganizationType::Standard => MerchantAccountType::Standard,
 
             OrganizationType::Platform => {
@@ -660,7 +660,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.organization_type {
+        let merchant_account_type = match organization.organization_type.unwrap_or_default() {
             OrganizationType::Standard => MerchantAccountType::Standard,
             // Blocking v2 merchant account create for platform
             OrganizationType::Platform => {

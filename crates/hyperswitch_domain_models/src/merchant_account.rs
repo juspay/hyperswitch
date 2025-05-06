@@ -645,7 +645,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 is_platform_account: item.is_platform_account,
                 version: item.version,
                 product_type: item.product_type,
-                merchant_account_type: item.merchant_account_type,
+                merchant_account_type: item.merchant_account_type.unwrap_or_default(),
             })
         }
         .await
@@ -793,7 +793,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 version: item.version,
                 is_platform_account: item.is_platform_account,
                 product_type: item.product_type,
-                merchant_account_type: item.merchant_account_type,
+                merchant_account_type: item.merchant_account_type.unwrap_or_default(),
             })
         }
         .await
