@@ -3,13 +3,16 @@ use std::sync::Arc;
 use api_models::user as user_api;
 use common_enums::UserAuthType;
 use common_utils::{
-    encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
+    encryption::Encryption,
+    errors::CustomResult,
+    id_type, type_name,
+    types::{keymanager::Identifier, user::LineageContext},
 };
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
-use router_env::env;
+use router_env::{env, logger};
 
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
@@ -359,4 +362,35 @@ pub async fn validate_email_domain_auth_type_using_db(
             .any(|auth_method| auth_method.auth_type == required_auth_type))
     .then_some(())
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
+}
+
+pub fn spawn_async_lineage_context_update_to_db(
+    state: &SessionState,
+    user_id: &str,
+    lineage_context: LineageContext,
+) {
+    let state = state.clone();
+    let lineage_context = lineage_context.clone();
+    let user_id = user_id.to_owned();
+    tokio::spawn(async move {
+        match state
+            .global_store
+            .update_user_by_user_id(
+                &user_id,
+                diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
+            )
+            .await
+        {
+            Ok(_) => {
+                logger::debug!("Successfully updated lineage context for user {}", user_id);
+            }
+            Err(e) => {
+                logger::error!(
+                    "Failed to update lineage context for user {}: {:?}",
+                    user_id,
+                    e
+                );
+            }
+        }
+    });
 }

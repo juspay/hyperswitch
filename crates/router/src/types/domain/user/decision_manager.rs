@@ -191,31 +191,11 @@ impl JWTFlow {
             }
         };
 
-        tokio::spawn({
-            let state = state.clone();
-            let user_id = user_id.to_string();
-            let new_lineage_context = new_lineage_context.clone();
-            async move {
-                if let Err(e) = state
-                    .global_store
-                    .update_user_by_user_id(
-                        &user_id,
-                        diesel_models::user::UserUpdate::LineageContextUpdate {
-                            lineage_context: new_lineage_context,
-                        },
-                    )
-                    .await
-                {
-                    logger::error!(
-                        "Failed to update lineage context for user {}: {:?}",
-                        user_id,
-                        e
-                    );
-                } else {
-                    logger::debug!("Lineage context updated for user {}", user_id);
-                }
-            }
-        });
+        utils::user::spawn_async_lineage_context_update_to_db(
+            state,
+            user_id,
+            new_lineage_context.clone(),
+        );
 
         auth::AuthToken::new_token(
             new_lineage_context.user_id,
