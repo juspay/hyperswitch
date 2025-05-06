@@ -48,6 +48,7 @@ pub async fn create_vault_token_core<T: Serialize + std::fmt::Debug>(
     let vault_id = domain::VaultId::generate(uuid::Uuid::now_v7().to_string());
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+    
     // Create vault request
     let payload = pm_types::AddVaultRequest {
         entity_id: merchant_account.get_id().to_owned(),
@@ -58,11 +59,13 @@ pub async fn create_vault_token_core<T: Serialize + std::fmt::Debug>(
     .encode_to_vec()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encode Request")?;
+    
     // Call the vault service
     let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Call to vault failed")?;
+    
     // Parse the response
     let stored_resp: pm_types::AddVaultResponse = resp
         .parse_struct("AddVaultResponse")
@@ -111,8 +114,8 @@ pub async fn get_token_vault_core(
 ) -> RouterResponse<serde_json::Value> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    // Get the tokenization record from the database
-    let tokenization = db
+
+    let tokenization_record = db
         .get_entity_id_vault_id_by_token_id(
             &query_params.0,
             &(merchant_key_store.clone()),
@@ -122,7 +125,7 @@ pub async fn get_token_vault_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get tokenization record")?;
 
-    if tokenization.flag == enums::TokenizationFlag::Disabled {
+    if tokenization_record.flag == enums::TokenizationFlag::Disabled {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Tokenization is disabled".to_string(),
         }
@@ -130,9 +133,9 @@ pub async fn get_token_vault_core(
     }
 
     let vault_request = pm_types::VaultRetrieveRequest {
-        entity_id: tokenization.merchant_id.clone(),
+        entity_id: tokenization_record.merchant_id.clone(),
         vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
-            tokenization.locker_id.clone(),
+            tokenization_record.locker_id.clone(),
         ),
     };
 
@@ -145,8 +148,6 @@ pub async fn get_token_vault_core(
         .get("data")
         .cloned()
         .unwrap_or(serde_json::Value::Null);
-
-    // Mask sensitive data if needed
     let response_data = if !query_params.1 {
         mask_sensitive_data(data_json)
     } else {
@@ -165,7 +166,6 @@ fn mask_sensitive_data(value: serde_json::Value) -> serde_json::Value {
         serde_json::Value::Object(map) => {
             let mut masked = serde_json::Map::new();
             for (key, val) in map {
-                // Recursively mask nested objects
                 masked.insert(key, mask_sensitive_data(val));
             }
             serde_json::Value::Object(masked)
@@ -175,10 +175,9 @@ fn mask_sensitive_data(value: serde_json::Value) -> serde_json::Value {
             let masked_arr = arr.into_iter().map(mask_sensitive_data).collect();
             serde_json::Value::Array(masked_arr)
         }
-        // For primitive values (string, number, boolean), replace with "masked"
         serde_json::Value::String(_)
         | serde_json::Value::Number(_)
-        | serde_json::Value::Bool(_) => serde_json::Value::String("masked".to_string()),
+        | serde_json::Value::Bool(_) => serde_json::Value::String("*** alloc::string::String ***".to_string()),
         // Keep null as is
         serde_json::Value::Null => serde_json::Value::Null,
     }

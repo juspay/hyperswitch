@@ -68,7 +68,7 @@ use super::{
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     configs::settings,
-    core::{payment_methods::transformers as pm_transforms, payments as payments_core},
+    core::{payment_methods::transformers as pm_transforms, payments as payments_core, tokenization as tokenization_core},
     db::errors::ConnectorErrorExt,
     headers, logger,
     routes::{self, payment_methods as pm_routes},
@@ -2291,10 +2291,12 @@ pub async fn payment_methods_session_create(
             billing,
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
+            tokenization_data: request.tokenization_data,
             expires_at,
             return_url: request.return_url,
             associated_payment_methods: None,
             associated_payment: None,
+            associated_token_id: None,
         };
 
     db.insert_payment_methods_session(
@@ -2310,6 +2312,7 @@ pub async fn payment_methods_session_create(
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         client_secret.secret,
+        None,
         None,
     );
 
@@ -2357,6 +2360,7 @@ pub async fn payment_methods_session_update(
             billing,
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
+            tokenization_data: request.tokenization_data,
         };
 
     let update_state_change = db
@@ -2375,6 +2379,7 @@ pub async fn payment_methods_session_update(
         update_state_change,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -2401,6 +2406,7 @@ pub async fn payment_methods_session_retrieve(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -2646,11 +2652,33 @@ pub async fn payment_methods_session_confirm(
         None => None,
     };
 
+    let tokenization_response = match payment_method_session.tokenization_data.clone() {
+        Some(tokenization_data) => {
+            let tokenization_response = tokenization_core::create_vault_token_core(
+                state.clone(),
+                &merchant_account,
+                &key_store,
+                tokenization_data,
+            ).await?;
+            let token = match tokenization_response {
+                services::ApplicationResponse::Json(response) => {
+                    Some(response)
+                }
+                _ => None,
+            };
+            Some(token)
+        }
+        None => None,
+    };
+
+    logger::debug!(?tokenization_response, "Tokenization response");
+
     //TODO: update the payment method session with the payment id and payment method id
     let payment_method_session_response = transformers::generate_payment_method_session_response(
         payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         payments_response,
+        (tokenization_response.flatten()),
     );
 
     Ok(services::ApplicationResponse::Json(
