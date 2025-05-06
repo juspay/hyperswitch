@@ -7436,11 +7436,9 @@ pub async fn get_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> bool {
-    let key = merchant_id.get_payment_update_enabled_for_client_auth();
+    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
     let db = &*state.store;
-    let update_enabled = db
-        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
-        .await;
+    let update_enabled = db.find_config_by_key(key.as_str()).await;
 
     match update_enabled {
         Ok(conf) => conf.config.to_lowercase() == "true",
@@ -7455,13 +7453,14 @@ pub async fn allow_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
     auth_flow: services::AuthFlow,
-) -> Result<(), errors::ApiErrorResponse> {
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     match auth_flow {
         services::AuthFlow::Client => {
             if get_payment_update_enabled_for_client_auth(merchant_id, state).await {
                 Ok(())
             } else {
                 Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Client auth for payment update is not enabled.")
             }
         }
         services::AuthFlow::Merchant => Ok(()),
