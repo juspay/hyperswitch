@@ -813,11 +813,11 @@ bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 
 [mandates.supported_payment_methods]
-pay_later.klarna = { connector_list = "adyen" }
+pay_later.klarna = { connector_list = "adyen,aci" }
 wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo" }
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo" }
 wallet.samsung_pay = { connector_list = "cybersource" }
-wallet.paypal = { connector_list = "adyen,novalnet" }
+wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
 card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,wellsfargo" }
 card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,wellsfargo" }
 
@@ -825,9 +825,9 @@ bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
 bank_debit.sepa = { connector_list = "gocardless,adyen" }
-bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }
-bank_redirect.sofort = { connector_list = "globalpay" }
-bank_redirect.giropay = { connector_list = "globalpay" }
+bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay,aci" }
+bank_redirect.sofort = { connector_list = "globalpay,aci" }
+bank_redirect.giropay = { connector_list = "globalpay,aci" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
