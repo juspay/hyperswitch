@@ -46,7 +46,7 @@ pub struct CreateThemeRequest {
 pub struct UpdateThemeRequest {
     pub lineage: ThemeLineage,
     pub theme_data: ThemeData,
-    // TODO: Add support to update email config
+    pub email_config: Option<EmailThemeConfig>,
 }
 
 // All the below structs are for the theme.json file,

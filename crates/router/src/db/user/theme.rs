@@ -1,5 +1,5 @@
 use common_utils::types::theme::ThemeLineage;
-use diesel_models::user::theme as storage;
+use diesel_models::user::theme::{self as storage, ThemeUpdate};
 use error_stack::report;
 
 use super::MockDb;
@@ -29,6 +29,13 @@ pub trait ThemeInterface {
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,
+    ) -> CustomResult<storage::Theme, errors::StorageError>;
+
+    async fn update_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+        theme_update: ThemeUpdate,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
     async fn delete_theme_by_lineage_and_theme_id(
@@ -77,6 +84,18 @@ impl ThemeInterface for Store {
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Theme::find_by_lineage(&conn, lineage)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn update_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+        theme_update: ThemeUpdate,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Theme::update_by_theme_id_and_lineage(&conn, theme_id, lineage, theme_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -254,6 +273,39 @@ impl ThemeInterface for MockDb {
                 ))
                 .into(),
             )
+    }
+
+    async fn update_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+        theme_update: ThemeUpdate,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let mut themes = self.themes.lock().await;
+        themes
+            .iter_mut()
+            .find(|theme| theme.theme_id == theme_id && check_theme_with_lineage(theme, &lineage))
+            .map(|theme| {
+                match theme_update {
+                    ThemeUpdate::ThemeName { theme_name } => {
+                        theme.theme_name = theme_name;
+                    }
+                    ThemeUpdate::EmailConfig { email_config } => {
+                        theme.email_primary_color = email_config.primary_color;
+                        theme.email_foreground_color = email_config.foreground_color;
+                        theme.email_background_color = email_config.background_color;
+                        theme.email_entity_name = email_config.entity_name;
+                        theme.email_entity_logo_url = email_config.entity_logo_url;
+                    }
+                }
+                theme.clone()
+            })
+            .ok_or_else(|| {
+                report!(errors::StorageError::ValueNotFound(format!(
+                    "Theme with id {} and lineage {:?} not found",
+                    theme_id, lineage
+                )))
+            })
     }
 
     async fn delete_theme_by_lineage_and_theme_id(

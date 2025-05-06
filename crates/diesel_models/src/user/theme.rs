@@ -3,7 +3,8 @@ use common_utils::{
     date_time, id_type,
     types::theme::{EmailThemeConfig, ThemeLineage},
 };
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use router_derive::DebugAsDisplay;
 use time::PrimitiveDateTime;
 
 use crate::schema::themes;
@@ -27,7 +28,7 @@ pub struct Theme {
     pub email_entity_logo_url: String,
 }
 
-#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, DebugAsDisplay)]
 #[diesel(table_name = themes)]
 pub struct ThemeNew {
     pub theme_id: String,
@@ -82,6 +83,42 @@ impl Theme {
             background_color: self.email_background_color.clone(),
             entity_name: self.email_entity_name.clone(),
             entity_logo_url: self.email_entity_logo_url.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, AsChangeset, DebugAsDisplay)]
+#[diesel(table_name = themes)]
+pub struct ThemeUpdateInternal {
+    pub theme_name: Option<String>,
+    pub email_primary_color: Option<String>,
+    pub email_foreground_color: Option<String>,
+    pub email_background_color: Option<String>,
+    pub email_entity_name: Option<String>,
+    pub email_entity_logo_url: Option<String>,
+}
+
+#[derive(Clone)]
+pub enum ThemeUpdate {
+    ThemeName { theme_name: String },
+    EmailConfig { email_config: EmailThemeConfig },
+}
+
+impl From<ThemeUpdate> for ThemeUpdateInternal {
+    fn from(value: ThemeUpdate) -> Self {
+        match value {
+            ThemeUpdate::ThemeName { theme_name } => Self {
+                theme_name: Some(theme_name),
+                ..Default::default()
+            },
+            ThemeUpdate::EmailConfig { email_config } => Self {
+                email_primary_color: Some(email_config.primary_color),
+                email_foreground_color: Some(email_config.foreground_color),
+                email_background_color: Some(email_config.background_color),
+                email_entity_name: Some(email_config.entity_name),
+                email_entity_logo_url: Some(email_config.entity_logo_url),
+                ..Default::default()
+            },
         }
     }
 }

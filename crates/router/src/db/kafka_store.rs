@@ -4099,6 +4099,17 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store.find_theme_by_lineage(lineage).await
     }
 
+    async fn update_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+        theme_update: diesel_models::user::theme::ThemeUpdate,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .update_theme_by_lineage_and_theme_id(theme_id, lineage, theme_update)
+            .await
+    }
+
     async fn delete_theme_by_lineage_and_theme_id(
         &self,
         theme_id: String,

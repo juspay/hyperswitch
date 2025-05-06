@@ -1,6 +1,7 @@
 use api_models::user::theme as theme_api;
 use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
+    fp_utils,
     types::theme::ThemeLineage,
 };
 use diesel_models::user::theme::ThemeNew;
@@ -175,15 +176,35 @@ pub async fn update_theme(
     theme_id: String,
     request: theme_api::UpdateThemeRequest,
 ) -> UserResponse<theme_api::GetThemeResponse> {
-    let db_theme = state
-        .store
-        .find_theme_by_lineage(request.lineage)
-        .await
-        .to_not_found_response(UserErrors::ThemeNotFound)?;
+    let db_theme = match request.email_config {
+        Some(email_config) => {
+            let theme_update =
+                diesel_models::user::theme::ThemeUpdate::EmailConfig { email_config }.into();
+            state
+                .store
+                .update_theme_by_lineage_and_theme_id(
+                    theme_id.clone(),
+                    request.lineage,
+                    theme_update,
+                ) // Assuming this function exists
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to update theme database record")?
+        }
+        None => {
+            let theme = state
+                .store
+                .find_theme_by_lineage(request.lineage)
+                .await
+                .to_not_found_response(UserErrors::ThemeNotFound)?;
 
-    if theme_id != db_theme.theme_id {
-        return Err(UserErrors::ThemeNotFound.into());
-    }
+            fp_utils::when(theme.theme_id != theme_id, || {
+                Err(error_stack::Report::from(UserErrors::ThemeNotFound))
+            })?;
+
+            theme
+        }
+    };
 
     theme_utils::upload_file_to_theme_bucket(
         &state,
