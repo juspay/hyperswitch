@@ -48,7 +48,7 @@ pub async fn create_vault_token_core<T: Serialize + std::fmt::Debug>(
     let vault_id = domain::VaultId::generate(uuid::Uuid::now_v7().to_string());
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    
+
     // Create vault request
     let payload = pm_types::AddVaultRequest {
         entity_id: merchant_account.get_id().to_owned(),
@@ -59,13 +59,13 @@ pub async fn create_vault_token_core<T: Serialize + std::fmt::Debug>(
     .encode_to_vec()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encode Request")?;
-    
+
     // Call the vault service
     let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Call to vault failed")?;
-    
+
     // Parse the response
     let stored_resp: pm_types::AddVaultResponse = resp
         .parse_struct("AddVaultResponse")
@@ -177,7 +177,9 @@ fn mask_sensitive_data(value: serde_json::Value) -> serde_json::Value {
         }
         serde_json::Value::String(_)
         | serde_json::Value::Number(_)
-        | serde_json::Value::Bool(_) => serde_json::Value::String("*** alloc::string::String ***".to_string()),
+        | serde_json::Value::Bool(_) => {
+            serde_json::Value::String("*** alloc::string::String ***".to_string())
+        }
         // Keep null as is
         serde_json::Value::Null => serde_json::Value::Null,
     }

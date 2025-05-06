@@ -1048,9 +1048,7 @@ pub fn generate_payment_method_session_response(
 
     let token_id = tokenization_service_response
         .as_ref()
-        .map(|tokenization_service_response| {
-            tokenization_service_response.id.clone()
-        });
+        .map(|tokenization_service_response| tokenization_service_response.id.clone());
 
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,

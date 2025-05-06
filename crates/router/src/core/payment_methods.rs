@@ -68,7 +68,10 @@ use super::{
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     configs::settings,
-    core::{payment_methods::transformers as pm_transforms, payments as payments_core, tokenization as tokenization_core},
+    core::{
+        payment_methods::transformers as pm_transforms, payments as payments_core,
+        tokenization as tokenization_core,
+    },
     db::errors::ConnectorErrorExt,
     headers, logger,
     routes::{self, payment_methods as pm_routes},
@@ -2659,11 +2662,10 @@ pub async fn payment_methods_session_confirm(
                 &merchant_account,
                 &key_store,
                 tokenization_data,
-            ).await?;
+            )
+            .await?;
             let token = match tokenization_response {
-                services::ApplicationResponse::Json(response) => {
-                    Some(response)
-                }
+                services::ApplicationResponse::Json(response) => Some(response),
                 _ => None,
             };
             Some(token)

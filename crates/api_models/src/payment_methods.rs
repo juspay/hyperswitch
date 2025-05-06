@@ -2784,7 +2784,6 @@ pub struct PaymentMethodsSessionUpdateRequest {
     /// The json to be used for tokeniation
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<serde_json::Value>,
-    
 }
 
 #[cfg(feature = "v2")]
@@ -2879,7 +2878,7 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<Vec<String>>)]
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
 
-    pub associated_token_id : Option<id_type::GlobalTokenId>,
+    pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
 
 #[cfg(feature = "v2")]
