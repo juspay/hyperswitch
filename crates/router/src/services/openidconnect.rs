@@ -35,7 +35,7 @@ pub async fn get_authorization_url(
 
     // Save csrf & nonce as key value respectively
     let key = get_oidc_redis_key(csrf_token.secret());
-    get_redis_connection(&state)?
+    get_redis_connection_for_global_tenant(&state)?
         .set_key_with_expiry(&key.into(), nonce.secret(), consts::user::REDIS_SSO_TTL)
         .await
         .change_context(UserErrors::InternalServerError)
@@ -139,7 +139,7 @@ async fn get_nonce_from_redis(
     state: &SessionState,
     redirect_state: &Secret<String>,
 ) -> UserResult<oidc::Nonce> {
-    let redis_connection = get_redis_connection(state)?;
+    let redis_connection = get_redis_connection_for_global_tenant(state)?;
     let redirect_state = redirect_state.clone().expose();
     let key = get_oidc_redis_key(&redirect_state);
     redis_connection
@@ -189,9 +189,11 @@ fn get_oidc_redis_key(csrf: &str) -> String {
     format!("{}OIDC_{}", consts::user::REDIS_SSO_PREFIX, csrf)
 }
 
-fn get_redis_connection(state: &SessionState) -> UserResult<std::sync::Arc<RedisConnectionPool>> {
+fn get_redis_connection_for_global_tenant(
+    state: &SessionState,
+) -> UserResult<std::sync::Arc<RedisConnectionPool>> {
     state
-        .store
+        .global_store
         .get_redis_conn()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get redis connection")

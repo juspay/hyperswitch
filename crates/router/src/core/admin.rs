@@ -15,7 +15,6 @@ use diesel_models::configs;
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
-use hyperswitch_connectors::connectors::{chargebee, recurly};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };

@@ -155,6 +155,7 @@ pub trait SessionStateInfo {
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -210,6 +211,9 @@ impl SessionStateInfo for SessionState {
     }
     fn session_state(&self) -> SessionState {
         self.clone()
+    }
+    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+        self.global_store.to_owned()
     }
 }
 #[derive(Clone)]
