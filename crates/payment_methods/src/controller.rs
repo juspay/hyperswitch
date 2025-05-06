@@ -7,13 +7,12 @@ use common_enums::enums as common_enums;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::encryption;
 use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
-use diesel_models::payment_method;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
 use masking::{PeekInterface, Secret};
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
-use storage_impl::errors as storage_errors;
+use storage_impl::{errors as storage_errors, payment_method};
 
 use crate::core::errors;
 

@@ -10,7 +10,6 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt},
     generate_id, id_type,
 };
-use diesel_models::CardInfo;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors, ext_traits::OptionExt,
@@ -19,6 +18,7 @@ use hyperswitch_domain_models::{
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use serde_json::json;
+use storage_impl::cards_info;
 
 use crate::{
     controller::{create_encrypted_data, PaymentMethodsController},
@@ -210,14 +210,14 @@ pub async fn populate_bin_details_for_masked_card(
 impl
     ForeignTryFrom<(
         &api_models::payment_methods::MigrateCardDetail,
-        Option<CardInfo>,
+        Option<cards_info::CardInfo>,
     )> for pm_api::CardDetailFromLocker
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(
         (card_details, card_info): (
             &api_models::payment_methods::MigrateCardDetail,
-            Option<CardInfo>,
+            Option<cards_info::CardInfo>,
         ),
     ) -> Result<Self, Self::Error> {
         let (card_isin, last4_digits) =
@@ -285,14 +285,14 @@ impl
 impl
     ForeignTryFrom<(
         &api_models::payment_methods::MigrateCardDetail,
-        Option<CardInfo>,
+        Option<cards_info::CardInfo>,
     )> for pm_api::CardDetailFromLocker
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(
         (card_details, card_info): (
             &api_models::payment_methods::MigrateCardDetail,
-            Option<CardInfo>,
+            Option<cards_info::CardInfo>,
         ),
     ) -> Result<Self, Self::Error> {
         let (card_isin, last4_digits) =

@@ -1,4 +1,4 @@
-use diesel_models::{CardInfo, UpdateCardInfo};
+pub use diesel_models::{CardInfo, UpdateCardInfo};
 use error_stack::report;
 use hyperswitch_domain_models::cards_info::CardsInfoInterface;
 use router_env::{instrument, tracing};

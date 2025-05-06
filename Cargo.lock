@@ -5489,7 +5489,6 @@ dependencies = [
  "common_types",
  "common_utils",
  "csv",
- "diesel_models",
  "dyn-clone",
  "error-stack",
  "hyperswitch_domain_models",
