@@ -7441,6 +7441,7 @@ pub async fn get_payment_update_enabled_for_client_auth(
     let update_enabled = db
         .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
         .await;
+
     match update_enabled {
         Ok(conf) => conf.config.to_lowercase() == "true",
         Err(error) => {
