@@ -5539,13 +5539,7 @@ placeholder="Enter locale"
 required=true
 type="Text"
 
-[ctp_mastercard.metadata.card_brands]
-name="card_brands"
-label="Card Brands"
-placeholder="Enter Card Brands"
-required=true
-type="MultiSelect"
-options=["visa","mastercard"]
+
 
 [ctp_mastercard.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -5746,13 +5740,6 @@ placeholder="Enter locale"
 required=true
 type="Text"
 
-[ctp_visa.metadata.card_brands]
-name="card_brands"
-label="Card Brands"
-placeholder="Enter Card Brands"
-required=true
-type="MultiSelect"
-options=["visa","mastercard"]
 
 [ctp_visa.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -5822,6 +5809,6 @@ api_secret = "Secret Key"
 [facilitapay]
 [[facilitapay.bank_transfer]]
   payment_method_type = "pix"
-[facilitapay.connector_auth.Bodykey]
+[facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"

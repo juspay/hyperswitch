@@ -1,13 +1,22 @@
+use common_enums::enums;
+use common_utils::{ext_traits::OptionExt as _, types::SemanticVersion};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, ErrorResponse},
+    router_flow_types::authentication::{Authentication, PreAuthentication},
+    router_request_types::authentication::{
+        AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData, PreAuthNRequestData,
+    },
+    router_response_types::AuthenticationResponseData,
+};
+use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::netcetera_types;
 use crate::{
-    connector::utils::{self, CardData},
-    core::errors,
-    types::{self, api},
-    utils::OptionExt,
+    types::{ConnectorAuthenticationRouterData, PreAuthNRouterData, ResponseRouterData},
+    utils::{get_card_details, to_connector_meta_from_secret, CardData as _},
 };
 
 //TODO: Fill the struct with respective fields
@@ -16,17 +25,10 @@ pub struct NetceteraRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for NetceteraRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for NetceteraRouterData<T> {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
@@ -37,7 +39,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
 }
 
 impl<T> TryFrom<(i64, T)> for NetceteraRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from((amount, router_data): (i64, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -48,21 +50,21 @@ impl<T> TryFrom<(i64, T)> for NetceteraRouterData<T> {
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::PreAuthentication,
+        ResponseRouterData<
+            PreAuthentication,
             NetceteraPreAuthenticationResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::PreAuthNRouterData
+    > for PreAuthNRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::PreAuthentication,
+        item: ResponseRouterData<
+            PreAuthentication,
             NetceteraPreAuthenticationResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
@@ -74,7 +76,7 @@ impl
                     .map(|card_range| card_range.highest_common_supported_version.clone())
                     .unwrap_or_else(|| {
                         // Version "0.0.0" will be less that "2.0.0", hence we will treat this card as not eligible for 3ds authentication
-                        common_utils::types::SemanticVersion::new(0, 0, 0)
+                        SemanticVersion::new(0, 0, 0)
                     });
                 let three_ds_method_data = card_range.as_ref().and_then(|card_range| {
                     card_range
@@ -85,36 +87,32 @@ impl
                 let three_ds_method_url = card_range
                     .as_ref()
                     .and_then(|card_range| card_range.get_three_ds_method_url());
-                Ok(
-                    types::authentication::AuthenticationResponseData::PreAuthNResponse {
-                        threeds_server_transaction_id: pre_authn_response
-                            .three_ds_server_trans_id
-                            .clone(),
-                        maximum_supported_3ds_version: maximum_supported_3ds_version.clone(),
-                        connector_authentication_id: pre_authn_response.three_ds_server_trans_id,
-                        three_ds_method_data,
-                        three_ds_method_url,
-                        message_version: maximum_supported_3ds_version,
-                        connector_metadata: None,
-                        directory_server_id: card_range
-                            .as_ref()
-                            .and_then(|card_range| card_range.directory_server_id.clone()),
-                    },
-                )
-            }
-            NetceteraPreAuthenticationResponse::Failure(error_response) => {
-                Err(types::ErrorResponse {
-                    code: error_response.error_details.error_code,
-                    message: error_response.error_details.error_description,
-                    reason: error_response.error_details.error_detail,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
+                Ok(AuthenticationResponseData::PreAuthNResponse {
+                    threeds_server_transaction_id: pre_authn_response
+                        .three_ds_server_trans_id
+                        .clone(),
+                    maximum_supported_3ds_version: maximum_supported_3ds_version.clone(),
+                    connector_authentication_id: pre_authn_response.three_ds_server_trans_id,
+                    three_ds_method_data,
+                    three_ds_method_url,
+                    message_version: maximum_supported_3ds_version,
+                    connector_metadata: None,
+                    directory_server_id: card_range
+                        .as_ref()
+                        .and_then(|card_range| card_range.directory_server_id.clone()),
                 })
             }
+            NetceteraPreAuthenticationResponse::Failure(error_response) => Err(ErrorResponse {
+                code: error_response.error_details.error_code,
+                message: error_response.error_details.error_description,
+                reason: error_response.error_details.error_detail,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
         };
         Ok(Self {
             response,
@@ -125,57 +123,49 @@ impl
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::Authentication,
+        ResponseRouterData<
+            Authentication,
             NetceteraAuthenticationResponse,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
+            ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::ConnectorAuthenticationRouterData
+    > for ConnectorAuthenticationRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::Authentication,
+        item: ResponseRouterData<
+            Authentication,
             NetceteraAuthenticationResponse,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
+            ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             NetceteraAuthenticationResponse::Success(response) => {
                 let authn_flow_type = match response.acs_challenge_mandated {
                     Some(ACSChallengeMandatedIndicator::Y) => {
-                        types::authentication::AuthNFlowType::Challenge(Box::new(
-                            types::authentication::ChallengeParams {
-                                acs_url: response.authentication_response.acs_url.clone(),
-                                challenge_request: response.encoded_challenge_request,
-                                acs_reference_number: response
-                                    .authentication_response
-                                    .acs_reference_number,
-                                acs_trans_id: response.authentication_response.acs_trans_id,
-                                three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
-                                acs_signed_content: response
-                                    .authentication_response
-                                    .acs_signed_content,
-                            },
-                        ))
+                        AuthNFlowType::Challenge(Box::new(ChallengeParams {
+                            acs_url: response.authentication_response.acs_url.clone(),
+                            challenge_request: response.encoded_challenge_request,
+                            acs_reference_number: response
+                                .authentication_response
+                                .acs_reference_number,
+                            acs_trans_id: response.authentication_response.acs_trans_id,
+                            three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
+                            acs_signed_content: response.authentication_response.acs_signed_content,
+                        }))
                     }
-                    Some(ACSChallengeMandatedIndicator::N) | None => {
-                        types::authentication::AuthNFlowType::Frictionless
-                    }
+                    Some(ACSChallengeMandatedIndicator::N) | None => AuthNFlowType::Frictionless,
                 };
-                Ok(
-                    types::authentication::AuthenticationResponseData::AuthNResponse {
-                        authn_flow_type,
-                        authentication_value: response.authentication_value,
-                        trans_status: response.trans_status,
-                        connector_metadata: None,
-                        ds_trans_id: response.authentication_response.ds_trans_id,
-                    },
-                )
+                Ok(AuthenticationResponseData::AuthNResponse {
+                    authn_flow_type,
+                    authentication_value: response.authentication_value,
+                    trans_status: response.trans_status,
+                    connector_metadata: None,
+                    ds_trans_id: response.authentication_response.ds_trans_id,
+                })
             }
-            NetceteraAuthenticationResponse::Error(error_response) => Err(types::ErrorResponse {
+            NetceteraAuthenticationResponse::Error(error_response) => Err(ErrorResponse {
                 code: error_response.error_details.error_code,
                 message: error_response.error_details.error_description,
                 reason: error_response.error_details.error_detail,
@@ -199,18 +189,18 @@ pub struct NetceteraAuthType {
     pub(super) private_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NetceteraAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+impl TryFrom<&ConnectorAuthType> for NetceteraAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type.to_owned() {
-            types::ConnectorAuthType::CertificateAuth {
+            ConnectorAuthType::CertificateAuth {
                 certificate,
                 private_key,
             } => Ok(Self {
                 certificate,
                 private_key,
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -269,14 +259,12 @@ pub struct NetceteraMetaData {
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for NetceteraMetaData {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
+        let metadata: Self = to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         Ok(metadata)
     }
 }
@@ -321,7 +309,7 @@ pub struct CardRange {
     pub acs_protocol_versions: Vec<AcsProtocolVersion>,
     #[serde(rename = "threeDSMethodDataForm")]
     pub three_ds_method_data_form: Option<ThreeDSMethodDataForm>,
-    pub highest_common_supported_version: common_utils::types::SemanticVersion,
+    pub highest_common_supported_version: SemanticVersion,
 }
 
 impl CardRange {
@@ -346,19 +334,15 @@ pub struct ThreeDSMethodDataForm {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AcsProtocolVersion {
-    pub version: common_utils::types::SemanticVersion,
+    pub version: SemanticVersion,
     #[serde(rename = "threeDSMethodURL")]
     pub three_ds_method_url: Option<String>,
 }
 
-impl TryFrom<&NetceteraRouterData<&types::authentication::PreAuthNRouterData>>
-    for NetceteraPreAuthenticationRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<&NetceteraRouterData<&PreAuthNRouterData>> for NetceteraPreAuthenticationRequest {
+    type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        value: &NetceteraRouterData<&types::authentication::PreAuthNRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: &NetceteraRouterData<&PreAuthNRouterData>) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         let is_cobadged_card = || {
             router_data
@@ -366,7 +350,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::PreAuthNRouterData>>
                 .card
                 .card_number
                 .is_cobadged_card()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("error while checking is_cobadged_card")
         };
         Ok(Self {
@@ -406,7 +390,7 @@ pub struct NetceteraAuthenticationRequest {
     /// - 2.2.0 -> prefer authentication with 2.2.0 version,
     /// - 2.3.1 -> prefer authentication with 2.3.1 version,
     /// - latest -> prefer authentication with the latest version, the 3DS Server is certified for. 2.3.1 at this moment.
-    pub preferred_protocol_version: Option<common_utils::types::SemanticVersion>,
+    pub preferred_protocol_version: Option<SemanticVersion>,
     /// Boolean flag that enforces preferred 3D Secure protocol version to be used in 3D Secure authentication.
     /// The value should be set true to enforce preferred version. If value is false or not provided,
     /// 3DS Server can fall back to next supported 3DS protocol version while initiating 3D Secure authentication.
@@ -460,12 +444,12 @@ pub struct NetceteraAuthenticationRequest {
     pub payee_origin: Option<url::Url>,
 }
 
-impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
+impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
     for NetceteraAuthenticationRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: &NetceteraRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
+        item: &NetceteraRouterData<&ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let now = common_utils::date_time::now();
         let request = item.router_data.request.clone();
@@ -484,12 +468,12 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
                 .message_version
                 .clone(),
         );
-        let card = utils::get_card_details(request.payment_method_data, "netcetera")?;
+        let card = get_card_details(request.payment_method_data, "netcetera")?;
         let is_cobadged_card = card
             .card_number
             .clone()
             .is_cobadged_card()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("error while checking is_cobadged_card")?;
         let cardholder_account = netcetera_types::CardholderAccount {
             acct_type: None,
@@ -511,7 +495,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let currency = request
             .currency
             .get_required_value("currency")
-            .change_context(errors::ConnectorError::MissingRequiredField {
+            .change_context(ConnectorError::MissingRequiredField {
                 field_name: "currency",
             })?;
         let purchase = netcetera_types::Purchase {
@@ -526,7 +510,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
                     common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
                 )
                 .change_context(
-                    errors::ConnectorError::RequestEncodingFailedWithReason(
+                    ConnectorError::RequestEncodingFailedWithReason(
                         "Failed to format Date".to_string(),
                     ),
                 )?,
@@ -552,7 +536,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
             .connector_meta_data
             .clone()
             .parse_value("NetceteraMetaData")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(ConnectorError::RequestEncodingFailed)?;
         let merchant_data = netcetera_types::MerchantData {
             merchant_configuration_id: connector_meta_data.merchant_configuration_id,
             mcc: connector_meta_data.mcc,

@@ -14,7 +14,6 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -2907,6 +2906,8 @@ pub struct PaymentLinkConfigRequest {
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3002,6 +3003,8 @@ pub struct PaymentLinkConfig {
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

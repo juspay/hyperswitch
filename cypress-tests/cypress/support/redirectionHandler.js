@@ -209,12 +209,6 @@ function bankRedirectRedirection(
                 "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
               );
               cy.get("#selectionSubmit").click();
-              cy.get("#user")
-                .should("be.visible")
-                .should("be.enabled")
-                .focus()
-                .type("Verfügernummer");
-              cy.get("input#submitButton.btn.btn-primary").click();
               break;
             case "ideal":
               cy.contains("button", "Select your bank").click();

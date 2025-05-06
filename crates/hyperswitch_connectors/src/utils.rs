@@ -1701,6 +1701,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_network_from_additional_payment_method_data(
         &self,
     ) -> Result<enums::CardNetwork, Error>;
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1920,6 +1921,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             }
             .into()),
         }
+    }
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
+        self.connector_testing_data.clone()
     }
 }
 
@@ -6071,6 +6075,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         shipping_cost: data.request.shipping_cost,
         merchant_account_id: None,
         merchant_config_currency: None,
+        connector_testing_data: data.request.connector_testing_data.clone(),
     }
 }
 
@@ -6225,5 +6230,77 @@ where
             .map(Some)
             .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
         _ => Ok(None),
+    }
+}
+#[cfg(feature = "payouts")]
+pub trait CustomerDetails {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
+}
+
+#[cfg(feature = "payouts")]
+impl CustomerDetails for hyperswitch_domain_models::router_request_types::CustomerDetails {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError> {
+        self.customer_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })
+    }
+
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_name",
+            })
+    }
+
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
+        self.email
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_email",
+            })
+    }
+
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.phone
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone",
+            })
+    }
+
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
+        self.phone_country_code
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone_country_code",
+            })
+    }
+}
+
+pub fn get_card_details(
+    payment_method_data: PaymentMethodData,
+    connector_name: &'static str,
+) -> Result<Card, errors::ConnectorError> {
+    match payment_method_data {
+        PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: connector_name,
+        })?,
     }
 }
