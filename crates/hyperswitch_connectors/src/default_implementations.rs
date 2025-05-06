@@ -1687,6 +1687,7 @@ default_imp_for_accept_dispute!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Volt,
     connectors::Xendit,
