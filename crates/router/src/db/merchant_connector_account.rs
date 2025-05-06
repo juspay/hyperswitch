@@ -189,7 +189,6 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError>;
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
         state: &KeyManagerState,
@@ -502,7 +501,6 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
         state: &KeyManagerState,
@@ -1067,15 +1065,14 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
-        state: &KeyManagerState,
-        profile_id: &common_utils::id_type::ProfileId,
-        key_store: &domain::MerchantKeyStore,
-        connector_type: common_enums::ConnectorType,
+        _state: &KeyManagerState,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _key_store: &domain::MerchantKeyStore,
+        _connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        todo!()
+        Err(errors::StorageError::MockDbError)?
     }
 
     #[cfg(feature = "v1")]

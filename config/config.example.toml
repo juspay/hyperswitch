@@ -160,6 +160,7 @@ max_age = 365     # Max age of a refund in days.
 
 [webhooks]
 outgoing_enabled = true
+redis_lock_expiry_seconds = 180
 
 # Validity of an Ephemeral Key in Hours
 [eph_key]
@@ -1006,3 +1007,7 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List 
 [open_router]
 enabled = true                          # Enable or disable Open Router
 url = "http://localhost:8080"           # Open Router URL
+
+
+[billing_connectors_invoice_sync]
+billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
