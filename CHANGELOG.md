@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.06.0
+
+### Features
+
+- **connector:** Fix Serde derserialization issue -Elavon/Adyen ([#7823](https://github.com/juspay/hyperswitch/pull/7823)) ([`7889225`](https://github.com/juspay/hyperswitch/commit/78892257604509d0bff56468247a83813f4c64e8))
+
+### Bug Fixes
+
+- **connector:** [Novalnet] allow debit card MITs ([#7956](https://github.com/juspay/hyperswitch/pull/7956)) ([`18142a4`](https://github.com/juspay/hyperswitch/commit/18142a4fdb1f81e4b493067b669a68576bac5d08))
+- **payment_methods:** Re-revert changes done in `pr#7866` by `pr#7882` ([#7954](https://github.com/juspay/hyperswitch/pull/7954)) ([`d5eee96`](https://github.com/juspay/hyperswitch/commit/d5eee96f3c0c87642fdd74446af8b7d4936d05e2))
+- **users:** Use global Redis prefix for all user-related cache operations ([#7932](https://github.com/juspay/hyperswitch/pull/7932)) ([`6750b10`](https://github.com/juspay/hyperswitch/commit/6750b10f7a311f2f8563b1c7e5bd2816dc97a099))
+
+### Miscellaneous Tasks
+
+- **env:** Fix Facilitapay connector config ([#7958](https://github.com/juspay/hyperswitch/pull/7958)) ([`afeef30`](https://github.com/juspay/hyperswitch/commit/afeef302ca24ab5d072194693f8df7c2355e1c85))
+
+**Full Changelog:** [`2025.05.05.0...2025.05.06.0`](https://github.com/juspay/hyperswitch/compare/2025.05.05.0...2025.05.06.0)
+
+
+- - -
+
+## 2025.05.05.0
+
+### Features
+
+- **connector:** [Recurly] add invoice sync support along with transaction monitoring ([#7867](https://github.com/juspay/hyperswitch/pull/7867)) ([`bcc57eb`](https://github.com/juspay/hyperswitch/commit/bcc57ebb2df39fe2de80ee280175e8ae07210ad7))
+- **deploy:** Add one-click Docker setup script ([#7804](https://github.com/juspay/hyperswitch/pull/7804)) ([`303074d`](https://github.com/juspay/hyperswitch/commit/303074dde6e8800c9ff3189a032fe8a83b2c608e))
+
+### Bug Fixes
+
+- **diesel_models:** Fix error message while using generic filter ([#7935](https://github.com/juspay/hyperswitch/pull/7935)) ([`997ef01`](https://github.com/juspay/hyperswitch/commit/997ef019b619159fb2d7d14ea8080b11764994ee))
+
+### Refactors
+
+- **connector:** [Stripebilling] change Billing Connector Payment Sync url from charges to payment intents api ([#7893](https://github.com/juspay/hyperswitch/pull/7893)) ([`af5e56e`](https://github.com/juspay/hyperswitch/commit/af5e56ef9ddad8924d33348bc50e7dd82cb58c6a))
+
+**Full Changelog:** [`2025.05.01.0...2025.05.05.0`](https://github.com/juspay/hyperswitch/compare/2025.05.01.0...2025.05.05.0)
+
+
+- - -
+
 ## 2025.05.01.0
 
 ### Features
