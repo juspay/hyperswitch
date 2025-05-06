@@ -4021,18 +4021,15 @@
           },
           "total_shipping_amount": {
             "type": "string",
-            "description": "The total shipping costs",
-            "example": "10.02"
+            "description": "The total shipping costs"
           },
           "total_tax_amount": {
             "type": "string",
-            "description": "The total tax amount for the order",
-            "example": "5.04"
+            "description": "The total tax amount for the order"
           },
           "total_base_amount": {
             "type": "string",
-            "description": "The total amount for items in the cart",
-            "example": "55.04"
+            "description": "The total amount for items in the cart"
           },
           "delivery_options": {
             "type": "array",
