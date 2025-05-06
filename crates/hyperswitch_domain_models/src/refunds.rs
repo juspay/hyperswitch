@@ -28,7 +28,7 @@ pub struct RefundListConstraints {
     pub time_range: Option<common_utils::types::TimeRange>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
     pub connector: Option<Vec<String>>,
-    pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub connector_id_list: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     pub currency: Option<Vec<common_enums::Currency>>,
     pub refund_status: Option<Vec<common_enums::RefundStatus>>,
 }
@@ -114,7 +114,7 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
             offset,
             time_range,
             amount_filter,
-            merchant_connector_id,
+            connector_id_list,
         } = value;
 
         Self {
@@ -126,7 +126,7 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
             time_range,
             amount_filter,
             connector,
-            merchant_connector_id,
+            connector_id_list,
             currency,
             refund_status,
         }

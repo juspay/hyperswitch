@@ -232,8 +232,8 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id {
-            filter = filter.filter(dsl::connector_id.eq_any(merchant_connector_id));
+        if let Some(connector_id_list) = refund_list_details.connector_id_list {
+            filter = filter.filter(dsl::connector_id.eq_any(connector_id_list));
         }
 
         if let Some(filter_currency) = refund_list_details.currency {
@@ -451,8 +451,8 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(merchant_connector_id) = refund_list_details.merchant_connector_id {
-            filter = filter.filter(dsl::connector_id.eq_any(merchant_connector_id));
+        if let Some(connector_id_list) = refund_list_details.connector_id_list {
+            filter = filter.filter(dsl::connector_id.eq_any(connector_id_list));
         }
 
         if let Some(filter_currency) = refund_list_details.currency {

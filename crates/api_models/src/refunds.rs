@@ -359,7 +359,7 @@ pub struct RefundListRequest {
     pub connector: Option<Vec<String>>,
     /// The list of merchant connector ids to filter the refunds list for selected label
     #[schema(value_type = Option<Vec<String>>)]
-    pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub connector_id_list: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     /// The list of currencies to filter refunds list
     #[schema(value_type = Option<Vec<Currency>>)]
     pub currency: Option<Vec<enums::Currency>>,

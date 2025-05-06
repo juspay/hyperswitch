@@ -20337,7 +20337,7 @@
                 "description": "The list of connectors to filter refunds list",
                 "nullable": true
               },
-              "merchant_connector_id": {
+              "connector_id_list": {
                 "type": "array",
                 "items": {
                   "type": "string"
