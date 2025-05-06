@@ -4403,7 +4403,7 @@ type="Text"
 [facilitapay]
 [[facilitapay.bank_transfer]]
   payment_method_type = "pix"
-[facilitapay.connector_auth.Bodykey]
+[facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"
 
