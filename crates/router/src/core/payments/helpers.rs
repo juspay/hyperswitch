@@ -7431,3 +7431,43 @@ pub async fn validate_allowed_payment_method_types_request(
 
     Ok(())
 }
+// TODO recognize all the proper fields and allow allow them via client . We should ideally pass only allowed fields instead of not allowed field.
+#[cfg(feature = "v1")]
+pub(crate) fn allowed_fields_for_payment_update(
+    request: &api::PaymentsRequest,
+    auth_flow: &services::AuthFlow,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match auth_flow {
+        services::AuthFlow::Merchant => Ok(()),
+        services::AuthFlow::Client => {
+            let disallowed_fields = [
+                request.amount.as_ref().map(|_| "amount"),
+                request.currency.as_ref().map(|_| "currency"),
+                request
+                    .surcharge_details
+                    .as_ref()
+                    .map(|_| "surcharge_details"),
+                request
+                    .order_tax_amount
+                    .as_ref()
+                    .map(|_| "order_tax_amount"),
+                request
+                    .amount_to_capture
+                    .as_ref()
+                    .map(|_| "amount_to_capture"),
+                request.shipping_cost.as_ref().map(|_| "shipping_cost"),
+            ];
+
+            let updated_fields: Vec<&str> = disallowed_fields.into_iter().flatten().collect();
+
+            if !updated_fields.is_empty() {
+                let fields_list = updated_fields.join(", ");
+                Err(report!(errors::ApiErrorResponse::GenericUnauthorized {
+                    message: format!("{fields_list} cannot be updated via publishable key"),
+                }))
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
