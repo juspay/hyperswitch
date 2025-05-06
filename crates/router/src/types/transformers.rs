@@ -2191,7 +2191,6 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
-            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
 }
@@ -2226,7 +2225,6 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
-            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
 }

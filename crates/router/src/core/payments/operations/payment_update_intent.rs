@@ -366,6 +366,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 tax_details: intent.amount_details.tax_details,
                 active_attempt_id: Some(intent.active_attempt_id),
                 force_3ds_challenge: intent.force_3ds_challenge,
+                is_setup_mandate_flow: intent.is_setup_mandate_flow,
             }));
 
         let new_payment_intent = db

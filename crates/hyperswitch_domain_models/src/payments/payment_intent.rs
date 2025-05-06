@@ -209,6 +209,7 @@ pub struct PaymentIntentUpdateFields {
     // updated_by is set internally, field not present in request
     pub updated_by: String,
     pub force_3ds_challenge: Option<bool>,
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -242,6 +243,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -410,6 +412,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -459,6 +462,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_setup_mandate_flow: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -503,6 +507,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_setup_mandate_flow: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -545,6 +550,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_setup_mandate_flow: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -587,6 +593,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_setup_mandate_flow: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -632,6 +639,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_setup_mandate_flow: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -667,6 +675,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id,
                     updated_by,
                     force_3ds_challenge,
+                    is_setup_mandate_flow,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -712,6 +721,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
 
                     updated_by,
                     force_3ds_challenge,
+                    is_setup_mandate_flow,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -756,6 +766,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_setup_mandate_flow: None,
             }),
         }
     }
@@ -1032,6 +1043,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
+                    is_setup_mandate_flow: value.is_setup_mandate_flow,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1189,6 +1201,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_setup_mandate_flow,
         } = value;
         Self {
             amount,
@@ -1228,6 +1241,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_setup_mandate_flow,
         }
     }
 }
@@ -1609,6 +1623,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger,
             processor_merchant_id,
             created_by,
+            is_setup_mandate_flow,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1693,6 +1708,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger,
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
+            is_setup_mandate_flow,
         })
     }
     async fn convert_back(
@@ -1833,6 +1849,7 @@ impl behaviour::Conversion for PaymentIntent {
                 created_by: storage_model
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                is_setup_mandate_flow: storage_model.is_setup_mandate_flow,
             })
         }
         .await
@@ -1918,6 +1935,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
+            is_setup_mandate_flow: self.is_setup_mandate_flow,
         })
     }
 }
@@ -1990,6 +2008,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            is_setup_mandate_flow: self.is_setup_mandate_flow,
         })
     }
 
@@ -2087,6 +2106,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                is_setup_mandate_flow: storage_model.is_setup_mandate_flow,
             })
         }
         .await
@@ -2157,6 +2177,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            is_setup_mandate_flow: self.is_setup_mandate_flow,
         })
     }
 }

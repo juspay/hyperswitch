@@ -461,6 +461,7 @@ async fn payments_create_core() {
         card_discovery: None,
         force_3ds_challenge: None,
         force_3ds_challenge_trigger: None,
+        is_setup_mandate_flow: None,
         issuer_error_code: None,
         issuer_error_message: None,
     };
@@ -737,6 +738,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_discovery: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
+            is_setup_mandate_flow: None,
             issuer_error_code: None,
             issuer_error_message: None,
         },

@@ -450,6 +450,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .force_3ds_challenge
             .or(payment_intent.force_3ds_challenge);
 
+        payment_intent.is_setup_mandate_flow = request
+            .is_setup_mandate_flow
+            .or(payment_intent.is_setup_mandate_flow);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -934,6 +938,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_payment_processor_token_flow: None,
                     tax_details: None,
                     force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                    is_setup_mandate_flow: payment_data.payment_intent.is_setup_mandate_flow,
                 })),
                 key_store,
                 storage_scheme,

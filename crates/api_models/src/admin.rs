@@ -2902,8 +2902,6 @@ pub struct PaymentLinkConfigRequest {
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
-    /// Boolean to control payment button text for setup mandate calls
-    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2999,8 +2997,6 @@ pub struct PaymentLinkConfig {
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
-    /// Boolean to control payment button text for setup mandate calls
-    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
