@@ -2637,6 +2637,21 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 if let Some(vault_operation) = updated_vault_operation {
                     payment_data.set_vault_operation(vault_operation);
                 }
+
+                // Temporarily store payment method data along with the cvc in redis for saved card payments, if required by the connector based on its configs
+                if payment_data.token.is_none() {
+                    let (_, payment_token) = payment_methods::retrieve_payment_method_core(
+                        &Some(payment_method_data.clone()),
+                        state,
+                        &payment_data.payment_intent,
+                        &payment_data.payment_attempt,
+                        merchant_key_store,
+                        Some(business_profile),
+                    )
+                    .await?;
+
+                    payment_data.token = payment_token;
+                }
             };
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
@@ -2943,9 +2958,17 @@ pub fn validate_payment_method_type_against_payment_method(
     payment_method_type: api_enums::PaymentMethodType,
 ) -> bool {
     match payment_method {
+        #[cfg(feature = "v1")]
         api_enums::PaymentMethod::Card => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit
+        ),
+        #[cfg(feature = "v2")]
+        api_enums::PaymentMethod::Card => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Credit
+                | api_enums::PaymentMethodType::Debit
+                | api_enums::PaymentMethodType::Card
         ),
         api_enums::PaymentMethod::PayLater => matches!(
             payment_method_type,

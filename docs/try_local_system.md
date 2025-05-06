@@ -36,7 +36,7 @@ Check the Table Of Contents to jump to the relevant section.
 
 ## Run hyperswitch using Docker Compose
 
-1. Install [Docker Compose][docker-compose-install].
+1. Install [Docker Compose][docker-compose-install] or [Podman Compose][podman-compose-install].
 2. Clone the repository and switch to the project directory:
 
    ```shell
@@ -49,84 +49,15 @@ Check the Table Of Contents to jump to the relevant section.
    The provided configuration should work as is.
    If you do update the `docker_compose.toml` file, ensure to also update the
    corresponding values in the [`docker-compose.yml`][docker-compose-yml] file.
-4. Start all the services using Docker Compose:
+4. Start all the services using below script:
 
    ```shell
-   docker compose up -d
-   # This script verifies the setup and provides links to the individual components.
-   scripts/docker_output.sh
+   scripts/setup.sh
    ```
-   This should run the hyperswitch app server, web client and control center.
-   Wait for the `migration_runner` container to finish installing `diesel_cli`
-   and running migrations (approximately 2 minutes), and for the
-   `hyperswitch-web` container to finish compiling before proceeding further.
-   You can also choose to
-   [run the scheduler and monitoring services](#running-additional-services)
-   in addition to the app server, web client and control center.
-
-5. Verify that the server is up and running by hitting the health endpoint:
-
-   ```shell
-   curl --head --request GET 'http://localhost:8080/health'
-   ```
-
-   If the command returned a `200 OK` status code, proceed with
-   [trying out our APIs](#try-out-our-apis).
-
-### Running additional services
-
-The default behaviour for docker compose only runs the following services:
-
-1. postgres
-2. redis (standalone)
-3. hyperswitch server
-4. hyperswitch control center
-5. hyperswitch web sdk
-
-You can run the scheduler, data and monitoring services by specifying suitable profile
-names to the above Docker Compose command.
-To understand more about the hyperswitch architecture and the components
-involved, check out the [architecture document][architecture].
-
-- To run the scheduler components (consumer and producer), you can specify
-  `--profile scheduler`:
-
-  ```shell
-  docker compose --profile scheduler up -d
-  ```
-
-- To run the monitoring services (Grafana, Promtail, Loki, Prometheus and Tempo),
-  you can specify `--profile monitoring`:
-
-  ```shell
-  docker compose --profile monitoring up -d
-  ```
-
-  You can then access Grafana at `http://localhost:3000` and view application
-  logs using the "Explore" tab, select Loki as the data source, and select the
-  container to query logs from.
-
-- To run the data services (Clickhouse, Kafka and Opensearch) you can specify the `olap` profile
-
-  ```shell
-  docker compose --profile olap up -d
-  ```
-
-  You can read more about using the data services [here][data-docs]
-
-- You can also specify multiple profile names by specifying the `--profile` flag
-  multiple times.
-  To run both the scheduler components and monitoring services, the Docker
-  Compose command would be:
-
-  ```shell
-  docker compose --profile scheduler --profile monitoring up -d
-  ```
-
-Once the services have been confirmed to be up and running, you can proceed with
-[trying out our APIs](#try-out-our-apis)
+   You will get prompts to select your preferred setup option.
 
 [docker-compose-install]: https://docs.docker.com/compose/install/
+[podman-compose-install]: https://podman.io/docs/installation
 [docker-compose-config]: /config/docker_compose.toml
 [docker-compose-yml]: /docker-compose.yml
 [architecture]: /docs/architecture.md

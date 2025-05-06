@@ -1,40 +1,24 @@
+pub mod api;
 pub mod transformers;
 pub mod types;
-use api_models::{
-    payments::{PaymentRevenueRecoveryMetadata, PaymentsRetrieveRequest},
-    process_tracker::revenue_recovery,
-};
+use api_models::{enums, process_tracker::revenue_recovery};
 use common_utils::{
     self,
-    errors::CustomResult,
     ext_traits::{OptionExt, ValueExt},
     id_type,
-    types::keymanager::KeyManagerState,
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{self, ResultExt};
-use hyperswitch_domain_models::{
-    api::ApplicationResponse,
-    behaviour::ReverseConversion,
-    errors::api_error_response,
-    merchant_connector_account,
-    merchant_context::{Context, MerchantContext},
-    payments::{PaymentIntent, PaymentStatusData},
-    ApiModelToDieselModelConvertor,
-};
+use hyperswitch_domain_models::{payments::PaymentIntent, ApiModelToDieselModelConvertor};
 use scheduler::errors as sch_errors;
 
 use crate::{
-    core::{
-        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, operations::Operation},
-        revenue_recovery::types as pcr_types,
-    },
+    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
     logger,
     routes::{metrics, SessionState},
+    services::ApplicationResponse,
     types::{
-        api,
         storage::{self, revenue_recovery as pcr},
         transformers::ForeignInto,
     },
@@ -46,57 +30,79 @@ pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
-    tracking_data: &pcr::PcrWorkflowTrackingData,
-    pcr_data: &pcr::PcrPaymentData,
-    _key_manager_state: &KeyManagerState,
+    tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
-    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
-    let mut pcr_metadata = payment_intent
+    let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()
         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
         .get_required_value("Payment Revenue Recovery Metadata")?
         .convert_back();
 
-    let decision = pcr_types::Decision::get_decision_based_on_params(
+    let decision = types::Decision::get_decision_based_on_params(
         state,
         payment_intent.status,
-        pcr_metadata
+        revenue_recovery_metadata
             .payment_connector_transmission
             .unwrap_or_default(),
         payment_intent.active_attempt_id.clone(),
-        pcr_data,
+        revenue_recovery_payment_data,
         &tracking_data.global_payment_id,
     )
     .await?;
 
     // TODO decide if its a global failure or is it requeueable error
     match decision {
-        pcr_types::Decision::Execute => {
-            let action = pcr_types::Action::execute_payment(
+        types::Decision::Execute => {
+            // record attempt call
+            let record_attempt = api::record_internal_attempt_api(
                 state,
-                pcr_data.merchant_account.get_id(),
                 payment_intent,
-                execute_task_process,
-                pcr_data,
-                &pcr_metadata,
+                revenue_recovery_payment_data,
+                &revenue_recovery_metadata,
             )
-            .await?;
-            Box::pin(action.execute_payment_task_response_handler(
-                state,
-                payment_intent,
-                execute_task_process,
-                pcr_data,
-                &mut pcr_metadata,
-                billing_mca,
-            ))
-            .await?;
+            .await;
+
+            match record_attempt {
+                Ok(_) => {
+                    let action = types::Action::execute_payment(
+                        state,
+                        revenue_recovery_payment_data.merchant_account.get_id(),
+                        payment_intent,
+                        execute_task_process,
+                        revenue_recovery_payment_data,
+                        &revenue_recovery_metadata,
+                    )
+                    .await?;
+                    Box::pin(action.execute_payment_task_response_handler(
+                        state,
+                        payment_intent,
+                        execute_task_process,
+                        revenue_recovery_payment_data,
+                        &mut revenue_recovery_metadata,
+                    ))
+                    .await?;
+                }
+                Err(err) => {
+                    logger::error!("Error while recording attempt: {:?}", err);
+                    let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                        status: enums::ProcessTrackerStatus::Pending,
+                        business_status: Some(String::from(
+                            business_status::EXECUTE_WORKFLOW_REQUEUE,
+                        )),
+                    };
+                    db.as_scheduler()
+                        .update_process(execute_task_process.clone(), pt_update)
+                        .await?;
+                }
+            }
         }
 
-        pcr_types::Decision::Psync(attempt_status, attempt_id) => {
+        types::Decision::Psync(attempt_status, attempt_id) => {
             // find if a psync task is already present
             let task = PSYNC_WORKFLOW;
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
@@ -105,7 +111,8 @@ pub async fn perform_execute_payment(
 
             match psync_process {
                 Some(_) => {
-                    let pcr_status: pcr_types::PcrAttemptStatus = attempt_status.foreign_into();
+                    let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
+                        attempt_status.foreign_into();
 
                     pcr_status
                         .update_pt_status_based_on_attempt_status_for_execute_payment(
@@ -117,27 +124,66 @@ pub async fn perform_execute_payment(
 
                 None => {
                     // insert new psync task
-                    insert_psync_pcr_task(
-                        billing_mca.get_id().clone(),
+                    insert_psync_pcr_task_to_pt(
+                        revenue_recovery_payment_data.billing_mca.get_id().clone(),
                         db,
-                        pcr_data.merchant_account.get_id().clone(),
+                        revenue_recovery_payment_data
+                            .merchant_account
+                            .get_id()
+                            .clone(),
                         payment_intent.get_id().clone(),
-                        pcr_data.profile.get_id().clone(),
+                        revenue_recovery_payment_data.profile.get_id().clone(),
                         attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     )
                     .await?;
 
                     // finish the current task
-                    db.finish_process_with_business_status(
-                        execute_task_process.clone(),
-                        business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
-                    )
-                    .await?;
+                    db.as_scheduler()
+                        .finish_process_with_business_status(
+                            execute_task_process.clone(),
+                            business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+                        )
+                        .await?;
                 }
             };
         }
-        pcr_types::Decision::InvalidDecision => {
+        types::Decision::ReviewForSuccessfulPayment => {
+            // Finish the current task since the payment was a success
+            // And mark it as review as it might have happened through the external system
+            db.finish_process_with_business_status(
+                execute_task_process.clone(),
+                business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW,
+            )
+            .await?;
+        }
+        types::Decision::ReviewForFailedPayment(triggered_by) => {
+            match triggered_by {
+                enums::TriggeredBy::Internal => {
+                    // requeue the current taks to update the fields for rescheduling a payment
+                    let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
+                        status: enums::ProcessTrackerStatus::Pending,
+                        business_status: Some(String::from(
+                            business_status::EXECUTE_WORKFLOW_REQUEUE,
+                        )),
+                    };
+                    db.as_scheduler()
+                        .update_process(execute_task_process.clone(), pt_update)
+                        .await?;
+                }
+                enums::TriggeredBy::External => {
+                    logger::debug!("Failed Payment Attempt Triggered By External");
+                    // Finish the current task since the payment was a failure by an external source
+                    db.as_scheduler()
+                        .finish_process_with_business_status(
+                            execute_task_process.clone(),
+                            business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW,
+                        )
+                        .await?;
+                }
+            };
+        }
+        types::Decision::InvalidDecision => {
             db.finish_process_with_business_status(
                 execute_task_process.clone(),
                 business_status::EXECUTE_WORKFLOW_COMPLETE,
@@ -150,7 +196,7 @@ pub async fn perform_execute_payment(
     Ok(())
 }
 
-async fn insert_psync_pcr_task(
+async fn insert_psync_pcr_task_to_pt(
     billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
@@ -162,14 +208,14 @@ async fn insert_psync_pcr_task(
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
     let schedule_time = common_utils::date_time::now();
-    let psync_workflow_tracking_data = pcr::PcrWorkflowTrackingData {
+    let psync_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
         billing_mca_id,
         global_payment_id: payment_id,
         merchant_id,
         profile_id,
         payment_attempt_id,
     };
-    let tag = ["PCR"];
+    let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         task,
@@ -188,59 +234,52 @@ async fn insert_psync_pcr_task(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct delete tokenized data process tracker task")?;
-    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "PsyncPcr")));
+    metrics::TASKS_ADDED_COUNT.add(
+        1,
+        router_env::metric_attributes!(("flow", "RevenueRecoveryPsync")),
+    );
 
     Ok(response)
 }
 
-pub async fn call_psync_api(
+pub async fn perform_payments_sync(
     state: &SessionState,
-    global_payment_id: &id_type::GlobalPaymentId,
-    pcr_data: &pcr::PcrPaymentData,
-) -> RouterResult<PaymentStatusData<api::PSync>> {
-    let operation = payments::operations::PaymentGet;
-    let req = PaymentsRetrieveRequest {
-        force_sync: false,
-        param: None,
-        expand_attempts: true,
-    };
-    // TODO : Use api handler instead of calling get_tracker and payments_operation_core
-    // Get the tracker related information. This includes payment intent and payment attempt
-    let merchant_context_from_pcr_data = MerchantContext::NormalMerchant(Box::new(Context(
-        pcr_data.merchant_account.clone(),
-        pcr_data.key_store.clone(),
-    )));
-    let get_tracker_response = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            global_payment_id,
-            &req,
-            &merchant_context_from_pcr_data,
-            &pcr_data.profile,
-            &hyperswitch_domain_models::payments::HeaderPayload::default(),
-        )
-        .await?;
-
-    let (payment_data, _req, _, _, _) = Box::pin(payments::payments_operation_core::<
-        api::PSync,
-        _,
-        _,
-        _,
-        PaymentStatusData<api::PSync>,
-    >(
+    process: &storage::ProcessTracker,
+    tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    payment_intent: &PaymentIntent,
+) -> Result<(), errors::ProcessTrackerError> {
+    let psync_data = api::call_psync_api(
         state,
-        state.get_req_state(),
-        merchant_context_from_pcr_data,
-        &pcr_data.profile,
-        operation,
-        req,
-        get_tracker_response,
-        payments::CallConnectorAction::Trigger,
-        hyperswitch_domain_models::payments::HeaderPayload::default(),
-    ))
+        &tracking_data.global_payment_id,
+        revenue_recovery_payment_data,
+    )
     .await?;
-    Ok(payment_data)
+    // If there is an active_attempt id then there will be a payment attempt
+    let payment_attempt = psync_data
+        .payment_attempt
+        .get_required_value("Payment Attempt")?;
+    let mut revenue_recovery_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .get_required_value("Payment Revenue Recovery Metadata")?
+        .convert_back();
+    let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
+        payment_attempt.status.foreign_into();
+    Box::pin(
+        pcr_status.update_pt_status_based_on_attempt_status_for_payments_sync(
+            state,
+            payment_intent,
+            process.clone(),
+            revenue_recovery_payment_data,
+            payment_attempt,
+            &mut revenue_recovery_metadata,
+        ),
+    )
+    .await?;
+
+    Ok(())
 }
 
 pub async fn retrieve_revenue_recovery_process_tracker(
@@ -265,7 +304,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
     let tracking_data = process_tracker
         .tracking_data
         .clone()
-        .parse_value::<pcr::PcrWorkflowTrackingData>("PCRWorkflowTrackingData")
+        .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
 
