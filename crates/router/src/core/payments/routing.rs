@@ -1,4 +1,5 @@
 mod transformers;
+pub mod utils;
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
@@ -59,7 +60,7 @@ use crate::core::payouts;
 use crate::{core::routing::transformers::OpenRouterDecideGatewayRequestExt, headers, services};
 use crate::{
     core::{errors, errors as oss_errors, routing},
-    logger, services,
+    logger,
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
@@ -413,64 +414,6 @@ pub fn make_dsl_input(
         payment_method: payment_method_input,
         mandate: mandate_data,
     })
-}
-
-//TODO: temporary change will be refactored afterwards
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct RoutingRequest {
-    pub created_by: String,
-    pub parameters: HashMap<String, Option<ast::ValueType>>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct RoutingEvaluateResponse {
-    pub status: String,
-    pub output: serde_json::Value,
-    pub evaluated_output: Vec<String>,
-    pub eligible_connectors: Vec<String>,
-}
-
-const EUCLID_API_TIMEOUT: u64 = 5;
-//TODO: will be converted to configs
-const EUCLID_BASE_URL: &str = "http://localhost:8080";
-pub async fn perform_decision_euclid_routing(
-    state: &SessionState,
-    routing_request: &RoutingRequest,
-) -> RoutingResult<()> {
-    let decision_engine_evaluate_url =
-        format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/evaluate");
-
-    logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
-
-    let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
-    let request = services::RequestBuilder::new()
-        .method(services::Method::Post)
-        .url(&decision_engine_evaluate_url)
-        .set_body(body)
-        .build();
-
-    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for evaluate decision engine routing evaluate");
-    let response = state
-        .api_client
-        .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
-        .await
-        .change_context(errors::RoutingError::DslExecutionError)
-        .attach_printable("decision_engine_euclid: evaluate api unresponsive")?;
-
-    let euclid_response = response
-        .json::<RoutingEvaluateResponse>()
-        .await
-        .change_context(errors::RoutingError::GenericConversionError {
-            from: "ApiResponse".to_string(),
-            to: "RoutingEvaluateResponse".to_string(),
-        })
-        .attach_printable(
-            "decision_engine_euclid: Unable to parse response received from evaluate api",
-        )?;
-
-    logger::info!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
-
-    Ok(())
 }
 
 pub async fn perform_static_routing_v1(

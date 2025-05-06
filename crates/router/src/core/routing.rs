@@ -30,7 +30,10 @@ use super::payouts;
 use super::{
     errors::RouterResult,
     payments::{
-        routing::{self as payments_routing},
+        routing::{
+            utils::*,
+            {self as payments_routing},
+        },
         OperationSessionGetters,
     },
 };
@@ -250,6 +253,10 @@ pub async fn create_routing_algorithm_under_profile(
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    use api_models::routing::RoutingAlgorithm as EuclidAlgorithm;
+
+    use crate::services::logger;
+
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -270,6 +277,7 @@ pub async fn create_routing_algorithm_under_profile(
 
     let algorithm = request
         .algorithm
+        .clone()
         .get_required_value("algorithm")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "algorithm",
@@ -310,7 +318,7 @@ pub async fn create_routing_algorithm_under_profile(
     let timestamp = common_utils::date_time::now();
     let algo = RoutingAlgorithm {
         algorithm_id: algorithm_id.clone(),
-        profile_id,
+        profile_id: profile_id.clone(),
         merchant_id: merchant_account.get_id().to_owned(),
         name: name.clone(),
         description: Some(description.clone()),
@@ -326,6 +334,23 @@ pub async fn create_routing_algorithm_under_profile(
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     let new_record = record.foreign_into();
+
+    if let Some(EuclidAlgorithm::Advanced(program)) = request.algorithm.clone() {
+        let internal_program: Program = program.into();
+        let routing_rule = RoutingRule {
+            name: name.clone(),
+            created_by: profile_id.get_string_repr().to_string(),
+            algorithm: internal_program,
+        };
+
+        create_de_routing_algo(&state, &routing_rule)
+            .await
+            .map_err(|e| {
+                logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+                logger::debug!(decision_engine_request=?routing_rule, "decision_engine_euclid");
+            })
+            .ok();
+    }
 
     metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(new_record))
