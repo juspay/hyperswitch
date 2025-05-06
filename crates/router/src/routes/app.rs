@@ -1165,14 +1165,19 @@ impl Refunds {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2", any(feature = "olap", feature = "oltp")))]
+#[cfg(all(
+    feature = "v2",
+    feature = "refunds_v2",
+    any(feature = "olap", feature = "oltp")
+))]
 impl Refunds {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(refunds::refunds_list)));
+            route =
+                route.service(web::resource("/list").route(web::get().to(refunds::refunds_list)));
         }
         #[cfg(feature = "oltp")]
         {

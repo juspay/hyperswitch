@@ -5,15 +5,15 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Q
 pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+use diesel_models::schema::refund::dsl;
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+use diesel_models::schema_v2::refund::dsl;
 use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
     query::generics::db_metrics,
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-use diesel_models::schema::refund::dsl;
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
-use diesel_models::schema_v2::refund::dsl;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 

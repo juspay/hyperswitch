@@ -1485,9 +1485,10 @@ impl RefundInterface for MockDb {
                     .map_or(true, |id| id == refund.id)
             })
             .filter(|refund| {
-                refund.profile_id.as_ref().is_some_and(|profile_id| {
-                    profile_id == &refund_details.profile_id
-                })
+                refund
+                    .profile_id
+                    .as_ref()
+                    .is_some_and(|profile_id| profile_id == &refund_details.profile_id)
             })
             .filter(|refund| {
                 refund.created_at
@@ -1811,9 +1812,10 @@ impl RefundInterface for MockDb {
                     .map_or(true, |id| id == refund.id)
             })
             .filter(|refund| {
-                refund.profile_id.as_ref().is_some_and(|profile_id| {
-                    profile_id == &refund_details.profile_id
-                })
+                refund
+                    .profile_id
+                    .as_ref()
+                    .is_some_and(|profile_id| profile_id == &refund_details.profile_id)
             })
             .filter(|refund| {
                 refund.created_at

@@ -3,8 +3,10 @@ use std::str::FromStr;
 use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{id_type, types as common_utils_types};
 use error_stack::{report, ResultExt};
-
-use hyperswitch_domain_models::{router_data::{ErrorResponse, RouterData},refunds::RefundListConstraints};
+use hyperswitch_domain_models::{
+    refunds::RefundListConstraints,
+    router_data::{ErrorResponse, RouterData},
+};
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
 
@@ -464,7 +466,7 @@ pub async fn refund_list(
     let refund_list = db
         .filter_refund_by_constraints(
             merchant_account.get_id(),
-            RefundListConstraints::from((req.clone(),profile.clone())),
+            RefundListConstraints::from((req.clone(), profile.clone())),
             merchant_account.storage_scheme,
             limit,
             offset,
@@ -480,7 +482,7 @@ pub async fn refund_list(
     let total_count = db
         .get_total_count_of_refunds(
             merchant_account.get_id(),
-            RefundListConstraints::from((req,profile)),
+            RefundListConstraints::from((req, profile)),
             merchant_account.storage_scheme,
         )
         .await

@@ -1,7 +1,7 @@
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-use crate::errors;
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use crate::business_profile::Profile;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+use crate::errors;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 pub struct RefundListConstraints {
@@ -117,18 +117,18 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
             merchant_connector_id,
         } = value;
 
-        Self { 
-            payment_id, 
-            refund_id, 
+        Self {
+            payment_id,
+            refund_id,
             profile_id: profile.get_id().to_owned(),
-            limit, 
-            offset, 
+            limit,
+            offset,
             time_range,
-            amount_filter, 
-            connector, 
-            merchant_connector_id, 
-            currency, 
-            refund_status 
+            amount_filter,
+            connector,
+            merchant_connector_id,
+            currency,
+            refund_status,
         }
     }
 }
