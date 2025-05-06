@@ -7456,6 +7456,31 @@ pub(crate) fn allowed_fields_for_payment_update(
                     .as_ref()
                     .map(|_| "amount_to_capture"),
                 request.shipping_cost.as_ref().map(|_| "shipping_cost"),
+                request.connector.as_ref().map(|_| "connector"),
+                request.capture_on.as_ref().map(|_| "capture_on"),
+                request.confirm.as_ref().map(|_| "confirm"),
+                request.client_secret.as_ref().map(|_| "client_secret"),
+                request.mandate_data.as_ref().map(|_| "mandate_data"),
+                request.mandate_id.as_ref().map(|_| "mandate_id"),
+                request
+                    .business_country
+                    .as_ref()
+                    .map(|_| "business_country"),
+                request.business_label.as_ref().map(|_| "business_label"),
+                request
+                    .merchant_connector_details
+                    .as_ref()
+                    .map(|_| "merchant_connector_details"),
+                request
+                    .business_sub_label
+                    .as_ref()
+                    .map(|_| "business_sub_label"),
+                request.retry_action.as_ref().map(|_| "retry_action"),
+                request.profile_id.as_ref().map(|_| "profile_id"),
+                request
+                    .recurring_details
+                    .as_ref()
+                    .map(|_| "recurring_details"),
             ];
 
             let updated_fields: Vec<&str> = disallowed_fields.into_iter().flatten().collect();
