@@ -197,7 +197,7 @@ start_services() {
             $DOCKER_COMPOSE up -d
             ;;
         full)
-            $DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap up -d
+            $DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap --profile full_setup up -d
             ;;
     esac
 }
@@ -249,7 +249,7 @@ print_access_info() {
     fi
     echo ""
     echo_info "To stop all services, run: $DOCKER_COMPOSE down "
-    echo -e "Reach out to us on ${BLUE}\e]8;;https://hyperswitch-io.slack.com\e\\slack\e]8;;\e\\${NC} in case you face any issues."
+    echo -e "Reach out to us on ${BLUE}https://hyperswitch-io.slack.com${NC} in case you face any issues."
 }
 show_banner
 detect_docker_compose
