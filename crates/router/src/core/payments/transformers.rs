@@ -2405,9 +2405,10 @@ where
                                 ),
                             }
                         }))
-                        .or(match payment_data.get_authentication().as_ref(){
-                            Some(authentication) => {
-                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
+                        .or(match payment_data.get_authentication(){
+                            Some(authentication_store) => {
+                                let authentication = &authentication_store.authentication;
+                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_store.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
                                     let poll_config = payment_data.get_poll_config().unwrap_or_default();
                                     let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);

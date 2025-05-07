@@ -16,6 +16,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+use common_utils::ext_traits::AsyncExt;
 
 #[cfg(feature = "v1")]
 pub fn get_connector_data_if_separate_authn_supported(
@@ -53,6 +54,7 @@ pub async fn update_trackers<F: Clone, Req>(
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
     acquirer_details: Option<super::types::AcquirerDetails>,
+    merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore
 ) -> RouterResult<storage::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
@@ -89,12 +91,16 @@ pub async fn update_trackers<F: Clone, Req>(
                 authentication_value,
                 trans_status,
                 connector_metadata,
-                ds_trans_id,
+                ds_trans_id
             } => {
+                authentication_value.async_map(|auth_val| 
+                    crate::core::payment_methods::vault::create_tokenize(state, auth_val, None, authentication.authentication_id.clone(), merchant_key_store.key.get_inner())
+                ).await.transpose()?;
+
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+
                 storage::AuthenticationUpdate::AuthenticationUpdate {
-                    authentication_value,
                     trans_status,
                     acs_url: authn_flow_type.get_acs_url(),
                     challenge_request: authn_flow_type.get_challenge_request(),
@@ -110,14 +116,18 @@ pub async fn update_trackers<F: Clone, Req>(
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
-                eci,
-            } => storage::AuthenticationUpdate::PostAuthenticationUpdate {
-                authentication_status: common_enums::AuthenticationStatus::foreign_from(
-                    trans_status.clone(),
-                ),
-                trans_status,
-                authentication_value,
-                eci,
+                eci
+            } => {
+                authentication_value.async_map(|auth_val| 
+                    crate::core::payment_methods::vault::create_tokenize(state, auth_val, None, authentication.authentication_id.clone(), merchant_key_store.key.get_inner())
+                ).await.transpose()?;
+                storage::AuthenticationUpdate::PostAuthenticationUpdate {
+                    authentication_status: common_enums::AuthenticationStatus::foreign_from(
+                        trans_status.clone(),
+                    ),
+                    trans_status,
+                    eci,
+                }
             },
             AuthenticationResponseData::PreAuthVersionCallResponse {
                 maximum_supported_3ds_version,

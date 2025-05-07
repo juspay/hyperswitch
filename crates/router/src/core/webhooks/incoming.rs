@@ -4,7 +4,7 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -1250,7 +1250,6 @@ async fn external_authentication_incoming_webhook_flow(
                 trans_status.clone(),
             ),
             trans_status,
-            authentication_value: authentication_details.authentication_value,
             eci: authentication_details.eci,
         };
         let authentication =
@@ -1297,6 +1296,10 @@ async fn external_authentication_incoming_webhook_flow(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while updating authentication")?;
+
+        authentication_details.authentication_value.async_map(|auth_val| 
+            crate::core::payment_methods::vault::create_tokenize(&state, auth_val, None, updated_authentication.authentication_id.clone(), merchant_context.get_merchant_key_store().key.get_inner())
+        ).await.transpose()?;
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));

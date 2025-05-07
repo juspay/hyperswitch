@@ -462,16 +462,25 @@ async fn get_tracker_for_sync<
         };
 
     let merchant_id = payment_intent.merchant_id.clone();
-    let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
+
+    let authentication_store = if let Some(ref authentication_id) = payment_attempt.authentication_id {
+        let authentication =
             db.find_authentication_by_merchant_id_authentication_id(
                     &merchant_id,
                     authentication_id.clone(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))
-        }).await
-        .transpose()?;
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+        
+        let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication.authentication_id, false, merchant_context.get_merchant_key_store().key.get_inner()).await.ok(); // marking .ok() as token might be invalidated
+
+        Some(hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore{
+            authentication: authentication,
+            cavv: tokenized_data.map(|token| token.value1),
+        })
+    }else {None} ;
+        
 
     let payment_link_data = payment_intent
         .payment_link_id
@@ -530,7 +539,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response,
         incremental_authorization_details: None,
         authorizations,
-        authentication,
+        authentication: authentication_store,
         recurring_details: None,
         poll_config: None,
         tax_data: None,

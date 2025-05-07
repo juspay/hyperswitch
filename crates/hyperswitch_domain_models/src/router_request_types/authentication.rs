@@ -161,3 +161,9 @@ pub struct AcquirerDetails {
 pub struct ExternalThreeDSConnectorMetadata {
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
 }
+
+#[derive(Clone, Debug)]
+pub struct AuthenticationStore {
+    pub cavv: Option<String>,
+    pub authentication: diesel_models::authentication::Authentication   
+}
