@@ -63,6 +63,7 @@ pub mod webhooks;
 pub mod recovery_webhooks;
 
 pub mod relay;
+pub mod three_ds_decision_rule;
 
 #[cfg(feature = "olap")]
 pub mod process_tracker;
@@ -77,8 +78,8 @@ pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
     Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
-    Webhooks,
+    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState,
+    ThreeDsDecisionRule, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

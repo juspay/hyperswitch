@@ -2,6 +2,7 @@ use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
     id_type::{self, GenerateId},
+    transformers::ForeignTryFrom,
     types::keymanager,
 };
 use masking::Secret;
@@ -38,6 +39,42 @@ impl ThreeDSDecisionRule {
             created_at: now,
             modified_at: now,
         }
+    }
+}
+
+impl ForeignTryFrom<ThreeDSDecisionRule>
+    for api_models::three_ds_decision_rule::ThreeDsDecisionRuleResponse
+{
+    type Error = error_stack::Report<ValidationError>;
+
+    fn foreign_try_from(value: ThreeDSDecisionRule) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: value.id,
+            program: value.rule.program,
+            name: value.name,
+            description: value.description,
+            active: value.active,
+        })
+    }
+}
+
+impl ForeignTryFrom<api_models::three_ds_decision_rule::ThreeDsDecisionRuleRecord>
+    for ThreeDSDecisionRule
+{
+    type Error = error_stack::Report<ValidationError>;
+
+    fn foreign_try_from(
+        value: api_models::three_ds_decision_rule::ThreeDsDecisionRuleRecord,
+    ) -> Result<Self, Self::Error> {
+        let three_ds_decision_rule_record =
+            common_types::three_ds_decision_rule_engine::ThreeDSDecisionRuleRecord {
+                program: value.program,
+            };
+        Ok(Self::new(
+            three_ds_decision_rule_record,
+            value.name,
+            value.description,
+        ))
     }
 }
 

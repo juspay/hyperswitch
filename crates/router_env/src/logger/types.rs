@@ -582,6 +582,14 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// ThreeDs Decision Rule Create flow
+    ThreeDsDecisionRuleCreate,
+    /// ThreeDs Decision Rule Retrieve flow
+    ThreeDsDecisionRuleRetrieve,
+    /// ThreeDs Decision Rule Update flow
+    ThreeDsDecisionRuleUpdate,
+    /// ThreeDs Decision Rule Delete flow
+    ThreeDsDecisionRuleDelete,
 }
 
 /// Trait for providing generic behaviour to flow metric

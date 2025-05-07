@@ -58,7 +58,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    relay, user, user_role,
+    relay, three_ds_decision_rule, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -2096,6 +2096,29 @@ impl Gsm {
             .service(web::resource("/get").route(web::post().to(gsm::get_gsm_rule)))
             .service(web::resource("/update").route(web::post().to(gsm::update_gsm_rule)))
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
+    }
+}
+
+pub struct ThreeDsDecisionRule;
+
+#[cfg(feature = "olap")]
+impl ThreeDsDecisionRule {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/three_ds_decision_rule").app_data(web::Data::new(state));
+        route =
+            route.service(
+                web::scope("/rule")
+                    .service(web::resource("").route(
+                        web::post().to(three_ds_decision_rule::create_three_ds_decision_rule),
+                    ))
+                    .service(
+                        web::resource("/{rule_id}")
+                            .route(web::get().to(three_ds_decision_rule::retrieve_decision_rule))
+                            .route(web::put().to(three_ds_decision_rule::update_decision_rule))
+                            .route(web::delete().to(three_ds_decision_rule::delete_decision_rule)),
+                    ),
+            );
+        route
     }
 }
 

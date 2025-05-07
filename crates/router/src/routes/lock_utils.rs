@@ -43,6 +43,7 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    ThreeDsDecisionRule,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -337,6 +338,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+
+            Flow::ThreeDsDecisionRuleCreate
+            | Flow::ThreeDsDecisionRuleRetrieve
+            | Flow::ThreeDsDecisionRuleUpdate
+            | Flow::ThreeDsDecisionRuleDelete => Self::ThreeDsDecisionRule,
         }
     }
 }

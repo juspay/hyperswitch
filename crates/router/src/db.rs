@@ -140,6 +140,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + three_ds_decision_rule::ThreeDSDecisionRuleInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
