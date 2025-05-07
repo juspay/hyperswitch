@@ -5,6 +5,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::OptionExt,
     pii, type_name,
     types::keymanager,
 };
@@ -15,7 +16,7 @@ use diesel_models::business_profile::{
     CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
@@ -1035,6 +1036,14 @@ impl Profile {
     #[cfg(feature = "v2")]
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.order_fulfillment_time
+    }
+
+    pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
+        self.webhook_details
+            .clone()
+            .and_then(|details| details.webhook_url)
+            .get_required_value("webhook_details.webhook_url")
+            .map(ExposeInterface::expose)
     }
 }
 
