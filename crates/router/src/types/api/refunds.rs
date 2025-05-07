@@ -4,8 +4,7 @@ pub use api_models::refunds::RefundRequest;
 pub use api_models::refunds::RefundsCreateRequest;
 pub use api_models::refunds::{
     RefundListRequest, RefundListResponse, RefundResponse, RefundStatus, RefundType,
-    RefundUpdateRequest, RefundsRetrieveBody,
-    RefundsRetrieveRequest,
+    RefundUpdateRequest, RefundsRetrieveBody, RefundsRetrieveRequest,
 };
 pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
 pub use hyperswitch_interfaces::api::refunds::{Refund, RefundExecute, RefundSync};

@@ -4,11 +4,9 @@ use api_models::{enums::Connector, refunds::RefundErrorDetails};
 use common_utils::{id_type, types as common_utils_types};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    {
     refunds::RefundListConstraints,
     router_data::{ErrorResponse, RouterData},
     router_data_v2::RefundFlowData,
-},
 };
 use hyperswitch_interfaces::{
     api::{Connector as ConnectorTrait, ConnectorIntegration},
