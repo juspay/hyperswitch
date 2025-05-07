@@ -138,19 +138,6 @@ pub enum ApplicationSelectionIndicator {
     CustomerChoice,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Eq, PartialEq)]
-pub enum ThreeDsAuthStatus {
-    Y,
-    N,
-    U,
-    C,
-    R,
-    A,
-    D,
-    I,
-}
-
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Archipel3DS {
@@ -163,9 +150,9 @@ pub struct Archipel3DS {
     #[serde(rename = "3DSAuthDate")]
     three_ds_auth_date: Option<String>,
     #[serde(rename = "3DSAuthAmt")]
-    three_ds_auth_amt: Option<i64>,
+    three_ds_auth_amt: Option<MinorUnit>,
     #[serde(rename = "3DSAuthStatus")]
-    three_ds_auth_status: Option<ThreeDsAuthStatus>,
+    three_ds_auth_status: Option<String>,
     #[serde(rename = "3DSMaxSupportedVersion")]
     three_ds_max_supported_version: String,
     #[serde(rename = "3DSVersion")]
@@ -536,14 +523,6 @@ impl From<ArchipelFlowStatus> for AttemptStatus {
             },
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ArchipelErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -1033,58 +1012,49 @@ impl<F>
 }
 
 // Setup Mandate FLow
-impl TryFrom<(MinorUnit, &SetupMandateRouterData)> for ArchipelPaymentInformation {
+impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthorizationRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ArchipelRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
 
-    fn try_from(
-        (amount, router_data): (MinorUnit, &SetupMandateRouterData),
-    ) -> Result<Self, Self::Error> {
         let order = ArchipelOrderRequest {
-            amount,
-            currency: router_data.request.currency.to_string(),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
             certainty: ArchipelPaymentCertainty::Final,
             initiator: ArchipelPaymentInitiator::Customer,
         };
 
-        let card_holder_name = router_data.get_billing()?.get_optional_full_name();
+        let card_holder_name = item.router_data.get_billing()?
+            .get_optional_full_name();
+
         let cardholder = Some(ArchipelCardHolder {
             billing_address: Some(
-                router_data
+                item.router_data
                     .get_billing_address()
                     .and_then(ArchipelBillingAddress::try_from)?,
             ),
         });
 
         let stored_on_file = true;
+
         let credential_indicator = Some(ArchipelCredentialIndicator {
             status: ArchipelCredentialIndicatorStatus::Initial,
             recurring: Some(false),
             transaction_id: None,
         });
 
-        Ok(Self {
+        let payment_information = ArchipelPaymentInformation {
             order,
             cardholder,
             card_holder_name,
             stored_on_file,
             credential_indicator,
-        })
-    }
-}
+        };
 
-impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthorizationRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: ArchipelRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
-        let ArchipelRouterData {
-            amount,
-            tenant_id,
-            router_data,
-        } = item;
-
-        let payment_information = ArchipelPaymentInformation::try_from((amount, router_data))?;
         let card_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                ArchipelCard::try_from((payment_information.card_holder_name, ccard))?
+                ArchipelCard::try_from(
+                    (payment_information.card_holder_name, ccard)
+                )?
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Archipel"),
@@ -1098,7 +1068,7 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
             three_ds: None,
             credential_indicator: payment_information.credential_indicator,
             stored_on_file: payment_information.stored_on_file,
-            tenant_id,
+            tenant_id: item.tenant_id,
         })
     }
 }
@@ -1298,6 +1268,7 @@ pub struct ArchipelRefundOrder {
     pub amount: MinorUnit,
     pub currency: Currency,
 }
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelRefundRequest {
@@ -1318,8 +1289,6 @@ impl<F> From<ArchipelRouterData<&RefundsRouterData<F>>> for ArchipelRefundReques
 }
 
 // Type definition for Refund Response
-
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ArchipelRefundStatus {
