@@ -1281,7 +1281,6 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
         state: &KeyManagerState,
@@ -3302,7 +3301,11 @@ impl StorageInterface for KafkaStore {
     }
 }
 
-impl GlobalStorageInterface for KafkaStore {}
+impl GlobalStorageInterface for KafkaStore {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}

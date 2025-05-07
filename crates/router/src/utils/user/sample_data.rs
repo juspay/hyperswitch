@@ -17,6 +17,7 @@ use time::OffsetDateTime;
 use crate::{
     consts,
     core::errors::sample_data::{SampleDataError, SampleDataResult},
+    types::domain,
     SessionState,
 };
 
@@ -57,6 +58,10 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        merchant_from_db.clone(),
+        key_store,
+    )));
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
@@ -70,10 +75,9 @@ pub async fn generate_sample_data(
 
         let profile_id = crate::core::utils::get_profile_id_from_business_details(
             key_manager_state,
-            &key_store,
             business_country_default,
             business_label_default.as_ref(),
-            &merchant_from_db,
+            &merchant_context,
             req.profile_id.as_ref(),
             &*state.store,
             false,
@@ -102,7 +106,11 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
+                .list_profile_by_merchant_id(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_id,
+                )
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
@@ -276,7 +284,8 @@ pub async fn generate_sample_data(
             skip_external_tax_calculation: None,
             request_extended_authorization: None,
             psd2_sca_exemption_type: None,
-            platform_merchant_id: None,
+            processor_merchant_id: merchant_id.clone(),
+            created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
         };
@@ -368,6 +377,8 @@ pub async fn generate_sample_data(
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            processor_merchant_id: Some(merchant_id.clone()),
+            created_by: None,
             setup_future_usage_applied: None,
         };
 
