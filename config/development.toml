@@ -1115,3 +1115,10 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 [open_router]
 enabled = false
 url = "http://localhost:8080"
+
+[crm]
+crm_manager = "hubspot_proxy" # CRM manager client to be used
+
+[crm.hubspot_proxy]
+form_id="test_form"     # Form ID for Hubspot integration
+request_url="https://webhook.site/d60965f5-6b59-4250-a550-c5ae4f7c8650" # Request URL for Hubspot  API

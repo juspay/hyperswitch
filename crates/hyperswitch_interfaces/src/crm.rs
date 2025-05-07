@@ -36,7 +36,7 @@ pub struct CrmPayload {
     pub business_website: Option<String>,
 
     /// The name of the point of contact (POC) for the business.
-    pub poc_name: Option<String>,
+    pub poc_name: Option<Secret<String>>,
 
     /// The contact number of the point of contact (POC) for the business.
     pub poc_contact: Option<Secret<String>>,

@@ -18,10 +18,10 @@ pub struct HubspotRequest {
     pub hubspot_form_id: String,
 
     /// The first name of the user.
-    pub firstname: String,
+    pub firstname: Secret<String>,
 
     /// The last name of the user.
-    pub lastname: String,
+    pub lastname: Secret<String>,
 
     /// The email address of the user.
     pub email: Secret<String>,
@@ -58,7 +58,7 @@ impl HubspotRequest {
     pub fn new(
         country: String,
         hubspot_form_id: String,
-        firstname: String,
+        firstname: Secret<String>,
         email: Secret<String>,
         company_name: String,
         website: String,

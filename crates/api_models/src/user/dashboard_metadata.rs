@@ -99,7 +99,7 @@ pub struct ProdIntent {
     pub business_type: Option<String>,
     pub business_identifier: Option<String>,
     pub business_website: Option<String>,
-    pub poc_name: Option<String>,
+    pub poc_name: Option<Secret<String>>,
     pub poc_contact: Option<Secret<String>>,
     pub comments: Option<String>,
     pub is_completed: bool,
