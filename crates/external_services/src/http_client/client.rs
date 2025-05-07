@@ -43,7 +43,7 @@ pub fn create_client(
     }
 }
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 pub fn get_client_builder(
     proxy_config: &Proxy,
 ) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
@@ -81,7 +81,7 @@ pub fn get_client_builder(
     Ok(client_builder)
 }
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 pub fn create_identity_from_certificate_and_key(
     encoded_certificate: masking::Secret<String>,
     encoded_certificate_key: masking::Secret<String>,
@@ -105,7 +105,7 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(HttpClientError::CertificateDecodeFailed)
 }
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 pub fn create_certificate(
     encoded_certificate: masking::Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<HttpClientError>> {
