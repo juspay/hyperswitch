@@ -12,7 +12,7 @@ static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 pub fn create_client(
     proxy_config: &Proxy,
     client_certificate: Option<masking::Secret<String>>,

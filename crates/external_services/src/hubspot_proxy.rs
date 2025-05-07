@@ -1,3 +1,5 @@
+use masking::Secret;
+
 /// Lead source constant for Hubspot
 pub const HUBSPOT_LEAD_SOURCE: &str = "Hyperswitch Dashboard";
 
@@ -22,7 +24,7 @@ pub struct HubspotRequest {
     pub lastname: String,
 
     /// The email address of the user.
-    pub email: String,
+    pub email: Secret<String>,
 
     /// The name of the company.
     #[serde(rename = "companyName")]
@@ -35,7 +37,7 @@ pub struct HubspotRequest {
     pub website: String,
 
     /// The phone number of the user.
-    pub phone: String,
+    pub phone: Secret<String>,
 
     /// The role or designation of the user.
     pub role: String,
@@ -51,13 +53,13 @@ pub struct HubspotRequest {
     pub message: String,
 }
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 impl HubspotRequest {
     pub fn new(
         country: String,
         hubspot_form_id: String,
         firstname: String,
-        email: String,
+        email: Secret<String>,
         company_name: String,
         website: String,
     ) -> Self {

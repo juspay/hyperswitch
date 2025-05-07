@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use common_utils::{
     errors::CustomResult,
@@ -15,7 +12,6 @@ use hyperswitch_interfaces::{
     errors::HttpClientError,
     types::Proxy,
 };
-use masking::PeekInterface;
 use reqwest;
 use router_env::logger;
 
@@ -52,13 +48,13 @@ pub struct InvalidCrmConfig(pub &'static str);
 
 impl std::error::Error for InvalidCrmConfig {}
 
-impl Display for InvalidCrmConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Display for InvalidCrmConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "crm: {}", self.0)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 /// NoCrm struct
 pub struct NoCrm;
 
@@ -123,12 +119,7 @@ impl CrmInterface for HubspotProxyConfig {
             details.business_country_name.unwrap_or_default(),
             self.form_id.clone(),
             details.poc_name.unwrap_or_default(),
-            details
-                .poc_email
-                .clone()
-                .unwrap_or_default()
-                .peek()
-                .to_string(),
+            details.poc_email.clone().unwrap_or_default(),
             details.legal_business_name.unwrap_or_default(),
             details.business_website.unwrap_or_default(),
         )))

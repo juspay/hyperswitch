@@ -14,7 +14,7 @@ use common_utils::request::RequestContent;
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
 use error_stack::ResultExt;
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 #[instrument(skip_all)]
 pub async fn send_request(
     client_proxy: &Proxy,
@@ -95,11 +95,11 @@ pub async fn send_request(
             .await
             .map_err(|error| match error {
                 error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                     HttpClientError::RequestTimeoutReceived
                 }
                 error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                     HttpClientError::ConnectionClosedIncompleteMessage
                 }
                 _ => HttpClientError::RequestNotSent(error.to_string()),
@@ -113,11 +113,11 @@ pub async fn send_request(
             .await
             .map_err(|error| match error {
                 error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                     HttpClientError::RequestTimeoutReceived
                 }
                 error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                     HttpClientError::ConnectionClosedIncompleteMessage
                 }
                 _ => HttpClientError::RequestNotSent(error.to_string()),
@@ -145,7 +145,7 @@ pub async fn send_request(
         Err(error)
             if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage =>
         {
-            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(1, &[]);
+            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(1, metrics_tag);
             match cloned_send_request {
                 Some(cloned_request) => {
                     logger::info!(

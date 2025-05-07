@@ -7,7 +7,7 @@ use hyperswitch_interfaces::errors::HttpClientError;
 pub use masking::{Mask, Maskable};
 use router_env::{instrument, tracing};
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 pub trait HeaderExt {
     fn construct_header_map(self) -> CustomResult<reqwest::header::HeaderMap, HttpClientError>;
 }
@@ -31,7 +31,7 @@ impl HeaderExt for Headers {
     }
 }
 
-#[allow(missing_docs, missing_debug_implementations)]
+#[allow(missing_docs)]
 pub trait RequestBuilderExt {
     fn add_headers(self, headers: reqwest::header::HeaderMap) -> Self;
 }
