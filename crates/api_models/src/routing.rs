@@ -642,6 +642,17 @@ impl DynamicRoutingAlgorithmRef {
     pub fn update_volume_split(&mut self, volume: Option<u8>) {
         self.dynamic_routing_volume_split = volume
     }
+
+    pub fn is_elimination_enabled(&self) -> bool {
+        self.elimination_routing_algorithm
+            .as_ref()
+            .map(|elimination_routing| {
+                elimination_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
+            })
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]

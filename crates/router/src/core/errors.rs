@@ -516,6 +516,8 @@ pub enum RevenueRecoveryError {
     ProcessTrackerResponseError,
     #[error("Billing connector psync call failed")]
     BillingConnectorPaymentsSyncFailed,
+    #[error("Billing connector invoice sync call failed")]
+    BillingConnectorInvoiceSyncFailed,
     #[error("Failed to get the retry count for payment intent")]
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
@@ -524,4 +526,6 @@ pub enum RevenueRecoveryError {
     RetryAlgorithmTypeNotFound,
     #[error("Failed to update the retry algorithm type")]
     RetryAlgorithmUpdationFailed,
+    #[error("Failed to create the revenue recovery attempt data")]
+    RevenueRecoveryAttemptDataCreateFailed,
 }

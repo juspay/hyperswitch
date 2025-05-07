@@ -105,6 +105,7 @@ pub struct Settings<S: SecretState> {
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
+    pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -146,6 +147,7 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
 }
@@ -511,6 +513,31 @@ pub struct CorsSettings {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationProviders {
+    #[serde(deserialize_with = "deserialize_connector_list")]
+    pub click_to_pay: HashSet<enums::Connector>,
+}
+
+fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        connector_list: String,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    wrapper
+        .connector_list
+        .split(',')
+        .map(|s| s.trim().parse().map_err(D::Error::custom))
+        .collect()
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTransactionIdSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
@@ -764,6 +791,7 @@ pub struct DrainerSettings {
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
+    pub redis_lock_expiry_seconds: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -810,6 +838,12 @@ pub struct WebhookSourceVerificationCall {
 pub struct BillingConnectorPaymentsSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

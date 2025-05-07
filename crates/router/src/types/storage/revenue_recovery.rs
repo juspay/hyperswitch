@@ -1,11 +1,13 @@
 use crate::{db::StorageInterface, workflows::revenue_recovery};
 use common_enums::enums;
 use common_utils::id_type;
-use hyperswitch_domain_models::{business_profile, merchant_account, merchant_key_store};
+use hyperswitch_domain_models::{
+    business_profile, merchant_account, merchant_connector_account, merchant_key_store,
+};
 use router_env::logger;
 use std::fmt::Debug;
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct PcrWorkflowTrackingData {
+pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub global_payment_id: id_type::GlobalPaymentId,
@@ -15,13 +17,14 @@ pub struct PcrWorkflowTrackingData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PcrPaymentData {
+pub struct RevenueRecoveryPaymentData {
     pub merchant_account: merchant_account::MerchantAccount,
     pub profile: business_profile::Profile,
     pub key_store: merchant_key_store::MerchantKeyStore,
+    pub billing_mca: merchant_connector_account::MerchantConnectorAccount,
     pub retry_algorithm: enums::RevenueRecoveryAlgorithmType,
 }
-impl PcrPaymentData {
+impl RevenueRecoveryPaymentData {
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
         db: &dyn StorageInterface,
@@ -51,4 +54,5 @@ impl PcrPaymentData {
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
+    pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
 }
