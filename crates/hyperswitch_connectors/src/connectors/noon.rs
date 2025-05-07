@@ -103,7 +103,7 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = get_auth_header(&req.connector_auth_type, connectors, req.test_mode)?;
+        let mut api_key = get_auth_header(&req.connector_auth_type, connectors)?;
         header.append(&mut api_key);
         Ok(header)
     }
@@ -111,8 +111,7 @@ where
 
 fn get_auth_header(
     auth_type: &ConnectorAuthType,
-    connectors: &Connectors,
-    test_mode: Option<bool>,
+    _connectors: &Connectors,
 ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
     let auth = noon::NoonAuthType::try_from(auth_type)?;
 
@@ -126,17 +125,10 @@ fn get_auth_header(
                 business_identifier, application_identifier, api_key
             ))
         });
-    let key_mode = test_mode.map_or(connectors.noon.key_mode.clone(), |is_test_mode| {
-        if is_test_mode {
-            "Test".to_string()
-        } else {
-            "Live".to_string()
-        }
-    });
 
     Ok(vec![(
         headers::AUTHORIZATION.to_string(),
-        format!("Key_{} {}", key_mode, encoded_api_key.peek()).into_masked(),
+        format!("Key {}", encoded_api_key.peek()).into_masked(),
     )])
 }
 
