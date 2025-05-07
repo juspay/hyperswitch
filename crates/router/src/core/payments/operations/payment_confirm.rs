@@ -1032,8 +1032,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_attempt.organization_id.clone(),
                 ))
                 .await?;
-                if authentication_store.authentication.is_separate_authn_required()
-                    || authentication_store.authentication.authentication_status.is_failed()
+                if authentication_store
+                    .authentication
+                    .is_separate_authn_required()
+                    || authentication_store
+                        .authentication
+                        .authentication_status
+                        .is_failed()
                 {
                     *should_continue_confirm_transaction = false;
                     let default_poll_config = types::PollConfig::default();
@@ -1045,7 +1050,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .store
                         .find_config_by_key_unwrap_or(
                             &types::PollConfig::get_poll_config_key(
-                                authentication_store.authentication.authentication_connector.clone(),
+                                authentication_store
+                                    .authentication
+                                    .authentication_connector
+                                    .clone(),
                             ),
                             Some(default_config_str),
                         )
@@ -1058,7 +1066,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while parsing PollConfig")?;
                     payment_data.poll_config = Some(poll_config)
-                }       
+                }
                 Some(authentication_store)
             }
             Some(helpers::PaymentExternalAuthenticationFlow::PostAuthenticationFlow {
@@ -1597,9 +1605,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let (intent_status, attempt_status, (error_code, error_message)) =
             match (frm_suggestion, payment_data.authentication.as_ref()) {
                 (Some(frm_suggestion), _) => status_handler_for_frm_results(frm_suggestion),
-                (_, Some(authentication_details)) => {
-                    status_handler_for_authentication_results(&authentication_details.authentication)
-                }
+                (_, Some(authentication_details)) => status_handler_for_authentication_results(
+                    &authentication_details.authentication,
+                ),
                 _ => default_status_result,
             };
 
@@ -1715,9 +1723,23 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
             Some(authentication_store) => (
-                Some(authentication_store.authentication.is_separate_authn_required()),
-                Some(authentication_store.authentication.authentication_connector.clone()),
-                Some(authentication_store.authentication.authentication_id.clone()),
+                Some(
+                    authentication_store
+                        .authentication
+                        .is_separate_authn_required(),
+                ),
+                Some(
+                    authentication_store
+                        .authentication
+                        .authentication_connector
+                        .clone(),
+                ),
+                Some(
+                    authentication_store
+                        .authentication
+                        .authentication_id
+                        .clone(),
+                ),
             ),
             None => (None, None, None),
         };

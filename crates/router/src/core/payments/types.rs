@@ -366,9 +366,15 @@ impl SurchargeMetadata {
     }
 }
 
-impl ForeignTryFrom<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore> for AuthenticationData {
+impl
+    ForeignTryFrom<
+        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    > for AuthenticationData
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(authentication_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        authentication_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    ) -> Result<Self, Self::Error> {
         let authentication = &authentication_store.authentication;
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
             let threeds_server_transaction_id =
