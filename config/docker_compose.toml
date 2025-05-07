@@ -991,5 +991,5 @@ enabled = true
 click_to_pay = {connector_list = "adyen, cybersource"}
 
 [clone_connector_whitelist]
-merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
-connector_names = "connector_names"     # Comma-separated list of allowed connector names
+merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
+connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
