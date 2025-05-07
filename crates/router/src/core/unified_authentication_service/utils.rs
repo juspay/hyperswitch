@@ -130,7 +130,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     acquirer_details: Option<
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
-    merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore
+    merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 ) -> RouterResult<diesel_models::authentication::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
@@ -181,9 +181,19 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 let authentication_status = common_enums::AuthenticationStatus::foreign_from(
                     authentication_details.trans_status.clone(),
                 );
-                authentication_details.authentication_value.async_map(|auth_val| 
-                    crate::core::payment_methods::vault::create_tokenize(state, auth_val, None, authentication.authentication_id.clone(), merchant_key_store.key.get_inner())
-                ).await.transpose()?;
+                authentication_details
+                    .authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val,
+                            None,
+                            authentication.authentication_id.clone(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
                 Ok(
                     diesel_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
                         trans_status: authentication_details.trans_status,
@@ -219,10 +229,19 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .dynamic_data_details
                     .and_then(|details| details.dynamic_data_value)
                     .map(masking::ExposeInterface::expose);
-                
-                authentication_value.async_map(|auth_val| 
-                    crate::core::payment_methods::vault::create_tokenize(state, auth_val, None, authentication.authentication_id.clone(), merchant_key_store.key.get_inner())
-                ).await.transpose()?;
+
+                authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val,
+                            None,
+                            authentication.authentication_id.clone(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
                 Ok(
                     diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
                         authentication_status: common_enums::AuthenticationStatus::foreign_from(
