@@ -1577,8 +1577,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         return_url: None,
                         error_return_url: None,
                         payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
-                            wallet_data: payment_method_data
-                                .get_applepay_decoded_payment_data()?,
+                            wallet_data: payment_method_data.get_applepay_decoded_payment_data()?,
                         })),
                         enforce_3d: None,
                         create_token,
