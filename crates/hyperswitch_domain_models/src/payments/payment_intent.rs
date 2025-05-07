@@ -242,6 +242,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -410,6 +411,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1032,6 +1034,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
+                    is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1189,6 +1192,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_iframe_redirection_enabled,
         } = value;
         Self {
             amount,
@@ -1228,6 +1232,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_iframe_redirection_enabled,
         }
     }
 }
@@ -1990,6 +1995,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
         })
     }
 
@@ -2087,6 +2093,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
             })
         }
         .await
@@ -2157,6 +2164,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
         })
     }
 }
