@@ -628,6 +628,22 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
     }
 }
 #[cfg(feature = "v2")]
+impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
+    for api_models::payments::PaymentAttemptAmountDetails
+{
+    fn from(amount: &payments::payment_attempt::AttemptAmountDetailsSetter) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
 impl From<&api_models::payments::RecordAttemptErrorDetails>
     for payments::payment_attempt::ErrorDetails
 {

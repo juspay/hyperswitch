@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
 use common_utils::{pii::Email, types::SemanticVersion};
-use hyperswitch_connectors::utils::AddressDetailsData;
+use hyperswitch_domain_models::router_request_types::{
+    authentication::MessageCategory, BrowserInformation,
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use unidecode::unidecode;
 
-use crate::{connector::utils::PhoneDetailsData, errors, types::api::MessageCategory};
+use crate::utils::{AddressDetailsData as _, PhoneDetailsData as _};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -367,7 +370,7 @@ pub enum SchemeId {
 }
 
 impl TryFrom<common_enums::CardNetwork> for SchemeId {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
         match network {
             common_enums::CardNetwork::Visa => Ok(Self::Visa),
@@ -377,7 +380,7 @@ impl TryFrom<common_enums::CardNetwork> for SchemeId {
             common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
             common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
             common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
-            _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
+            _ => Err(ConnectorError::RequestEncodingFailedWithReason(
                 "Invalid card network".to_string(),
             ))?,
         }
@@ -768,7 +771,7 @@ impl
         Option<hyperswitch_domain_models::address::Address>,
     )> for Cardholder
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         (billing_address, shipping_address): (
             hyperswitch_domain_models::address::Address,
@@ -880,7 +883,7 @@ pub struct PhoneNumber {
 }
 
 impl TryFrom<hyperswitch_domain_models::address::PhoneDetails> for PhoneNumber {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: hyperswitch_domain_models::address::PhoneDetails,
     ) -> Result<Self, Self::Error> {
@@ -1469,8 +1472,8 @@ pub fn get_list_of_accept_languages(accept_language: String) -> Vec<String> {
         .collect()
 }
 
-impl From<crate::types::BrowserInformation> for Browser {
-    fn from(value: crate::types::BrowserInformation) -> Self {
+impl From<BrowserInformation> for Browser {
+    fn from(value: BrowserInformation) -> Self {
         Self {
             browser_accept_header: value.accept_header,
             browser_ip: value

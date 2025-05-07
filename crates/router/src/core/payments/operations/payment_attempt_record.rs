@@ -197,6 +197,7 @@ impl<F: Send + Clone + Sync>
             connector_customer_id: request.connector_customer_id.clone(),
             retry_count: request.retry_count,
             invoice_next_billing_time: request.invoice_next_billing_time,
+            triggered_by: request.triggered_by,
         };
 
         let payment_data = PaymentAttemptRecordData {
@@ -236,12 +237,20 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         F: 'b + Send,
     {
         let feature_metadata = payment_data.get_updated_feature_metadata()?;
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
+        let active_attempt_id = match payment_data.revenue_recovery_data.triggered_by {
+            common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
+            common_enums::TriggeredBy::External => None,
+        };
+        let payment_intent_update =
+
+    hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
         {
             status: common_enums::IntentStatus::from(payment_data.payment_attempt.status),
             feature_metadata: Box::new(feature_metadata),
             updated_by: storage_scheme.to_string(),
-        };
+            active_attempt_id
+        }
+    ;
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
