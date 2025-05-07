@@ -7432,7 +7432,7 @@ pub async fn validate_allowed_payment_method_types_request(
     Ok(())
 }
 
-pub async fn get_payment_update_enabled_for_client_auth(
+async fn get_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> bool {
