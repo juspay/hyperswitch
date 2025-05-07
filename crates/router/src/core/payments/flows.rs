@@ -1584,7 +1584,7 @@ impl<const T: u8>
 {
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_revenue_recovery_record_back!(connector::Stripe,);
+default_imp_for_revenue_recovery_record_back!(connector::Stripe);
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_billing_connector_invoice_sync {
@@ -1615,4 +1615,4 @@ impl<const T: u8>
 {
 }
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_billing_connector_invoice_sync!(connector::Stripe,);
+default_imp_for_billing_connector_invoice_sync!(connector::Stripe);
