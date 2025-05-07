@@ -60,13 +60,16 @@ detect_docker_compose() {
     if command -v docker &> /dev/null; then
         CONTAINER_ENGINE="docker"
         echo_success "Docker is installed."
+        echo ""
     elif command -v podman &> /dev/null; then
         CONTAINER_ENGINE="podman"
         echo_success "Podman is installed."
+        echo ""
     else
         echo_error "Neither Docker nor Podman is installed. Please install one of them to proceed."
         echo_info "Visit https://docs.docker.com/get-docker/ or https://podman.io/docs/installation for installation instructions."
         echo_info "After installation, re-run this script: scripts/setup.sh"
+        echo ""
         exit 1
     fi
 
@@ -74,14 +77,19 @@ detect_docker_compose() {
     if $CONTAINER_ENGINE compose version &> /dev/null; then
         DOCKER_COMPOSE="$CONTAINER_ENGINE compose"
         echo_success "Compose is installed for $CONTAINER_ENGINE."
+        echo ""
     else
         echo_error "Compose is not installed for $CONTAINER_ENGINE. Please install $CONTAINER_ENGINE compose to proceed."
+        echo ""
         if [ "$CONTAINER_ENGINE" = "docker" ]; then
             echo_info "Visit https://docs.docker.com/compose/install/ for installation instructions."
+        echo ""
         elif [ "$CONTAINER_ENGINE" = "podman" ]; then
             echo_info "Visit https://podman-desktop.io/docs/compose/setting-up-compose for installation instructions."
+            echo ""
         fi
         echo_info "After installation, re-run this script: scripts/setup.sh"
+        echo ""
         exit 1
     fi
 }
@@ -90,9 +98,11 @@ check_prerequisites() {
     # Check curl
     if ! command -v curl &> /dev/null; then
         echo_error "curl is not installed. Please install curl to proceed."
+        echo ""
         exit 1
     fi
     echo_success "curl is installed."
+    echo ""
     
     # Check ports
     required_ports=(8080 9000 9050 5432 6379 9060)
@@ -109,6 +119,7 @@ check_prerequisites() {
             fi
         else
             echo_warning "Neither nc nor lsof available to check ports. Skipping port check."
+            echo ""
             break
         fi
     done
@@ -116,13 +127,16 @@ check_prerequisites() {
     if [ ${#unavailable_ports[@]} -ne 0 ]; then
         echo_warning "The following ports are already in use: ${unavailable_ports[*]}"
         echo_warning "This might cause conflicts with Hyperswitch services."
-        read -p "Do you want to continue anyway? (y/n): " -n 1 -r
+        echo ""
+        echo -n "Do you want to continue anyway? (y/n): "
+        read -n 1 -r REPLY
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
         fi
     else
         echo_success "All required ports are available."
+        echo ""
     fi
 }
 
@@ -136,14 +150,20 @@ setup_config() {
 select_profile() {    
     echo ""    
     echo "Select a setup option:"
-    echo -e "1) Standard Setup: ${BLUE}[Recommended]${NC} Ideal for quick trial. Services included: ${BLUE}App Server, Control Center, Unified Checkout, PostgreSQL and Redis${NC}"
-    echo -e "2) Full Stack Setup: Ideal for comprehensive end-to-end payment testing. Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}"
-    echo -e "3) Standalone App Server: Ideal for API-first integration testing. Services included: ${BLUE}App server, PostgreSQL and Redis)${NC}"
+    echo -e "1) ${YELLOW}Standard Setup${NC}: ${BLUE}[Recommended]${NC} Ideal for quick trial."
+    echo -e "   Services included: ${BLUE}App Server, Control Center, Unified Checkout, PostgreSQL and Redis${NC}"
+    echo ""
+    echo -e "2) ${YELLOW}Full Stack Setup${NC}: Ideal for comprehensive end-to-end payment testing."
+    echo -e "   Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}"
+    echo ""
+    echo -e "3) ${YELLOW}Standalone App Server${NC}: Ideal for API-first integration testing."
+    echo -e "   Services included: ${BLUE}App server, PostgreSQL and Redis)${NC}"
     echo ""
     local profile_selected=false
     while [ "$profile_selected" = false ]; do
-        read -p "Enter your choice (1-3): " profile_choice
-        profile_choice=${profile_choice:-1}
+        echo -n "Enter your choice (1-3): "
+        read -n 1 profile_choice
+        echo
         
         case $profile_choice in
             1)
@@ -228,14 +248,6 @@ print_access_info() {
         echo -e "  • ${GREEN}${BOLD}Monitoring (Grafana)${NC}: ${BLUE}${BOLD}http://localhost:3000${NC}"
     fi
     echo ""
-    echo_info "To stop all services, run: $DOCKER_COMPOSE down"
+    echo_info "To stop all services, run: $DOCKER_COMPOSE down "
+    echo -e "Reach out to us on ${BLUE}\e]8;;https://hyperswitch-io.slack.com\e\\slack\e]8;;\e\\${NC} in case you face any issues."
 }
-
-# Main execution flow
-show_banner
-detect_docker_compose
-check_prerequisites
-setup_config
-select_profile
-start_services
-check_services_health  # This will call print_access_info if the server is healthy

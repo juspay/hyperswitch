@@ -458,7 +458,7 @@ services:
       hyperswitch-server:
         condition: service_healthy
       hyperswitch-web:
-        condition: service_healthy
+        condition: service_started
     environment:
       - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
       - HYPERSWITCH_SECRET_KEY=placeholder_api_key
