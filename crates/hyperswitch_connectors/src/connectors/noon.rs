@@ -95,7 +95,7 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -103,7 +103,7 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = get_auth_header(&req.connector_auth_type, connectors)?;
+        let mut api_key = get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
     }
@@ -111,7 +111,6 @@ where
 
 fn get_auth_header(
     auth_type: &ConnectorAuthType,
-    _connectors: &Connectors,
 ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
     let auth = noon::NoonAuthType::try_from(auth_type)?;
 
