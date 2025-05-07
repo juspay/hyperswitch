@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.07.0
+
+### Features
+
+- **connector:**
+  - [globalpay, globepay, itaubank, nexinets, nuvei, prophetpay, zen] add in feature matrix ([#7258](https://github.com/juspay/hyperswitch/pull/7258)) ([`7c17996`](https://github.com/juspay/hyperswitch/commit/7c17996caa7808839e0e5291f5c6d836fd4c1d8f))
+  - [stripebilling] consume necessary fields in stripe billing from webhooks for transaction monitoring support ([#7722](https://github.com/juspay/hyperswitch/pull/7722)) ([`d8bbb80`](https://github.com/juspay/hyperswitch/commit/d8bbb8054d9e423e73c0d48272c22ab975ed9f3b))
+  - [FEATURE MATRIX] Connector feature matrix ([#7147](https://github.com/juspay/hyperswitch/pull/7147)) ([`15df5ac`](https://github.com/juspay/hyperswitch/commit/15df5ac651682b4e4403cea3b0ef58fd9a90f0ec))
+
+### Refactors
+
+- **connector:** Migrate [AdyenPlatform, Ebanx, GPayments, Netcetera, Plaid] from crates/router to crates/hyperswitch_connectors ([#7913](https://github.com/juspay/hyperswitch/pull/7913)) ([`b024c41`](https://github.com/juspay/hyperswitch/commit/b024c411362cb12648b3376a68eb2f7660e6d473))
+
+**Full Changelog:** [`2025.05.06.0...2025.05.07.0`](https://github.com/juspay/hyperswitch/compare/2025.05.06.0...2025.05.07.0)
+
+
+- - -
+
+## 2025.05.06.0
+
+### Features
+
+- **connector:** Fix Serde derserialization issue -Elavon/Adyen ([#7823](https://github.com/juspay/hyperswitch/pull/7823)) ([`7889225`](https://github.com/juspay/hyperswitch/commit/78892257604509d0bff56468247a83813f4c64e8))
+
+### Bug Fixes
+
+- **connector:** [Novalnet] allow debit card MITs ([#7956](https://github.com/juspay/hyperswitch/pull/7956)) ([`18142a4`](https://github.com/juspay/hyperswitch/commit/18142a4fdb1f81e4b493067b669a68576bac5d08))
+- **payment_methods:** Re-revert changes done in `pr#7866` by `pr#7882` ([#7954](https://github.com/juspay/hyperswitch/pull/7954)) ([`d5eee96`](https://github.com/juspay/hyperswitch/commit/d5eee96f3c0c87642fdd74446af8b7d4936d05e2))
+- **users:** Use global Redis prefix for all user-related cache operations ([#7932](https://github.com/juspay/hyperswitch/pull/7932)) ([`6750b10`](https://github.com/juspay/hyperswitch/commit/6750b10f7a311f2f8563b1c7e5bd2816dc97a099))
+
+### Miscellaneous Tasks
+
+- **env:** Fix Facilitapay connector config ([#7958](https://github.com/juspay/hyperswitch/pull/7958)) ([`afeef30`](https://github.com/juspay/hyperswitch/commit/afeef302ca24ab5d072194693f8df7c2355e1c85))
+
+**Full Changelog:** [`2025.05.05.0...2025.05.06.0`](https://github.com/juspay/hyperswitch/compare/2025.05.05.0...2025.05.06.0)
+
+
+- - -
+
 ## 2025.05.05.0
 
 ### Features

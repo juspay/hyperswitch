@@ -1483,15 +1483,7 @@ pub enum PaymentType {
     #[serde(rename = "econtext_seven_eleven")]
     SevenEleven,
     #[serde(rename = "econtext_stores")]
-    Lawson,
-    #[serde(rename = "econtext_stores")]
-    MiniStop,
-    #[serde(rename = "econtext_stores")]
-    FamilyMart,
-    #[serde(rename = "econtext_stores")]
-    Seicomart,
-    #[serde(rename = "econtext_stores")]
-    PayEasy,
+    JapaneseConvenienceStores,
     Pix,
 }
 
@@ -4303,11 +4295,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::MandiriVa
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
-        | PaymentType::Lawson
-        | PaymentType::MiniStop
-        | PaymentType::FamilyMart
-        | PaymentType::Seicomart
-        | PaymentType::PayEasy
+        | PaymentType::JapaneseConvenienceStores
         | PaymentType::Pix => Ok(None),
     }
 }
@@ -4326,11 +4314,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Indomaret
         | PaymentType::BoletoBancario
         | PaymentType::Oxxo
-        | PaymentType::Lawson
-        | PaymentType::MiniStop
-        | PaymentType::FamilyMart
-        | PaymentType::Seicomart
-        | PaymentType::PayEasy => {
+        | PaymentType::JapaneseConvenienceStores => {
             let voucher_data = VoucherNextStepData {
                 expires_at,
                 reference,
