@@ -49,7 +49,6 @@ pub struct PaymentInfo {
     // paymentSource: Option<String>,
     // authType: Option<ETCa::txn_card_info::AuthType>,
     // cardIssuerBankName: Option<String>,
-    
     pub card_isin: Option<String>,
     // cardType: Option<ETCa::card_type::CardType>,
     // cardSwitchProvider: Option<Secret<String>>,

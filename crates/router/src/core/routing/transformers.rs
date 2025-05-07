@@ -142,7 +142,6 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 amount: attempt.net_amount.get_order_amount(),
                 currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
                 payment_type: "ORDER_PAYMENT".to_string(),
-                // payment_method_type: attempt.payment_method_type.clone().unwrap(),
                 payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
                 payment_method: attempt.payment_method.unwrap_or_default(),
                 metadata: None,
@@ -174,7 +173,6 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 payment_type: "ORDER_PAYMENT".to_string(),
                 card_isin: card_isin.map(|value| value.peek().clone()),
                 metadata,
-                // payment_method_type: attempt.payment_method_type.clone().unwrap(),
                 payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
                 payment_method: attempt.payment_method.unwrap_or_default(),
             },

@@ -33,8 +33,9 @@ pub fn get_connector_data_if_separate_authn_supported(
                 None
             }
         }
-        api::ConnectorCallType::Retryable(connector_routing_data) => {
-            connector_routing_data.first().and_then(|connector_routing_data| {
+        api::ConnectorCallType::Retryable(connector_routing_data) => connector_routing_data
+            .first()
+            .and_then(|connector_routing_data| {
                 if connector_routing_data
                     .connector_data
                     .connector_name
@@ -44,8 +45,7 @@ pub fn get_connector_data_if_separate_authn_supported(
                 } else {
                     None
                 }
-            })
-        }
+            }),
         api::ConnectorCallType::SessionMultiple(_) => None,
     }
 }

@@ -86,9 +86,10 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
- errors::StorageErrorExt, payment_methods::surcharge_decision_configs,
-    routing::TransactionData,
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
+#[cfg(feature = "v1")]
+use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -128,8 +129,6 @@ use crate::{
     core::authentication as authentication_core,
     types::{api::authentication, BrowserInformation},
 };
-#[cfg(feature = "v1")]
-use crate::core::debit_routing;
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -357,13 +356,14 @@ where
     )
     .await?;
 
-    let (connector, is_debit_routing_performed )= debit_routing::perform_debit_routing(
+    let (connector, is_debit_routing_performed) = debit_routing::perform_debit_routing(
         &operation,
         state,
         &business_profile,
         &payment_data,
         connector,
-    ).await;
+    )
+    .await;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -611,19 +611,18 @@ where
 
                     let mut connectors = connectors.clone().into_iter();
 
-                        let connector_data = if business_profile.is_debit_routing_enabled && is_debit_routing_performed {
-                            if let Some((connector_data, local_network)) = find_connector_with_networks(&mut connectors) {
+                    let connector_data = if let Some(connector_from_network) =
+                        (business_profile.is_debit_routing_enabled && is_debit_routing_performed)
+                            .then(|| find_connector_with_networks(&mut connectors))
+                            .flatten()
+                            .map(|(connector_data, local_network)| {
                                 payment_data.set_local_network(local_network);
                                 connector_data
-                            } else {
-                                get_connector_data(&mut connectors)?.connector_data
-                            }
-                        } else {
-                            get_connector_data(&mut connectors)?.connector_data
-                        };
-
-
-
+                            }) {
+                        connector_from_network
+                    } else {
+                        get_connector_data(&mut connectors)?.connector_data
+                    };
 
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -1042,9 +1041,10 @@ where
     add_connector_http_status_code_metrics(connector_http_status_code);
 
     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    let routable_connectors = convert_connector_data_to_routable_connectors(&[connector.clone().into()])
-        .map_err(|e| logger::error!(routable_connector_error=?e))
-        .unwrap_or_default();
+    let routable_connectors =
+        convert_connector_data_to_routable_connectors(&[connector.clone().into()])
+            .map_err(|e| logger::error!(routable_connector_error=?e))
+            .unwrap_or_default();
 
     let mut payment_data = operation
         .to_post_update_tracker()?
@@ -1440,11 +1440,11 @@ pub fn find_connector_with_networks(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
 ) -> Option<(api::ConnectorData, enums::CardNetwork)> {
     connectors.find_map(|connector| {
-        connector.network
+        connector
+            .network
             .map(|network| (connector.connector_data, network))
     })
 }
-
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
@@ -6916,8 +6916,8 @@ where
                                 api_models::payments::ConnectorMandateReferenceId::new(
                                     Some(mandate_reference_record.connector_mandate_id.clone()),
                                     Some(payment_method_info.get_id().clone()),
-                                    // update_histor
-                                    None,                                                        
+                                    // update_history
+                                    None,
                                     mandate_reference_record.mandate_metadata.clone(),
                                     mandate_reference_record.connector_mandate_request_reference_id.clone(),
                                 )
@@ -8308,7 +8308,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_local_network(&mut self, local_network: enums::CardNetwork) {
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
-                card.card_network = Some(local_network);
+            card.card_network = Some(local_network);
         };
     }
 

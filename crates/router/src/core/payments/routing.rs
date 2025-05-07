@@ -15,11 +15,10 @@ use api_models::{
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
-#[cfg(feature = "v1")]
-use common_utils::{ext_traits::BytesExt, request};
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
+#[cfg(feature = "v1")]
+use common_utils::{ext_traits::BytesExt, request};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -56,10 +55,9 @@ use crate::core::admin;
 use crate::core::payouts;
 #[cfg(feature = "v1")]
 use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
-
 use crate::{
     core::{errors, errors as oss_errors, routing},
-    logger,
+    headers, logger, services,
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
@@ -68,7 +66,6 @@ use crate::{
     utils::{OptionExt, ValueExt},
     SessionState,
 };
-use crate::{headers, services};
 
 pub enum CachedAlgorithm {
     Single(Box<routing_types::RoutableConnectorChoice>),

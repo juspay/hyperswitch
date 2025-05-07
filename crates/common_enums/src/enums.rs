@@ -2399,7 +2399,7 @@ impl CardNetwork {
             | Self::Star
             | Self::Pulse
             | Self::Accel
-            | Self::Nyce 
+            | Self::Nyce
             | Self::CartesBancaires => false,
 
             Self::Visa
