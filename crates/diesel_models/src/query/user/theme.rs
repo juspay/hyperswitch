@@ -138,83 +138,17 @@ impl Theme {
         update: ThemeUpdate,
     ) -> StorageResult<Self> {
         let update_internal: ThemeUpdateInternal = update.into();
+        let predicate = dsl::theme_id
+            .eq(theme_id)
+            .and(Self::lineage_filter(lineage));
 
-        match lineage {
-            ThemeLineage::Tenant { tenant_id } => {
-                let predicate = dsl::theme_id.eq(theme_id.clone()).and(
-                    dsl::tenant_id
-                        .eq(tenant_id)
-                        .and(dsl::org_id.is_null())
-                        .and(dsl::merchant_id.is_null())
-                        .and(dsl::profile_id.is_null())
-                        .nullable(),
-                );
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, update_internal)
-                .await
-            }
-            ThemeLineage::Organization { tenant_id, org_id } => {
-                let predicate = dsl::theme_id.eq(theme_id.clone()).and(
-                    dsl::tenant_id
-                        .eq(tenant_id)
-                        .and(dsl::org_id.eq(org_id))
-                        .and(dsl::merchant_id.is_null())
-                        .and(dsl::profile_id.is_null()),
-                );
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, update_internal)
-                .await
-            }
-            ThemeLineage::Merchant {
-                tenant_id,
-                org_id,
-                merchant_id,
-            } => {
-                let predicate = dsl::theme_id.eq(theme_id.clone()).and(
-                    dsl::tenant_id
-                        .eq(tenant_id)
-                        .and(dsl::org_id.eq(org_id))
-                        .and(dsl::merchant_id.eq(merchant_id))
-                        .and(dsl::profile_id.is_null()),
-                );
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, update_internal)
-                .await
-            }
-            ThemeLineage::Profile {
-                tenant_id,
-                org_id,
-                merchant_id,
-                profile_id,
-            } => {
-                let predicate = dsl::theme_id.eq(theme_id.clone()).and(
-                    dsl::tenant_id
-                        .eq(tenant_id)
-                        .and(dsl::org_id.eq(org_id))
-                        .and(dsl::merchant_id.eq(merchant_id))
-                        .and(dsl::profile_id.eq(profile_id)),
-                );
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, update_internal)
-                .await
-            }
-        }
+        generics::generic_update_with_unique_predicate_get_result_no_clone::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, predicate, update_internal)
+        .await
     }
 
     pub async fn delete_by_theme_id_and_lineage(

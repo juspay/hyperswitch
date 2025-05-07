@@ -401,6 +401,76 @@ where
     to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
 }
 
+pub async fn generic_update_with_results_no_clone<T, V, P, R>(
+    conn: &PgPooledConn,
+    predicate: P,
+    values: V,
+) -> StorageResult<Vec<R>>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static,
+    Filter<T, P>: IntoUpdateTarget + 'static,
+    UpdateStatement<
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
+        <V as AsChangeset>::Changeset,
+    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    R: Send + 'static,
+{
+    let debug_values = format!("{values:?}");
+
+    let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+    match track_database_call::<T, _, _>(
+        query.get_results_async(conn),
+        DatabaseOperation::UpdateWithResults,
+    )
+    .await
+    {
+        Ok(result) => Ok(result),
+        Err(DieselError::QueryBuilderError(_)) => {
+            Err(report!(errors::DatabaseError::NoFieldsToUpdate))
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+        }
+        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
+        Err(error) => Err(error)
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
+    }
+}
+
+pub async fn generic_update_with_unique_predicate_get_result_no_clone<T, V, P, R>(
+    conn: &PgPooledConn,
+    predicate: P,
+    values: V,
+) -> StorageResult<R>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static,
+    Filter<T, P>: IntoUpdateTarget + 'static,
+    UpdateStatement<
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
+        <V as AsChangeset>::Changeset,
+    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send, // No + Clone
+    R: Send + 'static,
+{
+    generic_update_with_results_no_clone::<<T as HasTable>::Table, _, _, _>(conn, predicate, values)
+        .await
+        .map(|mut vec_r| {
+            if vec_r.is_empty() {
+                Err(errors::DatabaseError::NotFound)
+            } else if vec_r.len() != 1 {
+                Err(errors::DatabaseError::Others)
+            } else {
+                vec_r.pop().ok_or(errors::DatabaseError::Others)
+            }
+            .attach_printable("Maybe not queried using a unique key")
+        })?
+}
+
 pub(super) async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,
