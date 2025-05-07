@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
+use common_utils::types::MinorUnit;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
@@ -46,29 +46,14 @@ impl From<String> for ArchipelTenantId {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone, Copy)]
-#[serde(transparent)]
-pub struct ArchipelAmount(pub i64);
-
-impl ArchipelAmount {
-    pub fn new(amount: i64) -> Self {
-        Self(amount)
-    }
-}
-impl From<i64> for ArchipelAmount {
-    fn from(value: i64) -> Self {
-        Self(value)
-    }
-}
-
 pub struct ArchipelRouterData<T> {
-    pub amount: ArchipelAmount,
+    pub amount: MinorUnit,
     pub tenant_id: ArchipelTenantId,
     pub router_data: T,
 }
 
-impl<T> From<(ArchipelAmount, ArchipelTenantId, T)> for ArchipelRouterData<T> {
-    fn from((amount, tenant_id, router_data): (ArchipelAmount, ArchipelTenantId, T)) -> Self {
+impl<T> From<(MinorUnit, ArchipelTenantId, T)> for ArchipelRouterData<T> {
+    fn from((amount, tenant_id, router_data): (MinorUnit, ArchipelTenantId, T)) -> Self {
         Self {
             amount,
             tenant_id,
@@ -133,7 +118,7 @@ pub enum ArchipelPaymentCertainty {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelOrderRequest {
-    amount: ArchipelAmount,
+    amount: MinorUnit,
     currency: String,
     certainty: ArchipelPaymentCertainty,
     initiator: ArchipelPaymentInitiator,
@@ -145,7 +130,6 @@ pub struct CardExpiryDate {
     year: Secret<String>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Eq, PartialEq, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApplicationSelectionIndicator {
@@ -643,11 +627,11 @@ impl From<&ArchipelPaymentsResponse> for ArchipelTransactionMetadata {
 }
 
 // AUTHORIZATION FLOW
-impl TryFrom<(ArchipelAmount, &PaymentsAuthorizeRouterData)> for ArchipelPaymentInformation {
+impl TryFrom<(MinorUnit, &PaymentsAuthorizeRouterData)> for ArchipelPaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (amount, router_data): (ArchipelAmount, &PaymentsAuthorizeRouterData),
+        (amount, router_data): (MinorUnit, &PaymentsAuthorizeRouterData),
     ) -> Result<Self, Self::Error> {
         let is_recurring_payment = router_data
             .request
@@ -986,7 +970,7 @@ pub struct ArchipelCaptureRequest {
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct ArchipelCaptureOrderRequest {
-    amount: ArchipelAmount,
+    amount: MinorUnit,
 }
 
 impl From<ArchipelRouterData<&PaymentsCaptureRouterData>> for ArchipelCaptureRequest {
@@ -1049,11 +1033,11 @@ impl<F>
 }
 
 // Setup Mandate FLow
-impl TryFrom<(ArchipelAmount, &SetupMandateRouterData)> for ArchipelPaymentInformation {
+impl TryFrom<(MinorUnit, &SetupMandateRouterData)> for ArchipelPaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (amount, router_data): (ArchipelAmount, &SetupMandateRouterData),
+        (amount, router_data): (MinorUnit, &SetupMandateRouterData),
     ) -> Result<Self, Self::Error> {
         let order = ArchipelOrderRequest {
             amount,
@@ -1311,7 +1295,7 @@ impl<F>
 /* REFUND FLOW */
 #[derive(Debug, Serialize)]
 pub struct ArchipelRefundOrder {
-    pub amount: ArchipelAmount,
+    pub amount: MinorUnit,
     pub currency: Currency,
 }
 #[derive(Debug, Serialize)]

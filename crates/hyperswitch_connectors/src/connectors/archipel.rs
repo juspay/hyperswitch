@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
 use common_utils::{
@@ -8,6 +6,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::{report, ResultExt};
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -54,8 +53,18 @@ use crate::{
 
 pub mod transformers;
 
-#[derive(Debug, Clone)]
-pub struct Archipel;
+#[derive(Clone)]
+pub struct Archipel {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Archipel {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::PaymentAuthorize for Archipel {}
 impl api::PaymentSync for Archipel {}
@@ -71,6 +80,16 @@ impl api::RefundSync for Archipel {}
 impl api::Payment for Archipel {}
 impl api::PaymentIncrementalAuthorization for Archipel {}
 impl api::ConnectorSpecifications for Archipel {}
+
+fn build_env_specific_endpoint(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let archipel_connector_metadata_object =
+        transformers::ArchipelConfigData::try_from(connector_metadata)?;
+    let endpoint_prefix = archipel_connector_metadata_object.platform_url;
+    Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Archipel
 where
@@ -215,20 +234,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let capture_method = req
             .request
             .capture_method
             .ok_or(errors::ConnectorError::CaptureMethodNotSupported)?;
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
-
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
-                Ok(format!("{platform_url}{}", "/pay"))
+                Ok(format!("{}{}", base_url, "/pay"))
             }
-            enums::CaptureMethod::Manual => Ok(format!("{platform_url}{}", "/authorize")),
+            enums::CaptureMethod::Manual => Ok(format!("{}{}", base_url, "/authorize")),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
                 Err(report!(errors::ConnectorError::CaptureMethodNotSupported))
             }
@@ -241,8 +261,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
+        let amount = crate::utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
         let router_data: archipel::ArchipelRouterData<_> =
-            (req.request.amount.into(), config_data.tenant_id, req).into();
+            (amount, config_data.tenant_id, req).into();
 
         if req.request.is_wallet() {
             let request: ArchipelWalletAuthorizationRequest = router_data.try_into()?;
@@ -333,15 +358,17 @@ impl
     fn get_url(
         &self,
         req: &PaymentsIncrementalAuthorizationRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
         let connector_payment_id = req.request.connector_transaction_id.clone();
 
         Ok(format!(
-            "{platform_url}{}{}",
-            "/incrementAuthorization/", connector_payment_id
+            "{}{}{}",
+            base_url, "/incrementAuthorization/", connector_payment_id
         ))
     }
 
@@ -352,7 +379,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
         let router_data: archipel::ArchipelRouterData<_> = (
-            req.request.additional_amount.into(),
+            MinorUnit::new(req.request.additional_amount),
             config_data.tenant_id,
             req,
         )
@@ -436,10 +463,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Arc
     fn get_url(
         &self,
         req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
         let metadata: archipel::ArchipelTransactionMetadata = req
             .request
             .connector_meta
@@ -448,8 +477,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Arc
             .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{platform_url}{}{}",
-            "/transactions/", metadata.transaction_id
+            "{}{}{}",
+            base_url, "/transactions/", metadata.transaction_id
         ))
     }
 
@@ -525,14 +554,16 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
 
         Ok(format!(
-            "{platform_url}{}{}",
-            "/capture/", req.request.connector_transaction_id
+            "{}{}{}",
+            base_url, "/capture/", req.request.connector_transaction_id
         ))
     }
 
@@ -542,8 +573,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
+        let amount_to_capture = crate::utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
         let router_data: archipel::ArchipelRouterData<_> = (
-            req.request.amount_to_capture.into(),
+            amount_to_capture,
             config_data.tenant_id,
             req,
         )
@@ -629,12 +665,14 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     fn get_url(
         &self,
         req: &SetupMandateRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
 
-        Ok(format!("{platform_url}{}", "/verify"))
+        Ok(format!("{}{}", base_url, "/verify"))
     }
 
     fn get_request_body(
@@ -644,7 +682,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
         let router_data: archipel::ArchipelRouterData<_> =
-            (archipel::ArchipelAmount::new(0), config_data.tenant_id, req).into();
+            (MinorUnit::zero(), config_data.tenant_id, req).into();
         let request: ArchipelCardAuthorizationRequest = router_data.try_into()?;
 
         Ok(RequestContent::Json(Box::new(request)))
@@ -724,14 +762,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Archipe
     fn get_url(
         &self,
         req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
-
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{platform_url}{}{}",
-            "/refund/", req.request.connector_transaction_id
+            "{}{}{}",
+            base_url, "/refund/", req.request.connector_transaction_id
         ))
     }
 
@@ -741,8 +780,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Archipe
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
+        let refund_amount = crate::utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
         let router_data: archipel::ArchipelRouterData<_> =
-            (req.request.refund_amount.into(), config_data.tenant_id, req).into();
+            (refund_amount, config_data.tenant_id, req).into();
         let request: ArchipelRefundRequest = router_data.into();
 
         Ok(RequestContent::Json(Box::new(request)))
@@ -927,14 +971,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ar
     fn get_url(
         &self,
         req: &PaymentsCancelRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
-        let platform_url = &config_data.platform_url;
-
+        let base_url = build_env_specific_endpoint(
+            self.base_url(connectors),
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{platform_url}{}{}",
-            "/cancel/", req.request.connector_transaction_id
+            "{}{}{}",
+            base_url, "/cancel/", req.request.connector_transaction_id
         ))
     }
 
@@ -945,7 +990,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ar
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let config_data: archipel::ArchipelConfigData = (&req.connector_meta_data).try_into()?;
         let router_data: archipel::ArchipelRouterData<_> = (
-            req.request.amount.map(|amount| amount.into()).ok_or(
+            req.request.minor_amount.map(|amount| amount.into()).ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "Amount",
                 },

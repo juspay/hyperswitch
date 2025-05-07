@@ -1010,7 +1010,7 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
         Ok(Secret::new(
             self.application_expiration_date
                 .get(0..2)
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_string(),
         ))
     }
@@ -1020,7 +1020,7 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
             "20{}",
             self.application_expiration_date
                 .get(0..2)
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         )))
     }
 
@@ -1028,8 +1028,8 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
         Ok(Secret::new(
             self.application_expiration_date
                 .get(2..4)
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
         ))
     }
 }

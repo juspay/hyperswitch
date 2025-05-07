@@ -4442,8 +4442,8 @@ required=true
 type="Text"
 [archipel.metadata.platform_url]
 name="platform_url"
-label="Platform URL"
-placeholder="E.g. https://192.0.0.1:8080/ArchiPEL/Transaction/v1"
+label="Platform Endpoint Prefix"
+placeholder="E.g. 192.0.0.1:8080"
 required=true
 type="Text"
 [[archipel.metadata.apple_pay]]
