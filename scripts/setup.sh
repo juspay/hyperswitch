@@ -251,3 +251,10 @@ print_access_info() {
     echo_info "To stop all services, run: $DOCKER_COMPOSE down "
     echo -e "Reach out to us on ${BLUE}\e]8;;https://hyperswitch-io.slack.com\e\\slack\e]8;;\e\\${NC} in case you face any issues."
 }
+show_banner
+detect_docker_compose
+check_prerequisites
+setup_config
+select_profile
+start_services
+check_services_health  # This will call print_access_info if the server is healthy
