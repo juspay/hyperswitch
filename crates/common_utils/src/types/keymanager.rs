@@ -4,10 +4,7 @@ use core::fmt;
 
 use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
-#[cfg(feature = "encryption_service")]
-use router_env::logger;
-#[cfg(feature = "km_forward_x_request_id")]
-use router_env::tracing_actix_web::RequestId;
+use router_env::{logger, tracing_actix_web::RequestId};
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -41,14 +38,12 @@ pub struct KeyManagerState {
     pub tenant_id: id_type::TenantId,
     pub global_tenant_id: id_type::TenantId,
     pub enabled: bool,
+    pub mtls_enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
-    #[cfg(feature = "km_forward_x_request_id")]
     pub request_id: Option<RequestId>,
-    #[cfg(feature = "keymanager_mtls")]
-    pub ca: Secret<String>,
-    #[cfg(feature = "keymanager_mtls")]
-    pub cert: Secret<String>,
+    pub ca: Option<Secret<String>>,
+    pub cert: Option<Secret<String>>,
 }
 
 pub trait GetKeymanagerTenant {
@@ -299,7 +294,6 @@ impl<S: Strategy<String> + Send> DecryptedDataConversion<String, S>
         encryption: Encryption,
     ) -> CustomResult<Self, errors::CryptoError> {
         let string = String::from_utf8(value.clone().inner().peek().clone()).map_err(|_err| {
-            #[cfg(feature = "encryption_service")]
             logger::error!("Decryption error {:?}", _err);
             errors::CryptoError::DecodingFailed
         })?;
@@ -315,7 +309,6 @@ impl<S: Strategy<serde_json::Value> + Send> DecryptedDataConversion<serde_json::
         encryption: Encryption,
     ) -> CustomResult<Self, errors::CryptoError> {
         let val = serde_json::from_slice(value.clone().inner().peek()).map_err(|_err| {
-            #[cfg(feature = "encryption_service")]
             logger::error!("Decryption error {:?}", _err);
             errors::CryptoError::DecodingFailed
         })?;
