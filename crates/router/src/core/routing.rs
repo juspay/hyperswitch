@@ -343,7 +343,7 @@ pub async fn create_routing_algorithm_under_profile(
             algorithm: internal_program,
         };
 
-        create_de_routing_algo(&state, &routing_rule)
+        create_de_euclid_routing_algo(&state, &routing_rule)
             .await
             .map_err(|e| {
                 logger::error!(decision_engine_error=?e, "decision_engine_euclid");
@@ -434,6 +434,7 @@ pub async fn link_routing_config(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
+    euclid_routing_id: Option<String>,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
@@ -561,7 +562,7 @@ pub async fn link_routing_config(
                 db,
                 key_manager_state,
                 &key_store,
-                business_profile,
+                business_profile.clone(),
                 dynamic_routing_ref,
             )
             .await?;
@@ -603,13 +604,28 @@ pub async fn link_routing_config(
                 db,
                 key_manager_state,
                 &key_store,
-                business_profile,
+                business_profile.clone(),
                 routing_ref,
                 transaction_type,
             )
             .await?;
         }
     };
+    if let Some(euclid_routing_id) = euclid_routing_id {
+        let routing_algo = ActivateRoutingConfigRequest {
+            created_by: business_profile.get_id().get_string_repr().to_string(),
+            routing_algorithm_id: euclid_routing_id,
+        };
+        link_de_euclid_routing_algorithm(
+            &state,
+            routing_algo
+        )
+        .await
+        .map_err(|e| 
+                router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid")
+            ).ok();
+    };
+
 
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(

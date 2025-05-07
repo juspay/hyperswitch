@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use error_stack::ResultExt;
-use euclid::frontend::ast;
+use euclid::{backend::BackendInput, frontend::ast};
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
@@ -16,13 +16,15 @@ const EUCLID_API_TIMEOUT: u64 = 5;
 const EUCLID_BASE_URL: &str = "http://localhost:8082";
 pub async fn perform_decision_euclid_routing(
     state: &SessionState,
-    routing_request: &RoutingEvaluateRequest,
+    input: BackendInput,
+    created_by: String,
 ) -> RoutingResult<()> {
     let decision_engine_evaluate_url =
         format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/evaluate");
 
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
+    let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
     let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
     let request = services::RequestBuilder::new()
         .method(services::Method::Post)
@@ -50,11 +52,12 @@ pub async fn perform_decision_euclid_routing(
         )?;
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
+    logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
 
     Ok(())
 }
 
-pub async fn create_de_routing_algo(
+pub async fn create_de_euclid_routing_algo(
     state: &SessionState,
     routing_request: &RoutingRule,
 ) -> RoutingResult<String> {
@@ -89,14 +92,150 @@ pub async fn create_de_routing_algo(
         .attach_printable(
             "decision_engine_euclid: Unable to parse response received from create api",
         )?;
+    logger::debug!(decision_engine_euclid_parsed_response=?euclid_response,"decision_engine_euclid");
     Ok(euclid_response.rule_id)
+}
+
+pub async fn link_de_euclid_routing_algorithm(
+    state: &SessionState,
+    routing_request: ActivateRoutingConfigRequest,
+) -> RoutingResult<()> {
+    let decision_engine_create_url =
+        format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/activate");
+
+    logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
+
+    let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
+    let request = services::RequestBuilder::new()
+        .method(services::Method::Post)
+        .url(&decision_engine_create_url)
+        .set_body(body)
+        .build();
+
+    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for create decision engine routing rule");
+    let response = state
+        .api_client
+        .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
+        .await
+        .change_context(errors::RoutingError::DslExecutionError)
+        .attach_printable("decision_engine_euclid: create api unresponsive")?;
+
+    logger::debug!(decision_engine_euclid_response=?response,"decision_engine_euclid");
+    Ok(())
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ActivateRoutingConfigRequest {
+    pub created_by: String,
+    pub routing_algorithm_id: String,
+}
+
+// Maps Hyperswitch `BackendInput` to a `RoutingEvaluateRequest` compatible with Decision Engine
+pub fn convert_backend_input_to_routing_eval(
+    created_by: String,
+    input: BackendInput,
+) -> RoutingResult<RoutingEvaluateRequest> {
+    let mut params: HashMap<String, Option<ValueType>> = HashMap::new();
+
+    // Payment
+    params.insert(
+        "amount".to_string(),
+        Some(ValueType::Number(input.payment.amount.get_amount_as_i64().try_into().unwrap_or_default())),
+    );
+    params.insert(
+        "currency".to_string(),
+        Some(ValueType::EnumVariant(input.payment.currency.to_string())),
+    );
+
+    if let Some(auth_type) = input.payment.authentication_type {
+        params.insert(
+            "authentication_type".to_string(),
+            Some(ValueType::EnumVariant(auth_type.to_string())),
+        );
+    }
+    if let Some(bin) = input.payment.card_bin {
+        params.insert("card_bin".to_string(), Some(ValueType::StrValue(bin)));
+    }
+    if let Some(capture_method) = input.payment.capture_method {
+        params.insert(
+            "capture_method".to_string(),
+            Some(ValueType::EnumVariant(capture_method.to_string())),
+        );
+    }
+    if let Some(country) = input.payment.business_country {
+        params.insert(
+            "business_country".to_string(),
+            Some(ValueType::EnumVariant(country.to_string())),
+        );
+    }
+    if let Some(country) = input.payment.billing_country {
+        params.insert(
+            "billing_country".to_string(),
+            Some(ValueType::EnumVariant(country.to_string())),
+        );
+    }
+    if let Some(label) = input.payment.business_label {
+        params.insert("business_label".to_string(), Some(ValueType::StrValue(label)));
+    }
+    if let Some(sfu) = input.payment.setup_future_usage {
+        params.insert(
+            "setup_future_usage".to_string(),
+            Some(ValueType::EnumVariant(sfu.to_string())),
+        );
+    }
+
+    // PaymentMethod
+    if let Some(pm) = input.payment_method.payment_method {
+        params.insert("payment_method".to_string(), Some(ValueType::EnumVariant(pm.to_string())));
+    }
+    if let Some(pmt) = input.payment_method.payment_method_type {
+        params.insert(
+            "payment_method_type".to_string(),
+            Some(ValueType::EnumVariant(pmt.to_string())),
+        );
+    }
+    if let Some(network) = input.payment_method.card_network {
+        params.insert(
+            "card_network".to_string(),
+            Some(ValueType::EnumVariant(network.to_string())),
+        );
+    }
+
+    // Mandate
+    if let Some(pt) = input.mandate.payment_type {
+        params.insert("payment_type".to_string(), Some(ValueType::EnumVariant(pt.to_string())));
+    }
+    if let Some(mt) = input.mandate.mandate_type {
+        params.insert("mandate_type".to_string(), Some(ValueType::EnumVariant(mt.to_string())));
+    }
+    if let Some(mat) = input.mandate.mandate_acceptance_type {
+        params.insert(
+            "mandate_acceptance_type".to_string(),
+            Some(ValueType::EnumVariant(mat.to_string())),
+        );
+    }
+
+    // Metadata
+    if let Some(meta) = input.metadata {
+        for (k, v) in meta.into_iter() {
+            params.insert(
+                k.clone(),
+                Some(ValueType::MetadataVariant(MetadataValue { key: k, value: v })),
+            );
+        }
+    }
+
+    Ok(RoutingEvaluateRequest {
+        created_by,
+        parameters: params,
+    })
 }
 
 //TODO: temporary change will be refactored afterwards
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct RoutingEvaluateRequest {
     pub created_by: String,
-    pub parameters: HashMap<String, Option<ast::ValueType>>,
+    pub parameters: HashMap<String, Option<ValueType>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -277,7 +416,7 @@ pub struct RoutingRule {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct RoutingDictionaryRecord {
     pub rule_id: String,
     pub name: String,
