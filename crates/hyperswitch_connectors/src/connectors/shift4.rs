@@ -953,7 +953,8 @@ static SHIFT4_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-static SHIFT4_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [enums::EventClass::Payments, enums::EventClass::Refunds];
+static SHIFT4_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Shift4 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
