@@ -111,7 +111,6 @@ pub struct SwitchProfileRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CloneConnectorSource {
     pub mca_id: id_type::MerchantConnectorAccountId,
-    pub profile_id: id_type::ProfileId,
     pub merchant_id: id_type::MerchantId,
 }
 

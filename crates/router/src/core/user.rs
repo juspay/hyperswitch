@@ -1365,9 +1365,11 @@ pub async fn create_internal_user(
     let role_info = roles::RoleInfo::from_predefined_roles(request.role_id.as_str())
         .ok_or(UserErrors::InvalidRoleId)?;
 
-    fp_utils::when(role_info.is_internal().not(), || {
-        Err(UserErrors::InvalidRoleId)
-    })?;
+    fp_utils::when(
+        role_info.is_internal().not()
+            || request.role_id == common_utils::consts::ROLE_ID_INTERNAL_ADMIN,
+        || Err(UserErrors::InvalidRoleId),
+    )?;
 
     let key_manager_state = &(&state).into();
     let key_store = state
