@@ -1288,7 +1288,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
 
     // [#44]: why should response be filled during request
     let response = Err(hyperswitch_domain_models::router_data::ErrorResponse {
-        code: "IR_29".to_string(),
+        code: "IR_20".to_string(),
         message: "Update metadata is not implemented for this connector".to_string(),
         reason: None,
         status_code: http::StatusCode::BAD_REQUEST.as_u16(),
