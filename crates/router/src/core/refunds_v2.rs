@@ -739,8 +739,8 @@ pub fn build_refund_update_for_rsync(
 
 // ********************************************** Refund list **********************************************
 
-///   If payment-id is provided, lists all the refunds associated with that particular payment-id
-///   If payment-id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
+///   If payment_id is provided, lists all the refunds associated with that particular payment_id
+///   If payment_id is not provided, lists the refunds associated with that particular merchant - to the limit specified,if no limits given, it is 10 by default
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
