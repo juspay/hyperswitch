@@ -1314,7 +1314,7 @@ impl<F>
     }
 }
 
-pub fn get_apple_pay_session<F, T>(
+pub(crate) fn get_apple_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
     apple_pay_init_result: TrustpayApplePayResponse,
@@ -1366,7 +1366,7 @@ pub fn get_apple_pay_session<F, T>(
     })
 }
 
-pub fn get_google_pay_session<F, T>(
+pub(crate) fn get_google_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
     google_pay_init_result: TrustpayGooglePayResponse,

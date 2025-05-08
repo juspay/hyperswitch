@@ -27,7 +27,8 @@ pub async fn insert_user_in_blacklist(state: &SessionState, user_id: &str) -> Us
     let user_blacklist_key = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
-    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)
+        .change_context(UserErrors::InternalServerError)?;
     redis_conn
         .set_key_with_expiry(
             &user_blacklist_key.as_str().into(),
@@ -43,7 +44,8 @@ pub async fn insert_role_in_blacklist(state: &SessionState, role_id: &str) -> Us
     let role_blacklist_key = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
-    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)
+        .change_context(UserErrors::InternalServerError)?;
     redis_conn
         .set_key_with_expiry(
             &role_blacklist_key.as_str().into(),
@@ -59,7 +61,7 @@ pub async fn insert_role_in_blacklist(state: &SessionState, role_id: &str) -> Us
 
 #[cfg(feature = "olap")]
 async fn invalidate_role_cache(state: &SessionState, role_id: &str) -> RouterResult<()> {
-    let redis_conn = get_redis_connection(state)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .delete_key(&authz::get_cache_key_from_role_id(role_id).as_str().into())
         .await
@@ -74,7 +76,7 @@ pub async fn check_user_in_blacklist<A: SessionStateInfo>(
 ) -> RouterResult<bool> {
     let token = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
-    let redis_conn = get_redis_connection(state)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .get_key::<Option<i64>>(&token.as_str().into())
         .await
@@ -89,7 +91,7 @@ pub async fn check_role_in_blacklist<A: SessionStateInfo>(
 ) -> RouterResult<bool> {
     let token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
-    let redis_conn = get_redis_connection(state)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .get_key::<Option<i64>>(&token.as_str().into())
         .await
@@ -99,7 +101,8 @@ pub async fn check_role_in_blacklist<A: SessionStateInfo>(
 
 #[cfg(feature = "email")]
 pub async fn insert_email_token_in_blacklist(state: &SessionState, token: &str) -> UserResult<()> {
-    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)
+        .change_context(UserErrors::InternalServerError)?;
     let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
     let expiry =
         expiry_to_i64(EMAIL_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
@@ -111,7 +114,8 @@ pub async fn insert_email_token_in_blacklist(state: &SessionState, token: &str) 
 
 #[cfg(feature = "email")]
 pub async fn check_email_token_in_blacklist(state: &SessionState, token: &str) -> UserResult<()> {
-    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)
+        .change_context(UserErrors::InternalServerError)?;
     let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
     let key_exists = redis_conn
         .exists::<()>(&blacklist_key.as_str().into())
@@ -124,9 +128,11 @@ pub async fn check_email_token_in_blacklist(state: &SessionState, token: &str) -
     Ok(())
 }
 
-fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
+fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
+    state: &A,
+) -> RouterResult<Arc<RedisConnectionPool>> {
     state
-        .store()
+        .global_store()
         .get_redis_conn()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")

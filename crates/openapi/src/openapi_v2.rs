@@ -149,6 +149,7 @@ Never share your secret api keys. Keep them guarded and secure.
         //Routes for refunds
         routes::refunds::refunds_create,
         routes::refunds::refunds_metadata_update,
+        routes::refunds::refunds_retrieve,
 
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api

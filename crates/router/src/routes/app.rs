@@ -153,6 +153,7 @@ pub trait SessionStateInfo {
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -208,6 +209,9 @@ impl SessionStateInfo for SessionState {
     }
     fn session_state(&self) -> SessionState {
         self.clone()
+    }
+    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+        self.global_store.to_owned()
     }
 }
 #[derive(Clone)]
@@ -1171,7 +1175,9 @@ impl Refunds {
         let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
 
         route = route
+            
             .service(web::resource("").route(web::post().to(refunds::refunds_create)))
+            .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)))
             .service(
                 web::resource("/{id}/update_metadata")
                     .route(web::put().to(refunds::refunds_metadata_update)),

@@ -1,8 +1,10 @@
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 pub use api_models::refunds::{RefundMetadataUpdateRequest, RefundsCreateRequest};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-pub use api_models::refunds::{RefundRequest, RefundUpdateRequest};
-pub use api_models::refunds::{RefundResponse, RefundStatus, RefundType, RefundsRetrieveRequest};
+pub use api_models::refunds::RefundRequest;
+pub use api_models::refunds::{
+    RefundResponse, RefundStatus, RefundType, RefundUpdateRequest, RefundsRetrieveRequest, RefundsRetrieveBody
+};
 pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
 pub use hyperswitch_interfaces::api::refunds::{Refund, RefundExecute, RefundSync};
 
