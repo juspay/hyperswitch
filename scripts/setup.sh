@@ -266,7 +266,7 @@ print_access_info() {
     echo -e "Reach out to us on ${BLUE}https://hyperswitch-io.slack.com${NC} in case you face any issues."
 }
 
-
+# Main execution flow
 show_banner
 detect_docker_compose
 check_prerequisites
