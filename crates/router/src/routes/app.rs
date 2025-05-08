@@ -1026,7 +1026,7 @@ impl Routing {
                     .route(web::get().to(routing::routing_retrieve_config)),
             )
             .service(
-                web::resource("/{algorithm_id}/activate/{euclid_routing_id:.*}").route(web::post().to(
+                web::resource("/{algorithm_id}/activate").route(web::post().to(
                     |state, req, path| {
                         routing::routing_link_config(state, req, path, &TransactionType::Payment)
                     },

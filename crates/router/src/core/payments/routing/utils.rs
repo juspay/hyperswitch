@@ -33,6 +33,7 @@ pub async fn perform_decision_euclid_routing(
         .build();
 
     logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for evaluate decision engine routing evaluate");
+    logger::info!(decision_engine_euclid_request_body=?routing_request,"decision_engine_euclid");
     let response = state
         .api_client
         .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
@@ -74,6 +75,7 @@ pub async fn create_de_euclid_routing_algo(
         .build();
 
     logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for create decision engine routing rule");
+    logger::info!(decision_engine_euclid_request_body=?routing_request,"decision_engine_euclid");
     let response = state
         .api_client
         .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
@@ -103,8 +105,6 @@ pub async fn link_de_euclid_routing_algorithm(
     let decision_engine_create_url =
         format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/activate");
 
-    logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
-
     let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
     let request = services::RequestBuilder::new()
         .method(services::Method::Post)
@@ -112,7 +112,8 @@ pub async fn link_de_euclid_routing_algorithm(
         .set_body(body)
         .build();
 
-    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for create decision engine routing rule");
+    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for activating decision engine routing rule");
+    logger::info!(decision_engine_euclid_request_body=?routing_request,"decision_engine_euclid");
     let response = state
         .api_client
         .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
@@ -140,7 +141,14 @@ pub fn convert_backend_input_to_routing_eval(
     // Payment
     params.insert(
         "amount".to_string(),
-        Some(ValueType::Number(input.payment.amount.get_amount_as_i64().try_into().unwrap_or_default())),
+        Some(ValueType::Number(
+            input
+                .payment
+                .amount
+                .get_amount_as_i64()
+                .try_into()
+                .unwrap_or_default(),
+        )),
     );
     params.insert(
         "currency".to_string(),
@@ -175,7 +183,10 @@ pub fn convert_backend_input_to_routing_eval(
         );
     }
     if let Some(label) = input.payment.business_label {
-        params.insert("business_label".to_string(), Some(ValueType::StrValue(label)));
+        params.insert(
+            "business_label".to_string(),
+            Some(ValueType::StrValue(label)),
+        );
     }
     if let Some(sfu) = input.payment.setup_future_usage {
         params.insert(
@@ -186,7 +197,10 @@ pub fn convert_backend_input_to_routing_eval(
 
     // PaymentMethod
     if let Some(pm) = input.payment_method.payment_method {
-        params.insert("payment_method".to_string(), Some(ValueType::EnumVariant(pm.to_string())));
+        params.insert(
+            "payment_method".to_string(),
+            Some(ValueType::EnumVariant(pm.to_string())),
+        );
     }
     if let Some(pmt) = input.payment_method.payment_method_type {
         params.insert(
@@ -203,10 +217,16 @@ pub fn convert_backend_input_to_routing_eval(
 
     // Mandate
     if let Some(pt) = input.mandate.payment_type {
-        params.insert("payment_type".to_string(), Some(ValueType::EnumVariant(pt.to_string())));
+        params.insert(
+            "payment_type".to_string(),
+            Some(ValueType::EnumVariant(pt.to_string())),
+        );
     }
     if let Some(mt) = input.mandate.mandate_type {
-        params.insert("mandate_type".to_string(), Some(ValueType::EnumVariant(mt.to_string())));
+        params.insert(
+            "mandate_type".to_string(),
+            Some(ValueType::EnumVariant(mt.to_string())),
+        );
     }
     if let Some(mat) = input.mandate.mandate_acceptance_type {
         params.insert(
@@ -220,7 +240,10 @@ pub fn convert_backend_input_to_routing_eval(
         for (k, v) in meta.into_iter() {
             params.insert(
                 k.clone(),
-                Some(ValueType::MetadataVariant(MetadataValue { key: k, value: v })),
+                Some(ValueType::MetadataVariant(MetadataValue {
+                    key: k,
+                    value: v,
+                })),
             );
         }
     }

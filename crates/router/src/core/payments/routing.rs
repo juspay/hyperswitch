@@ -468,7 +468,12 @@ pub async fn perform_static_routing_v1(
                 }
             };
 
-            perform_decision_euclid_routing(state, backend_input.clone(), business_profile.get_id().get_string_repr().to_string()).await?;
+            perform_decision_euclid_routing(
+                state,
+                backend_input.clone(),
+                business_profile.get_id().get_string_repr().to_string(),
+            )
+            .await?;
             execute_dsl_and_get_connector_v1(backend_input, interpreter)?
         }
     })

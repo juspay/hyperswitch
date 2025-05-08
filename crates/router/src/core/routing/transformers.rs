@@ -31,6 +31,7 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
             algorithm_for: Some(value.algorithm_for),
+            decision_engine_routing_id: None,
         }
     }
 }
@@ -47,6 +48,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
             algorithm_for: Some(value.algorithm_for),
+            decision_engine_routing_id: value.decision_engine_routing_id,
         }
     }
 }
