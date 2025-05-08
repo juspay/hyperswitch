@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.08.0
+
+### Features
+
+- **connector:** Fix Wasm Changes for Coinbase ([#7941](https://github.com/juspay/hyperswitch/pull/7941)) ([`1e243fa`](https://github.com/juspay/hyperswitch/commit/1e243fada10f430d317c666d81483ae3246afd83))
+- **refunds_v2:** Add Refunds Retrieve and Refunds Sync Core flow ([#7835](https://github.com/juspay/hyperswitch/pull/7835)) ([`a289f19`](https://github.com/juspay/hyperswitch/commit/a289f19cd0675c52d59a0578292b4b086c1103c6))
+
+### Bug Fixes
+
+- **payment:** Disable payment update via client config ([#7970](https://github.com/juspay/hyperswitch/pull/7970)) ([`cac8723`](https://github.com/juspay/hyperswitch/commit/cac87234959d5d66b7ef6b4d602cf49714a864f6))
+
+**Full Changelog:** [`2025.05.07.0...2025.05.08.0`](https://github.com/juspay/hyperswitch/compare/2025.05.07.0...2025.05.08.0)
+
+
+- - -
+
+## 2025.05.07.0
+
+### Features
+
+- **connector:**
+  - [globalpay, globepay, itaubank, nexinets, nuvei, prophetpay, zen] add in feature matrix ([#7258](https://github.com/juspay/hyperswitch/pull/7258)) ([`7c17996`](https://github.com/juspay/hyperswitch/commit/7c17996caa7808839e0e5291f5c6d836fd4c1d8f))
+  - [stripebilling] consume necessary fields in stripe billing from webhooks for transaction monitoring support ([#7722](https://github.com/juspay/hyperswitch/pull/7722)) ([`d8bbb80`](https://github.com/juspay/hyperswitch/commit/d8bbb8054d9e423e73c0d48272c22ab975ed9f3b))
+  - [FEATURE MATRIX] Connector feature matrix ([#7147](https://github.com/juspay/hyperswitch/pull/7147)) ([`15df5ac`](https://github.com/juspay/hyperswitch/commit/15df5ac651682b4e4403cea3b0ef58fd9a90f0ec))
+
+### Refactors
+
+- **connector:** Migrate [AdyenPlatform, Ebanx, GPayments, Netcetera, Plaid] from crates/router to crates/hyperswitch_connectors ([#7913](https://github.com/juspay/hyperswitch/pull/7913)) ([`b024c41`](https://github.com/juspay/hyperswitch/commit/b024c411362cb12648b3376a68eb2f7660e6d473))
+
+**Full Changelog:** [`2025.05.06.0...2025.05.07.0`](https://github.com/juspay/hyperswitch/compare/2025.05.06.0...2025.05.07.0)
+
+
+- - -
+
 ## 2025.05.06.0
 
 ### Features
