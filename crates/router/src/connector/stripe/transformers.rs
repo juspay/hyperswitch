@@ -2537,9 +2537,9 @@ where
                 .and_then(|charge_id| construct_charge_response(charge_id, &item.data.request));
 
             Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id: types::ResponseId::ConnectorTransactionId(mandate_reference.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(mandate_reference),
+                mandate_reference: Box::new(mandate_reference.clone()),
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
