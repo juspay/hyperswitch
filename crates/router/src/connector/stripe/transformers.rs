@@ -2071,7 +2071,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        // Card flow for tokenization is handled seperately because of API contact difference
+        // Card flow for tokenization is handled separately because of API contact difference
         let request_payment_data = match &item.request.payment_method_data {
             domain::PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
