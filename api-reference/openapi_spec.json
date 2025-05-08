@@ -9916,6 +9916,7 @@
           "threedsecureio",
           "trustpay",
           "tsys",
+          "vgs",
           "volt",
           "wellsfargo",
           "wise",
@@ -10130,7 +10131,8 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
-          "billing_processor"
+          "billing_processor",
+          "vault_processor"
         ]
       },
       "ConnectorVolumeSplit": {

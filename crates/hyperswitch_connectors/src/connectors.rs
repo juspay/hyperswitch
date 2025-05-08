@@ -83,6 +83,7 @@ pub mod thunes;
 pub mod trustpay;
 pub mod tsys;
 pub mod unified_authentication_service;
+pub mod vgs;
 pub mod volt;
 pub mod wellsfargo;
 pub mod worldline;
@@ -110,7 +111,7 @@ pub use self::{
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, square::Square,
     stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,
 };
