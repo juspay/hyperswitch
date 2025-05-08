@@ -53,6 +53,7 @@ pub struct VgsCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
+    card_holder_name: Secret<String>
 }
 
 impl<F> TryFrom<&VaultRouterData<F>> for VgsPaymentsRequest {
@@ -65,6 +66,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsPaymentsRequest {
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc.unwrap(),
+                    card_holder_name: req_card.card_holder_name.unwrap()
                 };
                 Ok(Self {
                     data: vec![VgsTokenRequestItem {
