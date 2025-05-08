@@ -1005,7 +1005,7 @@ pub async fn create_payment_method_core(
             Ok((resp, payment_method))
         }
         Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(ext_vaulting_resp)) => {
-            let merchant_connector_id = profile
+            let external_vault_source = profile
             .external_vault_connector_details
             .clone()
             .map(|details| details.vault_connector_id);
@@ -1021,7 +1021,7 @@ pub async fn create_payment_method_core(
                 network_tokenization_resp,
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
-                merchant_connector_id,
+                external_vault_source,
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -1705,7 +1705,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
-                merchant_connector_id: None,
+                external_vault_source: None,
             },
             storage_scheme,
         )
@@ -1767,7 +1767,7 @@ pub async fn create_pm_additional_data_update(
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>
+    external_vault_source: Option<id_type::MerchantConnectorAccountId>
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
         .map(
@@ -1817,7 +1817,7 @@ pub async fn create_pm_additional_data_update(
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         connector_mandate_details: connector_mandate_details_update,
         locker_fingerprint_id: vault_fingerprint_id,
-        merchant_connector_id,
+        external_vault_source,
     };
 
     Ok(pm_update)
@@ -1955,7 +1955,7 @@ pub async fn vault_payment_method(
     let is_external_vault_enabled = profile.get_is_external_vault_enabled();
 
     if is_external_vault_enabled {
-        let merchant_connector_id: id_type::MerchantConnectorAccountId = profile
+        let external_vault_source: id_type::MerchantConnectorAccountId = profile
             .external_vault_connector_details
             .clone()
             .map(|connector_details| connector_details.vault_connector_id.clone())
@@ -1971,7 +1971,7 @@ pub async fn vault_payment_method(
             merchant_context.get_merchant_key_store(),
             profile.get_id(),
             "",
-            Some(&merchant_connector_id),
+            Some(&external_vault_source),
         )
         .await?;
 

@@ -1060,7 +1060,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 128]
-        merchant_connector_id -> Nullable<Varchar>,
+        external_vault_source -> Nullable<Varchar>,
     }
 }
 

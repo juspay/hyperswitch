@@ -1430,8 +1430,8 @@ pub async fn retrieve_payment_method_from_vault(
     let is_external_vault_enabled = profile.get_is_external_vault_enabled();
 
     if is_external_vault_enabled {
-        let merchant_connector_id = pm
-            .merchant_connector_id
+        let external_vault_source = pm
+            .external_vault_source
             .as_ref();
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
@@ -1441,7 +1441,7 @@ pub async fn retrieve_payment_method_from_vault(
             merchant_context.get_merchant_key_store(),
             profile.get_id(),
             "",
-            merchant_connector_id,
+            external_vault_source,
         )
         .await?;
 
@@ -1569,8 +1569,8 @@ pub async fn delete_payment_method_data_from_vault(
         .attach_printable("Missing locker_id in PaymentMethod")?;
 
     if is_external_vault_enabled {
-        let merchant_connector_id = pm
-            .merchant_connector_id
+        let external_vault_source = pm
+            .external_vault_source
             .as_ref();
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
@@ -1580,7 +1580,7 @@ pub async fn delete_payment_method_data_from_vault(
             merchant_context.get_merchant_key_store(),
             profile.get_id(),
             "",
-            merchant_connector_id,
+            external_vault_source,
         )
         .await?;
 

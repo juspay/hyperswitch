@@ -1,1 +1,1 @@
-ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(128);
+ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS external_vault_source VARCHAR(128);
