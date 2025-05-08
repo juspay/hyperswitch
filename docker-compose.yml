@@ -70,6 +70,8 @@ services:
     image: mailhog/mailhog
     networks:
       - router_net
+    profiles:
+      - full_setup
     ports:
       - "1025:1025"
       - "8025:8025"
@@ -454,11 +456,13 @@ services:
       - "5252:5252"
     networks:
       - router_net
+    profiles:
+      - full_setup
     depends_on:
       hyperswitch-server:
         condition: service_healthy
       hyperswitch-web:
-        condition: service_healthy
+        condition: service_started
     environment:
       - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
       - HYPERSWITCH_SECRET_KEY=placeholder_api_key
