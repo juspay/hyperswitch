@@ -20,9 +20,7 @@ Single API to access the payments ecosystem and its features
     <img src="https://img.shields.io/badge/Made_in-Rust-orange" />
   </a>
   <!-- Uncomment when we reach >50% coverage -->
-  <!-- <a href="https://codecov.io/github/juspay/hyperswitch" >
-    <img src="https://codecov.io/github/juspay/hyperswitch/graph/badge.svg"/>
-  </a> -->
+ ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/AkshayaFoiger/hyperswitch?utm_source=oss&utm_medium=github&utm_campaign=AkshayaFoiger%2Fhyperswitch&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 </p>
 <p align="center">
   <a href="https://www.linkedin.com/company/hyperswitch/">
@@ -204,5 +202,3 @@ The core team of 150+ engineers building Hyperswitch. Keep up the great work! ðŸ
 <a href="https://github.com/juspay/hyperswitch/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=juspay/hyperswitch" alt="Contributors"/>
 </a>
-
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/AkshayaFoiger/hyperswitch?utm_source=oss&utm_medium=github&utm_campaign=AkshayaFoiger%2Fhyperswitch&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
