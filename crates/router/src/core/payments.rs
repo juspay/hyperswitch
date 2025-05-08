@@ -2381,8 +2381,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         }?;
         if payments_response
             .is_iframe_redirection_enabled
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("is_iframe_redirection_enabled is not set in business profile")?
+            .unwrap_or(false)
         {
             // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
             let html = core_utils::get_html_redirect_response_popup(
@@ -2497,8 +2496,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         )?;
         if payments_response
             .is_iframe_redirection_enabled
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("is_iframe_redirection_enabled is not set in business profile")?
+            .unwrap_or(false)
         {
             // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
             let html = core_utils::get_html_redirect_response_popup(
