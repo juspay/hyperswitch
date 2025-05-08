@@ -248,9 +248,25 @@ print_access_info() {
         echo -e "  • ${GREEN}${BOLD}Monitoring (Grafana)${NC}: ${BLUE}${BOLD}http://localhost:3000${NC}"
     fi
     echo ""
-    echo_info "To stop all services, run: $DOCKER_COMPOSE down "
+
+    # Provide the stop command based on the selected profile
+    echo_info "To stop all services, run the following command:"
+    case $PROFILE in
+        standalone)
+            echo -e "${BLUE}$DOCKER_COMPOSE down${NC}"
+            ;;
+        standard)
+            echo -e "${BLUE}$DOCKER_COMPOSE down${NC}"
+            ;;
+        full)
+            echo -e "${BLUE}$DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap --profile full_setup down${NC}"
+            ;;
+    esac
+
     echo -e "Reach out to us on ${BLUE}https://hyperswitch-io.slack.com${NC} in case you face any issues."
 }
+
+
 show_banner
 detect_docker_compose
 check_prerequisites
