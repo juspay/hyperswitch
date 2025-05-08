@@ -195,6 +195,7 @@ pub async fn payment_method_update_api(
             payment_methods_routes::update_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 req,
                 &payment_method_id,
             )
@@ -263,7 +264,7 @@ pub async fn payment_method_delete_api(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            payment_methods_routes::delete_payment_method(state, pm, merchant_context)
+            payment_methods_routes::delete_payment_method(state, pm, merchant_context, auth.profile)
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
@@ -659,6 +660,48 @@ pub async fn list_customer_payment_method_api(
                 state,
                 merchant_context,
                 customer_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::GetPaymentMethodTokenData))]
+pub async fn get_payment_method_token_data(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
+    json_payload: web::Json<api_models::payment_methods::GetTokenDataRequest>,
+) -> HttpResponse {
+    let flow = Flow::GetPaymentMethodTokenData;
+    let payment_method_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payment_methods_routes::get_token_data_for_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                req,
+                payment_method_id.clone(),
             )
         },
         auth::auth_type(
@@ -1402,6 +1445,7 @@ pub async fn payment_method_session_update_saved_payment_method(
             payment_methods_routes::payment_methods_session_update_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 request.payment_method_session_id,
                 request.request,
             )
@@ -1447,6 +1491,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
             payment_methods_routes::payment_methods_session_delete_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 request.request.payment_method_id,
                 request.payment_method_session_id,
             )

@@ -2057,3 +2057,141 @@ default_imp_for_billing_connector_invoice_sync!(
     connector::Wellsfargopayout,
     connector::Wise
 );
+
+macro_rules! default_imp_for_external_vault {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::ExternalVault for $path::$connector {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVault for connector::DummyConnector<T> {}
+
+default_imp_for_external_vault!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_external_vault_insert {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::ExternalVaultInsert for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::ExternalVaultInsertFlow,
+                types::VaultRequestData,
+                types::VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVaultInsert for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::ExternalVaultInsertFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_external_vault_insert!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_external_vault_retrieve {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::ExternalVaultRetrieve for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::ExternalVaultRetrieveFlow,
+                types::VaultRequestData,
+                types::VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVaultRetrieve for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::ExternalVaultRetrieveFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_external_vault_retrieve!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_external_vault_delete {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::ExternalVaultDelete for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::ExternalVaultDeleteFlow,
+                types::VaultRequestData,
+                types::VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVaultDelete for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_external_vault_delete!(
+    connector::Adyenplatform,
+    connector::Ebanx,
+    connector::Gpayments,
+    connector::Netcetera,
+    connector::Plaid,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);

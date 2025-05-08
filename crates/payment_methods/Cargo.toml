@@ -22,7 +22,7 @@ hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces"
 workspace = true
 
 [features]
-default = ["v1", "dummy_connector"]
+default = ["dummy_connector"]
 v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
 v2 = [ "payment_methods_v2"]
 payment_methods_v2 = [ "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]

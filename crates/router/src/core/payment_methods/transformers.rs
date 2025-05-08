@@ -539,8 +539,10 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_network: card_create.card_network,
             card_issuer: card_create.card_issuer,
             card_type: card_create.card_type,
-            card_holder_name: update_card.card_holder_name,
-            nick_name: update_card.nick_name,
+            card_holder_name: update_card
+                .card_holder_name
+                .or(card_create.card_holder_name),
+            nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
         }),
         _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.
