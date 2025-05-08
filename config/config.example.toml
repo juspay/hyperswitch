@@ -436,6 +436,12 @@ braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 
+[debit_routing_config]                                       # Debit Routing configs
+supported_currencies = "USD"                                 # Supported currencies for debit routing
+supported_connectors = "adyen"                               # Supported connectors for debit routing
+
+[debit_routing_config.connector_supported_debit_networks]    # Debit Routing config that contains the supported debit networks for each connector
+adyen = "Star,Pulse,Accel,Nyce"                              # Debit networks supported by adyen connector
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }

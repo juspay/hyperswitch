@@ -162,23 +162,6 @@ pub struct DebitRoutingConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkInterchangeFee {
-    pub non_regulated: NoneRegulatedNetworkProcessingData,
-    pub regulated: NetworkProcessingData,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NoneRegulatedNetworkProcessingData(
-    pub HashMap<String, HashMap<enums::CardNetwork, NetworkProcessingData>>,
-);
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkProcessingData {
-    pub percentage: f64,
-    pub fixed_amount: f64,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
     pub enabled: bool,
     pub url: String,

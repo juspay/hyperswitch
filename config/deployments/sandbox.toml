@@ -169,6 +169,13 @@ base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
 
+[debit_routing_config]
+supported_currencies = "USD"
+supported_connectors = "adyen"
+
+[debit_routing_config.connector_supported_debit_networks]
+adyen = "Star,Pulse,Accel,Nyce"
+
 [frm]
 enabled = true
 

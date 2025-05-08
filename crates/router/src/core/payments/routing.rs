@@ -1562,7 +1562,7 @@ pub async fn perform_open_routing_for_debit_routing(
     card_isin: Option<Secret<String>>,
 ) -> RoutingResult<or_types::DebitRoutingOutput> {
     logger::debug!(
-        "performing debit with open_router for profile {}",
+        "performing debit routing with open_router for profile {}",
         payment_attempt.profile_id.get_string_repr()
     );
 

@@ -531,6 +531,12 @@ bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 bank_redirect.eps.connector_list = "globalpay,nexinets"
 
+[debit_routing_config]
+supported_currencies = "USD"
+supported_connectors = "adyen"
+
+[debit_routing_config.connector_supported_debit_networks]
+adyen = "Star,Pulse,Accel,Nyce"
 
 [cors]
 max_age = 30
