@@ -102,31 +102,22 @@ pub async fn routing_create_config(
     ))
     .await
 }
-#[derive(serde::Deserialize)]
-pub struct RoutingLinkPath {
-    pub algorithm_id: common_utils::id_type::RoutingId,
-    pub euclid_routing_id: Option<String>,
-}
+
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<RoutingLinkPath>,
+    path: web::Path<common_utils::id_type::RoutingId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
-    let RoutingLinkPath {
-        algorithm_id,
-        euclid_routing_id,
-    } = path.into_inner();
-
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        algorithm_id,
-        move |state, auth: auth::AuthenticationData, algorithm, _| {
+        path.into_inner(),
+        |state, auth: auth::AuthenticationData, algorithm, _| {
             routing::link_routing_config(
                 state,
                 auth.merchant_account,
@@ -134,7 +125,6 @@ pub async fn routing_link_config(
                 auth.profile_id,
                 algorithm,
                 transaction_type,
-                euclid_routing_id.clone(),
             )
         },
         #[cfg(not(feature = "release"))]

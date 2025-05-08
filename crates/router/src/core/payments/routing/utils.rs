@@ -26,11 +26,62 @@ pub trait EuclidApiHandler {
     ) -> RoutingResult<Res>
     where
         Req: Serialize + Send + Sync + 'static,
-        Res: serde::de::DeserializeOwned + Send + 'static;
+        Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug;
+
+    async fn send_euclid_request_without_response_parsing<Req>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>,
+        timeout: Option<u64>,
+    ) -> RoutingResult<()>
+    where
+        Req: Serialize + Send + Sync + 'static;
 }
 
 // Struct to implement the EuclidApiHandler trait
 pub struct EuclidApiClient;
+
+impl EuclidApiClient {
+    async fn build_and_send_euclid_http_request<Req>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>,
+        timeout: Option<u64>,
+        context_message: &str,
+    ) -> RoutingResult<reqwest::Response>
+    where
+        Req: Serialize + Send + Sync + 'static,
+    {
+        let url = format!("{}/{}", EUCLID_BASE_URL, path);
+        logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "Initiating Euclid API call ({})", context_message);
+
+        let mut request_builder = services::RequestBuilder::new()
+            .method(http_method)
+            .url(&url);
+
+        if let Some(body_content) = request_body {
+            let body = common_utils::request::RequestContent::Json(Box::new(body_content));
+            request_builder = request_builder.set_body(body);
+        }
+
+        let http_request = request_builder.build();
+        logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details ({})", context_message);
+
+        state
+            .api_client
+            .send_request(state, http_request, timeout, false)
+            .await
+            .change_context(errors::RoutingError::DslExecutionError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Euclid API call to path '{}' unresponsive ({})",
+                    path, context_message
+                )
+            })
+    }
+}
 
 #[async_trait]
 impl EuclidApiHandler for EuclidApiClient {
@@ -43,32 +94,18 @@ impl EuclidApiHandler for EuclidApiClient {
     ) -> RoutingResult<Res>
     where
         Req: Serialize + Send + Sync + 'static,
-        Res: serde::de::DeserializeOwned + Send + 'static,
+        Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug,
     {
-        let url = format!("{}/{}", EUCLID_BASE_URL, path);
-        logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "Initiating Euclid API call");
-
-        let mut request_builder = services::RequestBuilder::new()
-            .method(http_method)
-            .url(&url);
-
-        if let Some(body_content) = request_body {
-            let body = common_utils::request::RequestContent::Json(Box::new(body_content));
-            request_builder = request_builder.set_body(body);
-        }
-
-        let http_request = request_builder.build();
-
-        logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details");
-
-        let response = state
-            .api_client
-            .send_request(state, http_request, timeout, false)
-            .await
-            .change_context(errors::RoutingError::DslExecutionError)
-            .attach_printable_lazy(|| format!("Euclid API call to path '{}' unresponsive", path))?;
-
-        logger::debug!(?response, euclid_request_path = %path, "Received raw response from Euclid API");
+        let response = Self::build_and_send_euclid_http_request(
+            state,
+            http_method,
+            path,
+            request_body,
+            timeout,
+            "parsing response",
+        )
+        .await?;
+        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
 
         let parsed_response = response
             .json::<Res>()
@@ -84,8 +121,32 @@ impl EuclidApiHandler for EuclidApiClient {
                     path
                 )
             })?;
-        logger::debug!(response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "Successfully parsed response from Euclid API");
+        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "Successfully parsed response from Euclid API");
         Ok(parsed_response)
+    }
+
+    async fn send_euclid_request_without_response_parsing<Req>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>,
+        timeout: Option<u64>,
+    ) -> RoutingResult<()>
+    where
+        Req: Serialize + Send + Sync + 'static,
+    {
+        let response = Self::build_and_send_euclid_http_request(
+            state,
+            http_method,
+            path,
+            request_body,
+            timeout,
+            "not parsing response",
+        )
+        .await?;
+
+        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
+        Ok(())
     }
 }
 
@@ -142,16 +203,16 @@ pub async fn link_de_euclid_routing_algorithm(
 ) -> RoutingResult<()> {
     logger::debug!("decision_engine_euclid: link api call for euclid routing algorithm");
 
-    let response = EuclidApiClient::send_euclid_request(
+    EuclidApiClient::send_euclid_request_without_response_parsing(
         state,
         services::Method::Post,
         "routing/activate",
-        Some(routing_request),
+        Some(routing_request.clone()),
         Some(EUCLID_API_TIMEOUT),
     )
     .await?;
 
-    logger::debug!(decision_engine_euclid_response=?response,"decision_engine_euclid");
+    logger::debug!(decision_engine_euclid_activated=?routing_request, "decision_engine_euclid: link_de_euclid_routing_algorithm completed");
     Ok(())
 }
 
@@ -169,8 +230,6 @@ pub async fn list_de_euclid_routing_algorithms(
         Some(EUCLID_API_TIMEOUT),
     )
     .await?;
-
-    logger::debug!(decision_engine_euclid_response=?response,"decision_engine_euclid");
 
     Ok(response.into_iter()
         .map(|record| {
@@ -210,7 +269,14 @@ pub fn convert_backend_input_to_routing_eval(
     // Payment
     params.insert(
         "amount".to_string(),
-        Some(ValueType::Number(input.payment.amount.get_amount_as_i64().try_into().unwrap_or_default())),
+        Some(ValueType::Number(
+            input
+                .payment
+                .amount
+                .get_amount_as_i64()
+                .try_into()
+                .unwrap_or_default(),
+        )),
     );
     params.insert(
         "currency".to_string(),
@@ -245,7 +311,10 @@ pub fn convert_backend_input_to_routing_eval(
         );
     }
     if let Some(label) = input.payment.business_label {
-        params.insert("business_label".to_string(), Some(ValueType::StrValue(label)));
+        params.insert(
+            "business_label".to_string(),
+            Some(ValueType::StrValue(label)),
+        );
     }
     if let Some(sfu) = input.payment.setup_future_usage {
         params.insert(
@@ -256,7 +325,10 @@ pub fn convert_backend_input_to_routing_eval(
 
     // PaymentMethod
     if let Some(pm) = input.payment_method.payment_method {
-        params.insert("payment_method".to_string(), Some(ValueType::EnumVariant(pm.to_string())));
+        params.insert(
+            "payment_method".to_string(),
+            Some(ValueType::EnumVariant(pm.to_string())),
+        );
     }
     if let Some(pmt) = input.payment_method.payment_method_type {
         params.insert(
@@ -273,10 +345,16 @@ pub fn convert_backend_input_to_routing_eval(
 
     // Mandate
     if let Some(pt) = input.mandate.payment_type {
-        params.insert("payment_type".to_string(), Some(ValueType::EnumVariant(pt.to_string())));
+        params.insert(
+            "payment_type".to_string(),
+            Some(ValueType::EnumVariant(pt.to_string())),
+        );
     }
     if let Some(mt) = input.mandate.mandate_type {
-        params.insert("mandate_type".to_string(), Some(ValueType::EnumVariant(mt.to_string())));
+        params.insert(
+            "mandate_type".to_string(),
+            Some(ValueType::EnumVariant(mt.to_string())),
+        );
     }
     if let Some(mat) = input.mandate.mandate_acceptance_type {
         params.insert(
@@ -290,7 +368,10 @@ pub fn convert_backend_input_to_routing_eval(
         for (k, v) in meta.into_iter() {
             params.insert(
                 k.clone(),
-                Some(ValueType::MetadataVariant(MetadataValue { key: k, value: v })),
+                Some(ValueType::MetadataVariant(MetadataValue {
+                    key: k,
+                    value: v,
+                })),
             );
         }
     }

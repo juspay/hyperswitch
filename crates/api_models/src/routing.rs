@@ -486,6 +486,7 @@ pub struct RoutingDictionaryRecord {
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: Option<TransactionType>,
+    pub decision_engine_routing_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
