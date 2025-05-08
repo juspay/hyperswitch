@@ -48,7 +48,7 @@ use transformers::{self as jpmorgan, JpmorganErrorResponse};
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils,
+    utils::{self, is_mandate_supported, PaymentMethodDataType},
 };
 
 #[derive(Clone)]
@@ -148,6 +148,7 @@ impl ConnectorCommon for Jpmorgan {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("$$$$$ error res{:?}", res.response);
         let response: JpmorganErrorResponse = res
             .response
             .parse_struct("JpmorganErrorResponse")
@@ -192,6 +193,15 @@ impl ConnectorValidation for Jpmorgan {
             return Ok(());
         }
         Err(errors::ConnectorError::MissingConnectorTransactionID.into())
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -342,6 +352,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = jpmorgan::JpmorganRouterData::from((amount, req));
         let connector_req = jpmorgan::JpmorganPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ auth req{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -373,6 +387,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$$$$ auth res{:?}", res.response);
         let response: jpmorgan::JpmorganPaymentsResponse = res
             .response
             .parse_struct("Jpmorgan PaymentsAuthorizeResponse")
