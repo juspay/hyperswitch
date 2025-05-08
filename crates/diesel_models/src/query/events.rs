@@ -32,6 +32,20 @@ impl Event {
         .await
     }
 
+    pub async fn find_by_merchant_id_idempotent_event_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::idempotent_event_id.eq(idempotent_event_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn list_initial_attempts_by_merchant_id_primary_object_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
