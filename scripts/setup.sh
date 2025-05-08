@@ -262,7 +262,7 @@ print_access_info() {
             echo -e "${BLUE}$DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap --profile full_setup down${NC}"
             ;;
     esac
-
+    echo ""
     echo -e "Reach out to us on ${BLUE}https://hyperswitch-io.slack.com${NC} in case you face any issues."
 }
 
