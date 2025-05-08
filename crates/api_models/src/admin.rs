@@ -2576,7 +2576,7 @@ pub struct ProfileUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
-    pub is_iframe_redirection_enabled: Option<bool>
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
