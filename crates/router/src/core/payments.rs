@@ -7146,7 +7146,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let mut connectors = routing::perform_static_routing_v1(
+    let connectors = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -7156,13 +7156,22 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let mut final_connectors = if let Some(mut straight_through_connectors) = connector_list {
+        straight_through_connectors.extend(connectors);
+        straight_through_connectors
+    } else {
+        connectors
+    };
+
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    connectors = routing::perform_eligibility_analysis_with_fallback(
+    // adds straight through connectors to the list of connectors in the active routing algorithm
+    // and perform eligibility analysis on the combined set of connectors
+    final_connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
-        connectors,
+        final_connectors,
         &TransactionData::Payment(transaction_data),
         eligible_connectors,
         business_profile,
@@ -7257,12 +7266,6 @@ where
     } else {
         connectors
     };
-    let final_connectors = if let Some(mut straight_through_connectors) = connector_list {
-        straight_through_connectors.extend(connectors);
-        straight_through_connectors
-    } else {
-        connectors
-    };
 
     let connector_data = final_connectors
         .into_iter()
@@ -7347,7 +7350,6 @@ pub async fn route_connector_v1_for_payouts(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
-
     let first_connector_choice = connectors
         .first()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
