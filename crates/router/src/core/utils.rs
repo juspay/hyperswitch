@@ -34,12 +34,14 @@ use super::payments::helpers;
 use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payments::helpers as payment_helpers;
 use crate::{
     configs::Settings,
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{helpers as payment_helpers, PaymentData},
+        payments::PaymentData,
     },
     db::StorageInterface,
     routes::SessionState,

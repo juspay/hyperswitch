@@ -63,6 +63,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::ApiError, code = "payout_failed", message = "payout has failed")]
     PayoutFailed,
 
+    #[error(error_type = StripeErrorType::ApiError, code = "external_vault_failed", message = "external vault has failed")]
+    ExternalVaultFailed,
+
     #[error(error_type = StripeErrorType::ApiError, code = "internal_server_error", message = "Server is down")]
     InternalServerError,
 
@@ -505,6 +508,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundNotPossible { connector: _ } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data: _ } => Self::RefundFailed, // Nothing at stripe to map
             errors::ApiErrorResponse::PayoutFailed { data: _ } => Self::PayoutFailed,
+            errors::ApiErrorResponse::ExternalVaultFailed { data: _ } => {
+                Self::ExternalVaultFailed
+            }
 
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
@@ -767,6 +773,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CustomerRedacted
             | Self::WebhookProcessingError
             | Self::InvalidTenant
+            | Self::ExternalVaultFailed
             | Self::AmountConversionFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
