@@ -65,6 +65,16 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
+  
+  mailhog:
+    image: mailhog/mailhog
+    networks:
+      - router_net
+    profiles:
+      - full_setup
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   ### Application services
   hyperswitch-server:
@@ -446,9 +456,13 @@ services:
       - "5252:5252"
     networks:
       - router_net
+    profiles:
+      - full_setup
     depends_on:
       hyperswitch-server:
         condition: service_healthy
+      hyperswitch-web:
+        condition: service_started
     environment:
       - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
       - HYPERSWITCH_SECRET_KEY=placeholder_api_key
