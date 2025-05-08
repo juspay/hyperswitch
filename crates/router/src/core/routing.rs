@@ -186,7 +186,7 @@ pub async fn retrieve_merchant_routing_dictionary(
             .map(|mut de_routing| de_result.append(&mut de_routing));
         }
 
-        logger::debug!(de_result=?de_result, "decision_engine_euclid");
+        router_env::logger::debug!(de_list_response=?de_result, list_response=?result, "decision_engine_euclid");
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
