@@ -7146,7 +7146,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let mut connectors = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -7156,7 +7156,7 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let mut final_connectors = if let Some(mut straight_through_connectors) = connector_list {
+    connectors = if let Some(mut straight_through_connectors) = connector_list {
         straight_through_connectors.extend(connectors);
         straight_through_connectors
     } else {
@@ -7168,10 +7168,10 @@ where
 
     // adds straight through connectors to the list of connectors in the active routing algorithm
     // and perform eligibility analysis on the combined set of connectors
-    final_connectors = routing::perform_eligibility_analysis_with_fallback(
+    connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
-        final_connectors,
+        connectors,
         &TransactionData::Payment(transaction_data),
         eligible_connectors,
         business_profile,
@@ -7267,7 +7267,7 @@ where
         connectors
     };
 
-    let connector_data = final_connectors
+    let connector_data = connectors
         .into_iter()
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
