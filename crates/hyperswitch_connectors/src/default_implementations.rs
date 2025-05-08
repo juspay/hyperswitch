@@ -4874,6 +4874,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Wellsfargo,
+    connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,

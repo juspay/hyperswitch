@@ -466,7 +466,7 @@ pub enum ConnectorType {
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
     /// External Vault Connector
-    Vault,
+    VaultProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]

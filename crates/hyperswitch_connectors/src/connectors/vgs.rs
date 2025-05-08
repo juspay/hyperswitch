@@ -120,7 +120,7 @@ impl ConnectorCommon for Vgs {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth.username.expose().into_masked(),
         )])
     }
 

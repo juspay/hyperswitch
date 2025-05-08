@@ -74,15 +74,17 @@ impl TryFrom<&VgsRouterData<&PaymentsAuthorizeRouterData>> for VgsPaymentsReques
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct VgsAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for VgsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                username: api_key.to_owned(),
+                password: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
