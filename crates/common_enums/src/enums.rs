@@ -1924,7 +1924,10 @@ pub enum PaymentMethodType {
 
 impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+        matches!(
+            self,
+            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+        )
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {

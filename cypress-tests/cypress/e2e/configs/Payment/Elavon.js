@@ -1,9 +1,9 @@
-import { customerAcceptance } from "./Commons";
+import customerAcceptance from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "06",
-  card_exp_year: "50",
+  card_exp_year: "25",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -12,7 +12,7 @@ const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
-      amount: 8000,
+      amount: 6000,
       currency: "USD",
     },
   },
@@ -22,7 +22,7 @@ const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
-      amount: 8000,
+      amount: 6000,
       currency: "USD",
     },
   },
@@ -42,7 +42,6 @@ export const connectorDetails = {
             city: "Florence",
             state: "Tuscany",
             zip: "12345",
-            country: "IT",
             first_name: "Max",
             last_name: "Mustermann",
           },
@@ -106,7 +105,7 @@ export const connectorDetails = {
         },
       },
     },
-    manualPaymentPartialRefund: {
+    manualPaymentRefund: {
       Request: {
         amount: 6000,
       },
@@ -117,14 +116,37 @@ export const connectorDetails = {
         },
       },
     },
-    manualPaymentRefund: {
+    PaymentIntentWithShippingCost: {
       Request: {
-        amount: 6000,
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
         },
       },
     },
@@ -141,7 +163,6 @@ export const connectorDetails = {
               city: "San Fransico",
               state: "California",
               zip: "94122",
-              country: "NL",
               first_name: "joseph",
               last_name: "Doe",
             },
@@ -158,6 +179,7 @@ export const connectorDetails = {
         },
       },
     },
+
     MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -171,7 +193,6 @@ export const connectorDetails = {
               city: "San Fransico",
               state: "California",
               zip: "94122",
-              country: "NL",
               first_name: "joseph",
               last_name: "Doe",
             },
@@ -185,6 +206,32 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -222,7 +269,6 @@ export const connectorDetails = {
               city: "San Fransico",
               state: "California",
               zip: "94122",
-              country: "NL",
               first_name: "joseph",
               last_name: "Doe",
             },
@@ -256,7 +302,6 @@ export const connectorDetails = {
               city: "San Fransico",
               state: "California",
               zip: "94122",
-              country: "NL",
               first_name: "joseph",
               last_name: "Doe",
             },
@@ -312,7 +357,6 @@ export const connectorDetails = {
               city: "San Fransico",
               state: "California",
               zip: "94122",
-              country: "NL",
               first_name: "joseph",
               last_name: "Doe",
             },
@@ -342,6 +386,45 @@ export const connectorDetails = {
           billing: {
             email: "mauro.morandi@nexi.it",
           },
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
