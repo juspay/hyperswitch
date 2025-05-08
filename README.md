@@ -20,7 +20,9 @@ Single API to access the payments ecosystem and its features
     <img src="https://img.shields.io/badge/Made_in-Rust-orange" />
   </a>
   <!-- Uncomment when we reach >50% coverage -->
+    <a>
  ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/AkshayaFoiger/hyperswitch?utm_source=oss&utm_medium=github&utm_campaign=AkshayaFoiger%2Fhyperswitch&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+  </a>
 </p>
 <p align="center">
   <a href="https://www.linkedin.com/company/hyperswitch/">
