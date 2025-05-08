@@ -35,7 +35,7 @@ use crate::{
     },
     headers, services, settings,
     types::{self, payment_methods as pm_types},
-    utils::ConnectorResponseExt,
+    utils::{ConnectorResponseExt, ext_traits::OptionExt},
 };
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -1430,12 +1430,9 @@ pub async fn retrieve_payment_method_from_vault(
     let is_external_vault_enabled = profile.get_is_external_vault_enabled();
 
     if is_external_vault_enabled {
-        let merchant_connector_id: id_type::MerchantConnectorAccountId = profile
-            .vault_connector_details
-            .clone()
-            .map(|connector_details| connector_details.vault_connector_id.clone())
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("mca_id not present for external vault")?;
+        let merchant_connector_id = pm
+            .merchant_connector_id
+            .as_ref();
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
             state,
@@ -1444,7 +1441,7 @@ pub async fn retrieve_payment_method_from_vault(
             merchant_context.get_merchant_key_store(),
             profile.get_id(),
             "",
-            Some(&merchant_connector_id),
+            merchant_connector_id,
         )
         .await?;
 
@@ -1561,17 +1558,20 @@ pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
-    vault_id: domain::VaultId,
+    pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let is_external_vault_enabled = profile.get_is_external_vault_enabled();
 
+    let vault_id = pm
+        .locker_id
+        .clone()
+        .get_required_value("locker_id")
+        .attach_printable("Missing locker_id in PaymentMethod")?;
+
     if is_external_vault_enabled {
-        let merchant_connector_id: id_type::MerchantConnectorAccountId = profile
-            .vault_connector_details
-            .clone()
-            .map(|connector_details| connector_details.vault_connector_id.clone())
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("mca_id not present for external vault")?;
+        let merchant_connector_id = pm
+            .merchant_connector_id
+            .as_ref();
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
             state,
@@ -1580,7 +1580,7 @@ pub async fn delete_payment_method_data_from_vault(
             merchant_context.get_merchant_key_store(),
             profile.get_id(),
             "",
-            Some(&merchant_connector_id),
+            merchant_connector_id,
         )
         .await?;
 

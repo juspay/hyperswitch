@@ -1059,6 +1059,8 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 128]
+        merchant_connector_id -> Nullable<Varchar>,
     }
 }
 

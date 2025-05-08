@@ -983,6 +983,7 @@ pub async fn create_payment_method_core(
                 network_tokenization_resp,
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
+                None,
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -1004,6 +1005,11 @@ pub async fn create_payment_method_core(
             Ok((resp, payment_method))
         }
         Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(ext_vaulting_resp)) => {
+            let merchant_connector_id = profile
+            .external_vault_connector_details
+            .clone()
+            .map(|details| details.vault_connector_id);
+
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
@@ -1015,6 +1021,7 @@ pub async fn create_payment_method_core(
                 network_tokenization_resp,
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
+                merchant_connector_id,
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -1698,6 +1705,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
+                merchant_connector_id: None,
             },
             storage_scheme,
         )
@@ -1759,6 +1767,7 @@ pub async fn create_pm_additional_data_update(
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
         .map(
@@ -1808,6 +1817,7 @@ pub async fn create_pm_additional_data_update(
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         connector_mandate_details: connector_mandate_details_update,
         locker_fingerprint_id: vault_fingerprint_id,
+        merchant_connector_id,
     };
 
     Ok(pm_update)
@@ -1946,7 +1956,7 @@ pub async fn vault_payment_method(
 
     if is_external_vault_enabled {
         let merchant_connector_id: id_type::MerchantConnectorAccountId = profile
-            .vault_connector_details
+            .external_vault_connector_details
             .clone()
             .map(|connector_details| connector_details.vault_connector_id.clone())
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -2270,6 +2280,7 @@ pub async fn update_payment_method_core(
         None,
         None,
         None,
+        None,
     )
     .await
     .attach_printable("Unable to create Payment method data")?;
@@ -2335,12 +2346,6 @@ pub async fn delete_payment_method_core(
         || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
     )?;
 
-    let vault_id = payment_method
-        .locker_id
-        .clone()
-        .get_required_value("locker_id")
-        .attach_printable("Missing locker_id in PaymentMethod")?;
-
     let _customer = db
         .find_customer_by_global_id(
             key_manager_state,
@@ -2361,7 +2366,7 @@ pub async fn delete_payment_method_core(
     db.update_payment_method(
         &(state.into()),
         merchant_context.get_merchant_key_store(),
-        payment_method,
+        payment_method.clone(),
         pm_update,
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -2369,7 +2374,7 @@ pub async fn delete_payment_method_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment method in db")?;
 
-    vault::delete_payment_method_data_from_vault(state, merchant_context, profile, vault_id)
+    vault::delete_payment_method_data_from_vault(state, merchant_context, profile, &payment_method)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault")?;

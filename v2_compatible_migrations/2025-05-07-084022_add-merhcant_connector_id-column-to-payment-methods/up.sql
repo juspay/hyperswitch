@@ -1,0 +1,1 @@
+ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS merchant_connector_id VARCHAR(128);
