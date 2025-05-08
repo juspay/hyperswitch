@@ -542,7 +542,7 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
-            notification_url: request.return_url.clone(),
+            notification_url: Some("https://google.com".to_string()),
             three_ds_requestor_id: connector_meta_data.three_ds_requestor_id,
             three_ds_requestor_name: connector_meta_data.three_ds_requestor_name,
             white_list_status: None,
@@ -633,7 +633,7 @@ pub struct NetceteraAuthenticationSuccessResponse {
     #[serde(rename = "threeDSServerTransID")]
     pub three_ds_server_trans_id: String,
     pub trans_status: common_enums::TransactionStatus,
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedIndicator>,
     pub authentication_response: AuthenticationResponse,
@@ -693,7 +693,7 @@ pub struct ResultsResponseData {
 
     /// Payment System-specific value provided as part of the ACS registration for each supported DS.
     /// Authentication Value may be used to provide proof of authentication.
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
 
     /// Payment System-specific value provided by the ACS to indicate the results of the attempt to authenticate
     /// the Cardholder.

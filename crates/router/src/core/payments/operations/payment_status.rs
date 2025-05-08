@@ -486,7 +486,7 @@ async fn get_tracker_for_sync<
 
         Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                authentication: authentication,
+                authentication,
                 cavv: tokenized_data.map(|token| token.value1),
             },
         )

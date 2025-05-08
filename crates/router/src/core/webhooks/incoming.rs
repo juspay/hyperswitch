@@ -1302,7 +1302,7 @@ async fn external_authentication_incoming_webhook_flow(
             .async_map(|auth_val| {
                 crate::core::payment_methods::vault::create_tokenize(
                     &state,
-                    auth_val,
+                    auth_val.expose(),
                     None,
                     updated_authentication.authentication_id.clone(),
                     merchant_context.get_merchant_key_store().key.get_inner(),

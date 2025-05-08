@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
+use masking::ExposeInterface;
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -186,7 +187,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .async_map(|auth_val| {
                         crate::core::payment_methods::vault::create_tokenize(
                             state,
-                            auth_val,
+                            auth_val.expose(),
                             None,
                             authentication.authentication_id.clone(),
                             merchant_key_store.key.get_inner(),
@@ -228,7 +229,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 let authentication_value = authentication_details
                     .dynamic_data_details
                     .and_then(|details| details.dynamic_data_value)
-                    .map(masking::ExposeInterface::expose);
+                    .map(ExposeInterface::expose);
 
                 authentication_value
                     .async_map(|auth_val| {

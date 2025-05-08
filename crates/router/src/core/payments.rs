@@ -8379,7 +8379,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -8600,7 +8603,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -8822,7 +8828,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -9044,7 +9053,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 

@@ -1,6 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
+use masking::ExposeInterface;
 
 use crate::{
     consts,
@@ -97,7 +98,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .async_map(|auth_val| {
                         crate::core::payment_methods::vault::create_tokenize(
                             state,
-                            auth_val,
+                            auth_val.expose(),
                             None,
                             authentication.authentication_id.clone(),
                             merchant_key_store.key.get_inner(),
@@ -131,7 +132,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .async_map(|auth_val| {
                         crate::core::payment_methods::vault::create_tokenize(
                             state,
-                            auth_val,
+                            auth_val.expose(),
                             None,
                             authentication.authentication_id.clone(),
                             merchant_key_store.key.get_inner(),
