@@ -1006,9 +1006,9 @@ pub async fn create_payment_method_core(
         }
         Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(ext_vaulting_resp)) => {
             let external_vault_source = profile
-            .external_vault_connector_details
-            .clone()
-            .map(|details| details.vault_connector_id);
+                .external_vault_connector_details
+                .clone()
+                .map(|details| details.vault_connector_id);
 
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
@@ -1767,7 +1767,7 @@ pub async fn create_pm_additional_data_update(
     nt_data: Option<NetworkTokenPaymentMethodDetails>,
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    external_vault_source: Option<id_type::MerchantConnectorAccountId>
+    external_vault_source: Option<id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
         .map(
@@ -1902,7 +1902,7 @@ pub async fn vault_payment_method_external(
     .attach_printable("Failed to get the connector data")?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        api::VaultInsertFlow,
+        api::ExternalVaultInsertFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1919,7 +1919,7 @@ pub async fn vault_payment_method_external(
 
     match router_data_resp.response {
         Ok(response) => match response {
-            types::VaultResponseData::VaultInsertResponse {
+            types::VaultResponseData::ExternalVaultInsertResponse {
                 connector_vault_id,
                 fingerprint_id,
             } => Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(
@@ -1928,8 +1928,8 @@ pub async fn vault_payment_method_external(
                     fingerprint_id,
                 },
             )),
-            types::VaultResponseData::VaultRetrieveResponse { .. }
-            | types::VaultResponseData::VaultDeleteResponse { .. } => {
+            types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }

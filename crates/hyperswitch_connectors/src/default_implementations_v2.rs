@@ -26,7 +26,8 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth, VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow,
+        AccessTokenAuth, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        ExternalVaultRetrieveFlow,
     },
     router_request_types::{
         authentication,
@@ -107,7 +108,9 @@ use hyperswitch_interfaces::{
             BillingConnectorInvoiceSyncIntegrationV2, BillingConnectorPaymentsSyncIntegrationV2,
             RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
-        vault_v2::{VaultDeleteV2, VaultInsertV2, VaultRetrieveV2, VaultV2},
+        vault_v2::{
+            ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, VaultV2,
+        },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
@@ -2862,12 +2865,12 @@ default_imp_for_new_connector_integration_revenue_recovery!(
 macro_rules! default_imp_for_new_connector_integration_vault_insert {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl VaultInsertV2 for $path::$connector {}
-            impl VaultRetrieveV2 for $path::$connector {}
-            impl VaultDeleteV2 for $path::$connector {}
+            impl ExternalVaultInsertV2 for $path::$connector {}
+            impl ExternalVaultRetrieveV2 for $path::$connector {}
+            impl ExternalVaultDeleteV2 for $path::$connector {}
             impl
             ConnectorIntegrationV2<
-            VaultInsertFlow,
+            ExternalVaultInsertFlow,
             VaultConnectorFlowData,
             VaultRequestData,
             VaultResponseData,
@@ -2875,7 +2878,7 @@ macro_rules! default_imp_for_new_connector_integration_vault_insert {
         {}
         impl
             ConnectorIntegrationV2<
-            VaultRetrieveFlow,
+            ExternalVaultRetrieveFlow,
             VaultConnectorFlowData,
             VaultRequestData,
             VaultResponseData,
@@ -2883,7 +2886,7 @@ macro_rules! default_imp_for_new_connector_integration_vault_insert {
         {}
         impl
             ConnectorIntegrationV2<
-            VaultDeleteFlow,
+            ExternalVaultDeleteFlow,
             VaultConnectorFlowData,
             VaultRequestData,
             VaultResponseData,

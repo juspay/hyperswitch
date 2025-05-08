@@ -42,7 +42,7 @@ use hyperswitch_domain_models::router_flow_types::{
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
-    VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow,
+    ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
 };
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,

@@ -1,7 +1,9 @@
 //! Vault interface
 
 use hyperswitch_domain_models::{
-    router_flow_types::vault::{VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow},
+    router_flow_types::vault::{
+        ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+    },
     router_request_types::VaultRequestData,
     router_response_types::VaultResponseData,
 };
@@ -9,23 +11,26 @@ use hyperswitch_domain_models::{
 use super::ConnectorCommon;
 use crate::api::ConnectorIntegration;
 
-/// trait VaultInsert
-pub trait VaultInsert:
-    ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData>
+/// trait ExternalVaultInsert
+pub trait ExternalVaultInsert:
+    ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>
 {
 }
 
-/// trait VaultRetrieve
-pub trait VaultRetrieve:
-    ConnectorIntegration<VaultRetrieveFlow, VaultRequestData, VaultResponseData>
+/// trait ExternalVaultRetrieve
+pub trait ExternalVaultRetrieve:
+    ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>
 {
 }
 
-/// trait VaultDelete
-pub trait VaultDelete:
-    ConnectorIntegration<VaultDeleteFlow, VaultRequestData, VaultResponseData>
+/// trait ExternalVaultDelete
+pub trait ExternalVaultDelete:
+    ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>
 {
 }
 
 /// trait Payouts
-pub trait Vault: ConnectorCommon + VaultInsert + VaultRetrieve + VaultDelete {}
+pub trait Vault:
+    ConnectorCommon + ExternalVaultInsert + ExternalVaultRetrieve + ExternalVaultDelete
+{
+}

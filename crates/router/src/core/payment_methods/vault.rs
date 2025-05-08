@@ -35,7 +35,7 @@ use crate::{
     },
     headers, services, settings,
     types::{self, payment_methods as pm_types},
-    utils::{ConnectorResponseExt, ext_traits::OptionExt},
+    utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -1388,7 +1388,7 @@ pub async fn retrieve_payment_method_from_vault_external(
     .attach_printable("Failed to get the connector data")?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        api::VaultRetrieveFlow,
+        api::ExternalVaultRetrieveFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1405,11 +1405,11 @@ pub async fn retrieve_payment_method_from_vault_external(
 
     match router_data_resp.response {
         Ok(response) => match response {
-            types::VaultResponseData::VaultRetrieveResponse { vault_data } => {
+            types::VaultResponseData::ExternalVaultRetrieveResponse { vault_data } => {
                 Ok(pm_types::VaultRetrieveResponse { data: vault_data })
             }
-            types::VaultResponseData::VaultInsertResponse { .. }
-            | types::VaultResponseData::VaultDeleteResponse { .. } => {
+            types::VaultResponseData::ExternalVaultInsertResponse { .. }
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -1430,9 +1430,7 @@ pub async fn retrieve_payment_method_from_vault(
     let is_external_vault_enabled = profile.get_is_external_vault_enabled();
 
     if is_external_vault_enabled {
-        let external_vault_source = pm
-            .external_vault_source
-            .as_ref();
+        let external_vault_source = pm.external_vault_source.as_ref();
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
             state,
@@ -1519,7 +1517,7 @@ pub async fn delete_payment_method_data_from_vault_external(
     .attach_printable("Failed to get the connector data")?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        api::VaultDeleteFlow,
+        api::ExternalVaultDeleteFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1536,14 +1534,14 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     match router_data_resp.response {
         Ok(response) => match response {
-            types::VaultResponseData::VaultDeleteResponse { connector_vault_id } => {
+            types::VaultResponseData::ExternalVaultDeleteResponse { connector_vault_id } => {
                 Ok(pm_types::VaultDeleteResponse {
                     vault_id: domain::VaultId::generate(connector_vault_id),
                     entity_id: merchant_account.get_id().to_owned(),
                 })
             }
-            types::VaultResponseData::VaultInsertResponse { .. }
-            | types::VaultResponseData::VaultRetrieveResponse { .. } => {
+            types::VaultResponseData::ExternalVaultInsertResponse { .. }
+            | types::VaultResponseData::ExternalVaultRetrieveResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -1569,9 +1567,7 @@ pub async fn delete_payment_method_data_from_vault(
         .attach_printable("Missing locker_id in PaymentMethod")?;
 
     if is_external_vault_enabled {
-        let external_vault_source = pm
-            .external_vault_source
-            .as_ref();
+        let external_vault_source = pm.external_vault_source.as_ref();
 
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
             state,

@@ -2085,10 +2085,10 @@ default_imp_for_vault!(
 macro_rules! default_imp_for_vault_insert {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::VaultInsert for $path::$connector {}
+            impl api::ExternalVaultInsert for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::VaultInsertFlow,
+                api::ExternalVaultInsertFlow,
                 types::VaultRequestData,
                 types::VaultResponseData,
         > for $path::$connector
@@ -2097,11 +2097,11 @@ macro_rules! default_imp_for_vault_insert {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::VaultInsert for connector::DummyConnector<T> {}
+impl<const T: u8> api::ExternalVaultInsert for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::VaultInsertFlow,
+        api::ExternalVaultInsertFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>
@@ -2123,10 +2123,10 @@ default_imp_for_vault_insert!(
 macro_rules! default_imp_for_vault_retrieve {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::VaultRetrieve for $path::$connector {}
+            impl api::ExternalVaultRetrieve for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::VaultRetrieveFlow,
+                api::ExternalVaultRetrieveFlow,
                 types::VaultRequestData,
                 types::VaultResponseData,
         > for $path::$connector
@@ -2135,11 +2135,11 @@ macro_rules! default_imp_for_vault_retrieve {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::VaultRetrieve for connector::DummyConnector<T> {}
+impl<const T: u8> api::ExternalVaultRetrieve for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::VaultRetrieveFlow,
+        api::ExternalVaultRetrieveFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>
@@ -2161,10 +2161,10 @@ default_imp_for_vault_retrieve!(
 macro_rules! default_imp_for_vault_delete {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::VaultDelete for $path::$connector {}
+            impl api::ExternalVaultDelete for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::VaultDeleteFlow,
+                api::ExternalVaultDeleteFlow,
                 types::VaultRequestData,
                 types::VaultResponseData,
         > for $path::$connector
@@ -2173,11 +2173,11 @@ macro_rules! default_imp_for_vault_delete {
     };
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::VaultDelete for connector::DummyConnector<T> {}
+impl<const T: u8> api::ExternalVaultDelete for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::VaultDeleteFlow,
+        api::ExternalVaultDeleteFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>

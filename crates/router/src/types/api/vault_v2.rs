@@ -1,4 +1,6 @@
 pub use hyperswitch_domain_models::router_flow_types::vault::{
-    VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow,
+    ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
 };
-pub use hyperswitch_interfaces::api::{VaultDeleteV2, VaultInsertV2, VaultRetrieveV2, VaultV2};
+pub use hyperswitch_interfaces::api::{
+    ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, VaultV2,
+};

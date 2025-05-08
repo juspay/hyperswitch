@@ -1,8 +1,8 @@
 #[derive(Debug, Clone)]
-pub struct VaultInsertFlow;
+pub struct ExternalVaultInsertFlow;
 
 #[derive(Debug, Clone)]
-pub struct VaultRetrieveFlow;
+pub struct ExternalVaultRetrieveFlow;
 
 #[derive(Debug, Clone)]
-pub struct VaultDeleteFlow;
+pub struct ExternalVaultDeleteFlow;

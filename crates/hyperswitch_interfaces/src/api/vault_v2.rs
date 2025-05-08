@@ -1,7 +1,9 @@
 //! Vault V2 interface
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
-    router_flow_types::vault::{VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow},
+    router_flow_types::vault::{
+        ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+    },
     router_request_types::VaultRequestData,
     router_response_types::VaultResponseData,
 };
@@ -9,15 +11,20 @@ use hyperswitch_domain_models::{
 use super::ConnectorCommon;
 use crate::api::ConnectorIntegrationV2;
 
-/// trait VaultInsertV2
-pub trait VaultInsertV2:
-    ConnectorIntegrationV2<VaultInsertFlow, VaultConnectorFlowData, VaultRequestData, VaultResponseData>
+/// trait ExternalVaultInsertV2
+pub trait ExternalVaultInsertV2:
+    ConnectorIntegrationV2<
+    ExternalVaultInsertFlow,
+    VaultConnectorFlowData,
+    VaultRequestData,
+    VaultResponseData,
+>
 {
 }
-/// trait VaultRetrieveV2
-pub trait VaultRetrieveV2:
+/// trait ExternalVaultRetrieveV2
+pub trait ExternalVaultRetrieveV2:
     ConnectorIntegrationV2<
-    VaultRetrieveFlow,
+    ExternalVaultRetrieveFlow,
     VaultConnectorFlowData,
     VaultRequestData,
     VaultResponseData,
@@ -25,12 +32,20 @@ pub trait VaultRetrieveV2:
 {
 }
 
-/// trait VaultDeleteV2
-pub trait VaultDeleteV2:
-    ConnectorIntegrationV2<VaultDeleteFlow, VaultConnectorFlowData, VaultRequestData, VaultResponseData>
+/// trait ExternalVaultDeleteV2
+pub trait ExternalVaultDeleteV2:
+    ConnectorIntegrationV2<
+    ExternalVaultDeleteFlow,
+    VaultConnectorFlowData,
+    VaultRequestData,
+    VaultResponseData,
+>
 {
 }
 
 #[cfg(feature = "payouts")]
 /// trait Payouts
-pub trait VaultV2: ConnectorCommon + VaultInsertV2 + VaultRetrieveV2 + VaultDeleteV2 {}
+pub trait VaultV2:
+    ConnectorCommon + ExternalVaultInsertV2 + ExternalVaultRetrieveV2 + ExternalVaultDeleteV2
+{
+}

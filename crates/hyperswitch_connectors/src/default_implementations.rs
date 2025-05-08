@@ -42,8 +42,8 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
         webhooks::VerifyWebhookSource,
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        VaultDeleteFlow, VaultInsertFlow, VaultRetrieveFlow,
+        Authenticate, AuthenticationConfirmation, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         authentication,
@@ -95,7 +95,7 @@ use hyperswitch_interfaces::{
             PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        vault::{Vault, VaultDelete, VaultInsert, VaultRetrieve},
+        vault::{ExternalVaultDelete, ExternalVaultInsert, ExternalVaultRetrieve, Vault},
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
         ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
         UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
@@ -4732,10 +4732,10 @@ default_imp_for_vault!(
 macro_rules! default_imp_for_vault_insert {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl VaultInsert for $path::$connector {}
+            impl ExternalVaultInsert for $path::$connector {}
             impl
             ConnectorIntegration<
-            VaultInsertFlow,
+            ExternalVaultInsertFlow,
             VaultRequestData,
             VaultResponseData,
         > for $path::$connector
@@ -4837,10 +4837,10 @@ default_imp_for_vault_insert!(
 macro_rules! default_imp_for_vault_retrieve {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl VaultRetrieve for $path::$connector {}
+            impl ExternalVaultRetrieve for $path::$connector {}
             impl
             ConnectorIntegration<
-            VaultRetrieveFlow,
+            ExternalVaultRetrieveFlow,
             VaultRequestData,
             VaultResponseData,
         > for $path::$connector
@@ -4942,10 +4942,10 @@ default_imp_for_vault_retrieve!(
 macro_rules! default_imp_for_vault_delete {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl VaultDelete for $path::$connector {}
+            impl ExternalVaultDelete for $path::$connector {}
             impl
             ConnectorIntegration<
-            VaultDeleteFlow,
+            ExternalVaultDeleteFlow,
             VaultRequestData,
             VaultResponseData,
         > for $path::$connector

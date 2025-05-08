@@ -615,21 +615,21 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
-    VaultInsertResponse {
+    ExternalVaultInsertResponse {
         connector_vault_id: String,
         fingerprint_id: String,
     },
-    VaultRetrieveResponse {
+    ExternalVaultRetrieveResponse {
         vault_data: PaymentMethodVaultingData,
     },
-    VaultDeleteResponse {
+    ExternalVaultDeleteResponse {
         connector_vault_id: String,
     },
 }
 
 impl Default for VaultResponseData {
     fn default() -> Self {
-        Self::VaultInsertResponse {
+        Self::ExternalVaultInsertResponse {
             connector_vault_id: String::new(),
             fingerprint_id: String::new(),
         }

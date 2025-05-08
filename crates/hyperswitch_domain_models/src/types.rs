@@ -7,10 +7,10 @@ use crate::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
         BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync,
+        CompleteAuthorize, CreateConnectorCustomer, Execute, ExternalVaultDeleteFlow,
+        ExternalVaultInsertFlow, ExternalVaultRetrieveFlow, IncrementalAuthorization, PSync,
         PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VaultDeleteFlow,
-        VaultInsertFlow, VaultRetrieveFlow, VerifyWebhookSource, Void,
+        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
