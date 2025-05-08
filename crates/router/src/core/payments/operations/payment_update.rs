@@ -162,10 +162,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
-
+        let amount = request
+            .amount
+            .unwrap_or_else(|| payment_attempt.net_amount.get_order_amount().into());
         helpers::validate_request_amount_and_amount_to_capture(
-            request.amount,
-            request.amount_to_capture,
+            Some(amount),
+            request
+                .amount_to_capture
+                .or(payment_attempt.amount_to_capture),
             request
                 .surcharge_details
                 .or(payment_attempt.get_surcharge_details()),
@@ -184,10 +188,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
         let customer_details = helpers::get_customer_details_from_request(request);
-
-        let amount = request
-            .amount
-            .unwrap_or_else(|| payment_attempt.net_amount.get_order_amount().into());
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
@@ -997,16 +997,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "merchant_id".to_string(),
             expected_format: "merchant_id from merchant account".to_string(),
-        })?;
-
-        helpers::validate_request_amount_and_amount_to_capture(
-            request.amount,
-            request.amount_to_capture,
-            request.surcharge_details,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount_to_capture".to_string(),
-            expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
         })?;
 
         helpers::validate_payment_method_fields_present(request)?;
