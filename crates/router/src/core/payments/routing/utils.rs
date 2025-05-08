@@ -3,6 +3,9 @@ use std::collections::{HashMap, HashSet};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
 use serde::{Deserialize, Serialize};
+use async_trait::async_trait;
+use diesel_models::enums;
+use common_utils::id_type;
 
 use super::RoutingResult;
 use crate::{
@@ -11,45 +14,102 @@ use crate::{
     services::{self, logger},
 };
 
+// New Trait for handling Euclid API calls
+#[async_trait]
+pub trait EuclidApiHandler {
+    async fn send_euclid_request<Req, Res>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>, // Option to handle GET/DELETE requests without body
+        timeout: Option<u64>,
+    ) -> RoutingResult<Res>
+    where
+        Req: Serialize + Send + Sync + 'static,
+        Res: serde::de::DeserializeOwned + Send + 'static;
+}
+
+// Struct to implement the EuclidApiHandler trait
+pub struct EuclidApiClient;
+
+#[async_trait]
+impl EuclidApiHandler for EuclidApiClient {
+    async fn send_euclid_request<Req, Res>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>, // Option to handle GET/DELETE requests without body
+        timeout: Option<u64>,
+    ) -> RoutingResult<Res>
+    where
+        Req: Serialize + Send + Sync + 'static,
+        Res: serde::de::DeserializeOwned + Send + 'static,
+    {
+        let url = format!("{}/{}", EUCLID_BASE_URL, path);
+        logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "Initiating Euclid API call");
+
+        let mut request_builder = services::RequestBuilder::new()
+            .method(http_method)
+            .url(&url);
+
+        if let Some(body_content) = request_body {
+            let body = common_utils::request::RequestContent::Json(Box::new(body_content));
+            request_builder = request_builder.set_body(body);
+        }
+
+        let http_request = request_builder.build();
+
+        logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details");
+
+        let response = state
+            .api_client
+            .send_request(state, http_request, timeout, false)
+            .await
+            .change_context(errors::RoutingError::DslExecutionError)
+            .attach_printable_lazy(|| format!("Euclid API call to path '{}' unresponsive", path))?;
+
+        logger::debug!(?response, euclid_request_path = %path, "Received raw response from Euclid API");
+
+        let parsed_response = response
+            .json::<Res>()
+            .await
+            .change_context(errors::RoutingError::GenericConversionError {
+                from: "ApiResponse".to_string(),
+                to: std::any::type_name::<Res>().to_string(),
+            })
+            .attach_printable_lazy(|| {
+                format!(
+                    "Unable to parse response of type '{}' received from Euclid API path: {}",
+                    std::any::type_name::<Res>(),
+                    path
+                )
+            })?;
+        logger::debug!(response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "Successfully parsed response from Euclid API");
+        Ok(parsed_response)
+    }
+}
+
 //TODO: will be converted to configs
 const EUCLID_API_TIMEOUT: u64 = 5;
 const EUCLID_BASE_URL: &str = "http://localhost:8082";
+
 pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
     created_by: String,
 ) -> RoutingResult<()> {
-    let decision_engine_evaluate_url =
-        format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/evaluate");
-
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
-    let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
-    let request = services::RequestBuilder::new()
-        .method(services::Method::Post)
-        .url(&decision_engine_evaluate_url)
-        .set_body(body)
-        .build();
 
-    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for evaluate decision engine routing evaluate");
-    let response = state
-        .api_client
-        .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
-        .await
-        .change_context(errors::RoutingError::DslExecutionError)
-        .attach_printable("decision_engine_euclid: evaluate api unresponsive")?;
-
-    let euclid_response = response
-        .json::<RoutingEvaluateResponse>()
-        .await
-        .change_context(errors::RoutingError::GenericConversionError {
-            from: "ApiResponse".to_string(),
-            to: "RoutingEvaluateResponse".to_string(),
-        })
-        .attach_printable(
-            "decision_engine_euclid: Unable to parse response received from evaluate api",
-        )?;
+    let euclid_response: RoutingEvaluateResponse = EuclidApiClient::send_euclid_request(
+        state,
+        services::Method::Post,
+        "routing/evaluate",
+        Some(routing_request),
+        Some(EUCLID_API_TIMEOUT),
+    )
+    .await?;
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
@@ -61,37 +121,17 @@ pub async fn create_de_euclid_routing_algo(
     state: &SessionState,
     routing_request: &RoutingRule,
 ) -> RoutingResult<String> {
-    let decision_engine_create_url =
-        format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/create");
-
     logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
 
-    let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
-    let request = services::RequestBuilder::new()
-        .method(services::Method::Post)
-        .url(&decision_engine_create_url)
-        .set_body(body)
-        .build();
+    let euclid_response: RoutingDictionaryRecord = EuclidApiClient::send_euclid_request(
+        state,
+        services::Method::Post,
+        "routing/create",
+        Some(routing_request.clone()),
+        Some(EUCLID_API_TIMEOUT),
+    )
+    .await?;
 
-    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for create decision engine routing rule");
-    let response = state
-        .api_client
-        .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
-        .await
-        .change_context(errors::RoutingError::DslExecutionError)
-        .attach_printable("decision_engine_euclid: create api unresponsive")?;
-
-    logger::debug!(decision_engine_euclid_response=?response,"decision_engine_euclid");
-    let euclid_response = response
-        .json::<RoutingDictionaryRecord>()
-        .await
-        .change_context(errors::RoutingError::GenericConversionError {
-            from: "ApiResponse".to_string(),
-            to: "RoutingDictionaryRecord".to_string(),
-        })
-        .attach_printable(
-            "decision_engine_euclid: Unable to parse response received from create api",
-        )?;
     logger::debug!(decision_engine_euclid_parsed_response=?euclid_response,"decision_engine_euclid");
     Ok(euclid_response.rule_id)
 }
@@ -100,34 +140,64 @@ pub async fn link_de_euclid_routing_algorithm(
     state: &SessionState,
     routing_request: ActivateRoutingConfigRequest,
 ) -> RoutingResult<()> {
-    let decision_engine_create_url =
-        format!("{}/{}", EUCLID_BASE_URL.to_string(), "routing/activate");
+    logger::debug!("decision_engine_euclid: link api call for euclid routing algorithm");
 
-    logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
-
-    let body = common_utils::request::RequestContent::Json(Box::new(routing_request.clone()));
-    let request = services::RequestBuilder::new()
-        .method(services::Method::Post)
-        .url(&decision_engine_create_url)
-        .set_body(body)
-        .build();
-
-    logger::info!(decision_engine_euclid_request=?request,"decision_engine_euclid: api call for create decision engine routing rule");
-    let response = state
-        .api_client
-        .send_request(&state.clone(), request, Some(EUCLID_API_TIMEOUT), false)
-        .await
-        .change_context(errors::RoutingError::DslExecutionError)
-        .attach_printable("decision_engine_euclid: create api unresponsive")?;
+    let response = EuclidApiClient::send_euclid_request(
+        state,
+        services::Method::Post,
+        "routing/activate",
+        Some(routing_request),
+        Some(EUCLID_API_TIMEOUT),
+    )
+    .await?;
 
     logger::debug!(decision_engine_euclid_response=?response,"decision_engine_euclid");
     Ok(())
+}
+
+pub async fn list_de_euclid_routing_algorithms(
+    state: &SessionState,
+    routing_list_request: ListRountingAlgorithmsRequest,
+) -> RoutingResult<Vec<diesel_models::routing_algorithm::RoutingProfileMetadata>> {
+    logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
+    let created_by = routing_list_request.created_by;
+    let response : Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_euclid_request(
+        state,
+        services::Method::Post,
+        format!("routing/list/{created_by}").as_str(),
+        None::<()>,
+        Some(EUCLID_API_TIMEOUT),
+    )
+    .await?;
+
+    logger::debug!(decision_engine_euclid_response=?response,"decision_engine_euclid");
+
+    Ok(response.into_iter()
+        .map(|record| {
+            diesel_models::routing_algorithm::RoutingProfileMetadata {
+                profile_id: record.created_by,
+                algorithm_id: record.id,
+                name: record.name,
+                description: record.description,
+                kind: enums::RoutingAlgorithmKind::Advanced,
+                created_at: record.created_at,
+                modified_at: record.modified_at,
+                algorithm_for: enums::TransactionType::default(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .into())
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ActivateRoutingConfigRequest {
     pub created_by: String,
     pub routing_algorithm_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ListRountingAlgorithmsRequest {
+    pub created_by: String,
 }
 
 // Maps Hyperswitch `BackendInput` to a `RoutingEvaluateRequest` compatible with Decision Engine
@@ -420,6 +490,18 @@ pub struct RoutingRule {
 pub struct RoutingDictionaryRecord {
     pub rule_id: String,
     pub name: String,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RoutingAlgorithmRecord {
+    pub id: id_type::RoutingId,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_by: id_type::ProfileId,
+    pub algorithm_data: Program,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }

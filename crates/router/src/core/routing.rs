@@ -156,12 +156,38 @@ pub async fn retrieve_merchant_routing_dictionary(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let routing_metadata =
-        super::utils::filter_objects_based_on_profile_id_list(profile_id_list, routing_metadata);
+        super::utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), routing_metadata);
 
     let result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
+
+    if let Some(profile_ids) = profile_id_list {
+        let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+        for profile_id in profile_ids {
+            list_de_euclid_routing_algorithms(
+                &state,
+                ListRountingAlgorithmsRequest {
+                    created_by: profile_id.get_string_repr().to_string(),
+                },
+            )
+            .await
+            .map_err(|e| {
+                router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+            })
+            .map(|de_routing| {
+                de_routing
+                    .into_iter()
+                    .map(ForeignInto::foreign_into)
+                    .collect::<Vec<_>>()
+            })
+            .ok()
+            .map(|mut de_routing| de_result.append(&mut de_routing));
+        }
+
+        logger::debug!(de_result=?de_result, "decision_engine_euclid");
+    }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -616,16 +642,13 @@ pub async fn link_routing_config(
             created_by: business_profile.get_id().get_string_repr().to_string(),
             routing_algorithm_id: euclid_routing_id,
         };
-        link_de_euclid_routing_algorithm(
-            &state,
-            routing_algo
-        )
-        .await
-        .map_err(|e| 
-                router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid")
-            ).ok();
+        link_de_euclid_routing_algorithm(&state, routing_algo)
+            .await
+            .map_err(
+                |e| router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid"),
+            )
+            .ok();
     };
-
 
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
