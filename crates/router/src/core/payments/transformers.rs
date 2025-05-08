@@ -1291,7 +1291,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         code: "IR_29".to_string(),
         message: "Update metadata is not implemented for this connector".to_string(),
         reason: None,
-        status_code: http::StatusCode::UNPROCESSABLE_ENTITY.as_u16(),
+        status_code: http::StatusCode::BAD_REQUEST.as_u16(),
         attempt_status: None,
         connector_transaction_id: None,
         network_decline_code: None,
