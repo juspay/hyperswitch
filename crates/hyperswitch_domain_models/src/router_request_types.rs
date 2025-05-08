@@ -10,14 +10,14 @@ use masking::Secret;
 use serde::Serialize;
 use serde_with::serde_as;
 
-#[cfg(feature = "v2")]
-use super::{payment_method_data::PaymentMethodData, vault::PaymentMethodVaultingData};
+use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
     router_flow_types as flows, router_response_types as response_types,
+    vault::PaymentMethodVaultingData,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {

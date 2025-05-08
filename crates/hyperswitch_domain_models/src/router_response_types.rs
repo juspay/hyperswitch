@@ -6,11 +6,10 @@ use std::collections::HashMap;
 use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
-#[cfg(feature = "v2")]
-use super::vault::PaymentMethodVaultingData;
 use crate::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::{authentication::AuthNFlowType, ResponseId},
+    vault::PaymentMethodVaultingData,
 };
 
 #[derive(Debug, Clone)]

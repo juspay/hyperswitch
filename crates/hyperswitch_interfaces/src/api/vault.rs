@@ -30,7 +30,7 @@ pub trait ExternalVaultDelete:
 }
 
 /// trait Payouts
-pub trait Vault:
+pub trait ExternalVault:
     ConnectorCommon + ExternalVaultInsert + ExternalVaultRetrieve + ExternalVaultDelete
 {
 }

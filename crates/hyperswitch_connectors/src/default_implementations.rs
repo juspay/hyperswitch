@@ -95,7 +95,7 @@ use hyperswitch_interfaces::{
             PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        vault::{ExternalVaultDelete, ExternalVaultInsert, ExternalVaultRetrieve, Vault},
+        vault::{ExternalVault, ExternalVaultDelete, ExternalVaultInsert, ExternalVaultRetrieve},
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
         ConnectorTransactionId, UasAuthentication, UasAuthenticationConfirmation,
         UasPostAuthentication, UasPreAuthentication, UnifiedAuthenticationService,
@@ -4631,15 +4631,15 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_vault {
+macro_rules! default_imp_for_external_vault {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl Vault for $path::$connector {}
+            impl ExternalVault for $path::$connector {}
     )*
     };
 }
 
-default_imp_for_vault!(
+default_imp_for_external_vault!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,
@@ -4729,7 +4729,7 @@ default_imp_for_vault!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_vault_insert {
+macro_rules! default_imp_for_external_vault_insert {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl ExternalVaultInsert for $path::$connector {}
@@ -4744,7 +4744,7 @@ macro_rules! default_imp_for_vault_insert {
     };
 }
 
-default_imp_for_vault_insert!(
+default_imp_for_external_vault_insert!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,
@@ -4834,7 +4834,7 @@ default_imp_for_vault_insert!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_vault_retrieve {
+macro_rules! default_imp_for_external_vault_retrieve {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl ExternalVaultRetrieve for $path::$connector {}
@@ -4849,7 +4849,7 @@ macro_rules! default_imp_for_vault_retrieve {
     };
 }
 
-default_imp_for_vault_retrieve!(
+default_imp_for_external_vault_retrieve!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,
@@ -4939,7 +4939,7 @@ default_imp_for_vault_retrieve!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_vault_delete {
+macro_rules! default_imp_for_external_vault_delete {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl ExternalVaultDelete for $path::$connector {}
@@ -4954,7 +4954,7 @@ macro_rules! default_imp_for_vault_delete {
     };
 }
 
-default_imp_for_vault_delete!(
+default_imp_for_external_vault_delete!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,

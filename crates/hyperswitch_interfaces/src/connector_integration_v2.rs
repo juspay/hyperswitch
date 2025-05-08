@@ -33,7 +33,7 @@ pub trait ConnectorV2:
     + api::authentication_v2::ExternalAuthenticationV2
     + api::UnifiedAuthenticationServiceV2
     + api::revenue_recovery_v2::RevenueRecoveryV2
-    + api::VaultV2
+    + api::ExternalVaultV2
 {
 }
 impl<
@@ -53,7 +53,7 @@ impl<
             + api::authentication_v2::ExternalAuthenticationV2
             + api::UnifiedAuthenticationServiceV2
             + api::revenue_recovery_v2::RevenueRecoveryV2
-            + api::VaultV2,
+            + api::ExternalVaultV2,
     > ConnectorV2 for T
 {
 }

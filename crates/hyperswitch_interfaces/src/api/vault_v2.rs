@@ -43,9 +43,8 @@ pub trait ExternalVaultDeleteV2:
 {
 }
 
-#[cfg(feature = "payouts")]
 /// trait Payouts
-pub trait VaultV2:
+pub trait ExternalVaultV2:
     ConnectorCommon + ExternalVaultInsertV2 + ExternalVaultRetrieveV2 + ExternalVaultDeleteV2
 {
 }

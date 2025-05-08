@@ -109,7 +109,7 @@ use hyperswitch_interfaces::{
             RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
         vault_v2::{
-            ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, VaultV2,
+            ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, ExternalVaultV2,
         },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
@@ -141,7 +141,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl PaymentUpdateMetadataV2 for $path::$connector{}
-            impl VaultV2 for $path::$connector{}
+            impl ExternalVaultV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -2862,7 +2862,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_new_connector_integration_vault_insert {
+macro_rules! default_imp_for_new_connector_integration_external_vault {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl ExternalVaultInsertV2 for $path::$connector {}
@@ -2896,7 +2896,7 @@ macro_rules! default_imp_for_new_connector_integration_vault_insert {
     };
 }
 
-default_imp_for_new_connector_integration_vault_insert!(
+default_imp_for_new_connector_integration_external_vault!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Airwallex,

@@ -2058,18 +2058,18 @@ default_imp_for_billing_connector_invoice_sync!(
     connector::Wise
 );
 
-macro_rules! default_imp_for_vault {
+macro_rules! default_imp_for_external_vault {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::Vault for $path::$connector {}
+            impl api::ExternalVault for $path::$connector {}
     )*
     };
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::Vault for connector::DummyConnector<T> {}
+impl<const T: u8> api::ExternalVault for connector::DummyConnector<T> {}
 
-default_imp_for_vault!(
+default_imp_for_external_vault!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -2082,7 +2082,7 @@ default_imp_for_vault!(
     connector::Wise
 );
 
-macro_rules! default_imp_for_vault_insert {
+macro_rules! default_imp_for_external_vault_insert {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ExternalVaultInsert for $path::$connector {}
@@ -2107,7 +2107,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_vault_insert!(
+default_imp_for_external_vault_insert!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -2120,7 +2120,7 @@ default_imp_for_vault_insert!(
     connector::Wise
 );
 
-macro_rules! default_imp_for_vault_retrieve {
+macro_rules! default_imp_for_external_vault_retrieve {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ExternalVaultRetrieve for $path::$connector {}
@@ -2145,7 +2145,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_vault_retrieve!(
+default_imp_for_external_vault_retrieve!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
@@ -2158,7 +2158,7 @@ default_imp_for_vault_retrieve!(
     connector::Wise
 );
 
-macro_rules! default_imp_for_vault_delete {
+macro_rules! default_imp_for_external_vault_delete {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ExternalVaultDelete for $path::$connector {}
@@ -2183,7 +2183,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_vault_delete!(
+default_imp_for_external_vault_delete!(
     connector::Adyenplatform,
     connector::Ebanx,
     connector::Gpayments,
