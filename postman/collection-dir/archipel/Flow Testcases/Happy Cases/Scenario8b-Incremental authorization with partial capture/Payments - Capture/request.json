@@ -1,0 +1,33 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount_to_capture": 600
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/capture",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "capture"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}",
+        "description": "(Required) unique payment id"
+      }
+    ]
+  }
+}

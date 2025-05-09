@@ -9,8 +9,8 @@ pub mod wise;
 
 pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
-    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, authorizedotnet,
-    authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
+    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel,
+    authorizedotnet, authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
     bamboraapac::Bamboraapac, bankofamerica, bankofamerica::Bankofamerica, billwerk,
     billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap, bluesnap::Bluesnap, boku, boku::Boku,
     braintree, braintree::Braintree, cashtocode, cashtocode::Cashtocode, chargebee,
