@@ -1056,3 +1056,7 @@ url = "http://localhost:8080"           # Open Router URL
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
+
+[revenue_recovery]
+monitoring_threshold_in_seconds = 2592000 # 30*24*60*60 secs , threshold for monitoring the retry system
+retry_algorithm_type = "cascading" # type of retry algorithm 

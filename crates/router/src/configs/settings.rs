@@ -45,6 +45,7 @@ use crate::{
     env::{self, Env},
     events::EventsConfig,
     routes::app,
+    types::storage::revenue_recovery,
     AppState,
 };
 
@@ -148,6 +149,7 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
