@@ -41,8 +41,8 @@ Single API to access the payments ecosystem and its features
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Architectural Overview](#architectural-overview) 
-3. [Try Hyperswitch](#try-hyperswitch)  
+2. [Try Hyperswitch](#try-hyperswitch)
+3. [Architectural Overview](#architectural-overview) 
 4. [Support, Feature requests & Bugs](#support-feature-requests)  
 5. [Our Vision](#our-vision)  
 6. [Versioning](#versioning)  
@@ -63,32 +63,37 @@ Here are the key components of Hyperswitch that deliver the whole solution:
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
-<a href="#architectural-overview">
-  <h2 id="architectural-overview">Architectural Overview</h2>
-</a>
-<img src="./docs/imgs/features.png" />
-<img src="./docs/imgs/non-functional-features.png" />
-
-<img src="./docs/imgs/hyperswitch-architecture-v1.png" />
-
 <a href="#try-hyperswitch">
   <h2 id="try-hyperswitch">Try Hyperswitch</h2>
 </a>
 
 ### 1. Local Setup
 
-You can run Hyperswitch on your system using Docker compose after cloning this repository. 
-We recommend using Docker Desktop (Or Orbstack) for Windows and Mac OS. On Linux, you can install Docker Engine directly.
+#### One-Click Setup (Recommended)
+
+You can run Hyperswitch on your system with a single command using our one-click setup script:
+
 ```shell
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
-docker compose up -d
-# This script verifies the setup and provides links to the individual components.
-scripts/docker_output.sh
+scripts/setup.sh
 ```
+
+The above script will:
+- Check for prerequisites (Docker Compose/Podman)
+- Set up necessary configurations
+- Let you select a deployment profile:
+  - **Standard**: Recommended - App server + Control Center + Web SDK.
+  - **Full**: Standard + Monitoring + Scheduler.
+  - **Standalone App Server**: Core services only (Hyperswitch server, PostgreSQL, Redis)
+- Start the selected services
+- Check service health
+- Provide access information
+
 The next step is to [configure a connector][configure-a-connector] with the Hyperswitch Control Center and [try a payment][try-a-payment].
 
 Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
+
 
 ### 2. Deployment on cloud
 
@@ -116,6 +121,14 @@ We support deployment on GCP and Azure via Helm charts which takes 30-45mins. Yo
 ### 3. Hosted Sandbox
 
 You can experience the product by signing up for our [hosted sandbox](https://app.hyperswitch.io/). The signup process accepts any email ID and provides access to the entire Control Center. You can set up connectors, define workflows for routing and retries, and even try payments from the dashboard.
+
+<a href="#architectural-overview">
+  <h2 id="architectural-overview">Architectural Overview</h2>
+</a>
+<img src="./docs/imgs/features.png" />
+<img src="./docs/imgs/non-functional-features.png" />
+
+<img src="./docs/imgs/hyperswitch-architecture-v1.png" />
 
 [docs-link-for-enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview

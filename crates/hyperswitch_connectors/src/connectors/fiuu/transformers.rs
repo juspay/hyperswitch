@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments;
+use api_models::payments::{self, AdditionalPaymentData};
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
@@ -145,6 +145,60 @@ pub enum FPXTxnChannel {
     FpxBimb,
     FpxOcbc,
 }
+#[derive(Debug, Clone, Serialize)]
+pub enum BankCode {
+    PHBMMYKL,
+    AGOBMYK1,
+    MFBBMYKL,
+    ARBKMYKL,
+    BKCHMYKL,
+    BIMBMYKL,
+    BMMBMYKL,
+    BKRMMYK1,
+    BSNAMYK1,
+    CIBBMYKL,
+    HLBBMYKL,
+    HBMBMYKL,
+    KFHOMYKL,
+    MBBEMYKL,
+    PBBEMYKL,
+    RHBBMYKL,
+    SCBLMYKX,
+    UOVBMYKL,
+    OCBCMYKL,
+}
+
+impl TryFrom<BankNames> for BankCode {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(bank: BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            BankNames::AffinBank => Ok(Self::PHBMMYKL),
+            BankNames::AgroBank => Ok(Self::AGOBMYK1),
+            BankNames::AllianceBank => Ok(Self::MFBBMYKL),
+            BankNames::AmBank => Ok(Self::ARBKMYKL),
+            BankNames::BankOfChina => Ok(Self::BKCHMYKL),
+            BankNames::BankIslam => Ok(Self::BIMBMYKL),
+            BankNames::BankMuamalat => Ok(Self::BMMBMYKL),
+            BankNames::BankRakyat => Ok(Self::BKRMMYK1),
+            BankNames::BankSimpananNasional => Ok(Self::BSNAMYK1),
+            BankNames::CimbBank => Ok(Self::CIBBMYKL),
+            BankNames::HongLeongBank => Ok(Self::HLBBMYKL),
+            BankNames::HsbcBank => Ok(Self::HBMBMYKL),
+            BankNames::KuwaitFinanceHouse => Ok(Self::KFHOMYKL),
+            BankNames::Maybank => Ok(Self::MBBEMYKL),
+            BankNames::PublicBank => Ok(Self::PBBEMYKL),
+            BankNames::RhbBank => Ok(Self::RHBBMYKL),
+            BankNames::StandardCharteredBank => Ok(Self::SCBLMYKX),
+            BankNames::UobBank => Ok(Self::UOVBMYKL),
+            BankNames::OcbcBank => Ok(Self::OCBCMYKL),
+            bank => Err(errors::ConnectorError::NotSupported {
+                message: format!("Invalid BankName for FPX Refund: {:?}", bank),
+                connector: "Fiuu",
+            })?,
+        }
+    }
+}
+
 impl TryFrom<BankNames> for FPXTxnChannel {
     type Error = Report<errors::ConnectorError>;
     fn try_from(bank_names: BankNames) -> Result<Self, Self::Error> {
@@ -1019,6 +1073,8 @@ pub struct FiuuRefundRequest {
     pub signature: Secret<String>,
     #[serde(rename = "notify_url")]
     pub notify_url: Option<Url>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_code: Option<BankCode>,
 }
 #[derive(Debug, Serialize, Display)]
 pub enum RefundType {
@@ -1051,6 +1107,28 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
                 Url::parse(&item.router_data.request.get_webhook_url()?)
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ),
+            bank_code: item
+                .router_data
+                .request
+                .additional_payment_method_data
+                .as_ref()
+                .and_then(|data| {
+                    if let AdditionalPaymentData::BankRedirect { bank_name, .. } = data {
+                        bank_name.and_then(|name| {
+                            BankCode::try_from(name)
+                                .map_err(|e| {
+                                    router_env::logger::error!(
+                                        "Error converting bank name to BankCode: {:?}",
+                                        e
+                                    );
+                                    e
+                                })
+                                .ok()
+                        })
+                    } else {
+                        None
+                    }
+                }),
         })
     }
 }
