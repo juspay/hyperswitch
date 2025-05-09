@@ -915,6 +915,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub revenue_recovery_data: RevenueRecoveryData,
+    pub payment_address: payment_address::PaymentAddress,
 }
 
 #[cfg(feature = "v2")]
