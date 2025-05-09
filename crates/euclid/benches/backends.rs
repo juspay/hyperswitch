@@ -58,6 +58,9 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
             mandate_type: None,
             payment_type: None,
         },
+        issuer_data: None,
+        acquirer_data: None,
+        customer_device_data: None,
     };
 
     let (_, program) = parser::program(code1).expect("Parser");

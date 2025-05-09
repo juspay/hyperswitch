@@ -342,7 +342,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::ThreeDsDecisionRuleCreate
             | Flow::ThreeDsDecisionRuleRetrieve
             | Flow::ThreeDsDecisionRuleUpdate
-            | Flow::ThreeDsDecisionRuleDelete => Self::ThreeDsDecisionRule,
+            | Flow::ThreeDsDecisionRuleDelete
+            | Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
         }
     }
 }

@@ -153,6 +153,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -193,6 +196,9 @@ mod test {
                 mandate_type: None,
                 payment_type: Some(enums::PaymentType::SetupMandate),
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -234,6 +240,9 @@ mod test {
                 mandate_type: None,
                 payment_type: Some(enums::PaymentType::PptMandate),
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -275,6 +284,9 @@ mod test {
                 mandate_type: Some(enums::MandateType::SingleUse),
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -316,6 +328,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -357,6 +372,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -398,6 +416,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -439,6 +460,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -480,6 +504,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -523,6 +550,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
 
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
@@ -564,6 +594,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
         let mut inp_equal = inp_greater.clone();
         inp_equal.payment.amount = MinorUnit::new(123);
@@ -614,6 +647,9 @@ mod test {
                 mandate_type: None,
                 payment_type: None,
             },
+            acquirer_data: None,
+            customer_device_data: None,
+            issuer_data: None,
         };
         let mut inp_equal = inp_lower.clone();
         inp_equal.payment.amount = MinorUnit::new(123);

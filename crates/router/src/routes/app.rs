@@ -2116,6 +2116,10 @@ impl ThreeDsDecisionRule {
                             .route(web::get().to(three_ds_decision_rule::retrieve_decision_rule))
                             .route(web::put().to(three_ds_decision_rule::update_decision_rule))
                             .route(web::delete().to(three_ds_decision_rule::delete_decision_rule)),
+                    )
+                    .service(
+                        web::resource("/{rule_id}/execute")
+                            .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
                     ),
             );
         route
