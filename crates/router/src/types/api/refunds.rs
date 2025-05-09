@@ -1,7 +1,7 @@
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 pub use api_models::refunds::RefundRequest;
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
-pub use api_models::refunds::RefundsCreateRequest;
+pub use api_models::refunds::{RefundMetadataUpdateRequest, RefundsCreateRequest};
 pub use api_models::refunds::{
     RefundResponse, RefundStatus, RefundType, RefundUpdateRequest, RefundsRetrieveBody,
     RefundsRetrieveRequest,

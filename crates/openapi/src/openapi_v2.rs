@@ -148,6 +148,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for refunds
         routes::refunds::refunds_create,
+        routes::refunds::refunds_metadata_update,
         routes::refunds::refunds_retrieve,
 
         // Routes for Revenue Recovery flow under Process Tracker
@@ -192,7 +193,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
         api_models::refunds::RefundStatus,
-        api_models::refunds::RefundUpdateRequest,
+        api_models::refunds::RefundMetadataUpdateRequest,
         api_models::organization::OrganizationCreateRequest,
         api_models::organization::OrganizationUpdateRequest,
         api_models::organization::OrganizationResponse,
