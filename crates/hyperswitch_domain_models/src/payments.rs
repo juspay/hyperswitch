@@ -119,6 +119,7 @@ pub struct PaymentIntent {
     pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -503,6 +504,8 @@ pub struct PaymentIntent {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+    /// Sets the payment button text for Payment Links; doesn't affect core flows.
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -668,6 +671,7 @@ impl PaymentIntent {
             force_3ds_challenge_trigger: None,
             processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
+            is_setup_mandate_flow: None,
         })
     }
 

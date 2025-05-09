@@ -2855,6 +2855,7 @@ where
             card_discovery: payment_attempt.card_discovery,
             force_3ds_challenge: payment_intent.force_3ds_challenge,
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
+            is_setup_mandate_flow: payment_intent.is_setup_mandate_flow,
             issuer_error_code: payment_attempt.issuer_error_code,
             issuer_error_message: payment_attempt.issuer_error_message,
         };
@@ -3147,6 +3148,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             card_discovery: pa.card_discovery,
             force_3ds_challenge: pi.force_3ds_challenge,
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
+            is_setup_mandate_flow: pi.is_setup_mandate_flow,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
         }
@@ -4963,7 +4965,6 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text: config.payment_form_header_text,
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
-            is_setup_mandate_flow: config.is_setup_mandate_flow,
         }
     }
 }
@@ -5038,7 +5039,6 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             payment_form_header_text: config.payment_form_header_text,
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
-            is_setup_mandate_flow: config.is_setup_mandate_flow,
         }
     }
 }

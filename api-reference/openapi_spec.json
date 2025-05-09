@@ -17341,11 +17341,6 @@
               }
             ],
             "nullable": true
-          },
-          "is_setup_mandate_flow": {
-            "type": "boolean",
-            "description": "Boolean to control payment button text for setup mandate calls",
-            "nullable": true
           }
         }
       },
@@ -17508,11 +17503,6 @@
                 "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
               }
             ],
-            "nullable": true
-          },
-          "is_setup_mandate_flow": {
-            "type": "boolean",
-            "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
           }
         }
@@ -19339,6 +19329,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
+            "nullable": true
           }
         }
       },
@@ -19750,6 +19745,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
             "nullable": true
           }
         }
@@ -20328,6 +20328,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
             "nullable": true
           }
         }
@@ -21031,6 +21036,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21635,6 +21645,11 @@
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
+            "nullable": true
           }
         }
       },
@@ -22174,6 +22189,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
             "nullable": true
           }
         }

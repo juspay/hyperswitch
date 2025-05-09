@@ -14950,11 +14950,6 @@
               }
             ],
             "nullable": true
-          },
-          "is_setup_mandate_flow": {
-            "type": "boolean",
-            "description": "Boolean to control payment button text for setup mandate calls",
-            "nullable": true
           }
         }
       },
@@ -15117,11 +15112,6 @@
                 "$ref": "#/components/schemas/PaymentLinkShowSdkTerms"
               }
             ],
-            "nullable": true
-          },
-          "is_setup_mandate_flow": {
-            "type": "boolean",
-            "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
           }
         }
@@ -17113,6 +17103,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -17893,6 +17888,11 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
+          },
+          "is_setup_mandate_flow": {
+            "type": "boolean",
+            "description": "Sets the payment button text for Payment Links; doesn't affect core flows.",
             "nullable": true
           }
         },

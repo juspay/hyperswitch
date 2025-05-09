@@ -984,6 +984,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        is_setup_mandate_flow -> Nullable<Bool>,
     }
 }
 
