@@ -55,7 +55,7 @@ impl EuclidApiClient {
         Req: Serialize + Send + Sync + 'static,
     {
         let url = format!("{}/{}", EUCLID_BASE_URL, path);
-        logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "Initiating Euclid API call ({})", context_message);
+        logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "decision_engine_euclid: Initiating Euclid API call ({})", context_message);
 
         let mut request_builder = services::RequestBuilder::new()
             .method(http_method)
@@ -67,7 +67,7 @@ impl EuclidApiClient {
         }
 
         let http_request = request_builder.build();
-        logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details ({})", context_message);
+        logger::info!(?http_request, euclid_request_path = %path, "decision_engine_euclid: Constructed Euclid API request details ({})", context_message);
 
         state
             .api_client
@@ -105,7 +105,7 @@ impl EuclidApiHandler for EuclidApiClient {
             "parsing response",
         )
         .await?;
-        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
+        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_euclid: Received raw response from Euclid API");
 
         let parsed_response = response
             .json::<Res>()
@@ -121,7 +121,7 @@ impl EuclidApiHandler for EuclidApiClient {
                     path
                 )
             })?;
-        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "Successfully parsed response from Euclid API");
+        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "decision_engine_euclid: Successfully parsed response from Euclid API");
         Ok(parsed_response)
     }
 
@@ -145,7 +145,7 @@ impl EuclidApiHandler for EuclidApiClient {
         )
         .await?;
 
-        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
+        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_routing: Received raw response from Euclid API");
         Ok(())
     }
 }
@@ -184,6 +184,7 @@ pub async fn create_de_euclid_routing_algo(
 ) -> RoutingResult<String> {
     logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
 
+    logger::debug!(decision_engine_euclid_request=?routing_request,"decision_engine_euclid");
     let euclid_response: RoutingDictionaryRecord = EuclidApiClient::send_euclid_request(
         state,
         services::Method::Post,
@@ -418,18 +419,6 @@ pub enum ValueType {
     GlobalRef(String),
 }
 
-// impl ValueType {
-//     pub fn get_type(&self) -> DataType {
-//         match self {
-//             Self::Number(_) => DataType::Number,
-//             Self::StrValue(_) => DataType::StrValue,
-//             Self::MetadataVariant(_) => DataType::MetadataValue,
-//             Self::EnumVariant(_) => DataType::EnumVariant,
-//             Self::GlobalRef(_) => DataType::GlobalRef,
-//         }
-//     }
-// }
-
 pub type Metadata = HashMap<String, serde_json::Value>;
 /// Represents a number comparison for "NumberComparisonArrayValue"
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -441,7 +430,7 @@ pub struct NumberComparison {
 
 /// Conditional comparison type
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum ComparisonType {
     Equal,
     NotEqual,
@@ -520,7 +509,7 @@ pub struct Rule {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum RoutingType {
     Priority,
     VolumeSplit,
@@ -600,9 +589,14 @@ impl From<ast::Program<ConnectorSelection>> for Program {
 }
 
 fn convert_rule(rule: ast::Rule<ConnectorSelection>) -> Rule {
+    let routing_type = match &rule.connector_selection {
+        ConnectorSelection::Priority(_) => RoutingType::Priority,
+        ConnectorSelection::VolumeSplit(_) => RoutingType::VolumeSplit,
+    };
+
     Rule {
         name: rule.name,
-        routing_type: RoutingType::Priority,
+        routing_type,
         output: convert_output(rule.connector_selection),
         statements: rule.statements.into_iter().map(convert_if_stmt).collect(),
     }
