@@ -740,6 +740,12 @@ apple_pay = { country = "AD,AE,AG,AL,AM,AO,AR,AT,AU,AZ,BA,BB,BD,BE,BG,BH,BI,BJ,B
 credit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
 debit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
 
+[pm_filters.coingate]
+crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LT, LU, MT, MD, NL, NO, PL, PT, RO, RS, SK, SI, ES, SE, CH, UA, GB, AR, BR, CL, CO, CR, DO, SV, GD, MX, PE, LC, AU, NZ, CY, HK, IN, IL, JP, KR, QA, SA, SG, EG", currency = "EUR, USD, GBP" }
+
+[pm_filters.paystack]
+eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
+
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 fiuu.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_of_china,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
