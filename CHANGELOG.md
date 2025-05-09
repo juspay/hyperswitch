@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.05.0-hotfix2
+
+### Bug Fixes
+
+- **update_metadata:** Update Metadata for any connectors other than stripe gives 500 error ([#7986](https://github.com/juspay/hyperswitch/pull/7986)) ([`900fe33`](https://github.com/juspay/hyperswitch/commit/900fe338d6a477dbb72a53d265fd8c56d4d1eed4))
+
+**Full Changelog:** [`2025.05.05.0-hotfix1...2025.05.05.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.05.05.0-hotfix1...2025.05.05.0-hotfix2)
+
+
+- - -
+
 ## 2025.05.05.0-hotfix1
 
 ### Bug Fixes
