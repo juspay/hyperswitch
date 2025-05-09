@@ -97,7 +97,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
-    routes::hypersense as hypersense_routes,
+    routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
 #[derive(Clone)]
@@ -2136,6 +2136,20 @@ impl Gsm {
             .service(web::resource("/get").route(web::post().to(gsm::get_gsm_rule)))
             .service(web::resource("/update").route(web::post().to(gsm::update_gsm_rule)))
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
+    }
+}
+
+pub struct ThreeDsDecisionRule;
+
+#[cfg(feature = "oltp")]
+impl ThreeDsDecisionRule {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/three_ds_decision_rule")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/execute")
+                    .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
     }
 }
 
