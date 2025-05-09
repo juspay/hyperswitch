@@ -56,7 +56,11 @@ services:
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
+    command: >
+      bash -c "
+      curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &&
+      cargo binstall diesel_cli just --no-confirm &&
+      just migrate"
     working_dir: /app
     networks:
       - router_net
