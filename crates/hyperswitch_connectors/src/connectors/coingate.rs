@@ -1,6 +1,7 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
-use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     crypto,
     errors::CustomResult,
@@ -21,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -517,25 +521,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Coingate 
     }
 }
 
-impl ConnectorValidation for Coingate {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _payment_method: PaymentMethod,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled | CaptureMethod::Manual => {
-                Err(utils::construct_not_supported_error_report(
-                    capture_method,
-                    self.id(),
-                ))
-            }
-        }
-    }
-}
+impl ConnectorValidation for Coingate {}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Coingate {
@@ -630,4 +616,45 @@ impl webhooks::IncomingWebhook for Coingate {
     }
 }
 
-impl ConnectorSpecifications for Coingate {}
+static COINGATE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods =
+            vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+
+        let mut coingate_supported_payment_methods = SupportedPaymentMethods::new();
+
+        coingate_supported_payment_methods.add(
+            PaymentMethod::Crypto,
+            PaymentMethodType::CryptoCurrency,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        coingate_supported_payment_methods
+    });
+
+static COINGATE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Coingate",
+    description: "CoinGate's online payment solution makes it easy for businesses to accept Bitcoin, Ethereum, stablecoins and other cryptocurrencies for payments on any website.",
+    connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+};
+
+static COINGATE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Coingate {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&COINGATE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*COINGATE_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&COINGATE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
