@@ -345,6 +345,19 @@ where
 {
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
+    let customer_acceptance = payment_data
+        .get_payment_attempt()
+        .customer_acceptance
+        .clone();
+    if payments::is_pre_network_tokenization_enabled(
+        state,
+        business_profile,
+        customer_acceptance,
+        connector.connector_name,
+    ) {
+        payments::set_payment_method_data_for_pre_network_tokenization(state, payment_data).await
+    }
+
     modify_trackers(
         state,
         connector.connector_name.to_string(),

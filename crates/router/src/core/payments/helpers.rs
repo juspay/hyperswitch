@@ -2604,8 +2604,10 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         (_, Some(hyperswitch_token)) => {
             let existing_vault_data = payment_data.get_vault_operation();
 
-            let vault_data = existing_vault_data.map(|data| match data {
-                domain_payments::VaultOperation::ExistingVaultData(vault_data) => vault_data,
+            let vault_data = existing_vault_data.and_then(|data| match data {
+                domain_payments::VaultOperation::ExistingVaultData(vault_data) => Some(vault_data),
+                domain_payments::VaultOperation::SaveCardData(_)
+                | domain_payments::VaultOperation::SaveCardAndNetworkTokenData(_) => None,
             });
 
             let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(

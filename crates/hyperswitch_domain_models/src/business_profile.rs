@@ -70,6 +70,7 @@ pub struct Profile {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -121,6 +122,7 @@ pub struct ProfileSetter {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -177,6 +179,7 @@ impl From<ProfileSetter> for Profile {
             force_3ds_challenge: value.force_3ds_challenge,
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
+            is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
         }
     }
 }
@@ -235,6 +238,7 @@ pub struct ProfileGeneralUpdate {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -308,6 +312,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     force_3ds_challenge,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_pre_network_tokenization_enabled,
                 } = *update;
 
                 Self {
@@ -354,6 +359,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     force_3ds_challenge,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_pre_network_tokenization_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -402,6 +408,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -448,6 +455,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -494,6 +502,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -540,6 +549,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -586,6 +596,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -632,6 +643,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_pre_network_tokenization_enabled: None,
             },
         }
     }
@@ -698,6 +710,7 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: Some(self.force_3ds_challenge),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
         })
     }
 
@@ -788,6 +801,7 @@ impl super::behaviour::Conversion for Profile {
                 force_3ds_challenge: item.force_3ds_challenge.unwrap_or_default(),
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,
+                is_pre_network_tokenization_enabled: item.is_network_tokenization_enabled,
             })
         }
         .await
@@ -849,6 +863,7 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: Some(self.force_3ds_challenge),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
         })
     }
 }

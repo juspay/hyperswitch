@@ -55,7 +55,7 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use hyperswitch_domain_models::{
-    payments::{payment_intent::CustomerData, ClickToPayMetaData},
+    payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -478,6 +478,10 @@ where
                 }
                 _ => (),
             };
+            let customer_acceptance = payment_data
+                .get_payment_attempt()
+                .customer_acceptance
+                .clone();
             payment_data = match connector_details {
                 ConnectorCallType::PreDetermined(ref connector) => {
                     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -498,6 +502,19 @@ where
                     } else {
                         None
                     };
+
+                    if is_pre_network_tokenization_enabled(
+                        state,
+                        &business_profile,
+                        customer_acceptance,
+                        connector.connector_name,
+                    ) {
+                        set_payment_method_data_for_pre_network_tokenization(
+                            state,
+                            &mut payment_data,
+                        )
+                        .await
+                    }
                     let (router_data, mca) = call_connector_service(
                         state,
                         req_state.clone(),
@@ -601,6 +618,19 @@ where
                     let mut connectors = connectors.clone().into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
+
+                    if is_pre_network_tokenization_enabled(
+                        state,
+                        &business_profile,
+                        customer_acceptance,
+                        connector_data.connector_name,
+                    ) {
+                        set_payment_method_data_for_pre_network_tokenization(
+                            state,
+                            &mut payment_data,
+                        )
+                        .await;
+                    }
 
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -4098,7 +4128,7 @@ pub async fn get_session_token_for_click_to_pay(
     merchant_id: &id_type::MerchantId,
     merchant_context: &domain::MerchantContext,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
-    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    payment_intent: &payments::PaymentIntent,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<api_models::payments::SessionToken> {
     let click_to_pay_mca_id = authentication_product_ids
@@ -6033,6 +6063,87 @@ where
     payment_data.set_straight_through_algorithm_in_payment_attempt(request_straight_through);
 
     Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub fn is_pre_network_tokenization_enabled(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    customer_acceptance: Option<Secret<serde_json::Value>>,
+    connector_name: enums::Connector,
+) -> bool {
+    let ntid_supported_connectors = &state
+        .conf
+        .network_transaction_id_supported_connectors
+        .connector_list;
+
+    let is_nt_supported_connector = ntid_supported_connectors.contains(&connector_name);
+
+    business_profile.is_network_tokenization_enabled
+        && business_profile.is_pre_network_tokenization_enabled
+        && customer_acceptance.is_some()
+        && is_nt_supported_connector
+}
+
+#[cfg(feature = "v1")]
+pub async fn set_payment_method_data_for_pre_network_tokenization<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let customer_id = payment_data.get_payment_intent().customer_id.clone();
+    let payment_method_data = payment_data.get_payment_method_data();
+    if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
+        (payment_method_data, customer_id)
+    {
+        let pre_tokenization_response =
+            tokenization::pre_payment_tokenization(state, customer_id, card_data)
+                .await
+                .ok();
+        match pre_tokenization_response {
+            Some((Some(token_response), Some(token_ref))) => {
+                let token_data = domain::NetworkTokenData::from(token_response);
+                let network_token_data_for_vault = payments::NetworkTokenDataForVault {
+                    network_token_data: token_data.clone(),
+                    network_token_req_ref_id: token_ref,
+                };
+
+                let card_and_network_token_data = payments::CardAndNetworkTokenDataForVault {
+                    card_data: card_data.clone(),
+                    network_token: network_token_data_for_vault.clone(),
+                };
+                payment_data.set_vault_operation(
+                    payments::VaultOperation::SaveCardAndNetworkTokenData(Box::new(
+                        card_and_network_token_data.clone(),
+                    )),
+                );
+
+                payment_data.set_payment_method_data(Some(
+                    domain::PaymentMethodData::NetworkToken(token_data),
+                ));
+            }
+            Some((None, Some(token_ref))) => {
+                let card_data_for_vault = payments::CardDataForVault {
+                    card_data: card_data.clone(),
+                    network_token_req_ref_id: Some(token_ref),
+                };
+                payment_data.set_vault_operation(payments::VaultOperation::SaveCardData(
+                    card_data_for_vault.clone(),
+                ))
+            }
+            _ => {
+                let card_data_for_vault = payments::CardDataForVault {
+                    card_data: card_data.clone(),
+                    network_token_req_ref_id: None,
+                };
+                payment_data.set_vault_operation(payments::VaultOperation::SaveCardData(
+                    card_data_for_vault.clone(),
+                ))
+            }
+        }
+    }
 }
 
 #[cfg(feature = "v1")]

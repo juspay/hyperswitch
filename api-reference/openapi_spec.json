@@ -24210,6 +24210,10 @@
               }
             ],
             "nullable": true
+          },
+          "is_pre_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if pre network tokenization is enabled or not"
           }
         },
         "additionalProperties": false
@@ -24245,7 +24249,8 @@
           "is_auto_retries_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "force_3ds_challenge"
+          "force_3ds_challenge",
+          "is_pre_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -24487,6 +24492,10 @@
               }
             ],
             "nullable": true
+          },
+          "is_pre_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if pre network tokenization is enabled or not"
           }
         }
       },

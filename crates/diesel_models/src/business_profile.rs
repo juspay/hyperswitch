@@ -70,6 +70,7 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -123,6 +124,7 @@ pub struct ProfileNew {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -174,6 +176,7 @@ pub struct ProfileUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -222,6 +225,7 @@ impl ProfileUpdateInternal {
             force_3ds_challenge,
             is_debit_routing_enabled,
             merchant_business_country,
+            is_pre_network_tokenization_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -297,6 +301,8 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
+                .unwrap_or(source.is_pre_network_tokenization_enabled),
         }
     }
 }

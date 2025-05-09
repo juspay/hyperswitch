@@ -1992,6 +1992,10 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[serde(default)]
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -2283,6 +2287,9 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2571,6 +2578,10 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
