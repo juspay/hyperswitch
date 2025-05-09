@@ -42,11 +42,12 @@ Single API to access the payments ecosystem and its features
 
 1. [Introduction](#introduction)
 2. [Try Hyperswitch](#try-hyperswitch)
-3. [Architectural Overview](#architectural-overview) 
-4. [Support, Feature requests & Bugs](#support-feature-requests)  
-5. [Our Vision](#our-vision)  
-6. [Versioning](#versioning)  
-7. [Copyright and License](#copyright-and-license)
+3. [Architectural Overview](#architectural-overview)
+4. [Community & Contributions](#community-and-contributions)
+5. [Feature requests & Bugs](#feature-requests)  
+6. [Our Vision](#our-vision)  
+7. [Versioning](#versioning)  
+8. [Copyright and License](#copyright-and-license)
 
 <a href="#introduction">
   <h2 id="introduction">Introduction</h2>
@@ -141,11 +142,17 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 [configure-a-connector]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor
 [try-a-payment]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment
 
-<a href="support-feature-requests">
-  <h2 id="support-feature-requests">Support, Feature requests & Bugs</h2>
+<a href="community-and-contributions">
+  <h2 id="community-and-contributions">Community & Contributions</h2>
 </a>
 
-For any support, join the conversation in [Slack](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw)
+If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw).
+
+We welcome contributors from around the world to help build Hyperswitch. To get started, please read our [contribution guidelines](contributing-guidelines).
+
+<a href="feature-requests">
+  <h2 id="feature-requests">Feature requests & Bugs</h2>
+</a>
 
 For new product features, enhancements, roadmap discussions, or to share queries and ideas, visit our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
