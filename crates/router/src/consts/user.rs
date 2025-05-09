@@ -41,6 +41,3 @@ pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 pub const DEFAULT_PROFILE_NAME: &str = "default";
 pub const DEFAULT_PRODUCT_TYPE: common_enums::MerchantProductType =
     common_enums::MerchantProductType::Orchestration;
-
-pub const LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS: i64 = 60 * 60 * 24 * 7; // 7 days
-pub const LINEAGE_CONTEXT_PREFIX: &str = "LINEAGE_CONTEXT_";

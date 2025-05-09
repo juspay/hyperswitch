@@ -1,4 +1,4 @@
-use common_utils::types::theme::ThemeLineage;
+use common_utils::types::user::ThemeLineage;
 use diesel_models::user::theme as storage;
 use error_stack::report;
 

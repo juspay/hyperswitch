@@ -1,7 +1,7 @@
 use api_models::user::theme as theme_api;
 use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
-    types::theme::ThemeLineage,
+    types::user::ThemeLineage,
 };
 use diesel_models::user::theme::ThemeNew;
 use error_stack::ResultExt;

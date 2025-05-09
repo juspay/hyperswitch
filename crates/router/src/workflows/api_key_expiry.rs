@@ -1,4 +1,4 @@
-use common_utils::{errors::ValidationError, ext_traits::ValueExt, types::theme::ThemeLineage};
+use common_utils::{errors::ValidationError, ext_traits::ValueExt, types::user::ThemeLineage};
 use diesel_models::{
     enums as storage_enums, process_tracker::business_status, ApiKeyExpiryTrackingData,
 };

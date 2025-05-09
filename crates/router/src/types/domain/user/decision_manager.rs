@@ -1,11 +1,12 @@
 use common_enums::TokenPurpose;
-use common_utils::id_type;
+use common_utils::{id_type, types::user::LineageContext};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     user_role::UserRole,
 };
 use error_stack::ResultExt;
 use masking::Secret;
+use router_env::logger;
 
 use super::UserFromStorage;
 use crate::{
@@ -13,7 +14,6 @@ use crate::{
     db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authentication as auth,
-    types::domain::LineageContext,
     utils,
 };
 
@@ -129,13 +129,25 @@ impl JWTFlow {
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
         let user_id = next_flow.user.get_user_id();
-        let cached_lineage_context =
-            LineageContext::try_get_lineage_context_from_cache(state, user_id).await;
+        // Fetch lineage context from DB
+        let lineage_context_from_db = state
+            .global_store
+            .find_user_by_id(user_id)
+            .await
+            .inspect_err(|e| {
+                logger::error!(
+                    "Failed to fetch lineage context from DB for user {}: {:?}",
+                    user_id,
+                    e
+                )
+            })
+            .ok()
+            .and_then(|user| user.lineage_context);
 
-        let new_lineage_context = match cached_lineage_context {
+        let new_lineage_context = match lineage_context_from_db {
             Some(ctx) => {
                 let tenant_id = ctx.tenant_id.clone();
-                let user_role_match_v1 = state
+                let user_role_match_v2 = state
                     .global_store
                     .find_user_role_by_user_id_and_lineage(
                         &ctx.user_id,
@@ -143,15 +155,15 @@ impl JWTFlow {
                         &ctx.org_id,
                         &ctx.merchant_id,
                         &ctx.profile_id,
-                        UserRoleVersion::V1,
+                        UserRoleVersion::V2,
                     )
                     .await
                     .is_ok();
 
-                if user_role_match_v1 {
+                if user_role_match_v2 {
                     ctx
                 } else {
-                    let user_role_match_v2 = state
+                    let user_role_match_v1 = state
                         .global_store
                         .find_user_role_by_user_id_and_lineage(
                             &ctx.user_id,
@@ -159,12 +171,12 @@ impl JWTFlow {
                             &ctx.org_id,
                             &ctx.merchant_id,
                             &ctx.profile_id,
-                            UserRoleVersion::V2,
+                            UserRoleVersion::V1,
                         )
                         .await
                         .is_ok();
 
-                    if user_role_match_v2 {
+                    if user_role_match_v1 {
                         ctx
                     } else {
                         // fallback to default lineage if cached context is invalid
@@ -179,9 +191,11 @@ impl JWTFlow {
             }
         };
 
-        new_lineage_context
-            .try_set_lineage_context_in_cache(state, user_id)
-            .await;
+        utils::user::spawn_async_lineage_context_update_to_db(
+            state,
+            user_id,
+            new_lineage_context.clone(),
+        );
 
         auth::AuthToken::new_token(
             new_lineage_context.user_id,
