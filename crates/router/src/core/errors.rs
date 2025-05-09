@@ -419,8 +419,8 @@ pub enum RoutingError {
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
-    #[error("Failed to perform {algo} in open_router")]
-    OpenRouterCallFailed { algo: String },
+    #[error("Failed to perform routing in open_router")]
+    OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
 }
