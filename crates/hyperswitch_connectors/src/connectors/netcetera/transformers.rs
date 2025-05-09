@@ -542,7 +542,7 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
-            notification_url: Some("https://google.com".to_string()),
+            notification_url: request.return_url.clone(),
             three_ds_requestor_id: connector_meta_data.three_ds_requestor_id,
             three_ds_requestor_name: connector_meta_data.three_ds_requestor_name,
             white_list_status: None,

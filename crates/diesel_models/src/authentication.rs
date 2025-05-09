@@ -363,7 +363,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
-                // authentication_value,
                 trans_status,
                 authentication_type,
                 acs_url,
@@ -375,7 +374,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 ds_trans_id,
             } => Self {
-                // cavv: authentication_value,
                 trans_status: Some(trans_status),
                 authentication_type: Some(authentication_type),
                 acs_url,
@@ -390,12 +388,10 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
                 trans_status,
-                // authentication_value,
                 eci,
                 authentication_status,
             } => Self {
                 trans_status: Some(trans_status),
-                // cavv: authentication_value,
                 eci,
                 authentication_status: Some(authentication_status),
                 ..Default::default()
