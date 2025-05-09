@@ -211,6 +211,7 @@ pub async fn accept_dispute(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_dispute_failed_response()
@@ -340,6 +341,7 @@ pub async fn submit_evidence(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_dispute_failed_response()
@@ -378,6 +380,7 @@ pub async fn submit_evidence(
             connector_integration_defend_dispute,
             &defend_dispute_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await

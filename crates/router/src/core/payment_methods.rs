@@ -2825,6 +2825,7 @@ async fn create_single_use_tokenization_flow(
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
+            whole_connector_response: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

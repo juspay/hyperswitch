@@ -178,6 +178,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -194,6 +195,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 &self,
                 call_connector_action.clone(),
                 connector_request,
+                all_keys_required,
             )
             .await
             .to_payment_failed_response()?;
@@ -269,6 +271,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
@@ -491,6 +494,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .to_payment_failed_response()?;
@@ -574,6 +578,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             connector_integration,
             &postprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await

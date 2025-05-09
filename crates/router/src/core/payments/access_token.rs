@@ -216,6 +216,7 @@ pub async fn refresh_connector_auth(
         router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await;
 

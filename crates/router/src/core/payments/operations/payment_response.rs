@@ -1317,6 +1317,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
+    payment_data.whole_connector_response = router_data.whole_connector_response.clone();
     let (capture_update, mut payment_attempt_update) = match router_data.response.clone() {
         Err(err) => {
             let auth_update = if Some(router_data.auth_type)

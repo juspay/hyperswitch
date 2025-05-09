@@ -160,6 +160,7 @@ impl<F: Send + Clone + Sync>
             payment_method_data: None,
             payment_method_info: None,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -186,6 +187,7 @@ impl<F: Send + Clone + Sync>
             card_testing_guard_data: None,
             vault_operation: None,
             threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -295,6 +297,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
             )
             .await

@@ -127,6 +127,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         _connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -1303,6 +1304,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                     None,
                 )
                 .await

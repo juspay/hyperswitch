@@ -117,6 +117,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
@@ -139,6 +140,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         pending_connector_capture_id_list,
                         call_connector_action,
                         connector_integration,
+                        all_keys_required,
                     )
                     .await?;
                 // Initiating Integrity checks
@@ -160,6 +162,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     &self,
                     call_connector_action,
                     connector_request,
+                    all_keys_required,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -244,6 +247,7 @@ where
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
+        _all_keys_required: Option<bool>,
     ) -> RouterResult<Self>;
 }
 
@@ -261,6 +265,7 @@ impl RouterDataPSync
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
@@ -271,6 +276,7 @@ impl RouterDataPSync
                 self,
                 call_connector_action.clone(),
                 None,
+                all_keys_required,
             )
             .await
             .to_payment_failed_response()?;
@@ -289,6 +295,7 @@ impl RouterDataPSync
                     &cloned_router_data,
                     call_connector_action.clone(),
                     None,
+                    all_keys_required,
                 )
                 .await
                 .to_payment_failed_response()?;

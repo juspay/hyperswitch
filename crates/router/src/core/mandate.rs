@@ -123,6 +123,7 @@ pub async fn revoke_mandate(
                 &router_data,
                 CallConnectorAction::Trigger,
                 None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

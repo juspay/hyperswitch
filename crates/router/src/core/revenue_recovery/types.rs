@@ -355,6 +355,7 @@ impl Action {
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
@@ -487,6 +488,7 @@ async fn call_proxy_api(
         get_tracker_response,
         payments::CallConnectorAction::Trigger,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await?;
     Ok(payment_data)

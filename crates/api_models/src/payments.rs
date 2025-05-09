@@ -1157,6 +1157,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5103,6 +5106,9 @@ pub struct PaymentsResponse {
 
     /// Error message received from the issuer in case of failed payments
     pub issuer_error_message: Option<String>,
+
+    /// Contains whole connector response
+    pub whole_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5517,6 +5523,8 @@ pub struct PaymentsRetrieveRequest {
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 /// Error details for the payment
@@ -6365,6 +6373,8 @@ pub struct PaymentsRetrieveRequest {
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -7314,6 +7324,8 @@ pub struct PaymentRetrieveBody {
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

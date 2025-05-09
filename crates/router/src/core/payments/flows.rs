@@ -92,6 +92,7 @@ pub trait Feature<F, T> {
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -1928,6 +1929,7 @@ pub async fn call_capture_request(
             connector_request,
             business_profile,
             header_payload.clone(),
+            None,
         )
         .await
 }

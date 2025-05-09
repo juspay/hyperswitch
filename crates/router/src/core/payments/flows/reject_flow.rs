@@ -83,6 +83,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         _connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),

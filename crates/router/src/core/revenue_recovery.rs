@@ -197,6 +197,7 @@ pub async fn call_psync_api(
         force_sync: false,
         param: None,
         expand_attempts: true,
+        all_keys_required: None,
     };
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt

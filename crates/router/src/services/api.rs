@@ -135,6 +135,7 @@ pub async fn execute_connector_processing_step<
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
+    all_keys_required: Option<bool>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug + 'static,
@@ -267,7 +268,7 @@ where
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
                                     let handle_response_result = connector_integration
-                                        .handle_response(req, Some(&mut connector_event), body)
+                                        .handle_response(req, Some(&mut connector_event), body.clone())
                                         .inspect_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -294,6 +295,16 @@ where
                                                         val + external_latency
                                                     }),
                                             );
+                                            if all_keys_required == Some(true) {
+                                                let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
+                                                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                                                if decoded.starts_with('\u{feff}') {
+                                                    decoded = decoded
+                                                        .trim_start_matches('\u{feff}')
+                                                        .to_string();
+                                                }
+                                                data.whole_connector_response = Some(decoded);
+                                            }
                                             Ok(data)
                                         }
                                         Err(err) => {
@@ -1237,12 +1248,20 @@ pub trait Authenticate {
     fn get_client_secret(&self) -> Option<&String> {
         None
     }
+
+    fn get_all_keys_required(&self) -> Option<bool> {
+        None
+    }
 }
 
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+
+    fn get_all_keys_required(&self) -> Option<bool> {
+        self.all_keys_required
     }
 }
 
@@ -1270,7 +1289,11 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     }
 }
 
-impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
+impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
+    fn get_all_keys_required(&self) -> Option<bool> {
+        self.all_keys_required
+    }
+}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}

@@ -114,6 +114,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Capture,
@@ -127,6 +128,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             &self,
             call_connector_action,
             connector_request,
+            None,
         )
         .await
         .to_payment_failed_response()?;
