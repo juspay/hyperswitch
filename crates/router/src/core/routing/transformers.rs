@@ -1,11 +1,12 @@
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::open_router::{OpenRouterDecideGatewayRequest, PaymentInfo, RankingAlgorithm};
 use api_models::routing::{
     MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
     RoutingDictionaryRecord,
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_enums::RoutableConnectors;
+use api_models::{
+    open_router::{OpenRouterDecideGatewayRequest, PaymentInfo, RankingAlgorithm},
+    routing::RoutableConnectorChoice,
+};
 use common_utils::ext_traits::ValueExt;
 use diesel_models::{
     enums as storage_enums,
@@ -110,9 +111,10 @@ impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub trait OpenRouterDecideGatewayRequestExt {
     fn construct_sr_request(
-        attempt: PaymentAttempt,
-        eligible_gateway_list: Vec<RoutableConnectors>,
+        attempt: &PaymentAttempt,
+        eligible_gateway_list: Vec<RoutableConnectorChoice>,
         ranking_algorithm: Option<RankingAlgorithm>,
+        is_elimination_enabled: bool,
     ) -> Self
     where
         Self: Sized;
@@ -121,13 +123,14 @@ pub trait OpenRouterDecideGatewayRequestExt {
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
     fn construct_sr_request(
-        attempt: PaymentAttempt,
-        eligible_gateway_list: Vec<RoutableConnectors>,
+        attempt: &PaymentAttempt,
+        eligible_gateway_list: Vec<RoutableConnectorChoice>,
         ranking_algorithm: Option<RankingAlgorithm>,
+        is_elimination_enabled: bool,
     ) -> Self {
         Self {
             payment_info: PaymentInfo {
-                payment_id: attempt.payment_id,
+                payment_id: attempt.payment_id.clone(),
                 amount: attempt.net_amount.get_order_amount(),
                 currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
                 payment_type: "ORDER_PAYMENT".to_string(),
@@ -135,10 +138,15 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
                 payment_method: attempt.payment_method.unwrap_or_default(),
             },
-            merchant_id: attempt.profile_id,
-            eligible_gateway_list: Some(eligible_gateway_list),
+            merchant_id: attempt.profile_id.clone(),
+            eligible_gateway_list: Some(
+                eligible_gateway_list
+                    .into_iter()
+                    .map(|connector| connector.to_string())
+                    .collect(),
+            ),
             ranking_algorithm,
-            elimination_enabled: None,
+            elimination_enabled: Some(is_elimination_enabled),
         }
     }
 }

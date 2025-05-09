@@ -189,6 +189,8 @@ enum RequiredField {
     PixKey,
     PixCnpj,
     PixCpf,
+    PixSourceBankAccountId,
+    PixDestinationBankAccountId,
     GiftCardNumber,
     GiftCardCvc,
     DcbMsisdn,
@@ -779,6 +781,27 @@ impl RequiredField {
                     required_field: "payment_method_data.bank_transfer.pix.cpf".to_string(),
                     display_name: "cpf".to_string(),
                     field_type: FieldType::UserCpf,
+                    value: None,
+                },
+            ),
+            Self::PixSourceBankAccountId => (
+                "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id"
+                        .to_string(),
+                    display_name: "source_bank_account_id".to_string(),
+                    field_type: FieldType::UserSourceBankAccountId,
+                    value: None,
+                },
+            ),
+            Self::PixDestinationBankAccountId => (
+                "payment_method_data.bank_transfer.pix.destination_bank_account_id".to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_transfer.pix.destination_bank_account_id"
+                            .to_string(),
+                    display_name: "destination_bank_account_id".to_string(),
+                    field_type: FieldType::UserDestinationBankAccountId,
                     value: None,
                 },
             ),
@@ -1450,6 +1473,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::CardNumber,
                     RequiredField::CardExpMonth,
                     RequiredField::CardExpYear,
+                    RequiredField::BillingUserFirstName,
                 ],
             ),
         ),
@@ -3068,6 +3092,20 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     },
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Facilitapay,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::PixSourceBankAccountId.to_tuple(),
+                            RequiredField::PixDestinationBankAccountId.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
             ]),
         ),
         (
