@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.09.0
+
+### Features
+
+- **connector:** [paypal, trustpay] add in feature matrix ([#7911](https://github.com/juspay/hyperswitch/pull/7911)) ([`a64a4d5`](https://github.com/juspay/hyperswitch/commit/a64a4d59a2ce5a146cc288ace29dce079e0905fe))
+
+### Bug Fixes
+
+- **router:** Fixed stack over flow for session call in authentication connectors ([#7983](https://github.com/juspay/hyperswitch/pull/7983)) ([`1933722`](https://github.com/juspay/hyperswitch/commit/1933722637486b9c369f6257ebdf0f4a6f70488a))
+- **update_metadata:** Update Metadata for any connectors other than stripe gives 500 error ([#7984](https://github.com/juspay/hyperswitch/pull/7984)) ([`fafe4d9`](https://github.com/juspay/hyperswitch/commit/fafe4d99286f4aaf3965b23a9e06648f3a43b108))
+
+**Full Changelog:** [`2025.05.08.0...2025.05.09.0`](https://github.com/juspay/hyperswitch/compare/2025.05.08.0...2025.05.09.0)
+
+
+- - -
+
 ## 2025.05.08.0
 
 ### Features
