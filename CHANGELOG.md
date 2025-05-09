@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix8
+
+### Bug Fixes
+
+- Docker changes in setup script ([#7979](https://github.com/juspay/hyperswitch/pull/7979)) ([`07f7354`](https://github.com/juspay/hyperswitch/commit/07f7354fe46143922a6374d746cde648219223dc))
+
+**Full Changelog:** [`2025.04.09.0-hotfix7...2025.04.09.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix7...2025.04.09.0-hotfix8)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix7
 
 ### Miscellaneous Tasks
