@@ -198,7 +198,6 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            println!("IS THIS CALLEDD ???? $$$$");
             storage_types::Refund::find_by_global_id(&conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
