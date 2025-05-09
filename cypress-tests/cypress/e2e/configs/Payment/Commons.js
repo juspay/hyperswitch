@@ -53,6 +53,16 @@ const multiUseMandateData = {
   },
 };
 
+const validName = {
+  first_name: "Sakil",
+  last_name: "Mostak",
+};
+
+const invalidName = {
+  first_name: "S@k!l",
+  last_name: "M*st@k",
+};
+
 export const cardRequiredField = {
   "payment_method_data.card.card_number": {
     required_field: "payment_method_data.card.card_number",
@@ -1568,5 +1578,56 @@ export const connectorDetails = {
         ],
       },
     },
+  },
+  name_validation: {
+    HappyCase: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            ...validName,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    InvalidCase: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            ...invalidName,
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: invalid character found in card holder name: @ at line 1 column 542",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
   },
 };
