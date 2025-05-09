@@ -3,7 +3,7 @@ use common_enums::{
     self, AttemptStatus, AuthorizationStatus, CaptureMethod, Currency, FutureUsage,
     PaymentMethodStatus, RefundStatus,
 };
-use common_utils::{ext_traits::Encode, pii};
+use common_utils::{ext_traits::Encode, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use common_utils::types::MinorUnit;
+
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
@@ -1015,7 +1015,6 @@ impl<F>
 impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthorizationRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: ArchipelRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
-
         let order = ArchipelOrderRequest {
             amount: item.amount,
             currency: item.router_data.request.currency.to_string(),
@@ -1023,8 +1022,7 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
             initiator: ArchipelPaymentInitiator::Customer,
         };
 
-        let card_holder_name = item.router_data.get_billing()?
-            .get_optional_full_name();
+        let card_holder_name = item.router_data.get_billing()?.get_optional_full_name();
 
         let cardholder = Some(ArchipelCardHolder {
             billing_address: Some(
@@ -1052,9 +1050,7 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
 
         let card_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                ArchipelCard::try_from(
-                    (payment_information.card_holder_name, ccard)
-                )?
+                ArchipelCard::try_from((payment_information.card_holder_name, ccard))?
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Archipel"),
