@@ -588,7 +588,7 @@ pub async fn link_routing_config(
                 db,
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                business_profile,
+                business_profile.clone(),
                 dynamic_routing_ref,
             )
             .await?;
@@ -630,7 +630,7 @@ pub async fn link_routing_config(
                 db,
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                business_profile,
+                business_profile.clone(),
                 routing_ref,
                 transaction_type,
             )
