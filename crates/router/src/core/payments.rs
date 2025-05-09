@@ -7156,18 +7156,19 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    connectors = if let Some(mut straight_through_connectors) = connector_list {
-        straight_through_connectors.extend(connectors);
-        straight_through_connectors
-    } else {
-        connectors
-    };
+    // adds straight through connectors to the list of connectors in the active routing algorithm
+    // and perform eligibility analysis on the combined set of connectors
+
+    connectors = connector_list
+        .map(|mut straight_through_connectors| {
+            straight_through_connectors.extend(connectors.clone());
+            straight_through_connectors
+        })
+        .unwrap_or_else(|| connectors);
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    // adds straight through connectors to the list of connectors in the active routing algorithm
-    // and perform eligibility analysis on the combined set of connectors
     connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
