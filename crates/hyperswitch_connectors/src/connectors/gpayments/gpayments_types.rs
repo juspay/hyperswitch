@@ -196,7 +196,7 @@ pub struct GpaymentsAuthenticationSuccessResponse {
     pub acs_url: Option<url::Url>,
     #[serde(rename = "acsReferenceNumber")]
     pub acs_reference_number: String,
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize, PartialEq)]
@@ -230,7 +230,7 @@ impl From<AuthStatus> for common_enums::TransactionStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsPostAuthenticationResponse {
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
     pub trans_status: AuthStatus,
     pub eci: Option<String>,
 }

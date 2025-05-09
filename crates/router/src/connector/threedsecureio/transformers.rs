@@ -513,7 +513,7 @@ pub struct ThreedsecureioAuthenticationSuccessResponse {
     #[serde(rename = "acsSignedContent")]
     pub acs_signed_content: Option<String>,
     #[serde(rename = "authenticationValue")]
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -615,7 +615,7 @@ pub struct ThreedsecureioPostAuthenticationRequest {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioPostAuthenticationResponse {
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
     pub trans_status: ThreedsecureioTransStatus,
     pub eci: Option<String>,
 }
