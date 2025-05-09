@@ -59,8 +59,7 @@ services:
     command: >
       bash -c "
       curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &&
-      cargo binstall diesel_cli --no-confirm &&
-      cargo binstall just --no-confirm &&
+      cargo binstall diesel_cli just --no-confirm &&
       just migrate"
     working_dir: /app
     networks:
