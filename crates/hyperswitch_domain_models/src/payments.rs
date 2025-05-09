@@ -119,6 +119,7 @@ pub struct PaymentIntent {
     pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 impl PaymentIntent {

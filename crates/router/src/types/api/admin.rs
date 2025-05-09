@@ -437,5 +437,6 @@ pub async fn create_profile_from_merchant_account(
         force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
         is_debit_routing_enabled: request.is_debit_routing_enabled.unwrap_or_default(),
         merchant_business_country: request.merchant_business_country,
+        is_iframe_redirection_enabled: request.is_iframe_redirection_enabled,
     }))
 }

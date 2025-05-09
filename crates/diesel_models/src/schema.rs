@@ -225,6 +225,7 @@ diesel::table! {
         merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        is_iframe_redirection_enabled -> Nullable<Bool>,
     }
 }
 
@@ -1029,6 +1030,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        is_iframe_redirection_enabled -> Nullable<Bool>,
     }
 }
 
