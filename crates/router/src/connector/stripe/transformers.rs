@@ -1391,7 +1391,11 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::UnionPay
         | common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::RuPay
-        | common_enums::CardNetwork::Maestro => None,
+        | common_enums::CardNetwork::Maestro
+        | common_enums::CardNetwork::Star
+        | common_enums::CardNetwork::Accel
+        | common_enums::CardNetwork::Pulse
+        | common_enums::CardNetwork::Nyce => None,
     }
 }
 
