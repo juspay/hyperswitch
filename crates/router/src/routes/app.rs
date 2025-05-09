@@ -2390,6 +2390,9 @@ impl User {
                 )
                 .service(
                     web::resource("/delete").route(web::delete().to(user_role::delete_user_role)),
+                )
+                .service(
+                    web::resource("/clone_connector").route(web::post().to(user::clone_connector)),
                 ),
         );
 

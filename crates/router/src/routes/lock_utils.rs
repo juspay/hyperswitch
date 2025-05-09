@@ -287,7 +287,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UploadFileToThemeStorage
             | Flow::CreateTheme
             | Flow::UpdateTheme
-            | Flow::DeleteTheme => Self::User,
+            | Flow::DeleteTheme
+            | Flow::CloneConnector => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel

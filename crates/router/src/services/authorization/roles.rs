@@ -116,6 +116,10 @@ impl RoleInfo {
         acl
     }
 
+    pub fn from_predefined_roles(role_id: &str) -> Option<Self> {
+        predefined_roles::PREDEFINED_ROLES.get(role_id).cloned()
+    }
+
     pub async fn from_role_id_in_lineage(
         state: &SessionState,
         role_id: &str,

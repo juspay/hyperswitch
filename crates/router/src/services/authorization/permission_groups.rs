@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Not};
 
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use strum::IntoEnumIterator;
@@ -33,7 +33,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::OrganizationManage
             | Self::AccountManage
             | Self::ReconOpsManage
-            | Self::ReconReportsManage => PermissionScope::Write,
+            | Self::ReconReportsManage
+            | Self::InternalManage => PermissionScope::Write,
         }
     }
 
@@ -51,6 +52,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage => ParentGroup::Account,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
+            Self::InternalManage => ParentGroup::Internal,
         }
     }
 
@@ -99,6 +101,8 @@ impl PermissionGroupExt for PermissionGroup {
 
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
+
+            Self::InternalManage => vec![Self::InternalManage],
         }
     }
 }
@@ -108,7 +112,7 @@ pub trait ParentGroupExt {
     fn get_descriptions_for_groups(
         entity_type: EntityType,
         groups: Vec<PermissionGroup>,
-    ) -> HashMap<ParentGroup, String>;
+    ) -> Option<HashMap<ParentGroup, String>>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -122,14 +126,15 @@ impl ParentGroupExt for ParentGroup {
             Self::Account => ACCOUNT.to_vec(),
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
+            Self::Internal => INTERNAL.to_vec(),
         }
     }
 
     fn get_descriptions_for_groups(
         entity_type: EntityType,
         groups: Vec<PermissionGroup>,
-    ) -> HashMap<Self, String> {
-        Self::iter()
+    ) -> Option<HashMap<Self, String>> {
+        let descriptions_map = Self::iter()
             .filter_map(|parent| {
                 let scopes = groups
                     .iter()
@@ -142,7 +147,7 @@ impl ParentGroupExt for ParentGroup {
                     .iter()
                     .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
                     .map(|res| permissions::get_resource_name(*res, entity_type))
-                    .collect::<Vec<_>>()
+                    .collect::<Option<Vec<_>>>()?
                     .join(", ");
 
                 Some((
@@ -150,7 +155,12 @@ impl ParentGroupExt for ParentGroup {
                     format!("{} {}", permissions::get_scope_name(scopes), resources),
                 ))
             })
-            .collect()
+            .collect::<HashMap<_, _>>();
+
+        descriptions_map
+            .is_empty()
+            .not()
+            .then_some(descriptions_map)
     }
 }
 
@@ -191,6 +201,8 @@ pub static RECON_OPS: [Resource; 8] = [
     Resource::ReconReports,
     Resource::Account,
 ];
+
+pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 
 pub static RECON_REPORTS: [Resource; 4] = [
     Resource::ReconToken,

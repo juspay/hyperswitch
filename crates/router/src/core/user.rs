@@ -7,8 +7,8 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::{EntityType, UserAuthType};
-use common_utils::{type_name, types::keymanager::Identifier};
+use common_enums::{connector_enums, EntityType, UserAuthType};
+use common_utils::{fp_utils, type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -1362,6 +1362,15 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
+    let role_info = roles::RoleInfo::from_predefined_roles(request.role_id.as_str())
+        .ok_or(UserErrors::InvalidRoleId)?;
+
+    fp_utils::when(
+        role_info.is_internal().not()
+            || request.role_id == common_utils::consts::ROLE_ID_INTERNAL_ADMIN,
+        || Err(UserErrors::InvalidRoleId),
+    )?;
+
     let key_manager_state = &(&state).into();
     let key_store = state
         .store
@@ -1427,10 +1436,7 @@ pub async fn create_internal_user(
         .map(domain::user::UserFromStorage::from)?;
 
     new_user
-        .get_no_level_user_role(
-            common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
-            UserStatus::Active,
-        )
+        .get_no_level_user_role(role_info.get_role_id().to_string(), UserStatus::Active)
         .add_entity(domain::MerchantLevel {
             tenant_id: default_tenant_id,
             org_id: internal_merchant.organization_id,
@@ -3559,4 +3565,109 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     };
 
     auth::cookies::set_cookie_response(response, token)
+}
+
+#[cfg(feature = "v1")]
+pub async fn clone_connector(
+    state: SessionState,
+    request: user_api::CloneConnectorRequest,
+) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
+    let whitelist = &state.conf.clone_connector_whitelist;
+
+    fp_utils::when(
+        whitelist
+            .merchant_ids
+            .contains(&request.source.merchant_id)
+            .not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed from this merchant".to_string(),
+            ))
+        },
+    )?;
+
+    let key_manager_state = &(&state).into();
+
+    let source_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &request.source.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to retrieve source merchant key store")?;
+
+    let source_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            &request.source.merchant_id,
+            &request.source.mca_id,
+            &source_key_store,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to retrieve source merchant connector account")?;
+
+    let source_mca_name = source_mca
+        .connector_name
+        .parse::<connector_enums::Connector>()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    fp_utils::when(
+        whitelist.connector_names.contains(&source_mca_name).not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed for this connector".to_string(),
+            ))
+        },
+    )?;
+
+    let merchant_connector_create = utils::user::build_cloned_connector_create_request(
+        source_mca,
+        Some(request.destination.profile_id.clone()),
+        request.destination.connector_label,
+    )
+    .await?;
+
+    let destination_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &request.destination.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let destination_merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            &request.destination.merchant_id,
+            &destination_key_store,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let destination_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        destination_merchant_account,
+        destination_key_store,
+    )));
+
+    admin::create_connector(
+        state,
+        merchant_connector_create,
+        destination_context,
+        Some(request.destination.profile_id),
+    )
+    .await
+    .map_err(|e| {
+        let message = e.current_context().error_message();
+        e.change_context(UserErrors::ErrorCloningConnector(message))
+    })
+    .attach_printable("Failed to create cloned connector")
 }
