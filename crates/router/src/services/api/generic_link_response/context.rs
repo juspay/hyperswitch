@@ -11,13 +11,13 @@ fn get_language(locale_str: &str) -> String {
     }
 
     let parts = primary_locale.split('-').collect::<Vec<&str>>();
-    match (
-        parts.get(0).map_or(DEFAULT_LOCALE, |lang| lang.as_str()),
-        parts.get(1).map(|lang| lang.as_str()),
-    ) {
+    let language = *parts.first().unwrap_or(&DEFAULT_LOCALE);
+    let country = parts.get(1).copied();
+    
+    match (language, country) {
         ("en", Some("gb")) => "en_gb".to_string(),
         ("fr", Some("be")) => "fr_be".to_string(),
-        (language, _) => language.to_string(),
+        (lang, _) => lang.to_string(),
     }
 }
 
