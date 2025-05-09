@@ -1,7 +1,29 @@
+use common_utils::consts::DEFAULT_LOCALE;
 use rust_i18n::t;
 use tera::Context;
 
+fn get_language(locale_str: &str) -> String {
+    let lowercase_str = locale_str.to_lowercase();
+    let primary_locale = lowercase_str.split(',').next().unwrap_or("").trim();
+
+    if primary_locale.is_empty() {
+        return DEFAULT_LOCALE.to_string();
+    }
+
+    let parts = primary_locale.split('-').collect::<Vec<&str>>();
+    match (
+        parts.get(0).map_or(DEFAULT_LOCALE, |lang| lang.as_str()),
+        parts.get(1).map(|lang| lang.as_str()),
+    ) {
+        ("en", Some("gb")) => "en_gb".to_string(),
+        ("fr", Some("be")) => "fr_be".to_string(),
+        (language, _) => language.to_string(),
+    }
+}
+
 pub fn insert_locales_in_context_for_payout_link(context: &mut Context, locale: &str) {
+    let language = get_language(locale);
+    let locale = language.as_str();
     let i18n_payout_link_title = t!("payout_link.initiate.title", locale = locale);
     let i18n_january = t!("months.january", locale = locale);
     let i18n_february = t!("months.february", locale = locale);
@@ -38,6 +60,8 @@ pub fn insert_locales_in_context_for_payout_link(context: &mut Context, locale: 
 }
 
 pub fn insert_locales_in_context_for_payout_link_status(context: &mut Context, locale: &str) {
+    let language = get_language(locale);
+    let locale = language.as_str();
     let i18n_payout_link_status_title = t!("payout_link.status.title", locale = locale);
     let i18n_success_text = t!("payout_link.status.text.success", locale = locale);
     let i18n_success_message = t!("payout_link.status.message.success", locale = locale);

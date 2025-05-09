@@ -619,8 +619,25 @@ const locales = {
     },
   };
 
-  function getTranslations(locale_str) {
-    var fallback_locale = 'en';
-    var locale = locale_str.toLowerCase().replace(/-/g, "_") || fallback_locale; // defaults if locale is not present in payment details.
-    return locales[locale] || locales['en']; // defaults if locale is not implemented in locales.
+function getLanguage(localeStr) {
+  var fallback_locale = 'en';
+  var primaryLocale = (localeStr.toLowerCase() || fallback_locale).split(',')[0].trim();
+  
+  // Split into language and country parts
+  var parts = primaryLocale.split('-');
+  var language = parts[0];
+  var country = parts.length > 1 ? parts[1] : null;
+
+  var key = `${language}_${country}`;
+  switch (key) {
+    case 'en_gb': return 'en_gb';
+    case 'fr_be': return 'fr_be';
+    default: return language;
   }
+}
+
+function getTranslations(localeStr) {
+  var fallback_locale = 'en';
+  var language = getLanguage(localeStr);
+  return locales[language] || locales[fallback_locale];
+}
