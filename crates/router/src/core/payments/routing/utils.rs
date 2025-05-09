@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
+use async_trait::async_trait;
+use common_utils::id_type;
+use diesel_models::enums;
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
 use serde::{Deserialize, Serialize};
-use async_trait::async_trait;
-use diesel_models::enums;
-use common_utils::id_type;
 
 use super::RoutingResult;
 use crate::{
@@ -222,7 +222,7 @@ pub async fn list_de_euclid_routing_algorithms(
 ) -> RoutingResult<Vec<diesel_models::routing_algorithm::RoutingProfileMetadata>> {
     logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
     let created_by = routing_list_request.created_by;
-    let response : Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_euclid_request(
+    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_euclid_request(
         state,
         services::Method::Post,
         format!("routing/list/{created_by}").as_str(),
@@ -231,9 +231,10 @@ pub async fn list_de_euclid_routing_algorithms(
     )
     .await?;
 
-    Ok(response.into_iter()
-        .map(|record| {
-            diesel_models::routing_algorithm::RoutingProfileMetadata {
+    Ok(response
+        .into_iter()
+        .map(
+            |record| diesel_models::routing_algorithm::RoutingProfileMetadata {
                 profile_id: record.created_by,
                 algorithm_id: record.id,
                 name: record.name,
@@ -242,8 +243,8 @@ pub async fn list_de_euclid_routing_algorithms(
                 created_at: record.created_at,
                 modified_at: record.modified_at,
                 algorithm_for: enums::TransactionType::default(),
-            }
-        })
+            },
+        )
         .collect::<Vec<_>>()
         .into())
 }

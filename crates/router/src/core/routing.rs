@@ -155,8 +155,10 @@ pub async fn retrieve_merchant_routing_dictionary(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-    let routing_metadata =
-        super::utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), routing_metadata);
+    let routing_metadata = super::utils::filter_objects_based_on_profile_id_list(
+        profile_id_list.clone(),
+        routing_metadata,
+    );
 
     let result = routing_metadata
         .into_iter()
