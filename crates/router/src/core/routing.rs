@@ -155,8 +155,10 @@ pub async fn retrieve_merchant_routing_dictionary(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-    let routing_metadata =
-        super::utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), routing_metadata);
+    let routing_metadata = super::utils::filter_objects_based_on_profile_id_list(
+        profile_id_list.clone(),
+        routing_metadata,
+    );
 
     let result = routing_metadata
         .into_iter()
@@ -165,28 +167,20 @@ pub async fn retrieve_merchant_routing_dictionary(
 
     if let Some(profile_ids) = profile_id_list {
         let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+        // DE_TODO: need to replace this with batch API call to reduce the number of network calls
         for profile_id in profile_ids {
-            list_de_euclid_routing_algorithms(
-                &state,
-                ListRountingAlgorithmsRequest {
-                    created_by: profile_id.get_string_repr().to_string(),
-                },
-            )
-            .await
-            .map_err(|e| {
-                router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-            })
-            .map(|de_routing| {
-                de_routing
-                    .into_iter()
-                    .map(ForeignInto::foreign_into)
-                    .collect::<Vec<_>>()
-            })
-            .ok()
-            .map(|mut de_routing| de_result.append(&mut de_routing));
+            let list_request = ListRountingAlgorithmsRequest {
+                created_by: profile_id.get_string_repr().to_string(),
+            };
+            list_de_euclid_routing_algorithms(&state, list_request)
+                .await
+                .map_err(|e| {
+                    router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+                })
+                .ok() // Avoid throwing error if Decision Engine is not available or other errors
+                .map(|mut de_routing| de_result.append(&mut de_routing));
         }
-
-        router_env::logger::debug!(de_list_response=?de_result, list_response=?result, "decision_engine_euclid");
+        compare_and_log_result(de_result, result.clone(), "list_routing".to_string());
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
@@ -347,8 +341,13 @@ pub async fn create_routing_algorithm_under_profile(
         let internal_program: Program = program.into();
         let routing_rule = RoutingRule {
             name: name.clone(),
+            description: Some(description.clone()),
             created_by: profile_id.get_string_repr().to_string(),
             algorithm: internal_program,
+            metadata: Some(RoutingMetadata {
+                kind: algorithm.get_kind().foreign_into(),
+                algorithm_for: transaction_type.to_owned(),
+            }),
         };
 
         decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)

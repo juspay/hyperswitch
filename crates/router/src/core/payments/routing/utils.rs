@@ -1,17 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
+use api_models::routing as api_routing;
+use async_trait::async_trait;
+use common_utils::id_type;
+use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
 use serde::{Deserialize, Serialize};
-use async_trait::async_trait;
-use diesel_models::enums;
-use common_utils::id_type;
 
 use super::RoutingResult;
 use crate::{
     core::errors,
     routes::SessionState,
     services::{self, logger},
+    types::transformers::ForeignInto,
 };
 
 // New Trait for handling Euclid API calls
@@ -219,10 +221,10 @@ pub async fn link_de_euclid_routing_algorithm(
 pub async fn list_de_euclid_routing_algorithms(
     state: &SessionState,
     routing_list_request: ListRountingAlgorithmsRequest,
-) -> RoutingResult<Vec<diesel_models::routing_algorithm::RoutingProfileMetadata>> {
+) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
     logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
     let created_by = routing_list_request.created_by;
-    let response : Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_euclid_request(
+    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_euclid_request(
         state,
         services::Method::Post,
         format!("routing/list/{created_by}").as_str(),
@@ -231,21 +233,55 @@ pub async fn list_de_euclid_routing_algorithms(
     )
     .await?;
 
-    Ok(response.into_iter()
-        .map(|record| {
-            diesel_models::routing_algorithm::RoutingProfileMetadata {
-                profile_id: record.created_by,
-                algorithm_id: record.id,
-                name: record.name,
-                description: record.description,
-                kind: enums::RoutingAlgorithmKind::Advanced,
-                created_at: record.created_at,
-                modified_at: record.modified_at,
-                algorithm_for: enums::TransactionType::default(),
-            }
+    Ok(response
+        .into_iter()
+        .map(routing_algorithm::RoutingProfileMetadata::from)
+        .map(ForeignInto::foreign_into)
+        .collect::<Vec<_>>())
+}
+
+pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
+    de_result: Vec<T>,
+    result: Vec<T>,
+    flow: String,
+) {
+    let is_equal = de_result.len() == result.len()
+        && de_result
+            .iter()
+            .zip(result.iter())
+            .all(|(a, b)| T::is_equal(a, b));
+
+    if is_equal {
+        router_env::logger::info!(routing_flow=?flow, is_equal=?is_equal, "decision_engine_euclid");
+    } else {
+        router_env::logger::debug!(routing_flow=?flow, is_equal=?is_equal, de_response=?to_json_string(&de_result), hs_response=?to_json_string(&result), "decision_engine_euclid");
+    }
+}
+
+pub trait RoutingEq<T> {
+    fn is_equal(a: &T, b: &T) -> bool;
+}
+
+impl RoutingEq<api_routing::RoutingDictionaryRecord> for api_routing::RoutingDictionaryRecord {
+    fn is_equal(
+        a: &api_routing::RoutingDictionaryRecord,
+        b: &api_routing::RoutingDictionaryRecord,
+    ) -> bool {
+        a.name == b.name
+            && a.profile_id == b.profile_id
+            && a.description == b.description
+            && a.kind == b.kind
+            && a.algorithm_for == b.algorithm_for
+    }
+}
+
+pub fn to_json_string<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value)
+        .map_err(|_| errors::RoutingError::GenericConversionError {
+            from: "T".to_string(),
+            to: "JsonValue".to_string(),
         })
-        .collect::<Vec<_>>()
-        .into())
+        .unwrap_or_default()
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -562,8 +598,17 @@ pub struct Program {
 #[serde(rename_all = "snake_case")]
 pub struct RoutingRule {
     pub name: String,
+    pub description: Option<String>,
+    pub metadata: Option<RoutingMetadata>,
     pub created_by: String,
     pub algorithm: Program,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RoutingMetadata {
+    pub kind: enums::RoutingAlgorithmKind,
+    pub algorithm_for: enums::TransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -583,10 +628,32 @@ pub struct RoutingAlgorithmRecord {
     pub description: Option<String>,
     pub created_by: id_type::ProfileId,
     pub algorithm_data: Program,
+    pub metadata: Option<RoutingMetadata>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
 
+impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata {
+    fn from(record: RoutingAlgorithmRecord) -> Self {
+        let (kind, algorithm_for) = match record.metadata {
+            Some(metadata) => (metadata.kind, metadata.algorithm_for),
+            None => (
+                enums::RoutingAlgorithmKind::Advanced,
+                enums::TransactionType::default(),
+            ),
+        };
+        Self {
+            profile_id: record.created_by,
+            algorithm_id: record.id,
+            name: record.name,
+            description: record.description,
+            kind,
+            created_at: record.created_at,
+            modified_at: record.modified_at,
+            algorithm_for,
+        }
+    }
+}
 use api_models::routing::{ConnectorSelection, RoutableConnectorChoice};
 impl From<ast::Program<ConnectorSelection>> for Program {
     fn from(p: ast::Program<ConnectorSelection>) -> Self {
