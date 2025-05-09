@@ -2,25 +2,30 @@ use std::str::FromStr;
 
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use base64::Engine;
-use common_utils::date_time;
+use common_enums::enums;
+use common_utils::{consts::BASE64_ENGINE, date_time, ext_traits::OptionExt as _};
 use error_stack::ResultExt;
-use hyperswitch_connectors::utils::AddressDetailsData;
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, ErrorResponse},
+    router_flow_types::authentication::{Authentication, PreAuthentication},
+    router_request_types::{
+        authentication::{
+            AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData, MessageCategory,
+            PreAuthNRequestData,
+        },
+        BrowserInformation,
+    },
+    router_response_types::AuthenticationResponseData,
+};
+use hyperswitch_interfaces::{api::CurrencyUnit, consts::NO_ERROR_MESSAGE, errors};
 use iso_currency::Currency;
-use isocountry;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
 use crate::{
-    connector::utils::{get_card_details, to_connector_meta, CardData},
-    consts::{BASE64_ENGINE, NO_ERROR_MESSAGE},
-    core::errors,
-    types::{
-        self,
-        api::{self, MessageCategory},
-        authentication::ChallengeParams,
-    },
-    utils::OptionExt,
+    types::{ConnectorAuthenticationRouterData, PreAuthNRouterData, ResponseRouterData},
+    utils::{get_card_details, to_connector_meta, AddressDetailsData, CardData as _},
 };
 
 pub struct ThreedsecureioRouterData<T> {
@@ -28,17 +33,10 @@ pub struct ThreedsecureioRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for ThreedsecureioRouterData<T>
-{
+impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
+        (_currency_unit, _currency, amount, item): (&CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: amount.to_string(),
@@ -59,21 +57,21 @@ impl<T> TryFrom<(i64, T)> for ThreedsecureioRouterData<T> {
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::PreAuthentication,
+        ResponseRouterData<
+            PreAuthentication,
             ThreedsecureioPreAuthenticationResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::PreAuthNRouterData
+    > for PreAuthNRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::PreAuthentication,
+        item: ResponseRouterData<
+            PreAuthentication,
             ThreedsecureioPreAuthenticationResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
@@ -91,30 +89,27 @@ impl
                     acs_start_protocol_version: pre_authn_response.acs_start_protocol_version,
                     acs_end_protocol_version: pre_authn_response.acs_end_protocol_version.clone(),
                 });
-                Ok(
-                    types::authentication::AuthenticationResponseData::PreAuthNResponse {
-                        threeds_server_transaction_id: pre_authn_response
-                            .threeds_server_trans_id
-                            .clone(),
-                        maximum_supported_3ds_version:
-                            common_utils::types::SemanticVersion::from_str(
-                                &pre_authn_response.acs_end_protocol_version,
-                            )
-                            .change_context(errors::ConnectorError::ParsingFailed)?,
-                        connector_authentication_id: pre_authn_response.threeds_server_trans_id,
-                        three_ds_method_data: Some(three_ds_method_data_base64),
-                        three_ds_method_url: pre_authn_response.threeds_method_url,
-                        message_version: common_utils::types::SemanticVersion::from_str(
-                            &pre_authn_response.acs_end_protocol_version,
-                        )
-                        .change_context(errors::ConnectorError::ParsingFailed)?,
-                        connector_metadata: Some(connector_metadata),
-                        directory_server_id: None,
-                    },
-                )
+                Ok(AuthenticationResponseData::PreAuthNResponse {
+                    threeds_server_transaction_id: pre_authn_response
+                        .threeds_server_trans_id
+                        .clone(),
+                    maximum_supported_3ds_version: common_utils::types::SemanticVersion::from_str(
+                        &pre_authn_response.acs_end_protocol_version,
+                    )
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+                    connector_authentication_id: pre_authn_response.threeds_server_trans_id,
+                    three_ds_method_data: Some(three_ds_method_data_base64),
+                    three_ds_method_url: pre_authn_response.threeds_method_url,
+                    message_version: common_utils::types::SemanticVersion::from_str(
+                        &pre_authn_response.acs_end_protocol_version,
+                    )
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+                    connector_metadata: Some(connector_metadata),
+                    directory_server_id: None,
+                })
             }
             ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
-                Err(types::ErrorResponse {
+                Err(ErrorResponse {
                     code: error_response.error_code,
                     message: error_response
                         .error_description
@@ -139,21 +134,21 @@ impl
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::Authentication,
+        ResponseRouterData<
+            Authentication,
             ThreedsecureioAuthenticationResponse,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
+            ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::ConnectorAuthenticationRouterData
+    > for ConnectorAuthenticationRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::Authentication,
+        item: ResponseRouterData<
+            Authentication,
             ThreedsecureioAuthenticationResponse,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
+            ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
@@ -171,61 +166,51 @@ impl
                 let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
                     .trim_end_matches('=')
                     .to_owned();
-                Ok(
-                    types::authentication::AuthenticationResponseData::AuthNResponse {
-                        trans_status: response.trans_status.clone().into(),
-                        authn_flow_type: if response.trans_status == ThreedsecureioTransStatus::C {
-                            types::authentication::AuthNFlowType::Challenge(Box::new(
-                                ChallengeParams {
-                                    acs_url: response.acs_url,
-                                    challenge_request: Some(creq_base64),
-                                    acs_reference_number: Some(
-                                        response.acs_reference_number.clone(),
-                                    ),
-                                    acs_trans_id: Some(response.acs_trans_id.clone()),
-                                    three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
-                                    acs_signed_content: response.acs_signed_content,
-                                },
-                            ))
-                        } else {
-                            types::authentication::AuthNFlowType::Frictionless
-                        },
-                        authentication_value: response.authentication_value,
-                        connector_metadata: None,
-                        ds_trans_id: Some(response.ds_trans_id),
+                Ok(AuthenticationResponseData::AuthNResponse {
+                    trans_status: response.trans_status.clone().into(),
+                    authn_flow_type: if response.trans_status == ThreedsecureioTransStatus::C {
+                        AuthNFlowType::Challenge(Box::new(ChallengeParams {
+                            acs_url: response.acs_url,
+                            challenge_request: Some(creq_base64),
+                            acs_reference_number: Some(response.acs_reference_number.clone()),
+                            acs_trans_id: Some(response.acs_trans_id.clone()),
+                            three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
+                            acs_signed_content: response.acs_signed_content,
+                        }))
+                    } else {
+                        AuthNFlowType::Frictionless
                     },
-                )
+                    authentication_value: response.authentication_value,
+                    connector_metadata: None,
+                    ds_trans_id: Some(response.ds_trans_id),
+                })
             }
             ThreedsecureioAuthenticationResponse::Error(err_response) => match *err_response {
-                ThreedsecureioErrorResponseWrapper::ErrorResponse(resp) => {
-                    Err(types::ErrorResponse {
-                        code: resp.error_code,
-                        message: resp
-                            .error_description
-                            .clone()
-                            .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
-                        reason: resp.error_description,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                    })
-                }
-                ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
-                    Err(types::ErrorResponse {
-                        code: error.clone(),
-                        message: error.clone(),
-                        reason: Some(error),
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                    })
-                }
+                ThreedsecureioErrorResponseWrapper::ErrorResponse(resp) => Err(ErrorResponse {
+                    code: resp.error_code,
+                    message: resp
+                        .error_description
+                        .clone()
+                        .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                    reason: resp.error_description,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ThreedsecureioErrorResponseWrapper::ErrorString(error) => Err(ErrorResponse {
+                    code: error.clone(),
+                    message: error.clone(),
+                    reason: Some(error),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
             },
         };
         Ok(Self {
@@ -239,11 +224,11 @@ pub struct ThreedsecureioAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
+impl TryFrom<&ConnectorAuthType> for ThreedsecureioAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -251,17 +236,17 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
     }
 }
 
-impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
+impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
     for ThreedsecureioAuthenticationRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
+        item: &ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         //browser_details are mandatory for Browser flows
         let browser_details = match request.browser_details.clone() {
-            Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
+            Some(details) => Ok::<Option<BrowserInformation>, Self::Error>(Some(details)),
             None => {
                 if request.device_channel == DeviceChannel::Browser {
                     Err(errors::ConnectorError::MissingRequiredField {
@@ -693,13 +678,13 @@ pub struct ThreedsecureioPreAuthenticationResponseData {
     pub message_type: Option<String>,
 }
 
-impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterData>>
+impl TryFrom<&ThreedsecureioRouterData<&PreAuthNRouterData>>
     for ThreedsecureioPreAuthenticationRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        value: &ThreedsecureioRouterData<&types::authentication::PreAuthNRouterData>,
+        value: &ThreedsecureioRouterData<&PreAuthNRouterData>,
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         Ok(Self {
