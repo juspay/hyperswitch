@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Define the URL and parameters
 WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/docker"
-VERSION="unknown"
+VERSION="unknown-pre-start"
 STATUS="initiated"
 
 # Send the GET request

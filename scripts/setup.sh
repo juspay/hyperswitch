@@ -210,7 +210,6 @@ check_services_health() {
     
     while [ $RETRIES -lt $MAX_RETRIES ]; do
         if curl --silent --head --request GET 'http://localhost:8080/health' | grep "200 OK" > /dev/null; then
-            echo_success "Hyperswitch server is healthy!"
             print_access_info  # Call print_access_info only when the server is healthy
             return
         fi

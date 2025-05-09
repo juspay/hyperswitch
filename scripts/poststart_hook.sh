@@ -14,6 +14,7 @@ echo "Fetching app server health status..."
 HEALTH_RESPONSE=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || HEALTH_RESPONSE="connection_error"
 
 if [[ "${HEALTH_RESPONSE}" == "connection_error" ]]; then
+    VERSION="unknown-post-start"
     STATUS="error"
     ERROR_MESSAGE="404 response"
 
