@@ -1,27 +1,34 @@
-use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
-use api_models::payment_methods::{PaymentMethodMigrationResponse, PaymentMethodRecord};
+use actix_multipart::form::{self, bytes, text};
+use api_models::payment_methods as pm_api;
 use csv::Reader;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{api, merchant_context};
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
-use crate::{
-    core::{errors, payment_methods::cards::migrate_payment_method},
-    routes, services,
-    types::{api, domain},
-};
+use crate::{controller as pm, core::errors, state};
+pub mod payment_methods;
+pub use payment_methods::migrate_payment_method;
 
+type PmMigrationResult<T> =
+    errors::CustomResult<api::ApplicationResponse<T>, errors::ApiErrorResponse>;
+
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn migrate_payment_methods(
-    state: routes::SessionState,
-    payment_methods: Vec<PaymentMethodRecord>,
+    state: &state::PaymentMethodsState,
+    payment_methods: Vec<pm_api::PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: &merchant_context::MerchantContext,
     mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
+    controller: &dyn pm::PaymentMethodsController,
+) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
     for record in payment_methods {
-        let req = api::PaymentMethodMigrate::try_from((
+        let req = pm_api::PaymentMethodMigrate::try_from((
             record.clone(),
             merchant_id.clone(),
             mca_id.clone(),
@@ -30,45 +37,46 @@ pub async fn migrate_payment_methods(
             message: format!("error: {:?}", err),
         })
         .attach_printable("record deserialization failed");
-        match req {
-            Ok(_) => (),
-            Err(e) => {
-                result.push(PaymentMethodMigrationResponse::from((
-                    Err(e.to_string()),
-                    record,
-                )));
-                continue;
+        let res = match req {
+            Ok(migrate_request) => {
+                let res = migrate_payment_method(
+                    state,
+                    migrate_request,
+                    merchant_id,
+                    merchant_context,
+                    controller,
+                )
+                .await;
+                match res {
+                    Ok(api::ApplicationResponse::Json(response)) => Ok(response),
+                    Err(e) => Err(e.to_string()),
+                    _ => Err("Failed to migrate payment method".to_string()),
+                }
             }
+            Err(e) => Err(e.to_string()),
         };
-        let res = migrate_payment_method(state.clone(), req?, merchant_id, merchant_context).await;
-        result.push(PaymentMethodMigrationResponse::from((
-            match res {
-                Ok(services::api::ApplicationResponse::Json(response)) => Ok(response),
-                Err(e) => Err(e.to_string()),
-                _ => Err("Failed to migrate payment method".to_string()),
-            },
-            record,
-        )));
+        result.push(pm_api::PaymentMethodMigrationResponse::from((res, record)));
     }
-    Ok(services::api::ApplicationResponse::Json(result))
+    Ok(api::ApplicationResponse::Json(result))
 }
 
-#[derive(Debug, MultipartForm)]
+#[derive(Debug, form::MultipartForm)]
 pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
-    pub file: Bytes,
+    pub file: bytes::Bytes,
 
-    pub merchant_id: Text<common_utils::id_type::MerchantId>,
+    pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
 
-    pub merchant_connector_id: Text<Option<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub merchant_connector_id:
+        text::Text<Option<common_utils::id_type::MerchantConnectorAccountId>>,
 }
 
-fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
+fn parse_csv(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodRecord>> {
     let mut csv_reader = Reader::from_reader(data);
     let mut records = Vec::new();
     let mut id_counter = 0;
     for result in csv_reader.deserialize() {
-        let mut record: PaymentMethodRecord = result?;
+        let mut record: pm_api::PaymentMethodRecord = result?;
         id_counter += 1;
         record.line_number = Some(id_counter);
         records.push(record);
@@ -80,7 +88,7 @@ pub fn get_payment_method_records(
 ) -> Result<
     (
         common_utils::id_type::MerchantId,
-        Vec<PaymentMethodRecord>,
+        Vec<pm_api::PaymentMethodRecord>,
         Option<common_utils::id_type::MerchantConnectorAccountId>,
     ),
     errors::ApiErrorResponse,

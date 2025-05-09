@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use ::payment_methods::{controller::PaymentMethodsController, core::migration};
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use common_utils::{
     consts,
@@ -15,12 +16,12 @@ use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use router_env::logger;
 
 use super::{
-    migration, CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
+    CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, create_payment_method},
+        cards::{add_card_to_hs_locker, PmCards},
         transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -563,8 +564,14 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
-        create_payment_method(
-            self.state,
+        PmCards {
+            state: self.state,
+            merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ))),
+        }
+        .create_payment_method(
             &payment_method_create,
             customer_id,
             &payment_method_id,
@@ -573,11 +580,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             None,
             Some(enc_pm_data),
-            self.key_store,
             None,
             None,
             None,
-            self.merchant_account.storage_scheme,
             None,
             None,
             network_token_details.1.clone(),

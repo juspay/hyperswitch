@@ -10,6 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret, SwitchStrategy};
+use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -836,8 +837,11 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_from_locker(
+                        cards::PmCards {
                             state,
+                            merchant_context,
+                        }
+                        .delete_card_from_locker(
                             self,
                             merchant_context.get_merchant_account().get_id(),
                             pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
@@ -854,6 +858,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
                             network_token_ref_id,
+                            merchant_context,
                         )
                         .await
                         .switch()?;

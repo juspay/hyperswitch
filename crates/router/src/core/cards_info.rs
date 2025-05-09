@@ -4,6 +4,7 @@ use common_utils::fp_utils::when;
 use csv::Reader;
 use diesel_models::cards_info as card_info_models;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::cards_info;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
@@ -12,7 +13,6 @@ use crate::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
     },
-    db::cards_info::CardsInfoInterface,
     routes,
     services::ApplicationResponse,
     types::{
@@ -62,7 +62,7 @@ pub async fn create_card_info(
     card_info_request: cards_info_api_types::CardInfoCreateRequest,
 ) -> RouterResponse<cards_info_api_types::CardInfoResponse> {
     let db = state.store.as_ref();
-    CardsInfoInterface::add_card_info(db, card_info_request.foreign_into())
+    cards_info::CardsInfoInterface::add_card_info(db, card_info_request.foreign_into())
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "CardInfo with given key already exists in our records".to_string(),
@@ -76,7 +76,7 @@ pub async fn update_card_info(
     card_info_request: cards_info_api_types::CardInfoUpdateRequest,
 ) -> RouterResponse<cards_info_api_types::CardInfoResponse> {
     let db = state.store.as_ref();
-    CardsInfoInterface::update_card_info(
+    cards_info::CardsInfoInterface::update_card_info(
         db,
         card_info_request.card_iin,
         card_info_models::UpdateCardInfo {
@@ -196,17 +196,18 @@ impl<'a> CardInfoMigrateExecutor<'a> {
 
     async fn add_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
-        let card_info = CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
-                message: "CardInfo with given key already exists in our records".to_string(),
-            })?;
+        let card_info =
+            cards_info::CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
+                .await
+                .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+                    message: "CardInfo with given key already exists in our records".to_string(),
+                })?;
         Ok(card_info)
     }
 
     async fn update_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
         let db = self.state.store.as_ref();
-        let card_info = CardsInfoInterface::update_card_info(
+        let card_info = cards_info::CardsInfoInterface::update_card_info(
             db,
             self.record.card_iin.clone(),
             card_info_models::UpdateCardInfo {

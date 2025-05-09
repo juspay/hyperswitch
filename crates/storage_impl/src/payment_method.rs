@@ -1,4 +1,4 @@
-use diesel_models::payment_method::PaymentMethod;
+pub use diesel_models::payment_method::PaymentMethod;
 
 use crate::redis::kv_store::KvStorePartition;
 

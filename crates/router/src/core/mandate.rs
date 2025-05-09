@@ -50,7 +50,7 @@ pub async fn get_mandate(
             &state,
             merchant_context.get_merchant_key_store().clone(),
             mandate,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_merchant_account(),
         )
         .await?,
     ))
@@ -251,7 +251,7 @@ pub async fn get_customer_mandates(
                     &state,
                     merchant_context.get_merchant_key_store().clone(),
                     mandate,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_merchant_account(),
                 )
                 .await?,
             );
@@ -415,7 +415,7 @@ pub async fn retrieve_mandates_list(
             &state,
             merchant_context.get_merchant_key_store().clone(),
             mandate,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_merchant_account(),
         )
     }))
     .await?;
