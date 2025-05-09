@@ -475,19 +475,10 @@ async fn get_tracker_for_sync<
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
 
-        let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
-            state,
-            &authentication.authentication_id,
-            false,
-            merchant_context.get_merchant_key_store().key.get_inner(),
-        )
-        .await
-        .ok(); // marking .ok() as token might be invalidated
-
         Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                 authentication,
-                cavv: tokenized_data.map(|token| token.value1),
+                cavv: None, // marking this as None since we don't need authentication value in payment status flow
             },
         )
     } else {

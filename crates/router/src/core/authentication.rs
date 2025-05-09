@@ -126,8 +126,8 @@ pub async fn perform_post_authentication(
     let authentication_update = if !authentication.authentication_status.is_terminal_status()
         && is_pull_mechanism_enabled
     {
+        // trigger in case of authenticate flow
         let router_data = transformers::construct_post_authentication_router_data(
-            // authenticate
             state,
             authentication_connector.to_string(),
             business_profile,
@@ -140,10 +140,11 @@ pub async fn perform_post_authentication(
                 .await?;
         utils::update_trackers(state, router_data, authentication, None, key_store).await?
     } else {
-        // webhook
+        // trigger in case of webhook flow
         authentication
     };
 
+    // getting authentication value from temp locker before moving ahead with authrisation
     let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
         state,
         &authentication_id,
