@@ -1252,6 +1252,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/update-saved-payment-method")
                         .route(web::put().to(payment_methods::payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/get-token")
+                        .route(web::get().to(payment_methods::get_payment_method_token_data)),
                 ),
         );
 
