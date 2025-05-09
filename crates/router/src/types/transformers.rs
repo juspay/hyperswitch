@@ -1033,7 +1033,7 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
         Self {
             card_iin: item.card_iin,
             card_type: item.card_type,
-            card_sub_type: item.card_subtype,
+            card_subtype: item.card_subtype,
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,

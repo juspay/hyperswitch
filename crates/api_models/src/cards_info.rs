@@ -28,7 +28,7 @@ pub struct CardInfoResponse {
     #[schema(example = "CREDIT")]
     pub card_type: Option<String>,
     #[schema(example = "CLASSIC")]
-    pub card_sub_type: Option<String>,
+    pub card_subtype: Option<String>,
     #[schema(example = "INDIA")]
     pub card_issuing_country: Option<String>,
 }
@@ -39,7 +39,7 @@ pub struct CardInfoMigrateResponseRecord {
     pub card_issuer: Option<String>,
     pub card_network: Option<String>,
     pub card_type: Option<String>,
-    pub card_sub_type: Option<String>,
+    pub card_subtype: Option<String>,
     pub card_issuing_country: Option<String>,
 }
 
@@ -89,7 +89,7 @@ pub struct CardInfoMigrationResponse {
     pub card_issuer: Option<String>,
     pub card_network: Option<String>,
     pub card_type: Option<String>,
-    pub card_sub_type: Option<String>,
+    pub card_subtype: Option<String>,
     pub card_issuing_country: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub migration_error: Option<String>,
@@ -111,7 +111,7 @@ impl From<CardInfoMigrationResponseType> for CardInfoMigrationResponse {
                 card_issuer: res.card_issuer,
                 card_network: res.card_network,
                 card_type: res.card_type,
-                card_sub_type: res.card_sub_type,
+                card_subtype: res.card_subtype,
                 card_issuing_country: res.card_issuing_country,
                 migration_status: CardInfoMigrationStatus::Success,
                 migration_error: None,
