@@ -87,6 +87,7 @@ pub mod volt;
 pub mod wellsfargo;
 pub mod worldline;
 pub mod worldpay;
+pub mod worldpayxml;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
@@ -111,6 +112,6 @@ pub use self::{
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, square::Square,
     stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay,
     tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
-    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
-    zsl::Zsl,
+    wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, worldpayxml::Worldpayxml,
+    xendit::Xendit, zen::Zen, zsl::Zsl,
 };
