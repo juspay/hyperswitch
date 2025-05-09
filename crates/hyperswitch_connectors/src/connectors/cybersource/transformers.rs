@@ -287,6 +287,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | WalletData::PaypalRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -2199,6 +2200,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         | WalletData::WeChatPayQr(_)
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         )
