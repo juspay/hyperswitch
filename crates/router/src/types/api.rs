@@ -57,7 +57,8 @@ pub use hyperswitch_interfaces::{
         },
         fraud_check::FraudCheck,
         revenue_recovery::{
-            BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack,
+            BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+            RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
@@ -400,9 +401,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
-                // enums::Connector::Facilitapay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay)))
-                // }
+                enums::Connector::Facilitapay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
@@ -498,7 +499,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
                 enums::Connector::Recurly => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                    Ok(ConnectorEnum::New(Box::new(connector::Recurly::new())))
                 }
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))

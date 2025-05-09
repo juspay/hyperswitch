@@ -246,7 +246,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
-            // api_enums::Connector::Facilitapay => Self::Facilitapay,
+            api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
@@ -2191,6 +2191,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
+            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
 }
@@ -2225,6 +2226,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_form_header_text: item.payment_form_header_text,
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
+            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
 }

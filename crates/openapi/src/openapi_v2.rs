@@ -148,6 +148,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for refunds
         routes::refunds::refunds_create,
+        routes::refunds::refunds_retrieve,
 
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api
@@ -701,6 +702,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::ErrorDetails,
         api_models::payments::CtpServiceDetails,
+        api_models::payments::AdyenConnectorMetadata,
+        api_models::payments::AdyenTestingData,
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,

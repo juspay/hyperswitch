@@ -1222,66 +1222,6 @@ impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensDa
     }
 }
 
-#[cfg(feature = "payouts")]
-pub trait CustomerDetails {
-    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
-    fn get_customer_name(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
-    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
-    fn get_customer_phone(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
-    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
-}
-
-#[cfg(feature = "payouts")]
-impl CustomerDetails for types::CustomerDetails {
-    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError> {
-        self.customer_id
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
-            })
-    }
-
-    fn get_customer_name(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
-        self.name
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_name",
-            })
-    }
-
-    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
-        self.email
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_email",
-            })
-    }
-
-    fn get_customer_phone(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
-        self.phone
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_phone",
-            })
-    }
-
-    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
-        self.phone_country_code
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_phone_country_code",
-            })
-    }
-}
-
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;

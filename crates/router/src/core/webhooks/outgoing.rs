@@ -51,9 +51,8 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
-    merchant_key_store: &domain::MerchantKeyStore,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
@@ -92,7 +91,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     };
 
     let request_content =
-        get_outgoing_webhook_request(&merchant_account, outgoing_webhook, &business_profile)
+        get_outgoing_webhook_request(&merchant_context, outgoing_webhook, &business_profile)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to construct outgoing webhook request content")?;
 
@@ -122,8 +121,17 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                         .attach_printable("Failed to encode outgoing webhook request content")
                         .map(Secret::new)?,
                 ),
-                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
-                merchant_key_store.key.get_inner().peek(),
+                Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context
+                    .get_merchant_key_store()
+                    .key
+                    .get_inner()
+                    .peek(),
             )
             .await
             .and_then(|val| val.try_into_operation())
@@ -136,25 +144,67 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         is_overall_delivery_successful: Some(false),
     };
 
+    let lock_value = utils::perform_redis_lock(
+        &state,
+        &idempotent_event_id,
+        merchant_context.get_merchant_account().get_id().to_owned(),
+    )
+    .await?;
+
+    if lock_value.is_none() {
+        return Ok(());
+    }
+
+    if (state
+        .store
+        .find_event_by_merchant_id_event_id(
+            key_manager_state,
+            &merchant_id,
+            &event_id,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await)
+        .is_ok()
+    {
+        logger::debug!(
+            "Event with idempotent ID `{idempotent_event_id}` already exists in the database"
+        );
+        utils::free_redis_lock(
+            &state,
+            &idempotent_event_id,
+            merchant_context.get_merchant_account().get_id().to_owned(),
+            lock_value,
+        )
+        .await?;
+        return Ok(());
+    }
+
     let event_insert_result = state
         .store
-        .insert_event(key_manager_state, new_event, merchant_key_store)
+        .insert_event(
+            key_manager_state,
+            new_event,
+            merchant_context.get_merchant_key_store(),
+        )
         .await;
 
     let event = match event_insert_result {
         Ok(event) => Ok(event),
         Err(error) => {
-            if error.current_context().is_db_unique_violation() {
-                logger::debug!("Event with idempotent ID `{idempotent_event_id}` already exists in the database");
-                return Ok(());
-            } else {
-                logger::error!(event_insertion_failure=?error);
-                Err(error
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("Failed to insert event in events table"))
-            }
+            logger::error!(event_insertion_failure=?error);
+            Err(error
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Failed to insert event in events table"))
         }
     }?;
+
+    utils::free_redis_lock(
+        &state,
+        &idempotent_event_id,
+        merchant_context.get_merchant_account().get_id().to_owned(),
+        lock_value,
+    )
+    .await?;
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
         &*state.store,
@@ -170,7 +220,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     })
     .ok();
 
-    let cloned_key_store = merchant_key_store.clone();
+    let cloned_key_store = merchant_context.get_merchant_key_store().clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
@@ -606,7 +656,7 @@ fn get_webhook_url_from_business_profile(
 }
 
 pub(crate) fn get_outgoing_webhook_request(
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     outgoing_webhook: api::OutgoingWebhook,
     business_profile: &domain::Profile,
 ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
@@ -662,7 +712,10 @@ pub(crate) fn get_outgoing_webhook_request(
         })
     }
 
-    match merchant_account.get_compatible_connector() {
+    match merchant_context
+        .get_merchant_account()
+        .get_compatible_connector()
+    {
         #[cfg(feature = "stripe")]
         Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
             stripe_webhooks::StripeOutgoingWebhook,
