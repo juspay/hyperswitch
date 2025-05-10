@@ -47,6 +47,7 @@ where
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payment_failed_response()?;
@@ -120,6 +121,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     })
 }
 

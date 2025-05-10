@@ -239,6 +239,7 @@ where
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
     } else {
