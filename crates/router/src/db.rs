@@ -35,6 +35,7 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod tokenization;
 pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
@@ -139,6 +140,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + tokenization::TokenizationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
