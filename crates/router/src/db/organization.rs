@@ -119,12 +119,14 @@ impl OrganizationInterface for super::MockDb {
                     organization_name,
                     organization_details,
                     metadata,
+                    platform_merchant_id,
                 } => {
                     organization_name
                         .as_ref()
                         .map(|org_name| org.set_organization_name(org_name.to_owned()));
                     organization_details.clone_into(&mut org.organization_details);
                     metadata.clone_into(&mut org.metadata);
+                    platform_merchant_id.clone_into(&mut org.platform_merchant_id);
                     org
                 }
             })
