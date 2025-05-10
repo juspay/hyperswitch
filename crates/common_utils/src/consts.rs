@@ -176,3 +176,9 @@ pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
 
 /// SOAP 1.1 Envelope Namespace
 pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
+
+/// The tag name used for identifying the host in metrics.
+pub const METRICS_HOST_TAG_NAME: &str = "host";
+
+/// API client request timeout (in seconds)
+pub const REQUEST_TIME_OUT: u64 = 30;

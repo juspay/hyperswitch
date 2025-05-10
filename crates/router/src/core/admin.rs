@@ -14,6 +14,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
+use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -38,7 +39,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::{
         self,
-        api::{self as service_api, client},
+        api::{self as service_api},
         authentication, pm_auth as payment_initiation_service,
     },
     types::{

@@ -17,7 +17,16 @@ pub mod no_encryption;
 /// Building grpc clients to communicate with the server
 pub mod grpc_client;
 
+/// http_client module
+pub mod http_client;
+
+/// hubspot_proxy module
+pub mod hubspot_proxy;
+
 pub mod managers;
+
+/// crm module
+pub mod crm;
 
 /// Crate specific constants
 #[cfg(feature = "aws_kms")]

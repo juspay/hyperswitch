@@ -23,3 +23,6 @@ pub mod metrics;
 pub mod secrets_interface;
 pub mod types;
 pub mod webhooks;
+
+/// Crm interface
+pub mod crm;

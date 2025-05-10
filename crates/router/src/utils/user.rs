@@ -390,3 +390,11 @@ pub async fn set_lineage_context_in_cache(
 
     Ok(())
 }
+
+pub fn get_base_url(state: &SessionState) -> &str {
+    if !state.conf.multitenancy.enabled {
+        &state.conf.user.base_url
+    } else {
+        &state.tenant.user.control_center_url
+    }
+}
