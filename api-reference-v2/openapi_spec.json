@@ -16736,6 +16736,11 @@
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },
@@ -18083,6 +18088,11 @@
           "param": {
             "type": "string",
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }

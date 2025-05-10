@@ -18839,6 +18839,11 @@
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },
@@ -19339,6 +19344,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },
@@ -19750,6 +19760,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -20328,6 +20343,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "whole_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
             "nullable": true
           }
         }
@@ -21031,6 +21051,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21635,6 +21660,11 @@
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
+          },
+          "whole_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
+            "nullable": true
           }
         }
       },
@@ -21689,6 +21719,11 @@
           "expand_attempts": {
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -22174,6 +22209,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
