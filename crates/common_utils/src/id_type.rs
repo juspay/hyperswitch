@@ -3,6 +3,7 @@
 
 mod api_key;
 mod client_secret;
+mod co_badged_cards_info;
 mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
@@ -39,6 +40,7 @@ pub use self::global_id::{
 pub use self::{
     api_key::ApiKeyId,
     client_secret::ClientSecretId,
+    co_badged_cards_info::CoBadgedCardsInfoID,
     customer::CustomerId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
