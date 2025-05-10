@@ -6026,6 +6026,28 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_finland"
+            ],
+            "properties": {
+              "instant_bank_transfer_finland": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_poland"
+            ],
+            "properties": {
+              "instant_bank_transfer_poland": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6346,6 +6368,28 @@
             ],
             "properties": {
               "instant_bank_transfer": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_finland"
+            ],
+            "properties": {
+              "instant_bank_transfer_finland": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_poland"
+            ],
+            "properties": {
+              "instant_bank_transfer_poland": {
                 "type": "object"
               }
             }
@@ -16562,7 +16606,9 @@
           "mifinity",
           "open_banking_pis",
           "direct_carrier_billing",
-          "instant_bank_transfer"
+          "instant_bank_transfer",
+          "instant_bank_transfer_finland",
+          "instant_bank_transfer_poland"
         ]
       },
       "PaymentMethodUpdate": {

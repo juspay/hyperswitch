@@ -2795,6 +2795,8 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2947,6 +2949,12 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     }
                     domain::payments::BankTransferData::InstantBankTransfer {} => {
                         Self::InstantBankTransfer
+                    }
+                    domain::payments::BankTransferData::InstantBankTransferFinland {} => {
+                        Self::InstantBankTransferFinland
+                    }
+                    domain::payments::BankTransferData::InstantBankTransferPoland {} => {
+                        Self::InstantBankTransferPoland
                     }
                 }
             }
