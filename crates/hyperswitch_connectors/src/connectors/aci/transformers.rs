@@ -20,7 +20,7 @@ use url::Url;
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PhoneDetailsData, RouterData as _},
+    utils::{self, PhoneDetailsData, RouterData as _, PaymentsAuthorizeRequestData},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
