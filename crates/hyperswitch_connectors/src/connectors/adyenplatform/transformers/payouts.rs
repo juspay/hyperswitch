@@ -1,18 +1,19 @@
+use api_models::payouts;
 #[cfg(feature = "payouts")]
 use api_models::webhooks;
+use common_enums::enums;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::types;
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::{AdyenPlatformRouterData, Error};
 use crate::{
-    connector::{
-        adyen::transformers as adyen,
-        utils::{self, PayoutsData, RouterData},
-    },
-    core::errors,
-    types::{self, api::payouts, storage::enums, transformers::ForeignFrom},
+    connectors::adyen::transformers as adyen,
+    types::PayoutsResponseRouterData,
+    utils::{self, PayoutsData as _, RouterData as _},
 };
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -24,9 +25,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for AdyenPlatformConnectorMetadataO
     type Error = Error;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         Ok(metadata)
     }
 }
@@ -182,28 +181,28 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
         let request = item.router_data.request.to_owned();
         match item.router_data.get_payout_method_data()? {
             payouts::PayoutMethodData::Card(_) | payouts::PayoutMethodData::Wallet(_) => {
-                Err(errors::ConnectorError::NotImplemented(
+                Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
                 ))?
             }
 
             payouts::PayoutMethodData::Bank(bd) => {
                 let bank_details = match bd {
-                    payouts::BankPayout::Sepa(b) => AdyenBankAccountIdentification {
+                    payouts::Bank::Sepa(b) => AdyenBankAccountIdentification {
                         bank_type: "iban".to_string(),
                         account_details: AdyenBankAccountIdentificationDetails::Sepa(SepaDetails {
                             iban: b.iban,
                         }),
                     },
-                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::Bank::Ach(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
-                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::Bank::Bacs(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
-                    payouts::BankPayout::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::Bank::Pix(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
@@ -234,15 +233,14 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
                     )?;
                 let balance_account_id = adyen_connector_metadata_object
                     .source_balance_account
-                    .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                    .ok_or(ConnectorError::InvalidConnectorConfig {
                         config: "metadata.source_balance_account",
                     })?;
-                let priority =
-                    request
-                        .priority
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "priority",
-                        })?;
+                let priority = request
+                    .priority
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "priority",
+                    })?;
                 let payout_type = request.get_payout_type()?;
                 Ok(Self {
                     amount: adyen::Amount {
@@ -262,12 +260,12 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
     }
 }
 
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenTransferResponse>>
+impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>>
     for types::PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, AdyenTransferResponse>,
+        item: PayoutsResponseRouterData<F, AdyenTransferResponse>,
     ) -> Result<Self, Self::Error> {
         let response: AdyenTransferResponse = item.response;
         let status = enums::PayoutStatus::from(response.status);
@@ -335,7 +333,7 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
         match payout_type {
             enums::PayoutType::Bank => Ok(Self::Bank),
             enums::PayoutType::Card | enums::PayoutType::Wallet => {
-                Err(report!(errors::ConnectorError::NotSupported {
+                Err(report!(ConnectorError::NotSupported {
                     message: "Card or wallet payouts".to_string(),
                     connector: "Adyenplatform",
                 }))
@@ -398,44 +396,34 @@ pub enum AdyenplatformWebhookStatus {
     Returned,
     Received,
 }
-
 #[cfg(feature = "payouts")]
-impl
-    ForeignFrom<(
-        AdyenplatformWebhookEventType,
-        AdyenplatformWebhookStatus,
-        Option<AdyenplatformInstantStatus>,
-    )> for webhooks::IncomingWebhookEvent
-{
-    fn foreign_from(
-        (event_type, status, instant_status): (
-            AdyenplatformWebhookEventType,
-            AdyenplatformWebhookStatus,
-            Option<AdyenplatformInstantStatus>,
-        ),
-    ) -> Self {
-        match (event_type, status, instant_status) {
-            (AdyenplatformWebhookEventType::PayoutCreated, _, _) => Self::PayoutCreated,
-            (AdyenplatformWebhookEventType::PayoutUpdated, _, Some(instant_status)) => {
-                match (instant_status.status, instant_status.estimated_arrival_time) {
-                    (Some(InstantPriorityStatus::Credited), _) | (None, Some(_)) => {
-                        Self::PayoutSuccess
-                    }
-                    _ => Self::PayoutProcessing,
-                }
-            }
-            (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
-                AdyenplatformWebhookStatus::Authorised
-                | AdyenplatformWebhookStatus::Booked
-                | AdyenplatformWebhookStatus::Received => Self::PayoutCreated,
-                AdyenplatformWebhookStatus::Pending => Self::PayoutProcessing,
-                AdyenplatformWebhookStatus::Failed => Self::PayoutFailure,
-                AdyenplatformWebhookStatus::Returned => Self::PayoutReversed,
-            },
+pub fn get_adyen_webhook_event(
+    event_type: AdyenplatformWebhookEventType,
+    status: AdyenplatformWebhookStatus,
+    instant_status: Option<AdyenplatformInstantStatus>,
+) -> webhooks::IncomingWebhookEvent {
+    match (event_type, status, instant_status) {
+        (AdyenplatformWebhookEventType::PayoutCreated, _, _) => {
+            webhooks::IncomingWebhookEvent::PayoutCreated
         }
+        (AdyenplatformWebhookEventType::PayoutUpdated, _, Some(instant_status)) => {
+            match (instant_status.status, instant_status.estimated_arrival_time) {
+                (Some(InstantPriorityStatus::Credited), _) | (None, Some(_)) => {
+                    webhooks::IncomingWebhookEvent::PayoutSuccess
+                }
+                _ => webhooks::IncomingWebhookEvent::PayoutProcessing,
+            }
+        }
+        (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
+            AdyenplatformWebhookStatus::Authorised
+            | AdyenplatformWebhookStatus::Booked
+            | AdyenplatformWebhookStatus::Received => webhooks::IncomingWebhookEvent::PayoutCreated,
+            AdyenplatformWebhookStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
+            AdyenplatformWebhookStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,
+            AdyenplatformWebhookStatus::Returned => webhooks::IncomingWebhookEvent::PayoutReversed,
+        },
     }
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenTransferErrorResponse {
