@@ -1401,6 +1401,8 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        #[max_length = 64]
+        decision_engine_routing_id -> Nullable<Varchar>,
     }
 }
 
