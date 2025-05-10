@@ -468,13 +468,26 @@ pub async fn perform_static_routing_v1(
                 }
             };
 
-            perform_decision_euclid_routing(
+            let de_euclid_connectors = perform_decision_euclid_routing(
                 state,
                 backend_input.clone(),
                 business_profile.get_id().get_string_repr().to_string(),
             )
-            .await?;
-            execute_dsl_and_get_connector_v1(backend_input, interpreter)?
+            .await
+            .map_err(|e|
+                logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
+            ).unwrap_or_default();
+            let routable_connectors = execute_dsl_and_get_connector_v1(backend_input, interpreter)?;
+            let connectors = routable_connectors
+                .iter()
+                .map(|c| c.connector.to_string())
+                .collect::<Vec<String>>();
+            utils::compare_and_log_result(
+                de_euclid_connectors,
+                connectors,
+                "evaluate_routing".to_string(),
+            );
+            routable_connectors
         }
     })
 }

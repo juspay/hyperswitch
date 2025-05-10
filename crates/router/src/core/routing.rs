@@ -357,6 +357,12 @@ pub async fn create_routing_algorithm_under_profile(
             .ok();
     }
 
+    if decision_engine_routing_id.is_some() {
+        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
+    } else {
+        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
+    }
+
     let timestamp = common_utils::date_time::now();
     let algo = RoutingAlgorithm {
         algorithm_id: algorithm_id.clone(),
@@ -642,14 +648,25 @@ pub async fn link_routing_config(
             created_by: business_profile.get_id().get_string_repr().to_string(),
             routing_algorithm_id: euclid_routing_id,
         };
-        link_de_euclid_routing_algorithm(&state, routing_algo)
-            .await
-            .map_err(
-                |e| router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid"),
-            )
-            .ok();
-    };
-
+        let link_result = link_de_euclid_routing_algorithm(&state, routing_algo).await;
+        match link_result {
+            Ok(_) => {
+                router_env::logger::info!(
+                    routing_flow=?"link_routing_algorithm",
+                    is_equal=?true,
+                    "decision_engine_euclid"
+                );
+            }
+            Err(e) => {
+                router_env::logger::info!(
+                    routing_flow=?"link_routing_algorithm",
+                    is_equal=?false,
+                    error=?e,
+                    "decision_engine_euclid"
+                );
+            }
+        }
+    }
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.foreign_into(),

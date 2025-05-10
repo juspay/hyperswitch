@@ -160,7 +160,7 @@ pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
     created_by: String,
-) -> RoutingResult<()> {
+) -> RoutingResult<Vec<String>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
@@ -177,7 +177,7 @@ pub async fn perform_decision_euclid_routing(
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
 
-    Ok(())
+    Ok(euclid_response.evaluated_output)
 }
 
 pub async fn create_de_euclid_routing_algo(
@@ -273,6 +273,12 @@ impl RoutingEq<api_routing::RoutingDictionaryRecord> for api_routing::RoutingDic
             && a.description == b.description
             && a.kind == b.kind
             && a.algorithm_for == b.algorithm_for
+    }
+}
+
+impl RoutingEq<String> for String {
+    fn is_equal(a: &String, b: &String) -> bool {
+        a.to_lowercase() == b.to_lowercase()
     }
 }
 
