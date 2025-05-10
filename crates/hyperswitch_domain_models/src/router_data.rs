@@ -537,10 +537,17 @@ impl
                 feature_metadata: updated_feature_metadata,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
-                status: error
-                    .attempt_status
-                    .map(common_enums::IntentStatus::from)
-                    .unwrap_or(common_enums::IntentStatus::Failed),
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None => match error.status_code {
+                            500..=511 => common_enums::enums::AttemptStatus::Pending,
+                            _ => common_enums::enums::AttemptStatus::Failure,
+                        },
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
                 feature_metadata: updated_feature_metadata,
@@ -620,7 +627,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -636,8 +645,15 @@ impl
                     network_advice_code,
                     network_error_message,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
 
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::enums::AttemptStatus::Pending,
+                        _ => common_enums::enums::AttemptStatus::Failure,
+                    },
+                };
                 let error_details = ErrorDetails {
                     code,
                     message,
@@ -823,7 +839,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -983,10 +1001,17 @@ impl
                 updated_by: storage_scheme.to_string(),
             },
             Err(ref error) => PaymentIntentUpdate::SyncUpdate {
-                status: error
-                    .attempt_status
-                    .map(common_enums::IntentStatus::from)
-                    .unwrap_or(common_enums::IntentStatus::Failed),
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None => match error.status_code {
+                            200..=299 => common_enums::enums::AttemptStatus::Failure,
+                            _ => self.status,
+                        },
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
@@ -1044,7 +1069,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -1061,7 +1088,14 @@ impl
                     network_error_message,
                 } = error_response.clone();
 
-                let attempt_status = attempt_status.unwrap_or(common_enums::AttemptStatus::Failure);
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        200..=299 => common_enums::enums::AttemptStatus::Failure,
+                        _ => self.status,
+                    },
+                };
 
                 let error_details = ErrorDetails {
                     code,
@@ -1293,7 +1327,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },

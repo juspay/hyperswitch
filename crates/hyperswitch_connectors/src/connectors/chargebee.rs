@@ -585,7 +585,7 @@ impl
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("$", metadata.site.peek());
+            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
         let invoice_id = req
             .request
             .merchant_reference_id

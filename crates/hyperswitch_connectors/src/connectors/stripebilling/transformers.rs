@@ -32,7 +32,6 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{convert_uppercase, PaymentsAuthorizeRequestData},
 };
-
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
     pub const STRIPE_VERSION: &str = "2022-11-15";
@@ -297,6 +296,38 @@ pub struct StripebillingWebhookObject {
     #[serde(rename = "amount_remaining")]
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
+    pub payment_intent: String,
+    pub customer_address: Option<StripebillingInvoiceBillingAddress>,
+    pub attempt_count: u16,
+    pub lines: StripebillingWebhookLinesObject,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesObject {
+    pub data: Vec<StripebillingWebhookLinesData>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesData {
+    pub period: StripebillingWebhookLineDataPeriod,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLineDataPeriod {
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub end: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub start: PrimitiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingInvoiceBillingAddress {
+    pub country: Option<enums::CountryAlpha2>,
+    pub city: Option<String>,
+    pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub zip_code: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -307,6 +338,7 @@ pub struct StripebillingInvoiceObject {
     pub currency: enums::Currency,
     #[serde(rename = "amount_remaining")]
     pub amount: common_utils::types::MinorUnit,
+    pub attempt_count: Option<u16>,
 }
 
 impl StripebillingWebhookBody {
@@ -330,6 +362,32 @@ impl StripebillingInvoiceBody {
     }
 }
 
+impl From<StripebillingInvoiceBillingAddress> for api_models::payments::Address {
+    fn from(item: StripebillingInvoiceBillingAddress) -> Self {
+        Self {
+            address: Some(api_models::payments::AddressDetails::from(item)),
+            phone: None,
+            email: None,
+        }
+    }
+}
+
+impl From<StripebillingInvoiceBillingAddress> for api_models::payments::AddressDetails {
+    fn from(item: StripebillingInvoiceBillingAddress) -> Self {
+        Self {
+            city: item.city,
+            state: item.state,
+            country: item.country,
+            zip: item.zip_code,
+            line1: item.address_line1,
+            line2: item.address_line2,
+            line3: None,
+            first_name: None,
+            last_name: None,
+        }
+    }
+}
+
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -337,16 +395,35 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let next_billing_at = item
+            .data
+            .object
+            .lines
+            .data
+            .first()
+            .map(|linedata| linedata.period.end);
         Ok(Self {
             amount: item.data.object.amount,
             currency: item.data.object.currency,
             merchant_reference_id,
+            billing_address: item
+                .data
+                .object
+                .customer_address
+                .map(api_models::payments::Address::from),
+            retry_count: Some(item.data.object.attempt_count),
+            next_billing_at,
         })
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripebillingRecoveryDetailsData {
+pub struct StripebillingBillingConnectorPaymentSyncResponseData {
+    pub latest_charge: StripebillingLatestChargeData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct StripebillingLatestChargeData {
     #[serde(rename = "id")]
     pub charge_id: String,
     pub status: StripebillingChargeStatus,
@@ -410,7 +487,7 @@ impl
     TryFrom<
         ResponseRouterData<
             recovery_router_flows::BillingConnectorPaymentsSync,
-            StripebillingRecoveryDetailsData,
+            StripebillingBillingConnectorPaymentSyncResponseData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
@@ -420,45 +497,45 @@ impl
     fn try_from(
         item: ResponseRouterData<
             recovery_router_flows::BillingConnectorPaymentsSync,
-            StripebillingRecoveryDetailsData,
+            StripebillingBillingConnectorPaymentSyncResponseData,
             recovery_request_types::BillingConnectorPaymentsSyncRequest,
             recovery_response_types::BillingConnectorPaymentsSyncResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let merchant_reference_id = id_type::PaymentReferenceId::from_str(
-            &item.response.invoice_id,
-        )
-        .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "invoice_id",
-        })?;
+        let charge_details = item.response.latest_charge;
+        let merchant_reference_id =
+            id_type::PaymentReferenceId::from_str(charge_details.invoice_id.as_str())
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "invoice_id",
+                })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
-            item.response.charge_id,
+            charge_details.charge_id,
         ));
 
         Ok(Self {
             response: Ok(
                 recovery_response_types::BillingConnectorPaymentsSyncResponse {
-                    status: item.response.status.into(),
-                    amount: item.response.amount,
-                    currency: item.response.currency,
+                    status: charge_details.status.into(),
+                    amount: charge_details.amount,
+                    currency: charge_details.currency,
                     merchant_reference_id,
                     connector_account_reference_id:
                         MCA_ID_IDENTIFIER_FOR_STRIPE_IN_STRIPEBILLING_MCA_FEAATURE_METADATA
                             .to_string(),
                     connector_transaction_id,
-                    error_code: item.response.failure_code,
-                    error_message: item.response.failure_message,
-                    processor_payment_method_token: item.response.payment_method,
-                    connector_customer_id: item.response.customer,
-                    transaction_created_at: Some(item.response.created),
+                    error_code: charge_details.failure_code,
+                    error_message: charge_details.failure_message,
+                    processor_payment_method_token: charge_details.payment_method,
+                    connector_customer_id: charge_details.customer,
+                    transaction_created_at: Some(charge_details.created),
                     payment_method_sub_type: common_enums::PaymentMethodType::from(
-                        item.response
+                        charge_details
                             .payment_method_details
                             .card_funding_type
                             .funding,
                     ),
                     payment_method_type: common_enums::PaymentMethod::from(
-                        item.response.payment_method_details.type_of_payment_method,
+                        charge_details.payment_method_details.type_of_payment_method,
                     ),
                 },
             ),

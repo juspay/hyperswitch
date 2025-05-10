@@ -1,3 +1,7 @@
+#[cfg(feature = "v1")]
+use common_types::consts::API_VERSION;
+#[cfg(feature = "v1")]
+use diesel::BoolExpressionMethods;
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
@@ -101,7 +105,9 @@ impl MerchantAccount {
             _,
         >(
             conn,
-            dsl::organization_id.eq(organization_id.to_owned()),
+            dsl::organization_id
+                .eq(organization_id.to_owned())
+                .and(dsl::version.eq(API_VERSION)),
             None,
             None,
             None,

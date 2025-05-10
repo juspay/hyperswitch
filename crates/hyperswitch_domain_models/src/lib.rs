@@ -13,6 +13,7 @@ pub mod errors;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;
@@ -268,7 +269,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             total_retry_count: from.total_retry_count,
-            payment_connector_transmission: from.payment_connector_transmission,
+            payment_connector_transmission: from.payment_connector_transmission.unwrap_or_default(),
             billing_connector_id: from.billing_connector_id,
             active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
             billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
@@ -277,13 +278,14 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_type: from.payment_method_type,
             payment_method_subtype: from.payment_method_subtype,
             connector: from.connector,
+            invoice_next_billing_time: from.invoice_next_billing_time,
         }
     }
 
     fn convert_back(self) -> ApiRevenueRecoveryMetadata {
         ApiRevenueRecoveryMetadata {
             total_retry_count: self.total_retry_count,
-            payment_connector_transmission: self.payment_connector_transmission,
+            payment_connector_transmission: Some(self.payment_connector_transmission),
             billing_connector_id: self.billing_connector_id,
             active_attempt_payment_connector_id: self.active_attempt_payment_connector_id,
             billing_connector_payment_details: self
@@ -292,6 +294,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_type: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
             connector: self.connector,
+            invoice_next_billing_time: self.invoice_next_billing_time,
         }
     }
 }
@@ -422,6 +425,10 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules: item.sdk_ui_rules,
             payment_link_ui_rules: item.payment_link_ui_rules,
             enable_button_only_on_form_ready: item.enable_button_only_on_form_ready,
+            payment_form_header_text: item.payment_form_header_text,
+            payment_form_label_type: item.payment_form_label_type,
+            show_card_terms: item.show_card_terms,
+            is_setup_mandate_flow: item.is_setup_mandate_flow,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -446,6 +453,10 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules,
             payment_link_ui_rules,
             enable_button_only_on_form_ready,
+            payment_form_header_text,
+            payment_form_label_type,
+            show_card_terms,
+            is_setup_mandate_flow,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -474,6 +485,10 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_ui_rules,
             payment_link_ui_rules,
             enable_button_only_on_form_ready,
+            payment_form_header_text,
+            payment_form_label_type,
+            show_card_terms,
+            is_setup_mandate_flow,
         }
     }
 }
@@ -601,6 +616,22 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
     for payments::payment_attempt::AttemptAmountDetailsSetter
 {
     fn from(amount: &api_models::payments::PaymentAttemptAmountDetails) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
+    for api_models::payments::PaymentAttemptAmountDetails
+{
+    fn from(amount: &payments::payment_attempt::AttemptAmountDetailsSetter) -> Self {
         Self {
             net_amount: amount.net_amount,
             amount_to_capture: amount.amount_to_capture,

@@ -11,7 +11,6 @@ use crate::enums as storage_enums;
 use crate::schema::refund;
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use crate::schema_v2::refund;
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(
     Clone,
@@ -702,14 +701,99 @@ impl RefundUpdate {
             ..source
         }
     }
+
+    pub fn build_error_update_for_unified_error_and_message(
+        unified_error_object: (String, String),
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        let (unified_code, unified_message) = unified_error_object;
+
+        Self::ErrorUpdate {
+            refund_status: Some(storage_enums::RefundStatus::Failure),
+            refund_error_message,
+            refund_error_code,
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
+            processor_refund_data: None,
+            unified_code: Some(unified_code),
+            unified_message: Some(unified_message),
+        }
+    }
+
+    pub fn build_error_update_for_integrity_check_failure(
+        integrity_check_failed_fields: String,
+        connector_refund_id: Option<ConnectorTransactionId>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::ErrorUpdate {
+            refund_status: Some(storage_enums::RefundStatus::ManualReview),
+            refund_error_message: Some(format!(
+                "Integrity Check Failed! as data mismatched for fields {}",
+                integrity_check_failed_fields
+            )),
+            refund_error_code: Some("IE".to_string()),
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: connector_refund_id.clone(),
+            processor_refund_data: connector_refund_id.and_then(|x| x.extract_hashed_data()),
+            unified_code: None,
+            unified_message: None,
+        }
+    }
+
+    pub fn build_refund_update(
+        connector_refund_id: ConnectorTransactionId,
+        refund_status: storage_enums::RefundStatus,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::Update {
+            connector_refund_id: connector_refund_id.clone(),
+            refund_status,
+            sent_to_gateway: true,
+            refund_error_message: None,
+            refund_arn: "".to_string(),
+            updated_by: storage_scheme.to_string(),
+            processor_refund_data: connector_refund_id.extract_hashed_data(),
+        }
+    }
+
+    pub fn build_error_update_for_refund_failure(
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::ErrorUpdate {
+            refund_status,
+            refund_error_message,
+            refund_error_code,
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
+            processor_refund_data: None,
+            unified_code: None,
+            unified_message: None,
+        }
+    }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: ConnectorTransactionId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: common_utils::id_type::PaymentId,
+    pub processor_transaction_data: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RefundCoreWorkflow {
+    pub refund_id: common_utils::id_type::GlobalRefundId,
+    pub connector_transaction_id: ConnectorTransactionId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
     pub processor_transaction_data: Option<String>,
 }
 

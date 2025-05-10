@@ -3,7 +3,9 @@ use common_enums::enums as common_enums;
 use common_utils::{id_type, types as util_types};
 use time::PrimitiveDateTime;
 
-use crate::router_response_types::revenue_recovery::BillingConnectorPaymentsSyncResponse;
+use crate::router_response_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+};
 
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
@@ -33,7 +35,7 @@ pub struct RevenueRecoveryAttemptData {
     /// payment method of payment attempt.
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
-    pub payment_method_sub_type: Option<common_enums::PaymentMethodType>,
+    pub payment_method_sub_type: common_enums::PaymentMethodType,
     /// This field can be returned for both approved and refused Mastercard payments.
     /// This code provides additional information about the type of transaction or the reason why the payment failed.
     /// If the payment failed, the network advice code gives guidance on if and when you can retry the payment.
@@ -42,10 +44,14 @@ pub struct RevenueRecoveryAttemptData {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// Number of attempts made for an invoice
+    pub retry_count: Option<u16>,
+    /// Time when next invoice will be generated which will be equal to the end time of the current invoice
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RevenueRecoveryInvoiceData {
     /// invoice amount at billing connector
     pub amount: util_types::MinorUnit,
@@ -53,6 +59,12 @@ pub struct RevenueRecoveryInvoiceData {
     pub currency: common_enums::Currency,
     /// merchant reference id at billing connector. ex: invoice_id
     pub merchant_reference_id: id_type::PaymentReferenceId,
+    /// billing address id of the invoice
+    pub billing_address: Option<api_payments::Address>,
+    /// Retry count of the invoice
+    pub retry_count: Option<u16>,
+    /// Ending date of the invoice or the Next billing time of the Subscription
+    pub next_billing_at: Option<PrimitiveDateTime>,
 }
 
 /// type of action that needs to taken after consuming recovery payload
@@ -71,6 +83,7 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
+#[derive(Clone)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
@@ -177,7 +190,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             // so capture method will be always automatic.
             capture_method: Some(common_enums::CaptureMethod::Automatic),
             authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
-            billing: None,
+            billing: data.billing_address.clone(),
             shipping: None,
             customer_id: None,
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
@@ -202,35 +215,62 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
     }
 }
 
-impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryInvoiceData {
-    fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
+impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
+    fn from(data: &BillingConnectorInvoiceSyncResponse) -> Self {
         Self {
             amount: data.amount,
             currency: data.currency,
             merchant_reference_id: data.merchant_reference_id.clone(),
+            billing_address: data.billing_address.clone(),
+            retry_count: data.retry_count,
+            next_billing_at: data.ends_at,
         }
     }
 }
 
-impl From<&BillingConnectorPaymentsSyncResponse> for RevenueRecoveryAttemptData {
-    fn from(data: &BillingConnectorPaymentsSyncResponse) -> Self {
+impl
+    From<(
+        &BillingConnectorPaymentsSyncResponse,
+        &RevenueRecoveryInvoiceData,
+    )> for RevenueRecoveryAttemptData
+{
+    fn from(
+        data: (
+            &BillingConnectorPaymentsSyncResponse,
+            &RevenueRecoveryInvoiceData,
+        ),
+    ) -> Self {
+        let billing_connector_payment_details = data.0;
+        let invoice_details = data.1;
         Self {
-            amount: data.amount,
-            currency: data.currency,
-            merchant_reference_id: data.merchant_reference_id.clone(),
-            connector_transaction_id: data.connector_transaction_id.clone(),
-            error_code: data.error_code.clone(),
-            error_message: data.error_message.clone(),
-            processor_payment_method_token: data.processor_payment_method_token.clone(),
-            connector_customer_id: data.connector_customer_id.clone(),
-            connector_account_reference_id: data.connector_account_reference_id.clone(),
-            transaction_created_at: data.transaction_created_at,
-            status: data.status,
-            payment_method_type: data.payment_method_type,
-            payment_method_sub_type: Some(data.payment_method_sub_type),
+            amount: billing_connector_payment_details.amount,
+            currency: billing_connector_payment_details.currency,
+            merchant_reference_id: billing_connector_payment_details
+                .merchant_reference_id
+                .clone(),
+            connector_transaction_id: billing_connector_payment_details
+                .connector_transaction_id
+                .clone(),
+            error_code: billing_connector_payment_details.error_code.clone(),
+            error_message: billing_connector_payment_details.error_message.clone(),
+            processor_payment_method_token: billing_connector_payment_details
+                .processor_payment_method_token
+                .clone(),
+            connector_customer_id: billing_connector_payment_details
+                .connector_customer_id
+                .clone(),
+            connector_account_reference_id: billing_connector_payment_details
+                .connector_account_reference_id
+                .clone(),
+            transaction_created_at: billing_connector_payment_details.transaction_created_at,
+            status: billing_connector_payment_details.status,
+            payment_method_type: billing_connector_payment_details.payment_method_type,
+            payment_method_sub_type: billing_connector_payment_details.payment_method_sub_type,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            retry_count: invoice_details.retry_count,
+            invoice_next_billing_time: invoice_details.next_billing_at,
         }
     }
 }

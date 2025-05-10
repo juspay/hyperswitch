@@ -1,5 +1,6 @@
 pub mod transformers;
-use std::fmt::Write;
+
+use std::{fmt::Write, sync::LazyLock};
 
 use base64::Engine;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -31,7 +32,8 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, VerifyWebhookSourceResponseData,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt, VerifyWebhookSourceResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -148,7 +150,7 @@ impl Paypal {
                     if let Some(field) = error
                         .field
                         .as_ref()
-                        .and_then(|field| field.split('/').last())
+                        .and_then(|field| field.split('/').next_back())
                     {
                         reason.push_str(&format!(", field - {field}"));
                     }
@@ -361,22 +363,6 @@ impl ConnectorCommon for Paypal {
 }
 
 impl ConnectorValidation for Paypal {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -948,12 +934,12 @@ impl ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, Paymen
         // https://developer.paypal.com/docs/api/orders/v2/#orders_patch
         // If 204 status code, then the session was updated successfully.
         let status = if res.status_code == 204 {
-            enums::SessionUpdateStatus::Success
+            enums::PaymentResourceUpdateStatus::Success
         } else {
-            enums::SessionUpdateStatus::Failure
+            enums::PaymentResourceUpdateStatus::Failure
         };
         Ok(SdkSessionUpdateRouterData {
-            response: Ok(PaymentsResponseData::SessionUpdateResponse { status }),
+            response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
             ..data.clone()
         })
     }
@@ -2174,4 +2160,140 @@ impl ConnectorErrorTypeMapping for Paypal {
     }
 }
 
-impl ConnectorSpecifications for Paypal {}
+static PAYPAL_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let mut paypal_supported_payment_methods = SupportedPaymentMethods::new();
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::CartesBancaires,
+    ];
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Paypal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Eps,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Giropay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Ideal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    paypal_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Sofort,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    paypal_supported_payment_methods
+});
+
+static PAYPAL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Paypal",
+        description: "PayPal is a Slovakia-based company specializing in secure e-commerce payments, particularly within the EEA area.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
+
+impl ConnectorSpecifications for Paypal {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYPAL_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PAYPAL_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PAYPAL_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

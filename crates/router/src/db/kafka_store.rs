@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
@@ -372,6 +372,7 @@ impl ConfigInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl CustomerInterface for KafkaStore {
+    type Error = errors::StorageError;
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
@@ -772,6 +773,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -783,6 +785,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                event_types,
                 is_delivered,
                 merchant_key_store,
             )
@@ -831,6 +834,7 @@ impl EventInterface for KafkaStore {
         created_before: PrimitiveDateTime,
         limit: Option<i64>,
         offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -842,6 +846,7 @@ impl EventInterface for KafkaStore {
                 created_before,
                 limit,
                 offset,
+                event_types,
                 is_delivered,
                 merchant_key_store,
             )
@@ -873,6 +878,7 @@ impl EventInterface for KafkaStore {
         profile_id: Option<id_type::ProfileId>,
         created_after: PrimitiveDateTime,
         created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -881,6 +887,7 @@ impl EventInterface for KafkaStore {
                 profile_id,
                 created_after,
                 created_before,
+                event_types,
                 is_delivered,
             )
             .await
@@ -1274,7 +1281,6 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
         state: &KeyManagerState,
@@ -1282,13 +1288,14 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        self.list_enabled_connector_accounts_by_profile_id(
-            state,
-            profile_id,
-            key_store,
-            connector_type,
-        )
-        .await
+        self.diesel_store
+            .list_enabled_connector_accounts_by_profile_id(
+                state,
+                profile_id,
+                key_store,
+                connector_type,
+            )
+            .await
     }
 
     async fn insert_merchant_connector_account(
@@ -1709,6 +1716,24 @@ impl PaymentAttemptInterface for KafkaStore {
             .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
                 payment_id,
                 merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+                key_manager_state,
+                merchant_key_store,
+                payment_id,
                 storage_scheme,
             )
             .await
@@ -2752,7 +2777,6 @@ impl RefundInterface for KafkaStore {
         Ok(refund)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -3246,7 +3270,11 @@ impl StorageInterface for KafkaStore {
     }
 }
 
-impl GlobalStorageInterface for KafkaStore {}
+impl GlobalStorageInterface for KafkaStore {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}

@@ -49,6 +49,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
+    impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -125,7 +126,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            match value.split('.').last() {
+            match value.split('.').next_back() {
                 Some(decimal_part) => {
                     decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
                 }
@@ -686,261 +687,6 @@ where
     }
 }
 
-#[cfg(feature = "v2")]
-pub use client_secret_type::ClientSecret;
-#[cfg(feature = "v2")]
-mod client_secret_type {
-    use std::fmt;
-
-    use masking::PeekInterface;
-    use router_env::logger;
-
-    use super::*;
-    use crate::id_type;
-
-    /// A domain type that can be used to represent a client secret
-    /// Client secret is generated for a payment and is used to authenticate the client side api calls
-    #[derive(Debug, PartialEq, Clone, AsExpression)]
-    #[diesel(sql_type = sql_types::Text)]
-    pub struct ClientSecret {
-        /// The payment id of the payment
-        pub payment_id: id_type::GlobalPaymentId,
-        /// The secret string
-        pub secret: masking::Secret<String>,
-    }
-
-    impl ClientSecret {
-        pub(crate) fn get_string_repr(&self) -> String {
-            format!(
-                "{}_secret_{}",
-                self.payment_id.get_string_repr(),
-                self.secret.peek()
-            )
-        }
-
-        /// Create a new client secret
-        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
-            Self {
-                payment_id,
-                secret: masking::Secret::new(secret),
-            }
-        }
-    }
-
-    impl FromStr for ClientSecret {
-        type Err = ParsingError;
-
-        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
-            let (payment_id, secret) =
-                str_value
-                    .rsplit_once("_secret_")
-                    .ok_or(ParsingError::EncodeError(
-                        "Expected a string in the format '{payment_id}_secret_{secret}'",
-                    ))?;
-
-            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                .map_err(|err| {
-                    logger::error!(global_payment_id_error=?err);
-                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
-                })?;
-
-            Ok(Self {
-                payment_id,
-                secret: masking::Secret::new(secret.to_owned()),
-            })
-        }
-    }
-
-    impl<'de> Deserialize<'de> for ClientSecret {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            struct ClientSecretVisitor;
-
-            impl Visitor<'_> for ClientSecretVisitor {
-                type Value = ClientSecret;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
-                }
-
-                fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
-                where
-                    E: serde::de::Error,
-                {
-                    let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
-                        E::invalid_value(
-                            serde::de::Unexpected::Str(value),
-                            &"a string with '_secret_'",
-                        )
-                    })?;
-
-                    let payment_id =
-                        id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                            .map_err(serde::de::Error::custom)?;
-
-                    Ok(ClientSecret {
-                        payment_id,
-                        secret: masking::Secret::new(secret.to_owned()),
-                    })
-                }
-            }
-
-            deserializer.deserialize_str(ClientSecretVisitor)
-        }
-    }
-
-    impl Serialize for ClientSecret {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::ser::Serializer,
-        {
-            serializer.serialize_str(self.get_string_repr().as_str())
-        }
-    }
-
-    impl ToSql<sql_types::Text, diesel::pg::Pg> for ClientSecret
-    where
-        String: ToSql<sql_types::Text, diesel::pg::Pg>,
-    {
-        fn to_sql<'b>(
-            &'b self,
-            out: &mut Output<'b, '_, diesel::pg::Pg>,
-        ) -> diesel::serialize::Result {
-            let string_repr = self.get_string_repr();
-            <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(
-                &string_repr,
-                &mut out.reborrow(),
-            )
-        }
-    }
-
-    impl<DB> FromSql<sql_types::Text, DB> for ClientSecret
-    where
-        DB: Backend,
-        String: FromSql<sql_types::Text, DB>,
-    {
-        fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
-            let string_repr = String::from_sql(value)?;
-            let (payment_id, secret) =
-                string_repr
-                    .rsplit_once("_secret_")
-                    .ok_or(ParsingError::EncodeError(
-                        "Expected a string in the format '{payment_id}_secret_{secret}'",
-                    ))?;
-
-            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                .map_err(|err| {
-                    logger::error!(global_payment_id_error=?err);
-                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
-                })?;
-
-            Ok(Self {
-                payment_id,
-                secret: masking::Secret::new(secret.to_owned()),
-            })
-        }
-    }
-
-    impl<DB> Queryable<sql_types::Text, DB> for ClientSecret
-    where
-        DB: Backend,
-        Self: FromSql<sql_types::Text, DB>,
-    {
-        type Row = Self;
-
-        fn build(row: Self::Row) -> deserialize::Result<Self> {
-            Ok(row)
-        }
-    }
-    crate::impl_serializable_secret_id_type!(ClientSecret);
-    #[cfg(test)]
-    mod client_secret_tests {
-        #![allow(clippy::expect_used)]
-        #![allow(clippy::unwrap_used)]
-
-        use serde_json;
-
-        use super::*;
-        use crate::id_type::GlobalPaymentId;
-
-        #[test]
-        fn test_serialize_client_secret() {
-            let global_payment_id = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-            let secret = "fc34taHLw1ekPgNh92qr".to_string();
-
-            let expected_client_secret_string = format!("\"{global_payment_id}_secret_{secret}\"");
-
-            let client_secret1 = ClientSecret {
-                payment_id: GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id)).unwrap(),
-                secret: masking::Secret::new(secret),
-            };
-
-            let parsed_client_secret =
-                serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
-
-            assert_eq!(expected_client_secret_string, parsed_client_secret);
-        }
-
-        #[test]
-        fn test_deserialize_client_secret() {
-            // This is a valid global id
-            let global_payment_id_str = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-            let secret = "fc34taHLw1ekPgNh92qr".to_string();
-
-            let valid_payment_global_id =
-                GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id_str))
-                    .expect("Failed to create valid global payment id");
-
-            // This is an invalid global id because of the cell id being in invalid length
-            let invalid_global_payment_id = "123_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-
-            // Create a client secret string which is valid
-            let valid_client_secret = format!(r#""{global_payment_id_str}_secret_{secret}""#);
-
-            dbg!(&valid_client_secret);
-
-            // Create a client secret string which is invalid
-            let invalid_client_secret_because_of_invalid_payment_id =
-                format!(r#""{invalid_global_payment_id}_secret_{secret}""#);
-
-            // Create a client secret string which is invalid because of invalid secret
-            let invalid_client_secret_because_of_invalid_secret =
-                format!(r#""{invalid_global_payment_id}""#);
-
-            let valid_client_secret = serde_json::from_str::<ClientSecret>(&valid_client_secret)
-                .expect("Failed to deserialize client_secret_str1");
-
-            let invalid_deser1 = serde_json::from_str::<ClientSecret>(
-                &invalid_client_secret_because_of_invalid_payment_id,
-            );
-
-            dbg!(&invalid_deser1);
-
-            let invalid_deser2 = serde_json::from_str::<ClientSecret>(
-                &invalid_client_secret_because_of_invalid_secret,
-            );
-
-            dbg!(&invalid_deser2);
-
-            assert_eq!(valid_client_secret.payment_id, valid_payment_global_id);
-
-            assert_eq!(valid_client_secret.secret.peek(), &secret);
-
-            assert_eq!(
-                invalid_deser1.err().unwrap().to_string(),
-                "Incorrect value provided for field: payment_id at line 1 column 70"
-            );
-
-            assert_eq!(
-                invalid_deser2.err().unwrap().to_string(),
-                "invalid value: string \"123_pay_1a961ed9093c48b09781bf8ab17ba6bd\", expected a string with '_secret_' at line 1 column 42"
-            );
-        }
-    }
-}
-
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
 #[derive(
     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
@@ -1459,6 +1205,14 @@ impl ConnectorTransactionId {
         }
     }
 
+    /// Implementation for extracting hashed data
+    pub fn extract_hashed_data(&self) -> Option<String> {
+        match self {
+            Self::TxnId(_) => None,
+            Self::HashedData(src) => Some(src.clone()),
+        }
+    }
+
     /// Implementation for retrieving
     pub fn get_txn_id<'a>(
         &'a self,
@@ -1603,3 +1357,22 @@ where
         self.0.to_sql(out)
     }
 }
+
+impl_enum_str!(
+    tag_delimeter = ":",
+    /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
+    /// trigger (Api, Jwt) of the record.
+    #[derive(Eq, PartialEq, Debug, Clone)]
+    pub enum CreatedBy {
+        /// Api variant
+        Api {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
+        /// Jwt variant
+        Jwt {
+            /// user id of creator.
+            user_id: String,
+        },
+    }
+);

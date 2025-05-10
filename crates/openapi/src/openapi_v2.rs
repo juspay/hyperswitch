@@ -148,6 +148,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for refunds
         routes::refunds::refunds_create,
+        routes::refunds::refunds_retrieve,
 
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api
@@ -186,7 +187,6 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
-        api_models::refunds::RefundRequest,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
@@ -295,6 +295,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::UIWidgetFormLayout,
         api_models::enums::MerchantProductType,
         api_models::enums::CtpServiceProvider,
+        api_models::enums::PaymentLinkSdkLabelType,
+        api_models::enums::PaymentLinkShowSdkTerms,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::CardTestingGuardConfig,
@@ -497,6 +499,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentConnectorTransmission,
         api_models::enums::TriggeredBy,
         api_models::payments::PaymentAttemptResponse,
+        api_models::payments::PaymentAttemptRecordResponse,
         api_models::payments::PaymentAttemptAmountDetails,
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,
@@ -699,6 +702,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::ErrorDetails,
         api_models::payments::CtpServiceDetails,
+        api_models::payments::AdyenConnectorMetadata,
+        api_models::payments::AdyenTestingData,
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,

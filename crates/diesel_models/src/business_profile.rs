@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
-use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
@@ -58,7 +58,8 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -162,7 +163,8 @@ pub struct ProfileUpdateInternal {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -341,7 +343,8 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
@@ -359,7 +362,10 @@ pub struct Profile {
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 impl Profile {
@@ -425,8 +431,11 @@ pub struct ProfileNew {
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -477,7 +486,10 @@ pub struct ProfileUpdateInternal {
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
-    pub should_collect_cvv_during_payment: Option<bool>,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 #[cfg(feature = "v2")]
@@ -527,6 +539,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
+            revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data,
         } = self;
         Profile {
             id: source.id,
@@ -584,7 +598,7 @@ impl ProfileUpdateInternal {
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             should_collect_cvv_during_payment: should_collect_cvv_during_payment
-                .unwrap_or(source.should_collect_cvv_during_payment),
+                .or(source.should_collect_cvv_during_payment),
             version: source.version,
             dynamic_routing_algorithm: None,
             is_network_tokenization_enabled: is_network_tokenization_enabled
@@ -607,6 +621,10 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type
+                .or(source.revenue_recovery_retry_algorithm_type),
+            revenue_recovery_retry_algorithm_data: revenue_recovery_retry_algorithm_data
+                .or(source.revenue_recovery_retry_algorithm_data),
         }
     }
 }
@@ -634,6 +652,25 @@ pub struct CardTestingGuardConfig {
 }
 
 common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
+
+impl Default for CardTestingGuardConfig {
+    fn default() -> Self {
+        Self {
+            is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+            card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+            is_guest_user_card_blocking_enabled:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+            guest_user_card_blocking_threshold:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+            is_customer_id_blocking_enabled:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+            customer_id_blocking_threshold:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+            card_testing_guard_expiry:
+                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+        }
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
@@ -681,6 +718,10 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub enable_button_only_on_form_ready: Option<bool>,
+    pub payment_form_header_text: Option<String>,
+    pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
+    pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -710,3 +751,11 @@ pub struct BusinessGenericLinkConfig {
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct RevenueRecoveryAlgorithmData {
+    pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
