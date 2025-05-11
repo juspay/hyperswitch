@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payment_methods};
 use common_enums::enums;
 use common_utils::id_type;
 use error_stack::ResultExt;
@@ -245,39 +245,70 @@ pub async fn get_sorted_co_badged_networks_by_fee<
     acquirer_country: enums::CountryAlpha2,
 ) -> Option<Vec<enums::CardNetwork>> {
     logger::debug!("Fetching sorted card networks");
-
     let payment_method_data_optional = payment_data.get_payment_method_data();
     let payment_attempt = payment_data.get_payment_attempt();
 
-    let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
-        merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
-        acquirer_country,
-        // we need to populate this in case of save card flows
-        // this should we populated by checking for the payment method info
-        // payment method info is some then we will have to send the card isin as null
-        co_badged_card_data: None,
+    let (saved_co_badged_card_data, card_isin) = if let Some(
+        hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card),
+    ) = payment_data
+        .get_payment_method_info()
+        .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
+    {
+        if let Some(saved_co_badged_card_data) = card.co_badged_card_data {
+            logger::debug!("Co-badged card data is present in the saved payment method");
+            (Some(saved_co_badged_card_data), None)
+        } else if let Some(saved_card_isin) = &card.card_isin {
+            logger::debug!("Co-badged card data is not present; proceeding with the flow using the saved card BIN.");
+
+            (None, Some(Secret::new(saved_card_isin.clone())))
+        } else {
+            (None, None)
+        }
+    } else if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
+        card,
+    )) = payment_method_data_optional
+    {
+        logger::debug!(
+            "Co-badged card data is not present; proceeding with card data form the request."
+        );
+        (None, Some(Secret::new(card.card_number.get_card_isin())))
+    } else {
+        (None, None)
+    };
+    let debit_routing_output_optional = match (saved_co_badged_card_data.clone(), card_isin.clone())
+    {
+        (None, None) => None,
+        _ => {
+            let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
+                merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
+                acquirer_country,
+                co_badged_card_data: saved_co_badged_card_data
+                    .map(api_models::open_router::DebitRoutingRequestData::from),
+            };
+
+            routing::perform_open_routing_for_debit_routing(
+                state,
+                payment_attempt,
+                co_badged_card_request,
+                card_isin,
+            )
+            .await
+            .map_err(|error| {
+                logger::warn!(?error, "Failed to calculate total fees per network");
+            })
+            .ok()
+        }
     };
 
-    if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) =
-        payment_method_data_optional
-    {
-        // perform_open_routing_for_debit_routing
-        let debit_routing_output_optional = routing::perform_open_routing_for_debit_routing(
-            state,
-            payment_attempt,
-            co_badged_card_request,
-            Some(Secret::new(card.card_number.get_card_isin())),
-        )
-        .await
-        .map_err(|error| {
-            logger::warn!(?error, "Failed to calculate total fees per network");
-        })
-        .ok()
-        .map(|data| data.co_badged_card_networks);
+    debit_routing_output_optional
+        .as_ref()
+        .map(|debit_routing_output| {
+            payment_data.set_co_badged_card_data(payment_methods::CoBadgedCardData::from(
+                debit_routing_output,
+            ))
+        });
 
-        return debit_routing_output_optional;
-    }
-    None
+    debit_routing_output_optional.map(|data| data.co_badged_card_networks)
 }
 
 fn check_connector_support_for_network(
