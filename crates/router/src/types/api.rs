@@ -512,7 +512,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
                 enums::Connector::Recurly => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                    Ok(ConnectorEnum::New(Box::new(connector::Recurly::new())))
                 }
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))

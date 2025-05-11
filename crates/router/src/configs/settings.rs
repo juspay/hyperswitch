@@ -104,6 +104,7 @@ pub struct Settings<S: SecretState> {
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
+    pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
@@ -158,23 +159,6 @@ pub struct DebitRoutingConfig {
     pub supported_currencies: HashSet<enums::Currency>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub supported_connectors: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkInterchangeFee {
-    pub non_regulated: NoneRegulatedNetworkProcessingData,
-    pub regulated: NetworkProcessingData,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NoneRegulatedNetworkProcessingData(
-    pub HashMap<String, HashMap<enums::CardNetwork, NetworkProcessingData>>,
-);
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkProcessingData {
-    pub percentage: f64,
-    pub fixed_amount: f64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -863,6 +847,12 @@ pub struct WebhookSourceVerificationCall {
 pub struct BillingConnectorPaymentsSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
