@@ -613,8 +613,8 @@ where
                         (business_profile.is_debit_routing_enabled && is_debit_routing_performed)
                             .then(|| find_connector_with_networks(&mut connectors))
                             .flatten()
-                            .map(|(connector_data, local_network)| {
-                                payment_data.set_local_network(local_network);
+                            .map(|(connector_data, network)| {
+                                payment_data.set_card_network(network);
                                 connector_data
                             }) {
                         connector_from_network
