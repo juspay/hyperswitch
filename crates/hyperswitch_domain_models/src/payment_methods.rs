@@ -1,11 +1,5 @@
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
-
-use crate::payment_method_data as domain_payment_method_data;
-#[cfg(feature = "v1")]
-use masking::ExposeInterface;
-#[cfg(feature = "v1")]
-use router_env::logger;
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -18,7 +12,11 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use router_env::logger;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v2")]
@@ -30,6 +28,7 @@ use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
     mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
+    payment_method_data as domain_payment_method_data,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
