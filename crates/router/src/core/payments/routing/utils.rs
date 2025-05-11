@@ -264,10 +264,7 @@ pub trait RoutingEq<T> {
 }
 
 impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
-    fn is_equal(
-        a: &Self,
-        b: &Self,
-    ) -> bool {
+    fn is_equal(a: &Self, b: &Self) -> bool {
         a.name == b.name
             && a.profile_id == b.profile_id
             && a.description == b.description
