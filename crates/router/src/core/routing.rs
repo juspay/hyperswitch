@@ -120,6 +120,7 @@ impl RoutingAlgorithmUpdate {
             created_at: timestamp,
             modified_at: timestamp,
             algorithm_for: transaction_type,
+            decision_engine_routing_id: None,
         };
         Self(algo)
     }
@@ -1508,6 +1509,7 @@ pub async fn success_based_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1652,6 +1654,7 @@ pub async fn contract_based_dynamic_routing_setup(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: common_enums::TransactionType::Payment,
+        decision_engine_routing_id: None,
     };
 
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based
@@ -1833,6 +1836,7 @@ pub async fn contract_based_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)

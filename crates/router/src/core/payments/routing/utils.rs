@@ -263,10 +263,10 @@ pub trait RoutingEq<T> {
     fn is_equal(a: &T, b: &T) -> bool;
 }
 
-impl RoutingEq<api_routing::RoutingDictionaryRecord> for api_routing::RoutingDictionaryRecord {
+impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
     fn is_equal(
-        a: &api_routing::RoutingDictionaryRecord,
-        b: &api_routing::RoutingDictionaryRecord,
+        a: &Self,
+        b: &Self,
     ) -> bool {
         a.name == b.name
             && a.profile_id == b.profile_id
@@ -276,8 +276,8 @@ impl RoutingEq<api_routing::RoutingDictionaryRecord> for api_routing::RoutingDic
     }
 }
 
-impl RoutingEq<String> for String {
-    fn is_equal(a: &String, b: &String) -> bool {
+impl RoutingEq<Self> for String {
+    fn is_equal(a: &Self, b: &Self) -> bool {
         a.to_lowercase() == b.to_lowercase()
     }
 }
@@ -652,7 +652,7 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
 use api_models::routing::{ConnectorSelection, RoutableConnectorChoice};
 impl From<ast::Program<ConnectorSelection>> for Program {
     fn from(p: ast::Program<ConnectorSelection>) -> Self {
-        Program {
+        Self {
             globals: HashMap::new(),
             default_selection: convert_output(p.default_selection),
             rules: p.rules.into_iter().map(convert_rule).collect(),
@@ -704,10 +704,11 @@ fn convert_comparison_type(ct: ast::ComparisonType) -> ComparisonType {
     }
 }
 
+#[allow(clippy::unimplemented)]
 fn convert_value(v: ast::ValueType) -> ValueType {
     use ast::ValueType::*;
     match v {
-        Number(n) => ValueType::Number(n.get_amount_as_i64().try_into().unwrap()),
+        Number(n) => ValueType::Number(n.get_amount_as_i64().try_into().unwrap_or_default()),
         EnumVariant(e) => ValueType::EnumVariant(e),
         MetadataVariant(m) => ValueType::MetadataVariant(MetadataValue {
             key: m.key,
