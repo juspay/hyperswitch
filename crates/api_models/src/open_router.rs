@@ -1,7 +1,5 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::enums::{Currency, PaymentMethod};
-use crate::payment_methods;
 use common_utils::{id_type, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
@@ -11,6 +9,11 @@ pub use euclid::{
     },
 };
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    enums::{Currency, PaymentMethod},
+    payment_methods,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

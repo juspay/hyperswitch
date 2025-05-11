@@ -26,7 +26,9 @@ pub mod payment_methods;
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
-    self, enums, mandates::RecurringDetails, payments::{self as payments_api},
+    self, enums,
+    mandates::RecurringDetails,
+    payments::{self as payments_api},
 };
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
@@ -8314,20 +8316,24 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         };
     }
 
-    fn set_co_badged_card_data(&mut self, co_badged_card_data: api_models::payment_methods::CoBadgedCardData) {
+    fn set_co_badged_card_data(
+        &mut self,
+        co_badged_card_data: api_models::payment_methods::CoBadgedCardData,
+    ) {
         logger::debug!("set co-badged card data");
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
-                card.co_badged_card_data = Some(co_badged_card_data);
-                logger::debug!("set co-badged card data in payment method data");
-        } else if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card)) = &mut self
+            card.co_badged_card_data = Some(co_badged_card_data);
+            logger::debug!("set co-badged card data in payment method data");
+        } else if let Some(
+            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card),
+        ) = &mut self
             .get_payment_method_info()
             .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
-            {
-                card.co_badged_card_data = Some(co_badged_card_data);
+        {
+            card.co_badged_card_data = Some(co_badged_card_data);
             logger::debug!("set co-badged card data in payment method info");
-            };
+        };
     }
-    
 
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod) {
