@@ -4747,15 +4747,26 @@ pub async fn get_additional_payment_data(
                 _ => None,
             };
 
-            let card_network = match card_data
+            // Added an additional check for card_data.co_badged_card_data.is_some()
+            // because is_cobadged_card() only returns true if the card number matches a specific regex.
+            // However, this regex does not cover all possible co-badged networks.
+            // The co_badged_card_data field is populated based on a co-badged BIN lookup
+            // and helps identify co-badged cards that may not match the regex alone.
+            // Determine the card network based on cobadge detection and co-badged BIN data
+            let is_cobadged_based_on_regex = card_data
                 .card_number
                 .is_cobadged_card()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Card cobadge check failed due to an invalid card network regex",
-                )? {
-                true => card_data.card_network.clone(),
-                false => None,
+                )?;
+
+            let card_network = match (
+                is_cobadged_based_on_regex,
+                card_data.co_badged_card_data.is_some(),
+            ) {
+                (false, false) => None,
+                _ => card_data.card_network.clone(),
             };
 
             let last4 = Some(card_data.card_number.get_last4());
