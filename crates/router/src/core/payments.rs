@@ -8004,6 +8004,10 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
+    #[cfg(feature = "v2")]
+    fn get_optional_external_vault_session_details(
+        &self,
+    ) -> Option<api::ExternalVaultSessionDetails>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -8051,6 +8055,12 @@ pub trait OperationSessionSetters<F> {
 
     #[cfg(feature = "v1")]
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
+
+    #[cfg(feature = "v2")]
+    fn set_external_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+    );
 }
 
 #[cfg(feature = "v1")]
@@ -8451,6 +8461,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         todo!();
     }
+
+    fn get_optional_external_vault_session_details(
+        &self,
+    ) -> Option<api::ExternalVaultSessionDetails> {
+        self.external_vault_session_details.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -8537,6 +8553,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {
         todo!()
+    }
+
+    fn set_external_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+    ) {
+        self.external_vault_session_details = external_vault_session_details;
     }
 }
 
@@ -8672,6 +8695,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         Some(&self.payment_attempt)
     }
+
+    fn get_optional_external_vault_session_details(
+        &self,
+    ) -> Option<api::ExternalVaultSessionDetails> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -8759,6 +8788,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
+    }
+
+    fn set_external_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+    ) {
+        todo!()
     }
 }
 
@@ -8894,6 +8930,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         self.payment_attempt.as_ref()
     }
+
+    fn get_optional_external_vault_session_details(
+        &self,
+    ) -> Option<api::ExternalVaultSessionDetails> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -8979,6 +9021,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_external_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+    ) {
         todo!()
     }
 }
@@ -9117,6 +9166,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         Some(&self.payment_attempt)
     }
+
+    fn get_optional_external_vault_session_details(
+        &self,
+    ) -> Option<api::ExternalVaultSessionDetails> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9202,6 +9257,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_external_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+    ) {
         todo!()
     }
 }

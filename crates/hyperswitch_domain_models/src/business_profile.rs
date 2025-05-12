@@ -1049,6 +1049,22 @@ impl Profile {
     pub fn get_is_external_vault_enabled(&self) -> bool {
         self.is_external_vault_enabled.unwrap_or(false)
     }
+
+    #[cfg(feature = "v2")]
+    pub fn get_is_external_vault_sdk_enabled(&self) -> bool {
+        let vault_sdk_optional = self
+            .external_vault_connector_details
+            .clone()
+            .and_then(|details| details.vault_sdk);
+
+        match vault_sdk_optional {
+            Some(vault_sdk) => match vault_sdk {
+                api_enums::VaultSdk::VgsSdk => true,
+                api_enums::VaultSdk::HyperswitchSdk => false,
+            },
+            None => false,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

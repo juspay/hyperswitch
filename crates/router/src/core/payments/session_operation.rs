@@ -18,7 +18,7 @@ use crate::{
         payments::{
             call_multiple_connectors_service,
             flows::{ConstructFlowSpecificData, Feature},
-            operations,
+            helpers, operations,
             operations::{BoxedOperation, Operation},
             transformers, OperationSessionGetters, OperationSessionSetters,
         },
@@ -27,6 +27,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services,
     types::{self as router_types, api, domain},
+    utils::ValueExt,
 };
 
 #[cfg(feature = "v2")]
@@ -143,6 +144,9 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    populate_external_vault_session_details(state, &merchant_context, &profile, &mut payment_data)
+        .await?;
+
     let connector = operation
         .to_domain()?
         .perform_routing(
@@ -191,4 +195,54 @@ where
     };
 
     Ok((payment_data, req, customer, None, None))
+}
+
+#[cfg(feature = "v2")]
+pub async fn populate_external_vault_session_details<F, D>(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    profile: &domain::Profile,
+    payment_data: &mut D,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let is_external_vault_enabled = profile.get_is_external_vault_enabled();
+    let is_external_vault_sdk_enabled = profile.get_is_external_vault_sdk_enabled();
+
+    if is_external_vault_enabled && is_external_vault_sdk_enabled {
+        let external_vault_source = profile
+            .external_vault_connector_details
+            .as_ref()
+            .map(|details| &details.vault_connector_id);
+
+        let merchant_connector_account = helpers::get_merchant_connector_account(
+            state,
+            merchant_context.get_merchant_account().get_id(),
+            None,
+            merchant_context.get_merchant_key_store(),
+            profile.get_id(),
+            "",
+            external_vault_source,
+        )
+        .await?;
+
+        let connector_name = merchant_connector_account
+            .get_connector_name()
+            .unwrap_or_default(); // always get the connector name from the merchant_connector_account
+
+        let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let env = state.conf.env;
+
+        let external_vault_session_details =
+            helpers::generate_vault_session_details(&connector_name, env, connector_auth_type);
+
+        payment_data.set_external_vault_session_details(external_vault_session_details);
+    }
+    Ok(())
 }

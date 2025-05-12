@@ -6971,6 +6971,15 @@ pub enum SessionToken {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
+pub struct ExternalVaultSessionDetails {
+    /// The identifier of the external vault
+    pub external_vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub sdk_env: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
 pub struct PazeSessionTokenResponse {
     /// Paze Client ID
     pub client_id: String,
@@ -7357,6 +7366,8 @@ pub struct PaymentsSessionResponse {
     pub payment_id: id_type::GlobalPaymentId,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+    /// External vault session details
+    pub external_vault_session_details: Option<ExternalVaultSessionDetails>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

@@ -508,9 +508,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundNotPossible { connector: _ } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data: _ } => Self::RefundFailed, // Nothing at stripe to map
             errors::ApiErrorResponse::PayoutFailed { data: _ } => Self::PayoutFailed,
-            errors::ApiErrorResponse::ExternalVaultFailed { data: _ } => {
-                Self::ExternalVaultFailed
-            }
+            errors::ApiErrorResponse::ExternalVaultFailed { data: _ } => Self::ExternalVaultFailed,
 
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed

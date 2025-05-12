@@ -1443,6 +1443,8 @@ where
             Self {
                 session_token: payment_data.get_sessions_token(),
                 payment_id: payment_data.get_payment_intent().id.clone(),
+                external_vault_session_details: payment_data
+                    .get_optional_external_vault_session_details(),
             },
             vec![],
         )))

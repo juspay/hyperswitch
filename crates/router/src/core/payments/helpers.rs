@@ -47,6 +47,8 @@ use openssl::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
+#[cfg(feature = "v2")]
+use router_env::env::Env;
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -80,9 +82,9 @@ use crate::{
         domain::{self, types},
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
-        AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
-        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
-        RecipientIdType, RecurringMandatePaymentData, RouterData,
+        AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ErrorResponse, MandateReference, MerchantAccountData, MerchantRecipientData,
+        PaymentsResponseData, RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -7430,4 +7432,31 @@ pub async fn validate_allowed_payment_method_types_request(
     }
 
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub fn generate_vault_session_details(
+    connector_name: &str,
+    env: Env,
+    connector_auth_type: ConnectorAuthType,
+) -> Option<api::ExternalVaultSessionDetails> {
+    let connector = api_enums::VaultConnectors::from_str(connector_name);
+
+    match connector {
+        Ok(api_enums::VaultConnectors::Vgs) => match connector_auth_type {
+            ConnectorAuthType::SignatureKey { api_secret, .. } => {
+                let sdk_env = match env {
+                    Env::Sandbox | Env::Development => "sandbox",
+                    Env::Production => "live",
+                }
+                .to_string();
+                Some(api::ExternalVaultSessionDetails {
+                    external_vault_id: api_secret,
+                    sdk_env,
+                })
+            }
+            _ => None,
+        },
+        _ => None,
+    }
 }

@@ -169,6 +169,7 @@ impl<F: Send + Clone + Sync>
             payment_intent,
             client_secret: Some(client_secret.secret),
             sessions_token: vec![],
+            external_vault_session_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

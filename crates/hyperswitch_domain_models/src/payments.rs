@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::SessionToken;
+use api_models::payments::{ExternalVaultSessionDetails, SessionToken};
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
@@ -829,6 +829,7 @@ where
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
     pub client_secret: Option<Secret<String>>,
+    pub external_vault_session_details: Option<ExternalVaultSessionDetails>,
 }
 
 // TODO: Check if this can be merged with existing payment data
