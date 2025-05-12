@@ -536,14 +536,14 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
     },
 }
