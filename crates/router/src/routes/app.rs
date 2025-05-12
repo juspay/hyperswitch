@@ -2172,7 +2172,7 @@ impl User {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/user").app_data(web::Data::new(state));
+        let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
             .service(web::resource("").route(web::get().to(user::get_user_details)))
@@ -2390,11 +2390,14 @@ impl User {
                 )
                 .service(
                     web::resource("/delete").route(web::delete().to(user_role::delete_user_role)),
-                )
-                .service(
-                    web::resource("/clone_connector").route(web::post().to(user::clone_connector)),
                 ),
         );
+
+        if state.conf().clone_connector_allowlist.is_some() {
+            route = route.service(
+                web::resource("/clone_connector").route(web::post().to(user::clone_connector)),
+            );
+        }
 
         // Role information
         route =

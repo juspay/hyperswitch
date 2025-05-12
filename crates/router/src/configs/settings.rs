@@ -148,7 +148,7 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
-    pub clone_connector_allowlist: CloneConnectorAllowlistConfig,
+    pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
