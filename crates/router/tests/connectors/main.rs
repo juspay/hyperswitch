@@ -99,5 +99,6 @@ mod wellsfargo;
 mod wise;
 mod worldline;
 mod worldpay;
+mod worldpayxml;
 mod zen;
 mod zsl;
