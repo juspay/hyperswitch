@@ -1815,6 +1815,7 @@ dependencies = [
  "nutype",
  "once_cell",
  "openssl",
+ "pem 2.0.1",
  "phonenumber",
  "proptest",
  "quick-xml",
@@ -3867,7 +3868,7 @@ dependencies = [
  "masking",
  "mime",
  "once_cell",
- "openssl",
+ "pem 2.0.1",
  "qrcode",
  "quick-xml",
  "rand",
@@ -4392,7 +4393,7 @@ checksum = "b9ae10193d25051e74945f1ea2d0b42e03cc3b890f7e4cc5faa44997d808193f"
 dependencies = [
  "base64 0.21.7",
  "js-sys",
- "pem",
+ "pem 3.0.4",
  "ring 0.17.8",
  "serde",
  "serde_json",
@@ -5499,6 +5500,16 @@ dependencies = [
  "serde",
  "serde_json",
  "storage_impl",
+]
+
+[[package]]
+name = "pem"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b13fe415cdf3c8e44518e18a7c95a13431d9bdf6d15367d82b23c377fdd441a"
+dependencies = [
+ "base64 0.21.7",
+ "serde",
 ]
 
 [[package]]

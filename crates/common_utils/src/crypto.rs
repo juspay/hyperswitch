@@ -4,9 +4,11 @@ use std::ops::Deref;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
+use pem;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
-    hmac,
+    hmac, rand as ring_rand,
+    signature::{RsaKeyPair, RSA_PSS_SHA256},
 };
 
 use crate::{
@@ -596,6 +598,43 @@ pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
 pub type EncryptableName = Encryptable<Secret<String>>;
 /// Type alias for `Encryptable<Secret<String>>` used for `email` field
 pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
+
+/// Represents the RSA-PSS-SHA256 signing algorithm
+#[derive(Debug)]
+pub struct RsaPssSha256;
+
+impl SignMessage for RsaPssSha256 {
+    fn sign_message(
+        &self,
+        private_key_pem_bytes: &[u8],
+        msg_to_sign: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let parsed_pem = pem::parse(private_key_pem_bytes)
+            .change_context(errors::CryptoError::EncodingFailed)
+            .attach_printable("Failed to parse PEM string")?;
+        let key_pair = match parsed_pem.tag() {
+            "PRIVATE KEY" => RsaKeyPair::from_pkcs8(parsed_pem.contents())
+                .change_context(errors::CryptoError::InvalidKeyLength)
+                .attach_printable("Failed to parse PKCS#8 DER with ring"),
+            "RSA PRIVATE KEY" => RsaKeyPair::from_der(parsed_pem.contents())
+                .change_context(errors::CryptoError::InvalidKeyLength)
+                .attach_printable("Failed to parse PKCS#1 DER (using from_der) with ring"),
+            tag => Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Unexpected PEM tag: {}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'",
+                tag
+            )),
+        }?;
+        let rng = ring_rand::SystemRandom::new();
+        let signature_len = key_pair.public().modulus_len();
+        let mut signature_bytes = vec![0; signature_len];
+        key_pair
+            .sign(&RSA_PSS_SHA256, &rng, msg_to_sign, &mut signature_bytes)
+            .change_context(errors::CryptoError::EncodingFailed)
+            .attach_printable("Failed to sign data with ring")?;
+
+        Ok(signature_bytes)
+    }
+}
 
 #[cfg(test)]
 mod crypto_tests {

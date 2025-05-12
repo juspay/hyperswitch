@@ -6,6 +6,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;
 use common_enums::enums;
 use common_utils::{
+    crypto::{RsaPssSha256, SignMessage},
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -47,12 +48,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
-use openssl::{
-    hash::MessageDigest,
-    pkey::PKey,
-    rsa::Padding,
-    sign::{RsaPssSaltlen, Signer},
-};
+// pem and ring imports for signing are removed as this functionality is now in common_utils
 use sha2::{Digest, Sha256};
 use transformers as amazonpay;
 
@@ -157,30 +153,20 @@ impl Amazonpay {
             .map_err(|e| format!("Failed to create signature: {}", e))
     }
 
-    fn sign(private_key_pem: &Secret<String>, string_to_sign: &String) -> Result<String, String> {
-        let pkey = PKey::private_key_from_pem(private_key_pem.peek().as_bytes())
-            .map_err(|e| format!("Failed to parse PKCS8 private key: {}", e))?;
+    fn sign(
+        private_key_pem_str: &Secret<String>,
+        string_to_sign: &String,
+    ) -> Result<String, String> {
+        let rsa_pss_sha256_signer = RsaPssSha256;
+        let signature_bytes = rsa_pss_sha256_signer
+            .sign_message(
+                private_key_pem_str.peek().as_bytes(),
+                string_to_sign.as_bytes(),
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .map_err(|e| format!("Crypto operation failed: {:?}", e))?;
 
-        let mut signer = Signer::new(MessageDigest::sha256(), &pkey)
-            .map_err(|e| format!("Failed to create signer: {}", e))?;
-
-        signer
-            .set_rsa_padding(Padding::PKCS1_PSS)
-            .map_err(|e| format!("Failed to set RSA padding: {}", e))?;
-
-        signer
-            .set_rsa_pss_saltlen(RsaPssSaltlen::custom(32))
-            .map_err(|e| format!("Failed to set RSA PSS salt length: {}", e))?;
-
-        signer
-            .update(string_to_sign.as_bytes())
-            .map_err(|e| format!("Failed to update signer with string: {}", e))?;
-
-        Ok(STANDARD.encode(
-            signer
-                .sign_to_vec()
-                .map_err(|e| format!("Failed to sign data: {}", e))?,
-        ))
+        Ok(STANDARD.encode(signature_bytes))
     }
 }
 
