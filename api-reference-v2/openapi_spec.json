@@ -10206,6 +10206,16 @@
           }
         }
       },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          }
+        }
+      },
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [
@@ -19941,6 +19951,19 @@
               }
             ],
             "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "type": "boolean",
+            "description": "Indicates if external vault is enabled or not.",
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20188,6 +20211,19 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "type": "boolean",
+            "description": "Indicates if external vault is enabled or not.",
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
               }
             ],
             "nullable": true

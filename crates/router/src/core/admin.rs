@@ -4052,6 +4052,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: None,
             revenue_recovery_retry_algorithm_data: None,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4486,6 +4490,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
