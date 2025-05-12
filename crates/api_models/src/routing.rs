@@ -643,6 +643,17 @@ impl DynamicRoutingAlgorithmRef {
         self.dynamic_routing_volume_split = volume
     }
 
+    pub fn is_success_rate_routing_enabled(&self) -> bool {
+        self.success_based_algorithm
+            .as_ref()
+            .map(|success_based_routing| {
+                success_based_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
+            })
+            .unwrap_or_default()
+    }
+
     pub fn is_elimination_enabled(&self) -> bool {
         self.elimination_routing_algorithm
             .as_ref()

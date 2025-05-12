@@ -293,11 +293,7 @@ pub fn create_merchant_account_request_for_org(
     org: organization::Organization,
     product_type: common_enums::MerchantProductType,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
-    let merchant_id = if matches!(env::which(), env::Env::Production) {
-        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().expose())?)?
-    } else {
-        id_type::MerchantId::new_from_unix_timestamp()
-    };
+    let merchant_id = generate_env_specific_merchant_id(req.merchant_name.clone().expose())?;
 
     let company_name = domain::UserCompanyName::new(req.merchant_name.expose())?;
     Ok(api_models::admin::MerchantAccountCreate {
@@ -374,4 +370,13 @@ pub fn spawn_async_lineage_context_update_to_db(
             }
         }
     });
+}
+
+pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {
+    if matches!(env::which(), env::Env::Production) {
+        let raw_id = domain::MerchantId::new(value)?;
+        Ok(id_type::MerchantId::try_from(raw_id)?)
+    } else {
+        Ok(id_type::MerchantId::new_from_unix_timestamp())
+    }
 }
