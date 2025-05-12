@@ -144,7 +144,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
-    Req: Send + Sync,
+    Req: Send + Sync + Authenticate,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
@@ -518,7 +518,7 @@ where
                         &business_profile,
                         false,
                         false,
-                        req.get_all_keys_required(),
+                        <Req as Authenticate>::get_all_keys_required(&req),
                     )
                     .await?;
 
@@ -636,7 +636,7 @@ where
                         &business_profile,
                         false,
                         false,
-                        req.get_all_keys_required(),
+                        <Req as Authenticate>::get_all_keys_required(&req),
                     )
                     .await?;
 
@@ -767,7 +767,7 @@ where
                         session_surcharge_details,
                         &business_profile,
                         header_payload.clone(),
-                        req.get_all_keys_required(),
+                        <Req as Authenticate>::get_all_keys_required(&req),
                     ))
                     .await?
                 }
@@ -1099,7 +1099,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
-    Req: Send + Sync,
+    Req: Send + Sync + Authenticate,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
@@ -1642,7 +1642,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    Req: Send + Sync,
+    Req: Send + Sync + Authenticate,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
     Req: Debug,
@@ -1895,7 +1895,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    Req: Send + Sync,
+    Req: Send + Sync + Authenticate,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
     Req: Debug,

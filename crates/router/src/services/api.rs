@@ -1252,6 +1252,11 @@ pub trait Authenticate {
     }
 }
 
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
+
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
