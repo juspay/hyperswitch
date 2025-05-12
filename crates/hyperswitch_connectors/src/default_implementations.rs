@@ -1115,7 +1115,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Moneris,
     connectors::Multisafepay,
     connectors::Rapyd,
-    connectors::Razorpay,
     connectors::Recurly,
     connectors::Riskified,
     connectors::Stax,
