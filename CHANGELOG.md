@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.04.09.0-hotfix9
+
+### Bug Fixes
+
+- Fixes the docker setup to clean up the scarf data ([#7999](https://github.com/juspay/hyperswitch/pull/7999)) ([`0bedc3e`](https://github.com/juspay/hyperswitch/commit/0bedc3e0ead96310a3579cc0df1c647384d2a661))
+
+**Full Changelog:** [`2025.04.09.0-hotfix8...2025.04.09.0-hotfix9`](https://github.com/juspay/hyperswitch/compare/2025.04.09.0-hotfix8...2025.04.09.0-hotfix9)
+
+
+- - -
+
 ## 2025.04.09.0-hotfix8
 
 ### Bug Fixes
