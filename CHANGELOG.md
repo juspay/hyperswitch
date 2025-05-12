@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.12.0
+
+### Refactors
+
+- **authentication:** Moved cavv storing from table to temp locker ([#7978](https://github.com/juspay/hyperswitch/pull/7978)) ([`dbaf567`](https://github.com/juspay/hyperswitch/commit/dbaf5679717c5ac53f09ad11f67c238702b75c91))
+
+**Full Changelog:** [`2025.05.09.0...2025.05.12.0`](https://github.com/juspay/hyperswitch/compare/2025.05.09.0...2025.05.12.0)
+
+
+- - -
+
 ## 2025.05.09.0
 
 ### Features
