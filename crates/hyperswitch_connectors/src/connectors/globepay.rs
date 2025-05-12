@@ -1,5 +1,7 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
+use common_enums::enums;
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::CustomResult,
@@ -21,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -203,8 +208,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let query_params = get_globlepay_query_params(&req.connector_auth_type)?;
         if matches!(
             req.request.capture_method,
-            Some(common_enums::enums::CaptureMethod::Automatic)
-                | Some(common_enums::enums::CaptureMethod::SequentialAutomatic)
+            Some(enums::CaptureMethod::Automatic) | Some(enums::CaptureMethod::SequentialAutomatic)
         ) {
             Ok(format!(
                 "{}api/v1.0/gateway/partners/{}/orders/{}{query_params}",
@@ -560,4 +564,58 @@ impl webhooks::IncomingWebhook for Globepay {
     }
 }
 
-impl ConnectorSpecifications for Globepay {}
+static GLOBEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut globepay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        globepay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::AliPay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        globepay_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::WeChatPay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        globepay_supported_payment_methods
+    });
+
+static GLOBEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Globepay",
+        description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static GLOBEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Globepay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&GLOBEPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*GLOBEPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&GLOBEPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
