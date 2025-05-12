@@ -1180,7 +1180,9 @@ impl Refunds {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
 
-        route = route.service(web::resource("").route(web::post().to(refunds::refunds_create)));
+        route = route
+            .service(web::resource("").route(web::post().to(refunds::refunds_create)))
+            .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)));
 
         route
     }
