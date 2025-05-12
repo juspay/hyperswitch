@@ -23,7 +23,7 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
-use router_env::{env, logger};
+use router_env::logger;
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
@@ -267,9 +267,10 @@ impl NewUserOrganization {
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
-        let new_organization = api_org::OrganizationNew::new(Some(
-            UserCompanyName::new(value.company_name)?.get_secret(),
-        ));
+        let new_organization = api_org::OrganizationNew::new(
+            common_enums::OrganizationType::Standard,
+            Some(UserCompanyName::new(value.company_name)?.get_secret()),
+        );
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Ok(Self(db_organization))
     }
@@ -277,7 +278,8 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
 
 impl From<user_api::SignUpRequest> for NewUserOrganization {
     fn from(_value: user_api::SignUpRequest) -> Self {
-        let new_organization = api_org::OrganizationNew::new(None);
+        let new_organization =
+            api_org::OrganizationNew::new(common_enums::OrganizationType::Standard, None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
     }
@@ -285,7 +287,8 @@ impl From<user_api::SignUpRequest> for NewUserOrganization {
 
 impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     fn from(_value: user_api::ConnectAccountRequest) -> Self {
-        let new_organization = api_org::OrganizationNew::new(None);
+        let new_organization =
+            api_org::OrganizationNew::new(common_enums::OrganizationType::Standard, None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
     }
@@ -297,6 +300,7 @@ impl From<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for Ne
     ) -> Self {
         let new_organization = api_org::OrganizationNew {
             org_id,
+            org_type: common_enums::OrganizationType::Standard,
             org_name: None,
         };
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -308,15 +312,28 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     fn from(value: UserMerchantCreateRequestWithToken) -> Self {
         Self(diesel_org::OrganizationNew::new(
             value.2.org_id,
+            common_enums::OrganizationType::Standard,
             Some(value.1.company_name),
         ))
+    }
+}
+
+impl From<user_api::PlatformAccountCreateRequest> for NewUserOrganization {
+    fn from(value: user_api::PlatformAccountCreateRequest) -> Self {
+        let new_organization = api_org::OrganizationNew::new(
+            common_enums::OrganizationType::Platform,
+            Some(value.organization_name.expose()),
+        );
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
     }
 }
 
 type InviteeUserRequestWithInvitedUserToken = (user_api::InviteUserRequest, UserFromToken);
 impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
     fn from(_value: InviteeUserRequestWithInvitedUserToken) -> Self {
-        let new_organization = api_org::OrganizationNew::new(None);
+        let new_organization =
+            api_org::OrganizationNew::new(common_enums::OrganizationType::Standard, None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
     }
@@ -331,6 +348,7 @@ impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for Ne
     ) -> Self {
         let new_organization = api_org::OrganizationNew {
             org_id: merchant_account_identifier.org_id,
+            org_type: common_enums::OrganizationType::Standard,
             org_name: None,
         };
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -349,7 +367,11 @@ impl ForeignFrom<api_models::user::UserOrgMerchantCreateRequest>
             metadata,
             ..
         } = item;
-        let mut org_new_db = Self::new(org_id, Some(organization_name.expose()));
+        let mut org_new_db = Self::new(
+            org_id,
+            common_enums::OrganizationType::Standard,
+            Some(organization_name.expose()),
+        );
         org_new_db.organization_details = organization_details;
         org_new_db.metadata = metadata;
         org_new_db
@@ -702,11 +724,8 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
-        let merchant_id = if matches!(env::which(), env::Env::Production) {
-            id_type::MerchantId::try_from(MerchantId::new(value.1.company_name.clone())?)?
-        } else {
-            id_type::MerchantId::new_from_unix_timestamp()
-        };
+        let merchant_id =
+            utils::user::generate_env_specific_merchant_id(value.1.company_name.clone())?;
         let (user_from_storage, user_merchant_create, user_from_token) = value;
         Ok(Self {
             merchant_id,
@@ -719,6 +738,24 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
                 user_merchant_create,
                 user_from_token,
             )),
+        })
+    }
+}
+
+impl TryFrom<user_api::PlatformAccountCreateRequest> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::PlatformAccountCreateRequest) -> UserResult<Self> {
+        let merchant_id = utils::user::generate_env_specific_merchant_id(
+            value.organization_name.clone().expose(),
+        )?;
+
+        let new_organization = NewUserOrganization::from(value);
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+            product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
         })
     }
 }

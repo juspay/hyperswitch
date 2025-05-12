@@ -2193,6 +2193,7 @@ impl User {
             .service(
                 web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
             )
+            .service(web::resource("/create_platform").route(web::post().to(user::create_platform)))
             .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
