@@ -1888,6 +1888,8 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
         let billing_connector =
             api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
+        let external_vault_connector =
+            api_enums::convert_external_vault_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1914,6 +1916,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if billing_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::BillingProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if external_vault_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::VaultProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
