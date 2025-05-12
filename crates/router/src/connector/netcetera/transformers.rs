@@ -649,7 +649,7 @@ pub struct NetceteraAuthenticationSuccessResponse {
     #[serde(rename = "threeDSServerTransID")]
     pub three_ds_server_trans_id: String,
     pub trans_status: common_enums::TransactionStatus,
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedIndicator>,
     pub authentication_response: AuthenticationResponse,
@@ -709,7 +709,7 @@ pub struct ResultsResponseData {
 
     /// Payment System-specific value provided as part of the ACS registration for each supported DS.
     /// Authentication Value may be used to provide proof of authentication.
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
 
     /// Payment System-specific value provided by the ACS to indicate the results of the attempt to authenticate
     /// the Cardholder.
