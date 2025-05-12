@@ -539,7 +539,7 @@ async fn payments_incoming_webhook_flow(
                 Box::pin(create_event_and_trigger_outgoing_webhook(
                     state,
                     profile,
-                    &key_store,
+                    &merchant_context.get_merchant_key_store(),
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
