@@ -1,5 +1,7 @@
 use common_utils::types::MinorUnit;
 use error_stack::Report;
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::Serialize;
 
@@ -8,24 +10,22 @@ pub mod payouts;
 #[cfg(feature = "payouts")]
 pub use payouts::*;
 
-use crate::{core::errors, types};
-
 // Error signature
-type Error = Report<errors::ConnectorError>;
+type Error = Report<ConnectorError>;
 
 // Auth Struct
 pub struct AdyenplatformAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AdyenplatformAuthType {
+impl TryFrom<&ConnectorAuthType> for AdyenplatformAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -37,7 +37,7 @@ pub struct AdyenPlatformRouterData<T> {
 }
 
 impl<T> TryFrom<(MinorUnit, T)> for AdyenPlatformRouterData<T> {
-    type Error = Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
     fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,

@@ -3,7 +3,14 @@ use api_models::{self, webhooks::IncomingWebhookEvent};
 #[cfg(feature = "payouts")]
 use base64::Engine;
 #[cfg(feature = "payouts")]
+use common_utils::crypto;
+use common_utils::errors::CustomResult;
+#[cfg(feature = "payouts")]
+use common_utils::ext_traits::{ByteSliceExt as _, BytesExt};
+#[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+#[cfg(feature = "payouts")]
+use common_utils::request::{Method, Request, RequestBuilder};
 #[cfg(feature = "payouts")]
 use common_utils::types::MinorUnitForConnector;
 #[cfg(feature = "payouts")]
@@ -13,35 +20,50 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use http::HeaderName;
-use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
-use masking::Maskable;
 #[cfg(feature = "payouts")]
-use masking::Secret;
+use hyperswitch_domain_models::router_data::{ErrorResponse, RouterData};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::router_flow_types::PoFulfill;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData, PayoutsRouterData};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse,
+    router_data::{AccessToken, ConnectorAuthType},
+    router_flow_types::{
+        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, RSync, Session,
+        SetupMandate, Void,
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::events::connector_api_logs::ConnectorEvent;
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::{PayoutFulfillType, Response};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications},
+    configs::Connectors,
+    errors::ConnectorError,
+    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+};
+use masking::{Mask as _, Maskable, Secret};
 #[cfg(feature = "payouts")]
 use ring::hmac;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
+#[cfg(feature = "payouts")]
+use transformers::get_adyen_webhook_event;
 
 use self::transformers as adyenplatform;
+use crate::constants::headers;
 #[cfg(feature = "payouts")]
-use crate::connector::utils::convert_amount;
-use crate::{
-    configs::settings,
-    core::errors::{self, CustomResult},
-    headers,
-    services::{self, request::Mask, ConnectorSpecifications, ConnectorValidation},
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-    },
-};
+use crate::types::ResponseRouterData;
 #[cfg(feature = "payouts")]
-use crate::{
-    consts,
-    events::connector_api_logs::ConnectorEvent,
-    types::transformers::ForeignFrom,
-    utils::{crypto, ByteSliceExt, BytesExt},
-};
+use crate::utils::convert_amount;
 
 #[derive(Clone)]
 pub struct Adyenplatform {
@@ -64,35 +86,34 @@ impl ConnectorCommon for Adyenplatform {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         let auth = adyenplatform::AdyenplatformAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.into_masked(),
         )])
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.adyenplatform.base_url.as_ref()
     }
 
     #[cfg(feature = "payouts")]
     fn build_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: adyenplatform::AdyenTransferErrorResponse = res
             .response
             .parse_struct("AdyenTransferErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(types::ErrorResponse {
+        Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
             message: response.title,
@@ -114,92 +135,46 @@ impl api::PaymentCapture for Adyenplatform {}
 impl api::MandateSetup for Adyenplatform {}
 impl api::ConnectorAccessToken for Adyenplatform {}
 impl api::PaymentToken for Adyenplatform {}
-impl ConnectorValidation for Adyenplatform {}
+impl api::ConnectorValidation for Adyenplatform {}
 
-impl
-    services::ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Adyenplatform
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Adyenplatform
 {
 }
 
-impl
-    services::ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for Adyenplatform
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Adyenplatform {}
 
-impl
-    services::ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Adyenplatform
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Adyenplatform
 {
 }
 
 impl api::PaymentSession for Adyenplatform {}
 
-impl
-    services::ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Adyenplatform
-{
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Adyenplatform {}
 
-impl
-    services::ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Adyenplatform
-{
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Adyenplatform {}
 
-impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Adyenplatform {}
+
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
     for Adyenplatform
 {
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Adyenplatform
-{
-}
-
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Adyenplatform
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Adyenplatform {}
 
 impl api::Payouts for Adyenplatform {}
 #[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Adyenplatform {}
 
 #[cfg(feature = "payouts")]
-impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
-    for Adyenplatform
-{
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyenplatform {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
         Ok(format!(
             "{}btl/v4/transfers",
             connectors.adyenplatform.base_url,
@@ -208,17 +183,15 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PayoutFulfillType::get_content_type(self)
-                .to_string()
-                .into(),
+            PayoutFulfillType::get_content_type(self).to_string().into(),
         )];
         let auth = adyenplatform::AdyenplatformAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
         let mut api_key = vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.into_masked(),
@@ -229,9 +202,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -245,19 +218,15 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PoFulfill>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::PayoutFulfillType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::PayoutFulfillType::get_request_body(
-                self, req, connectors,
-            )?)
+            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
+            .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
             .build();
 
         Ok(Some(request))
@@ -266,19 +235,19 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PoFulfill>,
+        data: &PayoutsRouterData<PoFulfill>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, ConnectorError> {
         let response: adyenplatform::AdyenTransferResponse = res
             .response
             .parse_struct("AdyenTransferResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -287,9 +256,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
 
     fn get_error_response(
         &self,
-        res: types::Response,
+        res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -298,58 +267,54 @@ impl api::Refund for Adyenplatform {}
 impl api::RefundExecute for Adyenplatform {}
 impl api::RefundSync for Adyenplatform {}
 
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Adyenplatform
-{
-}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Adyenplatform {}
 
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Adyenplatform
-{
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyenplatform {}
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Adyenplatform {
+impl IncomingWebhook for Adyenplatform {
     #[cfg(feature = "payouts")]
     fn get_webhook_source_verification_algorithm(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, ConnectorError> {
         Ok(Box::new(crypto::HmacSha256))
     }
 
     #[cfg(feature = "payouts")]
     fn get_webhook_source_verification_signature(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
         let base64_signature = request
             .headers
             .get(HeaderName::from_static("hmacsignature"))
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .ok_or(ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(base64_signature.as_bytes().to_vec())
     }
 
     #[cfg(feature = "payouts")]
     fn get_webhook_source_verification_message(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
         Ok(request.body.to_vec())
     }
 
     #[cfg(feature = "payouts")]
     async fn verify_webhook_source(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
+    ) -> CustomResult<bool, ConnectorError> {
+        use common_utils::consts;
+
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_id,
@@ -357,11 +322,11 @@ impl api::IncomingWebhook for Adyenplatform {
                 connector_webhook_details,
             )
             .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
             .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = self
             .get_webhook_source_verification_message(
@@ -369,10 +334,10 @@ impl api::IncomingWebhook for Adyenplatform {
                 merchant_id,
                 &connector_webhook_secrets,
             )
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
         let raw_key = hex::decode(connector_webhook_secrets.secret)
-            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
+            .change_context(ConnectorError::WebhookVerificationSecretInvalid)?;
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
         let signed_messaged = hmac::sign(&signing_key, &message);
@@ -382,15 +347,15 @@ impl api::IncomingWebhook for Adyenplatform {
 
     fn get_webhook_object_reference_id(
         &self,
-        #[cfg(feature = "payouts")] request: &api::IncomingWebhookRequestDetails<'_>,
-        #[cfg(not(feature = "payouts"))] _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
             let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
                 .body
                 .parse_struct("AdyenplatformIncomingWebhook")
-                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+                .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
             Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::PayoutAttemptId(webhook_body.data.reference),
@@ -398,18 +363,17 @@ impl api::IncomingWebhook for Adyenplatform {
         }
         #[cfg(not(feature = "payouts"))]
         {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+            Err(report!(ConnectorError::WebhooksNotImplemented))
         }
     }
 
     fn get_webhook_api_response(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
         error_kind: Option<IncomingWebhookFlowError>,
-    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
-    {
+    ) -> CustomResult<ApplicationResponse<serde_json::Value>, ConnectorError> {
         if error_kind.is_some() {
-            Ok(services::api::ApplicationResponse::JsonWithHeaders((
+            Ok(ApplicationResponse::JsonWithHeaders((
                 serde_json::Value::Null,
                 vec![(
                     "x-http-code".to_string(),
@@ -417,50 +381,50 @@ impl api::IncomingWebhook for Adyenplatform {
                 )],
             )))
         } else {
-            Ok(services::api::ApplicationResponse::StatusOk)
+            Ok(ApplicationResponse::StatusOk)
         }
     }
 
     fn get_webhook_event_type(
         &self,
-        #[cfg(feature = "payouts")] request: &api::IncomingWebhookRequestDetails<'_>,
-        #[cfg(not(feature = "payouts"))] _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
             let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
                 .body
                 .parse_struct("AdyenplatformIncomingWebhook")
-                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+                .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
-            Ok(IncomingWebhookEvent::foreign_from((
+            Ok(get_adyen_webhook_event(
                 webhook_body.webhook_type,
                 webhook_body.data.status,
                 webhook_body.data.tracking,
-            )))
+            ))
         }
         #[cfg(not(feature = "payouts"))]
         {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+            Err(report!(ConnectorError::WebhooksNotImplemented))
         }
     }
 
     fn get_webhook_resource_object(
         &self,
-        #[cfg(feature = "payouts")] request: &api::IncomingWebhookRequestDetails<'_>,
-        #[cfg(not(feature = "payouts"))] _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
             let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
                 .body
                 .parse_struct("AdyenplatformIncomingWebhook")
-                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+                .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
             Ok(Box::new(webhook_body))
         }
         #[cfg(not(feature = "payouts"))]
         {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+            Err(report!(ConnectorError::WebhooksNotImplemented))
         }
     }
 }

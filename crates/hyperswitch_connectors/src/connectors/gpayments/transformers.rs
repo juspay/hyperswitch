@@ -1,23 +1,36 @@
 use api_models::payments::DeviceChannel;
 use base64::Engine;
-use common_utils::{date_time, types::MinorUnit};
+use common_utils::{consts::BASE64_ENGINE, date_time, types::MinorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, ErrorResponse},
+    router_flow_types::authentication::{
+        Authentication, PreAuthentication, PreAuthenticationVersionCall,
+    },
+    router_request_types::{
+        authentication::{
+            AuthNFlowType, ChallengeParams, ConnectorAuthenticationRequestData, MessageCategory,
+            PreAuthNRequestData,
+        },
+        BrowserInformation,
+    },
+    router_response_types::AuthenticationResponseData,
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, Secret};
 use serde::Deserialize;
 use serde_json::to_string;
 
-use super::gpayments_types;
+use super::gpayments_types::{
+    self, AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationSuccessResponse,
+    GpaymentsPreAuthVersionCallResponse,
+};
 use crate::{
-    connector::{
-        gpayments::gpayments_types::{
-            AuthStatus, BrowserInfoCollected, GpaymentsAuthenticationSuccessResponse,
-        },
-        utils,
-        utils::{get_card_details, CardData},
+    types::{
+        ConnectorAuthenticationRouterData, PreAuthNRouterData, PreAuthNVersionCallRouterData,
+        ResponseRouterData,
     },
-    consts::BASE64_ENGINE,
-    core::errors,
-    types::{self, api, api::MessageCategory, authentication::ChallengeParams},
+    utils::{get_card_details, to_connector_meta_from_secret, CardData as _},
 };
 
 pub struct GpaymentsRouterData<T> {
@@ -42,29 +55,29 @@ pub struct GpaymentsAuthType {
     pub private_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for GpaymentsAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+impl TryFrom<&ConnectorAuthType> for GpaymentsAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type.to_owned() {
-            types::ConnectorAuthType::CertificateAuth {
+            ConnectorAuthType::CertificateAuth {
                 certificate,
                 private_key,
             } => Ok(Self {
                 certificate,
                 private_key,
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
 
-impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNVersionCallRouterData>>
+impl TryFrom<&GpaymentsRouterData<&PreAuthNVersionCallRouterData>>
     for gpayments_types::GpaymentsPreAuthVersionCallRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        value: &GpaymentsRouterData<&types::authentication::PreAuthNVersionCallRouterData>,
+        value: &GpaymentsRouterData<&PreAuthNVersionCallRouterData>,
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         let metadata = GpaymentsMetaData::try_from(&router_data.connector_meta_data)?;
@@ -82,47 +95,43 @@ pub struct GpaymentsMetaData {
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for GpaymentsMetaData {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
+        let metadata: Self = to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         Ok(metadata)
     }
 }
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::PreAuthenticationVersionCall,
-            gpayments_types::GpaymentsPreAuthVersionCallResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+        ResponseRouterData<
+            PreAuthenticationVersionCall,
+            GpaymentsPreAuthVersionCallResponse,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::PreAuthNVersionCallRouterData
+    > for PreAuthNVersionCallRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::PreAuthenticationVersionCall,
-            gpayments_types::GpaymentsPreAuthVersionCallResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+        item: ResponseRouterData<
+            PreAuthenticationVersionCall,
+            GpaymentsPreAuthVersionCallResponse,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let version_response = item.response;
-        let response = Ok(
-            types::authentication::AuthenticationResponseData::PreAuthVersionCallResponse {
-                maximum_supported_3ds_version: version_response
-                    .supported_message_versions
-                    .and_then(|supported_version| supported_version.iter().max().cloned()) // if no version is returned for the card number, then
-                    .unwrap_or(common_utils::types::SemanticVersion::new(0, 0, 0)),
-            },
-        );
+        let response = Ok(AuthenticationResponseData::PreAuthVersionCallResponse {
+            maximum_supported_3ds_version: version_response
+                .supported_message_versions
+                .and_then(|supported_version| supported_version.iter().max().cloned()) // if no version is returned for the card number, then
+                .unwrap_or(common_utils::types::SemanticVersion::new(0, 0, 0)),
+        });
         Ok(Self {
             response,
             ..item.data.clone()
@@ -130,14 +139,12 @@ impl
     }
 }
 
-impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
+impl TryFrom<&GpaymentsRouterData<&PreAuthNRouterData>>
     for gpayments_types::GpaymentsPreAuthenticationRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        value: &GpaymentsRouterData<&types::authentication::PreAuthNRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: &GpaymentsRouterData<&PreAuthNRouterData>) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         let metadata = GpaymentsMetaData::try_from(&router_data.connector_meta_data)?;
         Ok(Self {
@@ -154,20 +161,20 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::PreAuthNRouterData>>
     }
 }
 
-impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
+impl TryFrom<&GpaymentsRouterData<&ConnectorAuthenticationRouterData>>
     for gpayments_types::GpaymentsAuthenticationRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: &GpaymentsRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
+        item: &GpaymentsRouterData<&ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         let browser_details = match request.browser_details.clone() {
-            Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
+            Some(details) => Ok::<Option<BrowserInformation>, Self::Error>(Some(details)),
             None => {
                 if request.device_channel == DeviceChannel::Browser {
-                    Err(errors::ConnectorError::MissingRequiredField {
+                    Err(ConnectorError::MissingRequiredField {
                         field_name: "browser_info",
                     })?
                 } else {
@@ -191,7 +198,7 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticatio
             notification_url: request
                 .return_url
                 .clone()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                .ok_or(ConnectorError::RequestEncodingFailed)
                 .attach_printable("missing return_url")?,
             three_ds_comp_ind: request.threeds_method_comp_ind.clone(),
             purchase_amount: item.amount.to_string(),
@@ -238,21 +245,21 @@ impl TryFrom<&GpaymentsRouterData<&types::authentication::ConnectorAuthenticatio
 }
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::Authentication,
+        ResponseRouterData<
+            Authentication,
             GpaymentsAuthenticationSuccessResponse,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
+            ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::ConnectorAuthenticationRouterData
+    > for ConnectorAuthenticationRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::Authentication,
+        item: ResponseRouterData<
+            Authentication,
             GpaymentsAuthenticationSuccessResponse,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
+            ConnectorAuthenticationRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response_auth = item.response;
@@ -264,19 +271,16 @@ impl
             "challengeWindowSize": "01",
         });
         let creq_str = to_string(&creq)
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .change_context(ConnectorError::ResponseDeserializationFailed)
             .attach_printable("error while constructing creq_str")?;
         let creq_base64 = Engine::encode(&BASE64_ENGINE, creq_str)
             .trim_end_matches('=')
             .to_owned();
-        let response: Result<
-            types::authentication::AuthenticationResponseData,
-            types::ErrorResponse,
-        > = Ok(
-            types::authentication::AuthenticationResponseData::AuthNResponse {
+        let response: Result<AuthenticationResponseData, ErrorResponse> =
+            Ok(AuthenticationResponseData::AuthNResponse {
                 trans_status: response_auth.trans_status.clone().into(),
                 authn_flow_type: if response_auth.trans_status == AuthStatus::C {
-                    types::authentication::AuthNFlowType::Challenge(Box::new(ChallengeParams {
+                    AuthNFlowType::Challenge(Box::new(ChallengeParams {
                         acs_url: response_auth.acs_url,
                         challenge_request: Some(creq_base64),
                         acs_reference_number: Some(response_auth.acs_reference_number.clone()),
@@ -285,13 +289,12 @@ impl
                         acs_signed_content: None,
                     }))
                 } else {
-                    types::authentication::AuthNFlowType::Frictionless
+                    AuthNFlowType::Frictionless
                 },
                 authentication_value: response_auth.authentication_value,
                 ds_trans_id: Some(response_auth.ds_trans_id),
                 connector_metadata: None,
-            },
-        );
+            });
         Ok(Self {
             response,
             ..item.data.clone()
@@ -301,21 +304,21 @@ impl
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::PreAuthentication,
+        ResponseRouterData<
+            PreAuthentication,
             gpayments_types::GpaymentsPreAuthenticationResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
-    > for types::authentication::PreAuthNRouterData
+    > for PreAuthNRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::PreAuthentication,
+        item: ResponseRouterData<
+            PreAuthentication,
             gpayments_types::GpaymentsPreAuthenticationResponse,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let threeds_method_response = item.response;
@@ -328,7 +331,7 @@ impl
                     "threeDSMethodNotificationURL": "https://webhook.site/bd06863d-82c2-42ea-b35b-5ffd5ecece71"
                 });
                 to_string(&three_ds_method_data_json)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .change_context(ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing three_ds_method_data_str")
                     .map(|three_ds_method_data_string| {
                         Engine::encode(&BASE64_ENGINE, three_ds_method_data_string)
@@ -341,11 +344,8 @@ impl
                 three_ds_requestor_trans_id: None,
             }
         ));
-        let response: Result<
-            types::authentication::AuthenticationResponseData,
-            types::ErrorResponse,
-        > = Ok(
-            types::authentication::AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
+        let response: Result<AuthenticationResponseData, ErrorResponse> = Ok(
+            AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
                 threeds_server_transaction_id: threeds_method_response
                     .three_ds_server_trans_id
                     .clone(),

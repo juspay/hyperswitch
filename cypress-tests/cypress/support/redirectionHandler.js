@@ -193,7 +193,27 @@ function bankRedirectRedirection(
               paymentMethodType
             )
           ) {
-            cy.get('a[name="success"]').click();
+            // scroll down and click on the authorize test payment button
+            cy.get("body").then(($body) => {
+              cy.get("#frame-warning-container").then(($el) => {
+                if ($el.is(":visible")) {
+                  // Frame warning is visible — use test payment button
+                  cy.get("#authorize-test-payment")
+                    .scrollIntoView()
+                    .should("be.visible")
+                    .click();
+                } else {
+                  // Frame warning is hidden — use the success link
+                  cy.contains(
+                    'a.common-Button[name="success"]',
+                    "Authorize Test Payment"
+                  )
+                    .scrollIntoView()
+                    .should("be.visible")
+                    .click();
+                }
+              });
+            });
             verifyUrl = true;
           } else {
             throw new Error(

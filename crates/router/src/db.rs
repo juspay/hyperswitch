@@ -155,8 +155,10 @@ pub trait GlobalStorageInterface:
     + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
+    + RedisConnInterface
     + 'static
 {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
 }
 
 #[async_trait::async_trait]
@@ -217,7 +219,11 @@ impl StorageInterface for Store {
 }
 
 #[async_trait::async_trait]
-impl GlobalStorageInterface for Store {}
+impl GlobalStorageInterface for Store {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 
 impl AccountsStorageInterface for Store {}
 
@@ -233,7 +239,11 @@ impl StorageInterface for MockDb {
 }
 
 #[async_trait::async_trait]
-impl GlobalStorageInterface for MockDb {}
+impl GlobalStorageInterface for MockDb {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 
 impl AccountsStorageInterface for MockDb {}
 

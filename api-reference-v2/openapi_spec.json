@@ -3265,6 +3265,84 @@
         ]
       }
     },
+    "/v2/refunds/{id}": {
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Refunds - Retrieve",
+        "description": "Retrieves a Refund. This may be used to get the status of a previously initiated refund",
+        "operationId": "Retrieve a Refund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The identifier for refund",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refund does not exist in our records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/refunds/list": {
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Refunds - List",
+        "description": "To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
+        "operationId": "List all Refunds",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundListRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "List of refunds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [
@@ -20463,13 +20541,11 @@
                 "nullable": true
               },
               "refund_id": {
-                "type": "string",
-                "description": "The identifier for the refund",
-                "nullable": true
-              },
-              "profile_id": {
-                "type": "string",
-                "description": "The identifier for business profile",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/common_utils.id_type.GlobalRefundId"
+                  }
+                ],
                 "nullable": true
               },
               "limit": {
@@ -20500,7 +20576,7 @@
                 "description": "The list of connectors to filter refunds list",
                 "nullable": true
               },
-              "merchant_connector_id": {
+              "connector_id_list": {
                 "type": "array",
                 "items": {
                   "type": "string"

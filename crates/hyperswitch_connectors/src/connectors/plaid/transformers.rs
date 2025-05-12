@@ -1,12 +1,20 @@
-use common_enums::Currency;
+use api_models::payments::OpenBankingSessionToken;
+use common_enums::{AttemptStatus, Currency};
 use common_utils::types::FloatMajorUnit;
+use hyperswitch_domain_models::{
+    payment_method_data::{OpenBankingData, PaymentMethodData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::ResponseId,
+    router_response_types::PaymentsResponseData,
+    types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::is_payment_failure,
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{PaymentsPostProcessingRouterData, ResponseRouterData},
+    utils::is_payment_failure,
 };
 
 pub struct PlaidRouterData<T> {
@@ -86,14 +94,12 @@ pub struct PlaidPaymentInitiation {
     payment_id: String,
 }
 
-impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PlaidRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
+impl TryFrom<&PlaidRouterData<&PaymentsAuthorizeRouterData>> for PlaidPaymentsRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PlaidRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::OpenBanking(ref data) => match data {
-                domain::OpenBankingData::OpenBankingPIS { .. } => {
+            PaymentMethodData::OpenBanking(ref data) => match data {
+                OpenBankingData::OpenBankingPIS { .. } => {
                     let amount = item.amount;
                     let currency = item.router_data.request.currency;
                     let payment_id = item.router_data.payment_id.clone();
@@ -103,7 +109,7 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                     } else {
                         Some(payment_id)
                     }
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                    .ok_or(ConnectorError::MissingRequiredField {
                         field_name: "payment_id",
                     })?;
                     let recipient_type = item
@@ -115,7 +121,7 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                                 data,
                             ) => data.clone(),
                         })
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                        .ok_or(ConnectorError::MissingRequiredField {
                             field_name: "additional_merchant_data",
                         })?;
 
@@ -123,7 +129,7 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                         api_models::admin::MerchantRecipientData::ConnectorRecipientId(id) => {
                             Ok(id.peek().to_string())
                         }
-                        _ => Err(errors::ConnectorError::MissingRequiredField {
+                        _ => Err(ConnectorError::MissingRequiredField {
                             field_name: "ConnectorRecipientId",
                         }),
                     }?;
@@ -140,29 +146,29 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                     })
                 }
             },
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for PlaidSyncRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&PaymentsSyncRouterData> for PlaidSyncRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         match item.request.connector_transaction_id {
-            types::ResponseId::ConnectorTransactionId(ref id) => Ok(Self {
+            ResponseId::ConnectorTransactionId(ref id) => Ok(Self {
                 payment_id: id.clone(),
             }),
-            _ => Err((errors::ConnectorError::MissingConnectorTransactionID).into()),
+            _ => Err((ConnectorError::MissingConnectorTransactionID).into()),
         }
     }
 }
 
-impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPostProcessingRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PaymentsPostProcessingRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
-            domain::PaymentMethodData::OpenBanking(ref data) => match data {
-                domain::OpenBankingData::OpenBankingPIS { .. } => {
+            PaymentMethodData::OpenBanking(ref data) => match data {
+                OpenBankingData::OpenBankingPIS { .. } => {
                     let headers = item.header_payload.clone();
 
                     let platform = headers
@@ -181,7 +187,7 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
                             .request
                             .country
                             .map(|code| vec![code.to_string()])
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                            .ok_or(ConnectorError::MissingRequiredField {
                                 field_name: "billing.address.country",
                             })?,
                         language: "en".to_string(),
@@ -199,7 +205,7 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
                                 .request
                                 .connector_transaction_id
                                 .clone()
-                                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                                .ok_or(ConnectorError::MissingConnectorTransactionID)?,
                         },
                         android_package_name: if is_android {
                             headers
@@ -218,7 +224,7 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
                     })
                 }
             },
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
@@ -228,15 +234,15 @@ pub struct PlaidAuthType {
     pub secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+impl TryFrom<&ConnectorAuthType> for PlaidAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_id: api_key.to_owned(),
                 secret: key1.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -258,7 +264,7 @@ pub enum PlaidPaymentStatus {
     PaymentStatusAuthorising,
 }
 
-impl From<PlaidPaymentStatus> for enums::AttemptStatus {
+impl From<PlaidPaymentStatus> for AttemptStatus {
     fn from(item: PlaidPaymentStatus) -> Self {
         match item {
             PlaidPaymentStatus::PaymentStatusAuthorising => Self::Authorizing,
@@ -282,19 +288,18 @@ pub struct PlaidPaymentsResponse {
     payment_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PlaidPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PlaidPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = enums::AttemptStatus::from(item.response.status.clone());
+        let status = AttemptStatus::from(item.response.status.clone());
         Ok(Self {
             status,
             response: if is_payment_failure(status) {
-                Err(types::ErrorResponse {
+                Err(ErrorResponse {
                     // populating status everywhere as plaid only sends back a status
                     code: item.response.status.clone().to_string(),
                     message: item.response.status.clone().to_string(),
@@ -307,8 +312,8 @@ impl<F, T>
                     network_error_message: None,
                 })
             } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         item.response.payment_id.clone(),
                     ),
                     redirection_data: Box::new(None),
@@ -330,21 +335,20 @@ pub struct PlaidLinkTokenResponse {
     link_token: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PlaidLinkTokenResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PlaidLinkTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PlaidLinkTokenResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PlaidLinkTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let session_token = Some(api::OpenBankingSessionToken {
+        let session_token = Some(OpenBankingSessionToken {
             open_banking_session_token: item.response.link_token,
         });
 
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::PostProcessingResponse { session_token }),
+            status: AttemptStatus::AuthenticationPending,
+            response: Ok(PaymentsResponseData::PostProcessingResponse { session_token }),
             ..item.data
         })
     }
@@ -372,18 +376,18 @@ pub struct PlaidSyncResponse {
     request_id: String,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PlaidSyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = enums::AttemptStatus::from(item.response.status.clone());
+        let status = AttemptStatus::from(item.response.status.clone());
         Ok(Self {
             status,
             response: if is_payment_failure(status) {
-                Err(types::ErrorResponse {
+                Err(ErrorResponse {
                     // populating status everywhere as plaid only sends back a status
                     code: item.response.status.clone().to_string(),
                     message: item.response.status.clone().to_string(),
@@ -396,8 +400,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     network_error_message: None,
                 })
             } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         item.response.payment_id.clone(),
                     ),
                     redirection_data: Box::new(None),
