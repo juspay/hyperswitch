@@ -355,6 +355,6 @@ background_color = "#FFFFFF"                     # Background color of email bod
 [connectors.unified_authentication_service] #Unified Authentication Service Configuration
 base_url = "http://localhost:8000" #base url to call unified authentication service
 
-[clone_connector_whitelist]
+[clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names

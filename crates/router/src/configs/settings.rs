@@ -148,7 +148,7 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
-    pub clone_connector_whitelist: CloneConnectorWhitelistConfig,
+    pub clone_connector_allowlist: CloneConnectorAllowlistConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -159,7 +159,7 @@ pub struct OpenRouter {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct CloneConnectorWhitelistConfig {
+pub struct CloneConnectorAllowlistConfig {
     #[serde(deserialize_with = "deserialize_merchant_ids")]
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]

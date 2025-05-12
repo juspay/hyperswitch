@@ -1129,6 +1129,6 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 enabled = false
 url = "http://localhost:8080"
 
-[clone_connector_whitelist]
+[clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names

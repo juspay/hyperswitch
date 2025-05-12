@@ -3572,7 +3572,7 @@ pub async fn clone_connector(
     state: SessionState,
     request: user_api::CloneConnectorRequest,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
-    let whitelist = &state.conf.clone_connector_whitelist;
+    let whitelist = &state.conf.clone_connector_allowlist;
 
     fp_utils::when(
         whitelist
