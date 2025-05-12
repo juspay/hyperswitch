@@ -168,6 +168,56 @@ pub async fn refunds_retrieve(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[instrument(skip_all, fields(flow))]
+pub async fn refunds_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalRefundId>,
+    query_params: web::Query<api_models::refunds::RefundsRetrieveBody>,
+) -> HttpResponse {
+    let refund_request = refunds::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        force_sync: query_params.force_sync,
+    };
+    let flow = match query_params.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", flow.to_string());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        refund_request,
+        |state, auth: auth::AuthenticationData, refund_request, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_retrieve_core_with_refund_id(
+                state,
+                merchant_context,
+                auth.profile,
+                refund_request,
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileRefundRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 /// Refunds - Retrieve (POST)
 ///

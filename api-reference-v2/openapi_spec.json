@@ -3265,6 +3265,47 @@
         ]
       }
     },
+    "/v2/refunds/{id}": {
+      "get": {
+        "tags": [
+          "Refunds"
+        ],
+        "summary": "Refunds - Retrieve",
+        "description": "Retrieves a Refund. This may be used to get the status of a previously initiated refund",
+        "operationId": "Retrieve a Refund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The identifier for refund",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refund does not exist in our records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/process_tracker/revenue_recovery_workflow/{revenue_recovery_id}": {
       "get": {
         "tags": [

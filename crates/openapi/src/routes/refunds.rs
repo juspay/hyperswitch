@@ -64,6 +64,7 @@ pub async fn refunds_create() {}
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn refunds_retrieve() {}
 
 /// Refunds - Retrieve (POST)
@@ -212,3 +213,23 @@ pub async fn refunds_filter_list() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn refunds_create() {}
+
+/// Refunds - Retrieve
+///
+/// Retrieves a Refund. This may be used to get the status of a previously initiated refund
+#[utoipa::path(
+    get,
+    path = "/v2/refunds/{id}",
+    params(
+        ("id" = String, Path, description = "The identifier for refund")
+    ),
+    responses(
+        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 404, description = "Refund does not exist in our records")
+    ),
+    tag = "Refunds",
+    operation_id = "Retrieve a Refund",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn refunds_retrieve() {}

@@ -763,6 +763,10 @@ impl PaymentIntent {
             })
             .transpose()
     }
+
+    pub fn get_currency(&self) -> storage_enums::Currency {
+        self.amount_details.currency
+    }
 }
 
 #[cfg(feature = "v1")]
