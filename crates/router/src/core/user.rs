@@ -3573,10 +3573,10 @@ pub async fn clone_connector(
     state: SessionState,
     request: user_api::CloneConnectorRequest,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
-    let whitelist = &state.conf.clone_connector_allowlist;
+    let allowlist = &state.conf.clone_connector_allowlist;
 
     fp_utils::when(
-        whitelist
+        allowlist
             .merchant_ids
             .contains(&request.source.merchant_id)
             .not(),
@@ -3621,7 +3621,7 @@ pub async fn clone_connector(
         .attach_printable("Invalid connector name received")?;
 
     fp_utils::when(
-        whitelist.connector_names.contains(&source_mca_name).not(),
+        allowlist.connector_names.contains(&source_mca_name).not(),
         || {
             Err(UserErrors::InvalidCloneConnectorOperation(
                 "Cloning is not allowed for this connector".to_string(),
