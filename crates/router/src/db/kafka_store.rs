@@ -1288,13 +1288,14 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        self.list_enabled_connector_accounts_by_profile_id(
-            state,
-            profile_id,
-            key_store,
-            connector_type,
-        )
-        .await
+        self.diesel_store
+            .list_enabled_connector_accounts_by_profile_id(
+                state,
+                profile_id,
+                key_store,
+                connector_type,
+            )
+            .await
     }
 
     async fn insert_merchant_connector_account(
