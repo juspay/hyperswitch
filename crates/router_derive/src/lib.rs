@@ -1,8 +1,9 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
-use crate::macros::diesel::DieselEnumMeta;
 use quote::ToTokens;
 use syn::parse_macro_input;
+
+use crate::macros::diesel::DieselEnumMeta;
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -956,7 +957,8 @@ fn is_valid_type(ty: &syn::Type) -> Option<bool> {
 
             if ident == "Option" {
                 if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
-                    if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) = generic_args.args.first()
+                    if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
+                        generic_args.args.first()
                     {
                         if let Some(inner_segment) = inner_path.path.segments.last() {
                             if inner_segment.ident == "String" || inner_segment.ident == "Url" {
