@@ -56,7 +56,7 @@ impl EuclidApiClient {
     where
         Req: Serialize + Send + Sync + 'static,
     {
-        let euclid_base_url =  &state.conf.open_router.url;
+        let euclid_base_url = &state.conf.open_router.url;
         let url = format!("{}/{}", euclid_base_url, path);
         logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "decision_engine_euclid: Initiating Euclid API call ({})", context_message);
 
