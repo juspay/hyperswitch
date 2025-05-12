@@ -453,6 +453,10 @@ pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
 }
 
+pub fn convert_external_vault_connector(connector_name: &str) -> Option<VaultConnectors> {
+    VaultConnectors::from_str(connector_name).ok()
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
 pub enum ReconPermissionScope {
     #[serde(rename = "R")]
