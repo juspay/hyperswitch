@@ -47,6 +47,10 @@ pub mod payment_method_data {
     pub use hyperswitch_domain_models::payment_method_data::*;
 }
 
+pub mod authentication {
+    pub use hyperswitch_domain_models::router_request_types::authentication::*;
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
