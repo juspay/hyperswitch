@@ -288,7 +288,7 @@ pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
 
     /// External vault to be used for storing payment method information
-    #[schema(value_type = Option<ExternalVaultSdk>)]
+    #[schema(value_type = Option<VaultSdk>)]
     pub vault_sdk: Option<common_enums::VaultSdk>,
 }
 
