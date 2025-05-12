@@ -77,7 +77,9 @@ mod validate_schema_test {
             return_url: Some("https://example.com/return".parse().unwrap()),
         };
         let err = invalid_id.validate().unwrap_err();
-        assert!(err.contains("payment_id must be at least 5 characters long. Received 3 characters"));
+        assert!(
+            err.contains("payment_id must be at least 5 characters long. Received 3 characters")
+        );
 
         // Invalid: payment_id too long
         let invalid_desc = Payment {

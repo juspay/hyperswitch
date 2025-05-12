@@ -772,8 +772,7 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
 /// meet the length requirements specified in their schema attributes.
 ///
 /// ## Supported Types
-///   - Option<T> or T
-///         where T: String or Url
+///   - Option<T> or T: where T: String or Url
 ///
 /// ## Supported Schema Attributes
 ///
@@ -861,7 +860,7 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             if !attr.path().is_ident("schema") {
                 continue;
             }
-            let tokens_str = proc_macro2::TokenStream::from(attr.meta.clone().into_token_stream()).to_string();
+            let tokens_str = attr.meta.clone().into_token_stream().to_string();
             
             // Extract values for each attribute parameter
             let extract_numeric_value = |key: &str| -> Option<usize> {
@@ -870,7 +869,7 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                     if let Some(equals_pos) = after_key.find('=') {
                         let after_equals = &after_key[equals_pos + 1..].trim();
                         let number_str: String = after_equals.chars()
-                            .take_while(|c| c.is_digit(10))
+                            .take_while(|c| c.is_ascii_digit())
                             .collect();
                         
                         return number_str.parse::<usize>().ok();
@@ -949,34 +948,26 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 // Option<T> or T
 //    where T: String or Url
 fn is_valid_type(ty: &syn::Type) -> Option<bool> {
-    match ty {
-        syn::Type::Path(type_path) => {
-            if let Some(segment) = type_path.path.segments.last() {
-                let ident = &segment.ident;
-                if ident == "String" || ident == "Url" {
-                    return Some(false);
-                }
+    if let syn::Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            let ident = &segment.ident;
+            if ident == "String" || ident == "Url" {
+                return Some(false);
+            }
 
-                if ident == "Option" {
-                    if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
-                        if let Some(syn::GenericArgument::Type(inner_type)) =
-                            generic_args.args.first()
-                        {
-                            if let syn::Type::Path(inner_path) = inner_type {
-                                if let Some(inner_segment) = inner_path.path.segments.last() {
-                                    if inner_segment.ident == "String"
-                                        || inner_segment.ident == "Url"
-                                    {
-                                        return Some(true);
-                                    }
-                                }
+            if ident == "Option" {
+                if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
+                    if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) = generic_args.args.first()
+                    {
+                        if let Some(inner_segment) = inner_path.path.segments.last() {
+                            if inner_segment.ident == "String" || inner_segment.ident == "Url" {
+                                return Some(true);
                             }
                         }
                     }
                 }
             }
         }
-        _ => {}
     }
     None
 }
