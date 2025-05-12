@@ -125,7 +125,8 @@ pub async fn get_user_details(
             .unwrap_or(&state.tenant.tenant_id),
     )
     .await
-    .change_context(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
 
     let key_manager_state = &(&state).into();
 
@@ -3596,8 +3597,9 @@ pub async fn clone_connector(
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to retrieve source merchant key store")?;
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Source merchant account not found".to_string(),
+        ))?;
 
     let source_mca = state
         .store
@@ -3608,8 +3610,9 @@ pub async fn clone_connector(
             &source_key_store,
         )
         .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to retrieve source merchant connector account")?;
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Source merchant connector account not found".to_string(),
+        ))?;
 
     let source_mca_name = source_mca
         .connector_name
@@ -3641,7 +3644,9 @@ pub async fn clone_connector(
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Destination merchant account not found".to_string(),
+        ))?;
 
     let destination_merchant_account = state
         .store
@@ -3651,7 +3656,9 @@ pub async fn clone_connector(
             &destination_key_store,
         )
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Destination merchant account not found".to_string(),
+        ))?;
 
     let destination_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         destination_merchant_account,

@@ -423,6 +423,7 @@ pub async fn build_cloned_connector_create_request(
             serde_json::Value::Array(val)
                 .parse_value("PaymentMethods")
                 .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to deserialize PaymentMethods")
         })
         .transpose()?;
 
@@ -438,6 +439,7 @@ pub async fn build_cloned_connector_create_request(
                         .clone()
                         .parse_value("FrmConfigs")
                         .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Unable to deserialize FrmConfigs")
                 })
                 .collect::<Result<Vec<_>, _>>()
         })
@@ -450,8 +452,8 @@ pub async fn build_cloned_connector_create_request(
                 webhook_details.expose(),
                 "MerchantConnectorWebhookDetails",
             )
-            .attach_printable("Unable to deserialize connector_webhook_details")
             .change_context(UserErrors::InternalServerError)
+            .attach_printable("Unable to deserialize connector_webhook_details")
         })
         .transpose()?;
 
@@ -462,8 +464,8 @@ pub async fn build_cloned_connector_create_request(
                 .into_inner()
                 .expose()
                 .parse_value::<admin_api::ConnectorWalletDetails>("ConnectorWalletDetails")
-                .attach_printable("Unable to parse ConnectorWalletDetails from Value")
                 .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to parse ConnectorWalletDetails from Value")
         })
         .transpose()?;
 
@@ -474,8 +476,8 @@ pub async fn build_cloned_connector_create_request(
                 .into_inner()
                 .expose()
                 .parse_value::<AdditionalMerchantData>("AdditionalMerchantData")
-                .attach_printable("Unable to parse AdditionalMerchantData from Value")
                 .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to parse AdditionalMerchantData from Value")
         })
         .transpose()?
         .map(admin_api::AdditionalMerchantData::foreign_from);
