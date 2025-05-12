@@ -57,7 +57,8 @@ pub use hyperswitch_interfaces::{
         },
         fraud_check::FraudCheck,
         revenue_recovery::{
-            BillingConnectorPaymentsSyncIntegration, RevenueRecovery, RevenueRecoveryRecordBack,
+            BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+            RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
@@ -498,7 +499,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
                 enums::Connector::Recurly => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Recurly::new())))
+                    Ok(ConnectorEnum::New(Box::new(connector::Recurly::new())))
                 }
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
@@ -521,6 +522,8 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                // enums::Connector::Worldpayxml => { Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml)))
+                // },
                 enums::Connector::Xendit => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
                 }

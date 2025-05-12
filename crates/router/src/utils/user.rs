@@ -135,33 +135,14 @@ pub async fn get_user_from_db_by_email(
         .map(UserFromStorage::from)
 }
 
-pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnectionPool>> {
-    state
-        .store
-        .get_redis_conn()
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to get redis connection")
-}
-
 pub fn get_redis_connection_for_global_tenant(
     state: &SessionState,
 ) -> UserResult<Arc<RedisConnectionPool>> {
-    let redis_connection_pool = state
-        .store
+    state
+        .global_store
         .get_redis_conn()
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to get redis connection")?;
-
-    let global_tenant_prefix = &state.conf.multitenancy.global_tenant.redis_key_prefix;
-
-    Ok(Arc::new(RedisConnectionPool {
-        pool: Arc::clone(&redis_connection_pool.pool),
-        key_prefix: global_tenant_prefix.to_string(),
-        config: Arc::clone(&redis_connection_pool.config),
-        subscriber: Arc::clone(&redis_connection_pool.subscriber),
-        publisher: Arc::clone(&redis_connection_pool.publisher),
-        is_redis_available: Arc::clone(&redis_connection_pool.is_redis_available),
-    }))
+        .attach_printable("Failed to get redis connection")
 }
 
 impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
@@ -267,7 +248,7 @@ pub async fn set_sso_id_in_redis(
     oidc_state: Secret<String>,
     sso_id: String,
 ) -> UserResult<()> {
-    let connection = get_redis_connection(state)?;
+    let connection = get_redis_connection_for_global_tenant(state)?;
     let key = get_oidc_key(&oidc_state.expose());
     connection
         .set_key_with_expiry(&key.into(), sso_id, REDIS_SSO_TTL)
@@ -280,7 +261,7 @@ pub async fn get_sso_id_from_redis(
     state: &SessionState,
     oidc_state: Secret<String>,
 ) -> UserResult<String> {
-    let connection = get_redis_connection(state)?;
+    let connection = get_redis_connection_for_global_tenant(state)?;
     let key = get_oidc_key(&oidc_state.expose());
     connection
         .get_key::<Option<String>>(&key.into())
@@ -312,11 +293,7 @@ pub fn create_merchant_account_request_for_org(
     org: organization::Organization,
     product_type: common_enums::MerchantProductType,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
-    let merchant_id = if matches!(env::which(), env::Env::Production) {
-        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().expose())?)?
-    } else {
-        id_type::MerchantId::new_from_unix_timestamp()
-    };
+    let merchant_id = generate_env_specific_merchant_id(req.merchant_name.clone().expose())?;
 
     let company_name = domain::UserCompanyName::new(req.merchant_name.expose())?;
     Ok(api_models::admin::MerchantAccountCreate {
@@ -408,4 +385,13 @@ pub async fn set_lineage_context_in_cache(
         .attach_printable("Failed to set lineage context in redis")?;
 
     Ok(())
+}
+
+pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {
+    if matches!(env::which(), env::Env::Production) {
+        let raw_id = domain::MerchantId::new(value)?;
+        Ok(id_type::MerchantId::try_from(raw_id)?)
+    } else {
+        Ok(id_type::MerchantId::new_from_unix_timestamp())
+    }
 }

@@ -14,9 +14,8 @@ use crate::{db::errors::StorageErrorExt, routes, types::domain};
 ))]
 pub async fn list_payment_methods(
     state: routes::SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     payment_id: id_type::GlobalPaymentId,
     _req: api_models::payments::PaymentMethodsListRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
@@ -28,8 +27,8 @@ pub async fn list_payment_methods(
         .find_payment_intent_by_id(
             key_manager_state,
             &payment_id,
-            &key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -40,7 +39,7 @@ pub async fn list_payment_methods(
         .list_enabled_connector_accounts_by_profile_id(
             key_manager_state,
             profile.get_id(),
-            &key_store,
+            merchant_context.get_merchant_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
         )
         .await

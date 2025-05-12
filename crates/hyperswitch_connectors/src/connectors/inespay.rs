@@ -1,6 +1,9 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
+use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
     crypto,
@@ -22,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -711,4 +717,44 @@ impl webhooks::IncomingWebhook for Inespay {
     }
 }
 
-impl ConnectorSpecifications for Inespay {}
+static INESPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = Vec::new();
+    let mut inespay_supported_payment_methods = SupportedPaymentMethods::new();
+
+    inespay_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        enums::PaymentMethodType::Sepa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    inespay_supported_payment_methods
+});
+
+static INESPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Inespay",
+    description:
+        "INESPAY is a payment method system that allows online shops to receive money in their bank accounts through a SEPA bank transfer ",
+    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+};
+
+static INESPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
+
+impl ConnectorSpecifications for Inespay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&INESPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*INESPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&INESPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

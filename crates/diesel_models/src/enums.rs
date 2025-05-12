@@ -83,7 +83,6 @@ pub enum EventObjectType {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     serde::Serialize,
@@ -96,7 +95,6 @@ pub enum EventObjectType {
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
-    #[default]
     RegularRefund,
     RetryRefund,
 }

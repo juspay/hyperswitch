@@ -6,7 +6,7 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
 };
 
-pub use accounts::MerchantProductType;
+pub use accounts::{MerchantAccountType, MerchantProductType, OrganizationType};
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
@@ -1922,7 +1922,10 @@ pub enum PaymentMethodType {
 
 impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+        matches!(
+            self,
+            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+        )
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
@@ -8163,4 +8166,17 @@ pub enum ProcessTrackerRunner {
 pub enum CryptoPadding {
     PKCS7,
     ZeroPadding,
+}
+
+/// The type of token data to fetch for get-token endpoint
+
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenDataType {
+    /// Fetch single use token for the given payment method
+    SingleUseToken,
+    /// Fetch multi use token for the given payment method
+    MultiUseToken,
+    /// Fetch network token for the given payment method
+    NetworkToken,
 }

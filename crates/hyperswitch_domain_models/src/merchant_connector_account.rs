@@ -181,6 +181,20 @@ impl MerchantConnectorAccount {
             })
         })
     }
+    pub fn get_account_reference_id_using_payment_merchant_connector_account_id(
+        &self,
+        payment_merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Option<String> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
+            metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                recovery
+                    .mca_reference
+                    .recovery_to_billing
+                    .get(&payment_merchant_connector_account_id)
+                    .cloned()
+            })
+        })
+    }
 }
 
 #[cfg(feature = "v2")]

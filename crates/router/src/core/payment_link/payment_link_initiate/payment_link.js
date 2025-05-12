@@ -345,8 +345,16 @@ function initializeEventListeners(paymentDetails) {
   // Get locale for pay now
   var payNowButtonText = document.createElement("div");
   var payNowButtonText = document.getElementById('submit-button-text');
+  var capture_type = paymentDetails.capture_method;
   if (payNowButtonText) {
-    payNowButtonText.textContent = paymentDetails.payment_button_text || translations.payNow;
+    if (paymentDetails.payment_button_text) {
+      payNowButtonText.textContent = paymentDetails.payment_button_text;
+    } else if (paymentDetails.is_setup_mandate_flow || (paymentDetails.amount==="0.00" && paymentDetails.setup_future_usage_applied ==="off_session")) {
+      payNowButtonText.textContent = translations.addPaymentMethod;
+    } else {
+      payNowButtonText.textContent = capture_type === "manual" ? translations.authorizePayment: translations.payNow;
+      
+    }
   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {

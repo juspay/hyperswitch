@@ -57,7 +57,10 @@ pub use hyperswitch_domain_models::{
         WebhookSourceVerifyData,
     },
     router_request_types::{
-        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        revenue_recovery::{
+            BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -79,7 +82,8 @@ pub use hyperswitch_domain_models::{
     },
     router_response_types::{
         revenue_recovery::{
-            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+            BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
