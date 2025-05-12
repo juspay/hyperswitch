@@ -845,23 +845,23 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     let validation_checks = fields.iter().filter_map(|field| {
         let field_name = field.ident.as_ref()?;
         let field_type = &field.ty;
-        
+
         // Check if field type is valid for validation
         let is_optional = match is_valid_type(field_type) {
             Some(optional) => optional,
             None => return None,
         };
-        
+
         let mut min_length = None;
         let mut max_length = None;
-        
+
         // Process schema attributes
         for attr in &field.attrs {
             if !attr.path().is_ident("schema") {
                 continue;
             }
             let tokens_str = attr.meta.clone().into_token_stream().to_string();
-            
+
             // Extract values for each attribute parameter
             let extract_numeric_value = |key: &str| -> Option<usize> {
                 if let Some(pos) = tokens_str.find(key) {
@@ -871,17 +871,16 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                         let number_str: String = after_equals.chars()
                             .take_while(|c| c.is_ascii_digit())
                             .collect();
-                        
                         return number_str.parse::<usize>().ok();
                     }
                 }
                 None
             };
-            
+
             if min_length.is_none() {
                 min_length = extract_numeric_value("min_length");
             }
-            
+
             if max_length.is_none() {
                 max_length = extract_numeric_value("max_length");
             }
@@ -891,7 +890,7 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         if min_length.is_none() && max_length.is_none() {
             return None;
         }
-        
+
         let min_check = min_length.map(|min_val| {
             quote::quote! {
                 if value_len < #min_val {
@@ -900,7 +899,7 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 }
             }
         }).unwrap_or_else(|| quote::quote! {});
-        
+
         let max_check = max_length.map(|max_val| {
             quote::quote! {
                 if value_len > #max_val {
@@ -909,7 +908,7 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 }
             }
         }).unwrap_or_else(|| quote::quote! {});
-        
+
         // Generate length validation
         if is_optional {
             Some(quote::quote! {
