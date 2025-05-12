@@ -1,8 +1,8 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
-use syn::parse_macro_input;
-
 use crate::macros::diesel::DieselEnumMeta;
+use quote::ToTokens;
+use syn::parse_macro_input;
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -763,4 +763,220 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
     macros::derive_to_encryption(input)
         .unwrap_or_else(|err| err.into_compile_error())
         .into()
+}
+
+/// Derives validation functionality for structs with string-based fields that have
+/// schema attributes specifying constraints like minimum and maximum lengths.
+///
+/// This macro generates a `validate()` method that checks if string fields
+/// meet the length requirements specified in their schema attributes.
+///
+/// ## Supported Types
+///   - Option<T> or T
+///         where T: String or Url
+///
+/// ## Supported Schema Attributes
+///
+/// - `min_length`: Specifies the minimum allowed character length
+/// - `max_length`: Specifies the maximum allowed character length
+///
+/// ## Example
+///
+/// ```
+/// #[derive(Default, ToSchema, ValidateSchema)]
+/// pub struct PaymentRequest {
+///     #[schema(min_length = 10, max_length = 255)]
+///     pub description: String,
+///     
+///     #[schema(example = "https://example.com/return", max_length = 255)]
+///     pub return_url: Option<Url>,
+///     
+///     // Field without constraints
+///     pub amount: u64,
+/// }
+///
+/// ## Usage
+/// let payment = PaymentRequest {
+///     description: "Too short".to_string(),
+///     return_url: Some("https://very-long-domain.com/callback".parse().unwrap()),
+///     amount: 1000,
+/// };
+///
+/// let validation_result = payment.validate();
+/// assert!(validation_result.is_err());
+/// assert_eq!(
+///     validation_result.unwrap_err(),
+///     "description must be at least 10 characters long. Received 9 characters"
+/// );
+/// ```
+///
+/// ## Notes
+/// - The attribute order in `#[schema(...)]` does not matter
+/// - For `Option` fields, validation is only performed when the value is `Some`
+/// - Fields without schema attributes or with unsupported types are ignored
+/// - The validation stops on the first error encountered
+/// - The generated `validate()` method returns `Ok(())` if all validations pass, or
+///   `Err(String)` with an error message if any validations fail.
+#[proc_macro_derive(ValidateSchema, attributes(schema))]
+pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &input.ident;
+
+    // Extract struct fields
+    let fields = match &input.data {
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => &fields.named,
+            _ => {
+                return syn::Error::new_spanned(
+                    input,
+                    "ValidateSchema can only be used with named fields",
+                )
+                .to_compile_error()
+                .into()
+            }
+        },
+        _ => {
+            return syn::Error::new_spanned(input, "ValidateSchema can only be used with structs")
+                .to_compile_error()
+                .into()
+        }
+    };
+
+    // Map over each field
+    let validation_checks = fields.iter().filter_map(|field| {
+        let field_name = field.ident.as_ref()?;
+        let field_type = &field.ty;
+        
+        // Check if field type is valid for validation
+        let is_optional = match is_valid_type(field_type) {
+            Some(optional) => optional,
+            None => return None,
+        };
+        
+        let mut min_length = None;
+        let mut max_length = None;
+        
+        // Process schema attributes
+        for attr in &field.attrs {
+            if !attr.path().is_ident("schema") {
+                continue;
+            }
+            let tokens_str = proc_macro2::TokenStream::from(attr.meta.clone().into_token_stream()).to_string();
+            
+            // Extract values for each attribute parameter
+            let extract_numeric_value = |key: &str| -> Option<usize> {
+                if let Some(pos) = tokens_str.find(key) {
+                    let after_key = &tokens_str[pos + key.len()..];
+                    if let Some(equals_pos) = after_key.find('=') {
+                        let after_equals = &after_key[equals_pos + 1..].trim();
+                        let number_str: String = after_equals.chars()
+                            .take_while(|c| c.is_digit(10))
+                            .collect();
+                        
+                        return number_str.parse::<usize>().ok();
+                    }
+                }
+                None
+            };
+            
+            if min_length.is_none() {
+                min_length = extract_numeric_value("min_length");
+            }
+            
+            if max_length.is_none() {
+                max_length = extract_numeric_value("max_length");
+            }
+        }
+
+        // Only generate validation code if constraints are present
+        if min_length.is_none() && max_length.is_none() {
+            return None;
+        }
+        
+        let min_check = min_length.map(|min_val| {
+            quote::quote! {
+                if value_len < #min_val {
+                    return Err(format!("{} must be at least {} characters long. Received {} characters", 
+                        stringify!(#field_name), #min_val, value_len));
+                }
+            }
+        }).unwrap_or_else(|| quote::quote! {});
+        
+        let max_check = max_length.map(|max_val| {
+            quote::quote! {
+                if value_len > #max_val {
+                    return Err(format!("{} must be at most {} characters long. Received {} characters", 
+                        stringify!(#field_name), #max_val, value_len));
+                }
+            }
+        }).unwrap_or_else(|| quote::quote! {});
+        
+        // Generate length validation
+        if is_optional {
+            Some(quote::quote! {
+                if let Some(value) = &self.#field_name {
+                    let value_len = value.as_str().len();
+                    #min_check
+                    #max_check
+                }
+            })
+        } else {
+            Some(quote::quote! {
+                {
+                    let value_len = self.#field_name.as_str().len();
+                    #min_check
+                    #max_check
+                }
+            })
+        }
+    }).collect::<Vec<_>>();
+
+    // Generate implementation
+    let output = quote::quote! {
+        impl #name {
+            pub fn validate(&self) -> Result<(), String> {
+                #(#validation_checks)*
+                Ok(())
+            }
+        }
+    };
+
+    output.into()
+}
+
+// Helper function to check if a type is valid for validation
+// List of valid types
+// Option<T> or T
+//    where T: String or Url
+fn is_valid_type(ty: &syn::Type) -> Option<bool> {
+    match ty {
+        syn::Type::Path(type_path) => {
+            if let Some(segment) = type_path.path.segments.last() {
+                let ident = &segment.ident;
+                if ident == "String" || ident == "Url" {
+                    return Some(false);
+                }
+
+                if ident == "Option" {
+                    if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
+                        if let Some(syn::GenericArgument::Type(inner_type)) =
+                            generic_args.args.first()
+                        {
+                            if let syn::Type::Path(inner_path) = inner_type {
+                                if let Some(inner_segment) = inner_path.path.segments.last() {
+                                    if inner_segment.ident == "String"
+                                        || inner_segment.ident == "Url"
+                                    {
+                                        return Some(true);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    None
 }

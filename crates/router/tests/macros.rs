@@ -40,3 +40,62 @@ mod flat_struct_test {
         assert_eq!(flat_user_map, required_map);
     }
 }
+
+#[cfg(test)]
+mod validate_schema_test {
+    #![allow(clippy::unwrap_used)]
+
+    use router_derive::ValidateSchema;
+    use url::Url;
+
+    #[test]
+    fn test_validate_schema() {
+        #[derive(ValidateSchema)]
+        struct Payment {
+            #[schema(min_length = 5, max_length = 12)]
+            payment_id: String,
+
+            #[schema(min_length = 10, max_length = 100)]
+            description: Option<String>,
+
+            #[schema(max_length = 255)]
+            return_url: Option<Url>,
+        }
+
+        // Valid case
+        let valid_payment = Payment {
+            payment_id: "payment_123".to_string(),
+            description: Some("This is a valid description".to_string()),
+            return_url: Some("https://example.com/return".parse().unwrap()),
+        };
+        assert!(valid_payment.validate().is_ok());
+
+        // Invalid: payment_id too short
+        let invalid_id = Payment {
+            payment_id: "pay".to_string(),
+            description: Some("This is a valid description".to_string()),
+            return_url: Some("https://example.com/return".parse().unwrap()),
+        };
+        let err = invalid_id.validate().unwrap_err();
+        assert!(err.contains("payment_id must be atleast 5 characters long. Received 3 characters"));
+
+        // Invalid: payment_id too long
+        let invalid_desc = Payment {
+            payment_id: "payment_12345".to_string(),
+            description: Some("This is a valid description".to_string()),
+            return_url: Some("https://example.com/return".parse().unwrap()),
+        };
+        let err = invalid_desc.validate().unwrap_err();
+        assert!(
+            err.contains("payment_id must be at most 12 characters long. Received 13 characters")
+        );
+
+        // None values should pass validation
+        let none_values = Payment {
+            payment_id: "payment_123".to_string(),
+            description: None,
+            return_url: None,
+        };
+        assert!(none_values.validate().is_ok());
+    }
+}
