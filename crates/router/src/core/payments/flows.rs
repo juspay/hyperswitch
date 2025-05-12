@@ -1861,11 +1861,6 @@ macro_rules! default_imp_for_external_vault {
 impl<const T: u8> api::ExternalVault for connector::DummyConnector<T> {}
 
 default_imp_for_external_vault!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1899,11 +1894,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_external_vault_insert!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1937,11 +1927,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_external_vault_retrieve!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
@@ -1975,11 +1960,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_external_vault_delete!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,
