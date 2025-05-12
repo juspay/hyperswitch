@@ -38,7 +38,7 @@ use crate::{
     routes::SessionState,
     services::{self, authentication::UserFromToken},
     types::{domain, transformers::ForeignFrom},
-    utils::user::password,
+    utils::{self, user::password},
 };
 
 pub mod dashboard_metadata;
