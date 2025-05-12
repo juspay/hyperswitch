@@ -248,36 +248,38 @@ pub async fn get_sorted_co_badged_networks_by_fee<
     let payment_method_data_optional = payment_data.get_payment_method_data();
     let payment_attempt = payment_data.get_payment_attempt();
 
-    let (saved_co_badged_card_data, card_isin) = if let Some(
-        hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card),
-    ) = payment_data
+    let (saved_co_badged_card_data, card_isin) = match payment_data
         .get_payment_method_info()
-        .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
+        .and_then(|info| info.get_payment_methods_data())
     {
-        if let Some(saved_co_badged_card_data) = card.co_badged_card_data {
-            logger::debug!("Co-badged card data is present in the saved payment method");
-            (Some(saved_co_badged_card_data), None)
-        } else if let Some(saved_card_isin) = &card.card_isin {
-            logger::debug!("Co-badged card data is not present; proceeding with the flow using the saved card BIN.");
-
-            (None, Some(Secret::new(saved_card_isin.clone())))
-        } else {
-            (None, None)
+        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card)) => {
+            match (&card.co_badged_card_data, &card.card_isin) {
+                (Some(co_badged), _) => {
+                    logger::debug!("Co-badged card data found in saved payment method");
+                    (Some(co_badged.clone()), None)
+                }
+                (None, Some(card_isin)) => {
+                    logger::debug!("No co-badged data; using saved card ISIN");
+                    (None, Some(Secret::new(card_isin.clone())))
+                }
+                _ => (None, None),
+            }
         }
-    } else if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
-        card,
-    )) = payment_method_data_optional
-    {
-        logger::debug!(
-            "Co-badged card data is not present; proceeding with card data form the request."
-        );
-        (None, Some(Secret::new(card.card_number.get_card_isin())))
-    } else {
-        (None, None)
+        _ => match payment_method_data_optional {
+            Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
+                logger::debug!("Using card data from payment request");
+                (None, Some(Secret::new(card.card_number.get_card_isin())))
+            }
+            _ => (None, None),
+        },
     };
+
     let debit_routing_output_optional = match (saved_co_badged_card_data.clone(), card_isin.clone())
     {
-        (None, None) => None,
+        (None, None) => {
+            logger::debug!("Neither co-badged data nor ISIN found; skipping routing");
+            None
+        }
         _ => {
             let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
                 merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
@@ -294,7 +296,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<
             )
             .await
             .map_err(|error| {
-                logger::warn!(?error, "Failed to calculate total fees per network");
+                logger::warn!(?error, "Debit routing call to open router failed");
             })
             .ok()
         }
