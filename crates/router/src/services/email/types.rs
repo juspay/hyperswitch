@@ -567,7 +567,7 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            user_name: data.poc_name.unwrap_or_default().into(),
+            user_name: data.poc_name.unwrap_or_default(),
             poc_email: data.poc_email.unwrap_or_default(),
             legal_business_name: data.legal_business_name.unwrap_or_default(),
             business_location: data
