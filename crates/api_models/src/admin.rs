@@ -14,7 +14,6 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;

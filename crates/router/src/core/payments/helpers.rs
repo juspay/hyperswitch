@@ -2637,6 +2637,21 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                 if let Some(vault_operation) = updated_vault_operation {
                     payment_data.set_vault_operation(vault_operation);
                 }
+
+                // Temporarily store payment method data along with the cvc in redis for saved card payments, if required by the connector based on its configs
+                if payment_data.token.is_none() {
+                    let (_, payment_token) = payment_methods::retrieve_payment_method_core(
+                        &Some(payment_method_data.clone()),
+                        state,
+                        &payment_data.payment_intent,
+                        &payment_data.payment_attempt,
+                        merchant_key_store,
+                        Some(business_profile),
+                    )
+                    .await?;
+
+                    payment_data.token = payment_token;
+                }
             };
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
@@ -2943,9 +2958,17 @@ pub fn validate_payment_method_type_against_payment_method(
     payment_method_type: api_enums::PaymentMethodType,
 ) -> bool {
     match payment_method {
+        #[cfg(feature = "v1")]
         api_enums::PaymentMethod::Card => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit
+        ),
+        #[cfg(feature = "v2")]
+        api_enums::PaymentMethod::Card => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Credit
+                | api_enums::PaymentMethodType::Debit
+                | api_enums::PaymentMethodType::Card
         ),
         api_enums::PaymentMethod::PayLater => matches!(
             payment_method_type,
@@ -7407,4 +7430,39 @@ pub async fn validate_allowed_payment_method_types_request(
     }
 
     Ok(())
+}
+
+async fn get_payment_update_enabled_for_client_auth(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+) -> bool {
+    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
+    let db = &*state.store;
+    let update_enabled = db.find_config_by_key(key.as_str()).await;
+
+    match update_enabled {
+        Ok(conf) => conf.config.to_lowercase() == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
+pub async fn allow_payment_update_enabled_for_client_auth(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+    auth_flow: services::AuthFlow,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    match auth_flow {
+        services::AuthFlow::Client => {
+            if get_payment_update_enabled_for_client_auth(merchant_id, state).await {
+                Ok(())
+            } else {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Client auth for payment update is not enabled.")
+            }
+        }
+        services::AuthFlow::Merchant => Ok(()),
+    }
 }
