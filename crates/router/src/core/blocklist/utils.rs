@@ -292,15 +292,14 @@ async fn delete_card_bin_blocklist_entry(
 
 pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone,
 {
     let db = &state.store;
-    let merchant_id = merchant_account.get_id();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
@@ -394,10 +393,13 @@ where
             storage::PaymentIntentUpdate::RejectUpdate {
                 status: common_enums::IntentStatus::Failed,
                 merchant_decision: Some(MerchantDecision::Rejected.to_string()),
-                updated_by: merchant_account.storage_scheme.to_string(),
+                updated_by: merchant_context
+                    .get_merchant_account()
+                    .storage_scheme
+                    .to_string(),
             },
-            key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -410,12 +412,15 @@ where
             status: common_enums::AttemptStatus::Failure,
             error_code: Some(Some("HE-03".to_string())),
             error_message: Some(Some("This payment method is blocked".to_string())),
-            updated_by: merchant_account.storage_scheme.to_string(),
+            updated_by: merchant_context
+                .get_merchant_account()
+                .storage_scheme
+                .to_string(),
         };
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             attempt_update,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

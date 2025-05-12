@@ -713,7 +713,7 @@ impl PaymentAttempt {
         let feature_metadata = PaymentAttemptFeatureMetadata {
             revenue_recovery: Some({
                 PaymentAttemptRevenueRecoveryData {
-                    attempt_triggered_by: common_enums::TriggeredBy::External,
+                    attempt_triggered_by: request.triggered_by,
                 }
             }),
         };
