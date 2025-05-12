@@ -2272,7 +2272,6 @@ pub enum MandateStatus {
 /// Indicates the card network.
 #[derive(
     Clone,
-    Copy,
     Debug,
     Eq,
     Hash,
@@ -2331,15 +2330,17 @@ pub enum CardNetwork {
     strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
-    Copy,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 pub enum RegulatedName {
     #[serde(rename = "GOVERNMENT NON-EXEMPT INTERCHANGE FEE (WITH FRAUD)")]
+    #[strum(serialize = "GOVERNMENT NON-EXEMPT INTERCHANGE FEE (WITH FRAUD)")]
     NonExemptWithFraud,
-    #[serde(rename = "GOVERNMENT EXEMPT INTERCHANGE FEE")]
-    ExemptFraud,
+
+    #[serde(untagged)]
+    #[strum(default)]
+    Unknown(String),
 }
 
 #[derive(
@@ -2379,8 +2380,8 @@ pub enum PanOrToken {
     Copy,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "UPPERCASE")]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "lowercase")]
 pub enum CardType {
     Credit,
     Debit,

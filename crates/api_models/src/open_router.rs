@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{errors, id_type, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -76,23 +76,30 @@ impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
     fn from(output: &DebitRoutingOutput) -> Self {
         Self {
             co_badged_card_networks: output.co_badged_card_networks.clone(),
-            issuer_country: output.issuer_country,
+            issuer_country_code: output.issuer_country,
             is_regulated: output.is_regulated,
-            regulated_name: output.regulated_name,
-            card_type: output.card_type,
+            regulated_name: output.regulated_name.clone(),
         }
     }
 }
 
-impl From<payment_methods::CoBadgedCardData> for DebitRoutingRequestData {
-    fn from(output: payment_methods::CoBadgedCardData) -> Self {
-        Self {
+impl TryFrom<(payment_methods::CoBadgedCardData, String)> for DebitRoutingRequestData {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(
+        (output, card_type): (payment_methods::CoBadgedCardData, String),
+    ) -> Result<Self, Self::Error> {
+        let parsed_card_type = card_type.parse::<common_enums::CardType>().map_err(|_| {
+            error_stack::Report::new(errors::ParsingError::EnumParseFailure("CardType"))
+        })?;
+
+        Ok(Self {
             co_badged_card_networks: output.co_badged_card_networks,
-            issuer_country: output.issuer_country,
+            issuer_country: output.issuer_country_code,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name,
-            card_type: output.card_type,
-        }
+            card_type: parsed_card_type,
+        })
     }
 }
 

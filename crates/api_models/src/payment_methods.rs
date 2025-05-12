@@ -991,10 +991,9 @@ pub struct CardDetailsPaymentMethod {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
     pub co_badged_card_networks: Vec<api_enums::CardNetwork>,
-    pub issuer_country: common_enums::CountryAlpha2,
+    pub issuer_country_code: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
-    pub card_type: common_enums::CardType,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
