@@ -352,6 +352,7 @@ pub async fn create_routing_algorithm_under_profile(
         decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
             .await
             .map_err(|e| {
+                // errors are ignored as this is just for diff checking as of now (optional flow).
                 logger::error!(decision_engine_error=?e, "decision_engine_euclid");
                 logger::debug!(decision_engine_request=?routing_rule, "decision_engine_euclid");
             })

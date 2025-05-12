@@ -56,7 +56,8 @@ impl EuclidApiClient {
     where
         Req: Serialize + Send + Sync + 'static,
     {
-        let url = format!("{}/{}", EUCLID_BASE_URL, path);
+        let euclid_base_url =  state.conf.open_router.url;
+        let url = format!("{}/{}", euclid_base_url, path);
         logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "decision_engine_euclid: Initiating Euclid API call ({})", context_message);
 
         let mut request_builder = services::RequestBuilder::new()
@@ -152,9 +153,7 @@ impl EuclidApiHandler for EuclidApiClient {
     }
 }
 
-//TODO: will be converted to configs
 const EUCLID_API_TIMEOUT: u64 = 5;
-const EUCLID_BASE_URL: &str = "http://localhost:8082";
 
 pub async fn perform_decision_euclid_routing(
     state: &SessionState,
