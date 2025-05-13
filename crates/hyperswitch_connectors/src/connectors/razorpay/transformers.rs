@@ -319,7 +319,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
     fn try_from(
         item: ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        println!("$$$$sync response {:?}", item.response.id);
         Ok(Self {
             status: get_psync_razorpay_payment_status(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
