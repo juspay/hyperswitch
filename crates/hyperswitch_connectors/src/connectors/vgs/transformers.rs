@@ -75,6 +75,7 @@ impl TryFrom<&VgsRouterData<&PaymentsAuthorizeRouterData>> for VgsPaymentsReques
 // Auth Struct
 pub struct VgsAuthType {
     pub(super) username: Secret<String>,
+    #[allow(dead_code)]
     pub(super) password: Secret<String>,
 }
 
