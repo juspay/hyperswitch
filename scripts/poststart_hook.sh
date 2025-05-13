@@ -2,13 +2,12 @@
 set -euo pipefail
 
 # Configuration
-PLATFORM="docker-compose" # Change to "helm" or "cdk" as needed
 VERSION="unknown"
 STATUS=""
 SERVER_BASE_URL="http://hyperswitch-server:8080"
 HYPERSWITCH_HEALTH_URL="${SERVER_BASE_URL}/health"
 HYPERSWITCH_DEEP_HEALTH_URL="${SERVER_BASE_URL}/health/ready"
-WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/${PLATFORM}"
+WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/docker"
 
 # Fetch health status
 echo "Fetching app server health status..."
@@ -45,9 +44,9 @@ if [[ "$(echo "${HEALTH_RESPONSE}" | jq --raw-output '.error')" != 'null' ]]; th
 
     CURL_COMMAND+=(
         "--data-urlencode" "status=${STATUS}"
-        "--data-urlencode" "error_type=${ERROR_TYPE}"
-        "--data-urlencode" "error_message=${ERROR_MESSAGE}"
-        "--data-urlencode" "error_code=${ERROR_CODE}"
+        "--data-urlencode" "error_type='${ERROR_TYPE}'"
+        "--data-urlencode" "error_message='${ERROR_MESSAGE}'"
+        "--data-urlencode" "error_code='${ERROR_CODE}'"
     )
 else
     STATUS="success"

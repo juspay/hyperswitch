@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::enums;
@@ -24,7 +26,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSessionRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -50,8 +55,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        construct_not_supported_error_report, convert_amount, get_http_header,
-        get_unimplemented_payment_method_error_message, missing_field_err, RefundsRequestData,
+        convert_amount, get_http_header, get_unimplemented_payment_method_error_message,
+        missing_field_err, RefundsRequestData,
     },
 };
 
@@ -133,24 +138,7 @@ impl ConnectorCommon for Klarna {
     }
 }
 
-impl ConnectorValidation for Klarna {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Klarna {}
 
 impl api::Payment for Klarna {}
 
@@ -1369,4 +1357,47 @@ impl IncomingWebhook for Klarna {
     }
 }
 
-impl ConnectorSpecifications for Klarna {}
+static KLARNA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let mut klarna_supported_payment_methods = SupportedPaymentMethods::new();
+
+    klarna_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        enums::PaymentMethodType::Klarna,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
+
+    klarna_supported_payment_methods
+});
+
+static KLARNA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Klarna",
+    description: "Klarna provides payment processing services for the e-commerce industry, managing store claims and customer payments.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static KLARNA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Klarna {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&KLARNA_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*KLARNA_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&KLARNA_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

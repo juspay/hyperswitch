@@ -13,10 +13,10 @@ use common_enums::{
     enums::{
         AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
         AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
-        BosniaAndHerzegovinaStatesAbbreviation, BulgariaStatesAbbreviation,
-        CanadaStatesAbbreviation, CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation,
-        DenmarkStatesAbbreviation, FinlandStatesAbbreviation, FranceStatesAbbreviation,
-        FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
+        BosniaAndHerzegovinaStatesAbbreviation, BrazilStatesAbbreviation,
+        BulgariaStatesAbbreviation, CanadaStatesAbbreviation, CroatiaStatesAbbreviation,
+        CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation, FinlandStatesAbbreviation,
+        FranceStatesAbbreviation, FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
         HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
         ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
         LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
@@ -38,6 +38,10 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::router_request_types::fraud_check::{
+    FraudCheckCheckoutData, FraudCheckTransactionData,
+};
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
@@ -69,6 +73,8 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
 
+#[cfg(feature = "frm")]
+use crate::types::FrmTransactionRouterData;
 use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -1685,6 +1691,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_network_from_additional_payment_method_data(
         &self,
     ) -> Result<enums::CardNetwork, Error>;
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1904,6 +1911,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             }
             .into()),
         }
+    }
+    fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
+        self.connector_testing_data.clone()
     }
 }
 
@@ -2478,6 +2488,15 @@ macro_rules! capture_method_not_supported {
         }
         .into())
     };
+}
+#[macro_export]
+macro_rules! get_formatted_date_time {
+    ($date_format:tt) => {{
+        let format = time::macros::format_description!($date_format);
+        time::OffsetDateTime::now_utc()
+            .format(&format)
+            .change_context(ConnectorError::InvalidDateFormat)
+    }};
 }
 
 #[macro_export]
@@ -5118,6 +5137,52 @@ impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
     }
 }
 
+impl ForeignTryFrom<String> for BrazilStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state_abbreviation_check =
+            StringExt::<Self>::parse_enum(value.clone(), "BrazilStatesAbbreviation");
+
+        match state_abbreviation_check {
+            Ok(state_abbreviation) => Ok(state_abbreviation),
+            Err(_) => match value.as_str() {
+                "Acre" => Ok(Self::Acre),
+                "Alagoas" => Ok(Self::Alagoas),
+                "Amapá" => Ok(Self::Amapá),
+                "Amazonas" => Ok(Self::Amazonas),
+                "Bahia" => Ok(Self::Bahia),
+                "Ceará" => Ok(Self::Ceará),
+                "Distrito Federal" => Ok(Self::DistritoFederal),
+                "Espírito Santo" => Ok(Self::EspíritoSanto),
+                "Goiás" => Ok(Self::Goiás),
+                "Maranhão" => Ok(Self::Maranhão),
+                "Mato Grosso" => Ok(Self::MatoGrosso),
+                "Mato Grosso do Sul" => Ok(Self::MatoGrossoDoSul),
+                "Minas Gerais" => Ok(Self::MinasGerais),
+                "Pará" => Ok(Self::Pará),
+                "Paraíba" => Ok(Self::Paraíba),
+                "Paraná" => Ok(Self::Paraná),
+                "Pernambuco" => Ok(Self::Pernambuco),
+                "Piauí" => Ok(Self::Piauí),
+                "Rio de Janeiro" => Ok(Self::RioDeJaneiro),
+                "Rio Grande do Norte" => Ok(Self::RioGrandeDoNorte),
+                "Rio Grande do Sul" => Ok(Self::RioGrandeDoSul),
+                "Rondônia" => Ok(Self::Rondônia),
+                "Roraima" => Ok(Self::Roraima),
+                "Santa Catarina" => Ok(Self::SantaCatarina),
+                "São Paulo" => Ok(Self::SãoPaulo),
+                "Sergipe" => Ok(Self::Sergipe),
+                "Tocantins" => Ok(Self::Tocantins),
+                _ => Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "address.state",
+                }
+                .into()),
+            },
+        }
+    }
+}
+
 pub trait ForeignTryFrom<F>: Sized {
     type Error;
 
@@ -5998,6 +6063,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         shipping_cost: data.request.shipping_cost,
         merchant_account_id: None,
         merchant_config_currency: None,
+        connector_testing_data: data.request.connector_testing_data.clone(),
     }
 }
 
@@ -6073,6 +6139,69 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
 }
+#[cfg(feature = "frm")]
+pub trait FrmTransactionRouterDataRequest {
+    fn is_payment_successful(&self) -> Option<bool>;
+}
+
+#[cfg(feature = "frm")]
+impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
+    fn is_payment_successful(&self) -> Option<bool> {
+        match self.status {
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::Failure
+            | AttemptStatus::AutoRefunded => Some(false),
+
+            AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Authorized
+            | AttemptStatus::Charged => Some(true),
+
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending => None,
+        }
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckCheckoutRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+
+#[cfg(feature = "frm")]
+impl FraudCheckCheckoutRequest for FraudCheckCheckoutData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckTransactionRequest {
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckTransactionRequest for FraudCheckTransactionData {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
 
 /// Custom deserializer for Option<Currency> that treats empty strings as None
 pub fn deserialize_optional_currency<'de, D>(
@@ -6089,5 +6218,77 @@ where
             .map(Some)
             .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
         _ => Ok(None),
+    }
+}
+#[cfg(feature = "payouts")]
+pub trait CustomerDetails {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
+}
+
+#[cfg(feature = "payouts")]
+impl CustomerDetails for hyperswitch_domain_models::router_request_types::CustomerDetails {
+    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError> {
+        self.customer_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })
+    }
+
+    fn get_customer_name(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_name",
+            })
+    }
+
+    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
+        self.email
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_email",
+            })
+    }
+
+    fn get_customer_phone(
+        &self,
+    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+        self.phone
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone",
+            })
+    }
+
+    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
+        self.phone_country_code
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_phone_country_code",
+            })
+    }
+}
+
+pub fn get_card_details(
+    payment_method_data: PaymentMethodData,
+    connector_name: &'static str,
+) -> Result<Card, errors::ConnectorError> {
+    match payment_method_data {
+        PaymentMethodData::Card(details) => Ok(details),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: connector_name,
+        })?,
     }
 }

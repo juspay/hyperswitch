@@ -11,7 +11,6 @@ use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
-use super::migration;
 use crate::{
     core::payment_methods::{
         cards::{add_card_to_hs_locker, create_encrypted_data, tokenize_card_flow},
@@ -97,8 +96,7 @@ pub fn get_tokenize_card_form_records(
 pub async fn tokenize_cards(
     state: &SessionState,
     records: Vec<payment_methods_api::CardNetworkTokenizeRequest>,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
 ) -> errors::RouterResponse<Vec<payment_methods_api::CardNetworkTokenizeResponse>> {
     use futures::stream::StreamExt;
 
@@ -110,8 +108,7 @@ pub async fn tokenize_cards(
             Box::pin(tokenize_card_flow(
                 state,
                 domain::CardNetworkTokenizeRequest::foreign_from(record),
-                merchant_account,
-                key_store,
+                merchant_context,
             ))
             .await
             .unwrap_or_else(|e| {
@@ -196,8 +193,7 @@ pub trait TransitionTo<S: State> {}
 pub trait NetworkTokenizationProcess<'a, D> {
     fn new(
         state: &'a SessionState,
-        key_store: &'a domain::MerchantKeyStore,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
         data: &'a D,
         customer: &'a domain_request_types::CustomerDetails,
     ) -> Self;
@@ -247,8 +243,7 @@ where
 {
     fn new(
         state: &'a SessionState,
-        key_store: &'a domain::MerchantKeyStore,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
         data: &'a D,
         customer: &'a domain_request_types::CustomerDetails,
     ) -> Self {
@@ -256,8 +251,8 @@ where
             data,
             customer,
             state,
-            merchant_account,
-            key_store,
+            merchant_account: merchant_context.get_merchant_account(),
+            key_store: merchant_context.get_merchant_key_store(),
         }
     }
     async fn encrypt_card(

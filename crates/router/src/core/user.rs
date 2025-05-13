@@ -8,7 +8,10 @@ use api_models::{
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::{EntityType, UserAuthType};
-use common_utils::{type_name, types::keymanager::Identifier};
+use common_utils::{
+    type_name,
+    types::{keymanager::Identifier, user::LineageContext},
+};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -1498,6 +1501,71 @@ pub async fn create_tenant_user(
 }
 
 #[cfg(feature = "v1")]
+pub async fn create_platform_account(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    req: user_api::PlatformAccountCreateRequest,
+) -> UserResponse<user_api::PlatformAccountCreateResponse> {
+    let user_from_db = user_from_token.get_user_from_db(&state).await?;
+
+    let new_merchant = domain::NewUserMerchant::try_from(req)?;
+    let new_organization = new_merchant.get_new_organization();
+    let organization = new_organization.insert_org_in_db(state.clone()).await?;
+
+    let merchant_account = new_merchant
+        .create_new_merchant_and_insert_in_db(state.to_owned())
+        .await?;
+
+    state
+        .accounts_store
+        .update_organization_by_org_id(
+            &organization.get_organization_id(),
+            diesel_models::organization::OrganizationUpdate::Update {
+                organization_name: None,
+                organization_details: None,
+                metadata: None,
+                platform_merchant_id: Some(merchant_account.get_id().to_owned()),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let now = common_utils::date_time::now();
+
+    let user_role = domain::NewUserRole {
+        user_id: user_from_db.get_user_id().to_owned(),
+        role_id: common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+        status: UserStatus::Active,
+        created_by: user_from_token.user_id.clone(),
+        last_modified_by: user_from_token.user_id.clone(),
+        created_at: now,
+        last_modified: now,
+        entity: domain::NoLevel,
+    };
+
+    user_role
+        .add_entity(domain::OrganizationLevel {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: merchant_account.organization_id.clone(),
+        })
+        .insert_in_v2(&state)
+        .await?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::PlatformAccountCreateResponse {
+            org_id: organization.get_organization_id(),
+            org_name: organization.get_organization_name(),
+            org_type: organization.organization_type.unwrap_or_default(),
+            merchant_id: merchant_account.get_id().to_owned(),
+            merchant_account_type: merchant_account.merchant_account_type,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
 pub async fn create_org_merchant_for_user(
     state: SessionState,
     req: user_api::UserOrgMerchantCreateRequest,
@@ -1537,6 +1605,7 @@ pub async fn create_merchant_account(
             merchant_id: domain_merchant_account.get_id().to_owned(),
             merchant_name: domain_merchant_account.merchant_name,
             product_type: domain_merchant_account.product_type,
+            merchant_account_type: domain_merchant_account.merchant_account_type,
             version: domain_merchant_account.version,
         },
     ))
@@ -2893,6 +2962,7 @@ pub async fn list_orgs_for_user(
     .map(|org| user_api::ListOrgsForUserResponse {
         org_id: org.get_organization_id(),
         org_name: org.get_organization_name(),
+        org_type: org.organization_type.unwrap_or_default(),
     })
     .collect::<Vec<_>>();
 
@@ -2975,6 +3045,7 @@ pub async fn list_merchants_for_user_in_org(
                 merchant_name: merchant_account.merchant_name.clone(),
                 merchant_id: merchant_account.get_id().to_owned(),
                 product_type: merchant_account.product_type,
+                merchant_account_type: merchant_account.merchant_account_type,
                 version: merchant_account.version,
             })
             .collect::<Vec<_>>(),
@@ -3168,6 +3239,25 @@ pub async fn switch_org_for_user(
             (merchant_id, profile_id, user_role.role_id)
         }
     };
+
+    let lineage_context = LineageContext {
+        user_id: user_from_token.user_id.clone(),
+        merchant_id: merchant_id.clone(),
+        role_id: role_id.clone(),
+        org_id: request.org_id.clone(),
+        profile_id: profile_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
+    };
+
+    utils::user::spawn_async_lineage_context_update_to_db(
+        &state,
+        &user_from_token.user_id,
+        lineage_context,
+    );
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3364,6 +3454,25 @@ pub async fn switch_merchant_for_user_in_org(
         }
     };
 
+    let lineage_context = LineageContext {
+        user_id: user_from_token.user_id.clone(),
+        merchant_id: merchant_id.clone(),
+        role_id: role_id.clone(),
+        org_id: org_id.clone(),
+        profile_id: profile_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
+    };
+
+    utils::user::spawn_async_lineage_context_update_to_db(
+        &state,
+        &user_from_token.user_id,
+        lineage_context,
+    );
+
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
         user_from_token.user_id,
@@ -3479,6 +3588,25 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             (request.profile_id, user_role.role_id)
         }
     };
+
+    let lineage_context = LineageContext {
+        user_id: user_from_token.user_id.clone(),
+        merchant_id: user_from_token.merchant_id.clone(),
+        role_id: role_id.clone(),
+        org_id: user_from_token.org_id.clone(),
+        profile_id: profile_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id)
+            .clone(),
+    };
+
+    utils::user::spawn_async_lineage_context_update_to_db(
+        &state,
+        &user_from_token.user_id,
+        lineage_context,
+    );
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,

@@ -2,8 +2,7 @@
 set -euo pipefail
 
 # Define the URL and parameters
-PLATFORM="docker-compose"
-WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/${PLATFORM}"
+WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/docker"
 VERSION="unknown"
 STATUS="initiated"
 

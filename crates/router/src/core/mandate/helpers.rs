@@ -14,8 +14,7 @@ use crate::{
 #[cfg(feature = "v1")]
 pub async fn get_profile_id_for_mandate(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     mandate: Mandate,
 ) -> CustomResult<common_utils::id_type::ProfileId, errors::ApiErrorResponse> {
     let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
@@ -24,9 +23,9 @@ pub async fn get_profile_id_for_mandate(
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 payment_id,
-                merchant_account.get_id(),
-                key_store,
-                merchant_account.storage_scheme,
+                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

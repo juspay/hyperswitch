@@ -750,6 +750,8 @@ diesel::table! {
         id -> Nullable<Varchar>,
         #[max_length = 64]
         product_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_account_type -> Nullable<Varchar>,
     }
 }
 
@@ -823,6 +825,10 @@ diesel::table! {
         id -> Nullable<Varchar>,
         organization_name -> Nullable<Text>,
         version -> ApiVersion,
+        #[max_length = 64]
+        organization_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -933,6 +939,10 @@ diesel::table! {
         #[max_length = 64]
         issuer_error_code -> Nullable<Varchar>,
         issuer_error_message -> Nullable<Text>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
         setup_future_usage_applied -> Nullable<FutureUsage>,
     }
 }
@@ -1021,6 +1031,10 @@ diesel::table! {
         platform_merchant_id -> Nullable<Varchar>,
         force_3ds_challenge -> Nullable<Bool>,
         force_3ds_challenge_trigger -> Nullable<Bool>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1353,7 +1367,7 @@ diesel::table! {
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         org_id -> Varchar,
         groups -> Array<Nullable<Text>>,
@@ -1537,6 +1551,7 @@ diesel::table! {
         totp_secret -> Nullable<Bytea>,
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
+        lineage_context -> Nullable<Jsonb>,
     }
 }
 

@@ -9,6 +9,7 @@ use common_utils::{
 };
 use error_stack::report;
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -44,7 +45,12 @@ use masking::{Secret, WithoutType};
 use serde::Serialize;
 use transformers as elavon;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils,
+    utils::{is_mandate_supported, PaymentMethodDataType},
+};
 
 pub fn struct_to_xml<T: Serialize>(
     item: &T,
@@ -579,7 +585,16 @@ impl webhooks::IncomingWebhook for Elavon {
     }
 }
 
-impl ConnectorValidation for Elavon {}
+impl ConnectorValidation for Elavon {
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
+}
 
 static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![

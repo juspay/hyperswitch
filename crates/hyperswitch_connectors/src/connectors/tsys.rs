@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -43,7 +45,6 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use lazy_static::lazy_static;
 use transformers as tsys;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -645,78 +646,76 @@ impl webhooks::IncomingWebhook for Tsys {
     }
 }
 
-lazy_static! {
-    static ref TSYS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
+static TSYS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
 
-        let supported_card_network = vec![
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::Discover,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::UnionPay,
-        ];
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::UnionPay,
+    ];
 
-        let mut tsys_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut tsys_supported_payment_methods = SupportedPaymentMethods::new();
 
-        tsys_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    tsys_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        tsys_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    tsys_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        tsys_supported_payment_methods
-    };
+    tsys_supported_payment_methods
+});
 
-    static ref TSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Tsys",
-        description: "TSYS, a Global Payments company, is the payment stack for the future, powered by unmatched expertise.",
-        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    };
+static TSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Tsys",
+    description: "TSYS, a Global Payments company, is the payment stack for the future, powered by unmatched expertise.",
+    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+};
 
-    static ref TSYS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-}
+static TSYS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Tsys {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*TSYS_CONNECTOR_INFO)
+        Some(&TSYS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -724,6 +723,6 @@ impl ConnectorSpecifications for Tsys {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*TSYS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&TSYS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
