@@ -3,8 +3,8 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
-/// Enum for Theme Lineage
-pub mod theme;
+/// User related types
+pub mod user;
 
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;

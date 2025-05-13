@@ -29,7 +29,7 @@ vergen = ["router_env/vergen"]
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "hyperswitch_interfaces/dummy_connector", "kgraph_utils/dummy_connector", "payment_methods/dummy_connector", "hyperswitch_domain_models/dummy_connector"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]
+payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts", "payment_methods/payouts"]
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
@@ -74,8 +74,6 @@ hkdf = "0.12.4"
 http = "0.2.12"
 hyper = "0.14.28"
 infer = "0.15.0"
-iso_currency = "0.4.4"
-isocountry = "0.3.2"
 josekit = "0.8.6"
 jsonwebtoken = "9.2.0"
 maud = { version = "0.26.0", features = ["actix-web"] }
