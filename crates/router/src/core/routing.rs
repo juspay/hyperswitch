@@ -1620,6 +1620,7 @@ pub async fn elimination_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        decision_engine_routing_id: None,
     };
 
     let record = db
