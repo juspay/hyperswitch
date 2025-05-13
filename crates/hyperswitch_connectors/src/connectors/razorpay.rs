@@ -1,15 +1,14 @@
 pub mod transformers;
 
-use api_models::webhooks::{self, IncomingWebhookEvent};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt},
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -136,7 +135,6 @@ impl ConnectorCommon for Razorpay {
             auth.razorpay_id.peek(),
             auth.razorpay_secret.peek()
         ));
-        println!("$$$$$ Razorpay auth header: {:?}", encoded_api_key);
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),
@@ -148,14 +146,8 @@ impl ConnectorCommon for Razorpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ Razorpay Error Response: {:?}", res.response);
         let response: Result<razorpay::ErrorResponse, Report<common_utils::errors::ParsingError>> =
             res.response.parse_struct("Razorpay ErrorResponse");
-
-        // let response: razorpay::RazorpayErrorResponse = res
-        // .response
-        // .parse_struct("ErrorResponse")
-        // .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         match response {
             Ok(response_data) => {
@@ -270,10 +262,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
         let connector_req = razorpay::RazorpayOrderRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ pre req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -304,7 +292,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        println!("$$$ Razorpay PreProcessing Response: {:?}", res.response);
         let response: razorpay::RazorpayOrderResponse = res
             .response
             .parse_struct("razorpay RazorpayOrderResponse")
@@ -323,10 +310,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!(
-            "$$$ Razorpay PreProcessing Error Response: {:?}",
-            res.response
-        );
         self.build_error_response(res, event_builder)
     }
 }
@@ -367,10 +350,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
         let connector_req = razorpay::RazorpayPaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!(" auth req $$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -402,7 +381,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("$$$ Razorpay Authorize Response: {:?}", res.response);
         let response: razorpay::RazorpayPaymentsResponse = res
             .response
             .parse_struct("Razorpay PaymentsAuthorizeResponse")
@@ -447,7 +425,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Raz
             to_connector_meta(req.request.connector_meta.clone())?;
 
         let connector_payment_id = razorpay_metadata.order_id;
-        println!("$$$$$ Razorpay Sync URL: {:?}", connector_payment_id);
         Ok(format!(
             "{}v1/orders/{}",
             self.base_url(connectors),
@@ -478,7 +455,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Raz
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        println!("$$$ Razorpay Sync Response: {:?}", res.response);
         let response: razorpay::RazorpaySyncResponse = res
             .response
             .parse_struct("razorpay PaymentsSyncResponse")
@@ -744,63 +720,89 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
     }
 }
 
+// This code can be used later when Razorpay webhooks are implemented
+
+// #[async_trait::async_trait]
+// impl IncomingWebhook for Razorpay {
+//     fn get_webhook_object_reference_id(
+//         &self,
+//         request: &IncomingWebhookRequestDetails<'_>,
+//     ) -> CustomResult<webhooks::ObjectReferenceId, errors::ConnectorError> {
+//         let webhook_resource_object: razorpay::RazorpayWebhookPayload = request
+//             .body
+//             .parse_struct("RazorpayWebhookPayload")
+//             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+//         match webhook_resource_object.payload.refund {
+//             Some(refund_data) => Ok(webhooks::ObjectReferenceId::RefundId(
+//                 webhooks::RefundIdType::ConnectorRefundId(refund_data.entity.id),
+//             )),
+//             None => Ok(webhooks::ObjectReferenceId::PaymentId(
+//                 api_models::payments::PaymentIdType::ConnectorTransactionId(
+//                     webhook_resource_object.payload.payment.entity.id,
+//                 ),
+//             )),
+//         }
+//     }
+
+//     async fn verify_webhook_source(
+//         &self,
+//         _request: &IncomingWebhookRequestDetails<'_>,
+//         _merchant_id: &common_utils::id_type::MerchantId,
+//         _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+//         _connector_account_details: common_utils::crypto::Encryptable<
+//             masking::Secret<serde_json::Value>,
+//         >,
+//         _connector_label: &str,
+//     ) -> CustomResult<bool, errors::ConnectorError> {
+//         Ok(false)
+//     }
+
+//     fn get_webhook_event_type(
+//         &self,
+//         request: &IncomingWebhookRequestDetails<'_>,
+//     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+//         let payload: razorpay::RazorpayWebhookEventType = request
+//             .body
+//             .parse_struct("RazorpayWebhookEventType")
+//             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+//         Ok(IncomingWebhookEvent::try_from(payload)?)
+//     }
+
+//     fn get_webhook_resource_object(
+//         &self,
+//         request: &IncomingWebhookRequestDetails<'_>,
+//     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+//         let details: razorpay::RazorpayWebhookPayload = request
+//             .body
+//             .parse_struct("RazorpayWebhookPayload")
+//             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+//         Ok(Box::new(details))
+//     }
+// }
+
 #[async_trait::async_trait]
 impl IncomingWebhook for Razorpay {
     fn get_webhook_object_reference_id(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_resource_object = get_webhook_object_from_body(request.body)?;
-        match webhook_resource_object.refund {
-            Some(refund_data) => Ok(webhooks::ObjectReferenceId::RefundId(
-                webhooks::RefundIdType::ConnectorRefundId(refund_data.entity.id),
-            )),
-            None => Ok(webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    webhook_resource_object.payment.entity.id,
-                ),
-            )),
-        }
-    }
-
-    async fn verify_webhook_source(
-        &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<
-            masking::Secret<serde_json::Value>,
-        >,
-        _connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(false)
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        let webhook_resource_object = get_webhook_object_from_body(request.body)?;
-        Ok(IncomingWebhookEvent::try_from(webhook_resource_object)?)
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook_resource_object = get_webhook_object_from_body(request.body)?;
-        Ok(Box::new(webhook_resource_object))
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
-}
-
-fn get_webhook_object_from_body(
-    body: &[u8],
-) -> CustomResult<razorpay::RazorpayWebhookPayload, errors::ConnectorError> {
-    let details: razorpay::RazorpayWebhookEvent = body
-        .parse_struct("RazorpayWebhookEvent")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-    Ok(details.payload)
 }
 
 lazy_static! {

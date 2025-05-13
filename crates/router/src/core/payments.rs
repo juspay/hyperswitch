@@ -4603,11 +4603,9 @@ where
             if connector.connector_name == router_types::Connector::Razorpay {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 let is_error_in_response = router_data.response.is_err();
-                println!("$$$UPI Preprocessing step");
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
                 (router_data, !is_error_in_response)
             } else {
-                println!("$$$UPI Preprocessing dwedwedw step");
                 (router_data, should_continue_payment)
             }
         }
