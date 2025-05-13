@@ -364,6 +364,8 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
@@ -436,6 +438,8 @@ pub struct ProfileNew {
     pub id: common_utils::id_type::ProfileId,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -490,6 +494,8 @@ pub struct ProfileUpdateInternal {
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -541,6 +547,8 @@ impl ProfileUpdateInternal {
             merchant_business_country,
             revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data,
+            is_external_vault_enabled,
+            external_vault_connector_details,
         } = self;
         Profile {
             id: source.id,
@@ -625,6 +633,10 @@ impl ProfileUpdateInternal {
                 .or(source.revenue_recovery_retry_algorithm_type),
             revenue_recovery_retry_algorithm_data: revenue_recovery_retry_algorithm_data
                 .or(source.revenue_recovery_retry_algorithm_data),
+            is_external_vault_enabled: is_external_vault_enabled
+                .or(source.is_external_vault_enabled),
+            external_vault_connector_details: external_vault_connector_details
+                .or(source.external_vault_connector_details),
         }
     }
 }
@@ -638,6 +650,14 @@ pub struct AuthenticationConnectorDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ExternalVaultConnectorDetails {
+    pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+}
+
+common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]

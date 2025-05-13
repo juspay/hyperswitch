@@ -1737,13 +1737,75 @@ pub async fn record_attempt_core(
             &header_payload,
         )
         .await?;
+    let default_payment_status_data = PaymentStatusData {
+        flow: PhantomData,
+        payment_intent: payment_data.payment_intent.clone(),
+        payment_attempt: Some(payment_data.payment_attempt.clone()),
+        attempts: None,
+        should_sync_with_connector: false,
+        payment_address: payment_data.payment_address.clone(),
+    };
 
-    let (_operation, payment_data) = boxed_operation
+    let payment_status_data = (req.triggered_by == common_enums::TriggeredBy::Internal)
+    .then(|| default_payment_status_data.clone())
+    .async_unwrap_or_else(|| async {
+        match Box::pin(proxy_for_payments_operation_core::<
+            api::PSync,
+            _,
+            _,
+            _,
+            PaymentStatusData<api::PSync>,
+        >(
+            &state,
+            req_state.clone(),
+            merchant_context.clone(),
+            profile.clone(),
+            operations::PaymentGet,
+            api::PaymentsRetrieveRequest {
+                force_sync: true,
+                expand_attempts: false,
+                param: None,
+            },
+            operations::GetTrackerResponse {
+                payment_data: PaymentStatusData {
+                    flow: PhantomData,
+                    payment_intent: payment_data.payment_intent.clone(),
+                    payment_attempt: Some(payment_data.payment_attempt.clone()),
+                    attempts: None,
+                    should_sync_with_connector: true,
+                    payment_address: payment_data.payment_address.clone(),
+                },
+            },
+            CallConnectorAction::Trigger,
+            HeaderPayload::default(),
+        ))
+        .await
+        {
+            Ok((data, _, _, _)) => data,
+            Err(err) => {
+                router_env::logger::error!(error=?err, "proxy_for_payments_operation_core failed for external payment attempt");
+                default_payment_status_data
+            }
+        }
+    })
+    .await;
+
+    let record_payment_data = domain_payments::PaymentAttemptRecordData {
+        flow: PhantomData,
+        payment_intent: payment_status_data.payment_intent,
+        payment_attempt: payment_status_data
+            .payment_attempt
+            .unwrap_or(payment_data.payment_attempt.clone()),
+        revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
+        payment_address: payment_data.payment_address.clone(),
+    };
+
+    let (_operation, final_payment_data) = boxed_operation
         .to_update_tracker()?
         .update_trackers(
             &state,
             req_state,
-            payment_data,
+            record_payment_data,
             None,
             merchant_context.get_merchant_account().storage_scheme,
             None,
@@ -1754,7 +1816,7 @@ pub async fn record_attempt_core(
         .await?;
 
     transformers::GenerateResponse::generate_response(
-        payment_data,
+        final_payment_data,
         &state,
         None,
         None,
@@ -3550,16 +3612,6 @@ where
         &call_connector_action,
     );
 
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
-
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
@@ -5338,7 +5390,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
-    pub authentication: Option<storage::Authentication>,
+    pub authentication: Option<domain::authentication::AuthenticationStore>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
@@ -7243,7 +7295,7 @@ where
 
         if routing_choice.routing_type.is_dynamic_routing() {
             if state.conf.open_router.enabled {
-                routing::perform_open_routing(
+                routing::perform_dynamic_routing_with_open_router(
                     state,
                     connectors.clone(),
                     business_profile,
@@ -7285,7 +7337,7 @@ where
                             .map(|card_isin| card_isin.to_string()),
                     );
 
-                routing::perform_dynamic_routing(
+                routing::perform_dynamic_routing_with_intelligent_router(
                     state,
                     connectors.clone(),
                     business_profile,
@@ -7652,6 +7704,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             auth_response,
             authentication.clone(),
             None,
+            merchant_context.get_merchant_key_store(),
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
@@ -7685,6 +7738,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             payment_intent.psd2_sca_exemption_type,
             payment_intent.payment_id,
             payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+            merchant_context.get_merchant_key_store(),
         ))
         .await?
     };
@@ -7975,7 +8029,9 @@ pub trait OperationSessionGetters<F> {
     fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey>;
     fn get_setup_mandate(&self) -> Option<&MandateData>;
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
-    fn get_authentication(&self) -> Option<&storage::Authentication>;
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>;
     fn get_frm_message(&self) -> Option<FraudCheck>;
     fn get_refunds(&self) -> Vec<storage::Refund>;
     fn get_disputes(&self) -> Vec<storage::Dispute>;
@@ -8106,7 +8162,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.poll_config.clone()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         self.authentication.as_ref()
     }
 
@@ -8372,7 +8431,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -8593,7 +8655,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -8815,7 +8880,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -9037,7 +9105,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
