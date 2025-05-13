@@ -194,7 +194,7 @@ function bankRedirectRedirection(
             )
           ) {
             // scroll down and click on the authorize test payment button
-            cy.get("body").then(($body) => {
+            cy.get("body").then(() => {
               cy.get("#frame-warning-container").then(($el) => {
                 if ($el.is(":visible")) {
                   // Frame warning is visible — use test payment button
