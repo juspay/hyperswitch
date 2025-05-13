@@ -1359,6 +1359,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
+                surcharge_algorithm_id: None,
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,

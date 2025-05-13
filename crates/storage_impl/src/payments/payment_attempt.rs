@@ -677,6 +677,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    surcharge_algorithm_id: payment_attempt.surcharge_algorithm_id.clone(),
                     processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
@@ -1703,6 +1704,7 @@ impl DataModelExt for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
             setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
@@ -1791,6 +1793,7 @@ impl DataModelExt for PaymentAttempt {
             charges: storage_model.charges,
             issuer_error_code: storage_model.issuer_error_code,
             issuer_error_message: storage_model.issuer_error_message,
+            surcharge_algorithm_id: storage_model.surcharge_algorithm_id,
             processor_merchant_id: storage_model
                 .processor_merchant_id
                 .unwrap_or(storage_model.merchant_id),
@@ -1884,6 +1887,7 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
@@ -1962,6 +1966,7 @@ impl DataModelExt for PaymentAttemptNew {
             extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
             card_discovery: storage_model.card_discovery,
+            surcharge_algorithm_id: storage_model.surcharge_algorithm_id,
             processor_merchant_id: storage_model
                 .processor_merchant_id
                 .unwrap_or(storage_model.merchant_id),
