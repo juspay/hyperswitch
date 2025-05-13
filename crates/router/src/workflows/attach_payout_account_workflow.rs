@@ -11,7 +11,7 @@ use crate::{
     core::payouts,
     errors as core_errors,
     routes::SessionState,
-    types::{api, storage},
+    types::{api, domain, storage},
 };
 
 pub struct AttachPayoutAccountWorkflow;
@@ -49,25 +49,15 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
 
-        let mut payout_data = payouts::make_payout_data(
-            state,
-            &merchant_account,
-            None,
-            &key_store,
-            &request,
-            DEFAULT_LOCALE,
-        )
-        .await?;
+        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            merchant_account.clone(),
+            key_store.clone(),
+        )));
+        let mut payout_data =
+            payouts::make_payout_data(state, &merchant_context, None, &request, DEFAULT_LOCALE)
+                .await?;
 
-        payouts::payouts_core(
-            state,
-            &merchant_account,
-            &key_store,
-            &mut payout_data,
-            None,
-            None,
-        )
-        .await?;
+        payouts::payouts_core(state, &merchant_context, &mut payout_data, None, None).await?;
 
         Ok(())
     }

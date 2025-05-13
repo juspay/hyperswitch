@@ -1,9 +1,11 @@
+#[cfg(feature = "v1")]
 use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
+#[cfg(feature = "v1")]
+use diesel::Table;
 use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
-    QueryDsl, Table,
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
 
@@ -12,14 +14,14 @@ use super::generics;
 use crate::schema::payment_attempt::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt::dsl;
+#[cfg(feature = "v1")]
+use crate::{enums::IntentStatus, payment_attempt::PaymentAttemptUpdate, PaymentIntent};
 use crate::{
-    enums::{self, IntentStatus},
+    enums::{self},
     errors::DatabaseError,
-    payment_attempt::{
-        PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
-    },
+    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdateInternal},
     query::generics::db_metrics,
-    PaymentIntent, PgPooledConn, StorageResult,
+    PgPooledConn, StorageResult,
 };
 
 impl PaymentAttemptNew {

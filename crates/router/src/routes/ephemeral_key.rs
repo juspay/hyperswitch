@@ -2,6 +2,8 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
+#[cfg(feature = "v2")]
+use crate::types::domain;
 use crate::{
     core::{api_locking, payments::helpers},
     services::{api, authentication as auth},
@@ -76,11 +78,13 @@ pub async fn client_secret_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             helpers::make_client_secret(
                 state,
                 payload.resource_id.to_owned(),
-                auth.merchant_account,
-                auth.key_store,
+                merchant_context,
                 req.headers(),
             )
         },

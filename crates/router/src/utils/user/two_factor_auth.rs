@@ -33,7 +33,7 @@ pub fn generate_default_totp(
 }
 
 pub async fn check_totp_in_redis(state: &SessionState, user_id: &str) -> UserResult<bool> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
     redis_conn
         .exists::<()>(&key.into())
@@ -42,7 +42,7 @@ pub async fn check_totp_in_redis(state: &SessionState, user_id: &str) -> UserRes
 }
 
 pub async fn check_recovery_code_in_redis(state: &SessionState, user_id: &str) -> UserResult<bool> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn
         .exists::<()>(&key.into())
@@ -51,7 +51,7 @@ pub async fn check_recovery_code_in_redis(state: &SessionState, user_id: &str) -
 }
 
 pub async fn insert_totp_in_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
     redis_conn
         .set_key_with_expiry(
@@ -68,7 +68,7 @@ pub async fn insert_totp_secret_in_redis(
     user_id: &str,
     secret: &masking::Secret<String>,
 ) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .set_key_with_expiry(
             &get_totp_secret_key(user_id).into(),
@@ -83,7 +83,7 @@ pub async fn get_totp_secret_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<Option<masking::Secret<String>>> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .get_key::<Option<String>>(&get_totp_secret_key(user_id).into())
         .await
@@ -92,7 +92,7 @@ pub async fn get_totp_secret_from_redis(
 }
 
 pub async fn delete_totp_secret_from_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .delete_key(&get_totp_secret_key(user_id).into())
         .await
@@ -105,7 +105,7 @@ fn get_totp_secret_key(user_id: &str) -> String {
 }
 
 pub async fn insert_recovery_code_in_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn
         .set_key_with_expiry(
@@ -118,7 +118,7 @@ pub async fn insert_recovery_code_in_redis(state: &SessionState, user_id: &str) 
 }
 
 pub async fn delete_totp_from_redis(state: &SessionState, user_id: &str) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", consts::user::REDIS_TOTP_PREFIX, user_id);
     redis_conn
         .delete_key(&key.into())
@@ -131,7 +131,7 @@ pub async fn delete_recovery_code_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key = format!("{}{}", consts::user::REDIS_RECOVERY_CODE_PREFIX, user_id);
     redis_conn
         .delete_key(&key.into())
@@ -156,7 +156,7 @@ pub async fn insert_totp_attempts_in_redis(
     user_id: &str,
     user_totp_attempts: u8,
 ) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .set_key_with_expiry(
             &get_totp_attempts_key(user_id).into(),
@@ -167,7 +167,7 @@ pub async fn insert_totp_attempts_in_redis(
         .change_context(UserErrors::InternalServerError)
 }
 pub async fn get_totp_attempts_from_redis(state: &SessionState, user_id: &str) -> UserResult<u8> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .get_key::<Option<u8>>(&get_totp_attempts_key(user_id).into())
         .await
@@ -180,7 +180,7 @@ pub async fn insert_recovery_code_attempts_in_redis(
     user_id: &str,
     user_recovery_code_attempts: u8,
 ) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .set_key_with_expiry(
             &get_recovery_code_attempts_key(user_id).into(),
@@ -195,7 +195,7 @@ pub async fn get_recovery_code_attempts_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<u8> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .get_key::<Option<u8>>(&get_recovery_code_attempts_key(user_id).into())
         .await
@@ -207,7 +207,7 @@ pub async fn delete_totp_attempts_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .delete_key(&get_totp_attempts_key(user_id).into())
         .await
@@ -219,7 +219,7 @@ pub async fn delete_recovery_code_attempts_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<()> {
-    let redis_conn = super::get_redis_connection(state)?;
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .delete_key(&get_recovery_code_attempts_key(user_id).into())
         .await

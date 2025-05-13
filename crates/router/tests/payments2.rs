@@ -42,6 +42,8 @@ fn connector_list() {
 #[ignore]
 #[actix_rt::test]
 async fn payments_create_core() {
+    use db::domain::merchant_context;
+    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -79,6 +81,10 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
+    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
@@ -233,16 +239,14 @@ async fn payments_create_core() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_account,
+        merchant_context,
         None,
-        key_store,
         payments::PaymentCreate,
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
     ))
     .await
     .unwrap();
@@ -323,6 +327,7 @@ async fn payments_create_core() {
 async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
+    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -361,6 +366,11 @@ async fn payments_create_core_adyen_no_redirect() {
         .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .unwrap();
+
+    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
 
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
@@ -512,16 +522,14 @@ async fn payments_create_core_adyen_no_redirect() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_account,
+        merchant_context,
         None,
-        key_store,
         payments::PaymentCreate,
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
     ))
     .await
     .unwrap();

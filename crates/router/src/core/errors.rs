@@ -419,8 +419,8 @@ pub enum RoutingError {
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
-    #[error("Failed to perform {algo} in open_router")]
-    OpenRouterCallFailed { algo: String },
+    #[error("Failed to perform routing in open_router")]
+    OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
 }
@@ -516,8 +516,12 @@ pub enum RevenueRecoveryError {
     ProcessTrackerResponseError,
     #[error("Billing connector psync call failed")]
     BillingConnectorPaymentsSyncFailed,
+    #[error("Billing connector invoice sync call failed")]
+    BillingConnectorInvoiceSyncFailed,
     #[error("Failed to get the retry count for payment intent")]
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
     BillingThresholdRetryCountFetchFailed,
+    #[error("Failed to create the revenue recovery attempt data")]
+    RevenueRecoveryAttemptDataCreateFailed,
 }

@@ -750,6 +750,8 @@ diesel::table! {
         id -> Nullable<Varchar>,
         #[max_length = 64]
         product_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_account_type -> Nullable<Varchar>,
     }
 }
 
@@ -823,6 +825,10 @@ diesel::table! {
         id -> Nullable<Varchar>,
         organization_name -> Nullable<Text>,
         version -> ApiVersion,
+        #[max_length = 64]
+        organization_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        platform_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -1361,7 +1367,7 @@ diesel::table! {
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         org_id -> Varchar,
         groups -> Array<Nullable<Text>>,

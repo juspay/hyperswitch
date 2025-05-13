@@ -1,12 +1,16 @@
 //! Revenue Recovery Interface
 
 use hyperswitch_domain_models::{
-    router_flow_types::{BillingConnectorPaymentsSync, RecoveryRecordBack},
+    router_flow_types::{
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+    },
     router_request_types::revenue_recovery::{
-        BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest,
+        BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+        RevenueRecoveryRecordBackRequest,
     },
     router_response_types::revenue_recovery::{
-        BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+        BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+        RevenueRecoveryRecordBackResponse,
     },
 };
 
@@ -17,7 +21,10 @@ use super::ConnectorIntegration;
 /// trait RevenueRecovery
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub trait RevenueRecovery:
-    ConnectorCommon + BillingConnectorPaymentsSyncIntegration + RevenueRecoveryRecordBack
+    ConnectorCommon
+    + BillingConnectorPaymentsSyncIntegration
+    + RevenueRecoveryRecordBack
+    + BillingConnectorInvoiceSyncIntegration
 {
 }
 
@@ -37,6 +44,16 @@ pub trait RevenueRecoveryRecordBack:
     RecoveryRecordBack,
     RevenueRecoveryRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
+>
+{
+}
+
+/// trait BillingConnectorInvoiceSyncIntegration
+pub trait BillingConnectorInvoiceSyncIntegration:
+    ConnectorIntegration<
+    BillingConnectorInvoiceSync,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
 >
 {
 }

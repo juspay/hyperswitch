@@ -159,6 +159,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     )
                     .await?;
 
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store.clone()),
+                ));
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
@@ -181,7 +184,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            &merchant_account,
+                            &merchant_context,
                             outgoing_webhook,
                             &business_profile,
                         )
@@ -375,6 +378,10 @@ async fn get_outgoing_webhook_content_and_event_type(
         },
     };
 
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
             let payment_id = tracking_data.primary_object_id.clone();
@@ -404,16 +411,14 @@ async fn get_outgoing_webhook_content_and_event_type(
             >(
                 state,
                 req_state,
-                merchant_account,
+                merchant_context.clone(),
                 None,
-                key_store,
                 PaymentStatus,
                 request,
                 AuthFlow::Client,
                 CallConnectorAction::Avoid,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
-                None, //Platform merchant account
             ))
             .await?
             {
@@ -452,9 +457,8 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let refund = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
-                merchant_account,
+                merchant_context.clone(),
                 None,
-                key_store,
                 request,
             ))
             .await?;
@@ -473,7 +477,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = DisputeId { dispute_id };
 
             let dispute_response =
-                match retrieve_dispute(state, merchant_account, None, request).await? {
+                match retrieve_dispute(state, merchant_context.clone(), None, request).await? {
                     ApplicationResponse::Json(dispute_response)
                     | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
                         Ok(dispute_response)
@@ -505,7 +509,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = MandateId { mandate_id };
 
             let mandate_response =
-                match get_mandate(state, merchant_account, key_store, request).await? {
+                match get_mandate(state, merchant_context.clone(), request).await? {
                     ApplicationResponse::Json(mandate_response)
                     | ApplicationResponse::JsonWithHeaders((mandate_response, _)) => {
                         Ok(mandate_response)
@@ -540,16 +544,15 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let payout_data = payouts::make_payout_data(
                 &state,
-                &merchant_account,
+                &merchant_context,
                 None,
-                &key_store,
                 &request,
                 DEFAULT_LOCALE,
             )
             .await?;
 
             let router_response =
-                payouts::response_handler(&state, &merchant_account, &payout_data).await?;
+                payouts::response_handler(&state, &merchant_context, &payout_data).await?;
 
             let payout_create_response: payout_models::PayoutCreateResponse = match router_response
             {
