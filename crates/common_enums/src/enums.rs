@@ -6,7 +6,7 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
 };
 
-pub use accounts::MerchantProductType;
+pub use accounts::{MerchantAccountType, MerchantProductType, OrganizationType};
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
