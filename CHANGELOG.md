@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.12.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Language consumption from locale in payment and payout links ([#8018](https://github.com/juspay/hyperswitch/pull/8018)) ([`82c2c3e`](https://github.com/juspay/hyperswitch/commit/82c2c3ef2e455b0ebd50851a4e256c784bc2dedd))
+
+**Full Changelog:** [`2025.05.12.0...2025.05.12.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.05.12.0...2025.05.12.0-hotfix1)
+
+
+- - -
+
 ## 2025.05.12.0
 
 ### Refactors
