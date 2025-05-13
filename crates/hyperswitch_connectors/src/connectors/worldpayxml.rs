@@ -1,18 +1,14 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
-use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
-use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -23,13 +19,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
-    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -41,45 +34,46 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks,
 };
-use transformers as placetopay;
+use masking::{ExposeInterface, Mask};
+use transformers as worldpayxml;
 
-use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Placetopay {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+pub struct Worldpayxml {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Placetopay {
+impl Worldpayxml {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
 
-impl api::Payment for Placetopay {}
-impl api::PaymentSession for Placetopay {}
-impl api::ConnectorAccessToken for Placetopay {}
-impl api::MandateSetup for Placetopay {}
-impl api::PaymentAuthorize for Placetopay {}
-impl api::PaymentSync for Placetopay {}
-impl api::PaymentCapture for Placetopay {}
-impl api::PaymentVoid for Placetopay {}
-impl api::Refund for Placetopay {}
-impl api::RefundExecute for Placetopay {}
-impl api::RefundSync for Placetopay {}
-impl api::PaymentToken for Placetopay {}
+impl api::Payment for Worldpayxml {}
+impl api::PaymentSession for Worldpayxml {}
+impl api::ConnectorAccessToken for Worldpayxml {}
+impl api::MandateSetup for Worldpayxml {}
+impl api::PaymentAuthorize for Worldpayxml {}
+impl api::PaymentSync for Worldpayxml {}
+impl api::PaymentCapture for Worldpayxml {}
+impl api::PaymentVoid for Worldpayxml {}
+impl api::Refund for Worldpayxml {}
+impl api::RefundExecute for Worldpayxml {}
+impl api::RefundSync for Worldpayxml {}
+impl api::PaymentToken for Worldpayxml {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Placetopay
+    for Worldpayxml
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Placetopay
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldpayxml
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -98,9 +92,9 @@ where
     }
 }
 
-impl ConnectorCommon for Placetopay {
+impl ConnectorCommon for Worldpayxml {
     fn id(&self) -> &'static str {
-        "placetopay"
+        "worldpayxml"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -112,7 +106,19 @@ impl ConnectorCommon for Placetopay {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.placetopay.base_url.as_ref()
+        connectors.worldpayxml.base_url.as_ref()
+    }
+
+    fn get_auth_header(
+        &self,
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = worldpayxml::WorldpayxmlAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.expose().into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -120,19 +126,19 @@ impl ConnectorCommon for Placetopay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: placetopay::PlacetopayErrorResponse = res
+        let response: worldpayxml::WorldpayxmlErrorResponse = res
             .response
-            .parse_struct("PlacetopayErrorResponse")
+            .parse_struct("WorldpayxmlErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_error_response_body(&response));
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.reason.to_owned(),
-            message: response.status.message.to_owned(),
-            reason: Some(response.status.message),
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -142,28 +148,22 @@ impl ConnectorCommon for Placetopay {
     }
 }
 
-impl ConnectorValidation for Placetopay {}
-
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Placetopay {}
-
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Placetopay {}
-
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Placetopay
-{
-    fn build_request(
-        &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Placetopay".to_string())
-                .into(),
-        )
-    }
+impl ConnectorValidation for Worldpayxml {
+    //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Placetopay {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayxml {
+    //TODO: implement sessions flow
+}
+
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Worldpayxml {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Worldpayxml
+{
+}
+
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Worldpayxml {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -179,9 +179,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/process", self.base_url(connectors)))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -189,14 +189,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
+        let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let connector_router_data = placetopay::PlacetopayRouterData::from((amount, req));
-        let req_obj = placetopay::PlacetopayPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+
+        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
+        let connector_req =
+            worldpayxml::WorldpayxmlPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -227,14 +229,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: placetopay::PlacetopayPaymentsResponse = res
+        let response: worldpayxml::WorldpayxmlPaymentsResponse = res
             .response
-            .parse_struct("Placetopay PlacetopayPaymentsResponse")
+            .parse_struct("Worldpayxml PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -251,7 +251,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Placetopay {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Worldpayxml {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -267,18 +267,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pla
     fn get_url(
         &self,
         _req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/query", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = placetopay::PlacetopayPsyncRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -288,13 +279,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pla
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -305,14 +293,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pla
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: placetopay::PlacetopayPaymentsResponse = res
+        let response: worldpayxml::WorldpayxmlPaymentsResponse = res
             .response
-            .parse_struct("placetopay PaymentsSyncResponse")
+            .parse_struct("worldpayxml PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -329,7 +315,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pla
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Placetopay {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Worldpayxml {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -345,18 +331,17 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transaction", self.base_url(connectors)))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        req: &PaymentsCaptureRouterData,
+        _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = placetopay::PlacetopayNextActionRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
@@ -385,14 +370,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: placetopay::PlacetopayPaymentsResponse = res
+        let response: worldpayxml::WorldpayxmlPaymentsResponse = res
             .response
-            .parse_struct("Placetopay PaymentsCaptureResponse")
+            .parse_struct("Worldpayxml PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -409,85 +392,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Placetopay {
-    fn get_headers(
-        &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Worldpayxml {}
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transaction", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsCancelRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = placetopay::PlacetopayNextActionRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCancelRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: placetopay::PlacetopayPaymentsResponse = res
-            .response
-            .parse_struct("Placetopay PaymentCancelResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Placetopay {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpayxml {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -503,9 +410,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Placeto
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transaction", self.base_url(connectors)))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -513,8 +420,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Placeto
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = placetopay::PlacetopayRefundRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+        let refund_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
+        let connector_req =
+            worldpayxml::WorldpayxmlRefundRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -542,14 +457,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Placeto
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: placetopay::PlacetopayRefundResponse = res
+        let response: worldpayxml::RefundResponse = res
             .response
-            .parse_struct("placetopay PlacetopayRefundResponse")
+            .parse_struct("worldpayxml RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -566,7 +479,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Placeto
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Placetopay {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayxml {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -582,18 +495,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Placetopa
     fn get_url(
         &self,
         _req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/query", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<RSync>,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = placetopay::PlacetopayRsyncRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -603,7 +507,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Placetopa
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -620,14 +524,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Placetopa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: placetopay::PlacetopayRefundResponse = res
+        let response: worldpayxml::RefundResponse = res
             .response
-            .parse_struct("placetopay PlacetopayRefundResponse")
+            .parse_struct("worldpayxml RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -645,104 +547,27 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Placetopa
 }
 
 #[async_trait::async_trait]
-impl IncomingWebhook for Placetopay {
+impl webhooks::IncomingWebhook for Worldpayxml {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
-static PLACETOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
-
-        let supported_card_network = vec![
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Visa,
-        ];
-
-        let mut placetopay_supported_payment_methods = SupportedPaymentMethods::new();
-
-        placetopay_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-
-        placetopay_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-        placetopay_supported_payment_methods
-    });
-
-static PLACETOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "PlacetoPay",
-    description:
-        "PlacetoPay is a Latin American financial technology company's online payment platform, offering various payment methods and integrations for businesses",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-};
-
-static PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
-
-impl ConnectorSpecifications for Placetopay {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&PLACETOPAY_CONNECTOR_INFO)
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*PLACETOPAY_SUPPORTED_PAYMENT_METHODS)
-    }
-
-    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS)
-    }
-}
+impl ConnectorSpecifications for Worldpayxml {}
