@@ -1,6 +1,8 @@
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
 use super::Store;
 use crate::{
@@ -106,10 +108,35 @@ impl ProfileInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
-        storage::Profile::find_by_profile_id(&conn, profile_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+        let fetch_func = || async {
+            let conn = connection::pg_accounts_connection_read(self).await?;
+            storage::Profile::find_by_profile_id(&conn, profile_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(
+                    key_manager_state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            cache::get_or_populate_in_memory(
+                self,
+                profile_id.get_string_repr(),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?
             .convert(
                 key_manager_state,
                 merchant_key_store.key.get_inner(),
@@ -117,6 +144,7 @@ impl ProfileInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+        }
     }
 
     async fn find_business_profile_by_merchant_id_profile_id(
@@ -169,12 +197,19 @@ impl ProfileInterface for Store {
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_accounts_connection_write(self).await?;
-        Conversion::convert(current_state)
+        let updated_profile = Conversion::convert(current_state)
             .await
             .change_context(errors::StorageError::EncryptionError)?
             .update_by_profile_id(&conn, storage::ProfileUpdateInternal::from(profile_update))
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            publish_and_redact_business_profile_cache(self, &updated_profile).await?;
+        }
+
+        updated_profile
             .convert(
                 key_manager_state,
                 merchant_key_store.key.get_inner(),
@@ -191,6 +226,15 @@ impl ProfileInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_accounts_connection_write(self).await?;
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            let profile = storage::Profile::find_by_profile_id(&conn, profile_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+            publish_and_redact_business_profile_cache(self, &profile).await?;
+        }
+
         storage::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -450,4 +494,15 @@ impl ProfileInterface for MockDb {
                 .into(),
             )
     }
+}
+
+#[cfg(feature = "accounts_cache")]
+async fn publish_and_redact_business_profile_cache(
+    store: &dyn super::StorageInterface,
+    profile: &storage::Profile,
+) -> CustomResult<(), errors::StorageError> {
+    let cache_key = CacheKind::Accounts(profile.get_id().get_string_repr().into());
+
+    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), vec![cache_key]).await?;
+    Ok(())
 }
