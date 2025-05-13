@@ -8322,7 +8322,11 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     ) {
         let co_badged_card_data =
             api_models::payment_methods::CoBadgedCardData::from(debit_routing_ouput);
-        let card_type = debit_routing_ouput.card_type.clone().to_string().to_uppercase();
+        let card_type = debit_routing_ouput
+            .card_type
+            .clone()
+            .to_string()
+            .to_uppercase();
         logger::debug!("set co-badged card data");
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
             card.co_badged_card_data = Some(co_badged_card_data);
