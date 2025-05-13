@@ -271,7 +271,7 @@ pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
     eci: Option<String>,
-    cryptogram: Option<String>,
+    cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
 }

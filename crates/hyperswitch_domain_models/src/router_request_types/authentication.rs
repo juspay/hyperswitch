@@ -164,6 +164,6 @@ pub struct ExternalThreeDSConnectorMetadata {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
-    pub cavv: Option<String>,
+    pub cavv: Option<masking::Secret<String>>,
     pub authentication: diesel_models::authentication::Authentication,
 }

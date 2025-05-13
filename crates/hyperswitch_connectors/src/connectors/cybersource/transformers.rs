@@ -368,7 +368,7 @@ pub struct ProcessingInformation {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
@@ -1317,11 +1317,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (
-                            Some(Secret::new(authn_data.cavv.clone())),
-                            None,
-                            Some("2".to_string()),
-                        )
+                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
@@ -1418,11 +1414,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (
-                            Some(Secret::new(authn_data.cavv.clone())),
-                            None,
-                            Some("2".to_string()),
-                        )
+                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
@@ -1504,11 +1496,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (
-                            Some(Secret::new(authn_data.cavv.clone())),
-                            None,
-                            Some("2".to_string()),
-                        )
+                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
@@ -3192,7 +3180,7 @@ pub enum CybersourceAuthEnrollmentStatus {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthValidateResponse {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     specification_version: Option<String>,

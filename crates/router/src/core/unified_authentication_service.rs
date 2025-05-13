@@ -21,7 +21,6 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
-use masking::ExposeInterface;
 
 use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
 use crate::{
@@ -512,9 +511,7 @@ pub async fn create_new_authentication(
         connector_metadata: None,
         maximum_supported_version: None,
         threeds_server_transaction_id: None,
-        cavv: network_token
-            .clone()
-            .and_then(|data| data.token_cryptogram.map(|cavv| cavv.expose())),
+        cavv: None,
         authentication_flow_type: None,
         message_version: None,
         eci: network_token.and_then(|data| data.eci),

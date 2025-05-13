@@ -155,7 +155,7 @@ pub async fn perform_post_authentication(
 
     let authentication_store =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: Some(tokenized_data.value1),
+            cavv: Some(masking::Secret::new(tokenized_data.value1)),
             authentication: authentication_update,
         };
 
