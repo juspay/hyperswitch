@@ -31,7 +31,9 @@ if (!isFramed) {
   function initializeSDK() {
     // @ts-ignore
     var paymentDetails = window.__PAYMENT_DETAILS;
-    var client_secret = paymentDetails.client_secret;
+    var clientSecret = paymentDetails.client_secret;
+    var sdkUiRules = paymentDetails.sdk_ui_rules;
+    var labelType = paymentDetails.payment_form_label_type;
     var appearance = {
       variables: {
         colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -45,6 +47,12 @@ if (!isFramed) {
         colorBackground: "rgb(255, 255, 255)",
       },
     };
+    if (isObject(sdkUiRules)) {
+      appearance.rules = sdkUiRules;
+    }
+    if (labelType !== null && typeof labelType === "string") {
+      appearance.labels = labelType;
+    }
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
@@ -58,12 +66,12 @@ if (!isFramed) {
     // @ts-ignore
     widgets = hyper.widgets({
       appearance: appearance,
-      clientSecret: client_secret,
+      clientSecret: clientSecret,
       locale: paymentDetails.locale,
     });
     var type =
       paymentDetails.sdk_layout === "spaced_accordion" ||
-      paymentDetails.sdk_layout === "accordion"
+        paymentDetails.sdk_layout === "accordion"
         ? "accordion"
         : paymentDetails.sdk_layout;
 
@@ -89,12 +97,20 @@ if (!isFramed) {
       showCardFormByDefault: paymentDetails.show_card_form_by_default,
       customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
     };
-    // @ts-ignore
+    var showCardTerms = paymentDetails.show_card_terms;
+    if (showCardTerms !== null && typeof showCardTerms === "string") {
+      unifiedCheckoutOptions.terms = {
+        card: showCardTerms
+      };
+    }
+    var paymentMethodsHeaderText = paymentDetails.payment_form_header_text;
+    if (paymentMethodsHeaderText !== null && typeof paymentMethodsHeaderText === "string") {
+      unifiedCheckoutOptions.paymentMethodsHeaderText = paymentMethodsHeaderText;
+    }
+
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
-    // @ts-ignore
     mountUnifiedCheckout("#unified-checkout");
-    // @ts-ignore
-    showSDK(paymentDetails.display_sdk_only);
+    showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
 
     let shimmer = document.getElementById("payment-details-shimmer");
     shimmer.classList.add("reduce-opacity");

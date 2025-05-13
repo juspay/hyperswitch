@@ -11,11 +11,10 @@ use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};
 use hyperswitch_domain_models::{
     behaviour::Conversion,
-    errors::StorageError,
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
-use storage_impl::DataModelExt;
+use storage_impl::{errors::StorageError, DataModelExt};
 
 use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
 

@@ -279,6 +279,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.handle.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None

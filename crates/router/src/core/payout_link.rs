@@ -17,10 +17,7 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
-    core::{
-        payments::helpers as payment_helpers,
-        payouts::{helpers as payout_helpers, validator},
-    },
+    core::payouts::{helpers as payout_helpers, validator},
     errors,
     routes::{app::StorageInterface, SessionState},
     services,
@@ -30,8 +27,7 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn initiate_payout_link(
     _state: SessionState,
-    _merchant_account: domain::MerchantAccount,
-    _key_store: domain::MerchantKeyStore,
+    _merchant_context: domain::MerchantContext,
     _req: payouts::PayoutLinkInitiateRequest,
     _request_headers: &header::HeaderMap,
     _locale: String,
@@ -42,19 +38,18 @@ pub async fn initiate_payout_link(
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn initiate_payout_link(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
-    let merchant_id = merchant_account.get_id();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
     // Fetch payout
     let payout = db
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &req.payout_id,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -62,7 +57,7 @@ pub async fn initiate_payout_link(
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
             &format!("{}_{}", payout.payout_id, payout.attempt_count),
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -145,8 +140,8 @@ pub async fn initiate_payout_link(
                     &(&state).into(),
                     &customer_id,
                     &req.merchant_id,
-                    &key_store,
-                    merchant_account.storage_scheme,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -162,8 +157,12 @@ pub async fn initiate_payout_link(
                 .address_id
                 .as_ref()
                 .async_map(|address_id| async {
-                    db.find_address_by_address_id(&(&state).into(), address_id, &key_store)
-                        .await
+                    db.find_address_by_address_id(
+                        &(&state).into(),
+                        address_id,
+                        merchant_context.get_merchant_key_store(),
+                    )
+                    .await
                 })
                 .await
                 .transpose()
@@ -175,14 +174,8 @@ pub async fn initiate_payout_link(
                     )
                 })?;
 
-            let enabled_payout_methods = filter_payout_methods(
-                &state,
-                &merchant_account,
-                &key_store,
-                &payout,
-                address.as_ref(),
-            )
-            .await?;
+            let enabled_payout_methods =
+                filter_payout_methods(&state, &merchant_context, &payout, address.as_ref()).await?;
             // Fetch default enabled_payout_methods
             let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
             for (payment_method, payment_method_types) in
@@ -226,7 +219,12 @@ pub async fn initiate_payout_link(
             ));
 
             let js_data = payouts::PayoutLinkDetails {
-                publishable_key: masking::Secret::new(merchant_account.publishable_key),
+                publishable_key: masking::Secret::new(
+                    merchant_context
+                        .get_merchant_account()
+                        .clone()
+                        .publishable_key,
+                ),
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
@@ -331,8 +329,7 @@ pub async fn initiate_payout_link(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn filter_payout_methods(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
     address: Option<&domain::Address>,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
@@ -344,15 +341,14 @@ pub async fn filter_payout_methods(
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             false,
-            key_store,
+            merchant_context.get_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // Filter MCAs based on profile_id and connector_type
-    let filtered_mcas = payment_helpers::filter_mca_based_on_profile_and_connector_type(
-        all_mcas,
+    let filtered_mcas = all_mcas.filter_based_on_profile_and_connector_type(
         &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );

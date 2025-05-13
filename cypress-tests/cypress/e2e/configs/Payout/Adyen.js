@@ -109,7 +109,7 @@ export const connectorDetails = {
     },
   },
   bank_transfer_pm: {
-    sepa: {
+    sepa_bank_transfer: {
       Create: {
         Request: {
           payout_type: "bank",
@@ -171,7 +171,7 @@ export const connectorDetails = {
       SavePayoutMethod: {
         Request: {
           payment_method: "bank_transfer",
-          payment_method_type: "sepa",
+          payment_method_type: "sepa_bank_transfer",
           bank_transfer: {
             iban: "NL57INGB4654188101",
           },
@@ -180,7 +180,7 @@ export const connectorDetails = {
           status: 200,
           body: {
             payment_method: "bank_transfer",
-            payment_method_type: "sepa",
+            payment_method_type: "sepa_bank_transfer",
           },
         },
       },

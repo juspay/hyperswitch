@@ -6,17 +6,19 @@ use router_env::logger;
 #[cfg(feature = "v1")]
 use crate::schema::{
     payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
+    refund::dsl as refund_dsl,
 };
 #[cfg(feature = "v2")]
 use crate::schema_v2::{
     payment_attempt::dsl as payment_attempt_dsl, payment_intent::dsl as payment_intent_dsl,
+    refund::dsl as refund_dsl,
 };
 use crate::{
-    errors,
-    schema::{dispute::dsl as dispute_dsl, refund::dsl as refund_dsl},
-    user, Dispute, DisputeNew, PaymentAttempt, PaymentIntent, PaymentIntentNew, PgPooledConn,
-    Refund, RefundNew, StorageResult,
+    errors, schema::dispute::dsl as dispute_dsl, Dispute, DisputeNew, PaymentAttempt,
+    PaymentIntent, PgPooledConn, Refund, RefundNew, StorageResult,
 };
+#[cfg(feature = "v1")]
+use crate::{user, PaymentIntentNew};
 
 #[cfg(feature = "v1")]
 pub async fn insert_payment_intents(

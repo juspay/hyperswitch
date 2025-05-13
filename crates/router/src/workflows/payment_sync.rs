@@ -18,7 +18,7 @@ use crate::{
     routes::SessionState,
     services,
     types::{
-        api,
+        api, domain,
         storage::{self, enums},
     },
     utils,
@@ -31,8 +31,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
     #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
-        state: &'a SessionState,
-        process: storage::ProcessTracker,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         todo!()
     }
@@ -71,6 +71,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             )
             .await?;
 
+        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            merchant_account.clone(),
+            key_store.clone(),
+        )));
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
             Box::pin(payment_flows::payments_operation_core::<
@@ -82,16 +86,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             >(
                 state,
                 state.get_req_state(),
-                merchant_account.clone(),
+                &merchant_context,
                 None,
-                key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
-                None, //Platform merchant account
             ))
             .await?;
 
@@ -154,6 +156,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             connector_transaction_id: None,
                             payment_method_data: None,
                             authentication_type: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -198,9 +202,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        merchant_account,
+                        merchant_context,
                         business_profile,
-                        &key_store,
                         payment_data,
                         customer,
                         state,

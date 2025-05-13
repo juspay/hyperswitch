@@ -92,7 +92,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     it("confirm-payout-call-with-auto-fulfill-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["sepa"]["Fulfill"];
+      ]["sepa_bank_transfer"]["Fulfill"];
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
@@ -118,10 +118,14 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
       }
     });
 
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
     it("confirm-payout-call-with-manual-fulfill-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["sepa"]["Confirm"];
+      ]["sepa_bank_transfer"]["Confirm"];
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
@@ -136,7 +140,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     it("fulfill-payout-call-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["sepa"]["Fulfill"];
+      ]["sepa_bank_transfer"]["Fulfill"];
 
       cy.fulfillPayoutCallTest({}, data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);

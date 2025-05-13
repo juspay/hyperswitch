@@ -6,6 +6,20 @@ const successfulNo3DSCardDetails = {
   card_cvc: "737",
 };
 
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "IN",
+    first_name: "john",
+    last_name: "doe",
+  },
+};
+
 export const connectorDetails = {
   bank_redirect_pm: {
     Ideal: {
@@ -133,6 +147,7 @@ export const connectorDetails = {
             },
           },
         },
+        billing: billingAddress,
       },
       Response: {
         status: 200,

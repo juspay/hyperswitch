@@ -197,7 +197,6 @@ pub async fn set_dashboard_metadata(
     .await
 }
 
-#[cfg(feature = "v1")]
 pub async fn get_multiple_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -255,6 +254,29 @@ pub async fn create_tenant_user(
         json_payload.into_inner(),
         |state, _, req, _| user_core::create_tenant_user(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn create_platform(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::PlatformAccountCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::CreatePlatformAccount;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, user: auth::UserFromToken, json_payload, _| {
+            user_core::create_platform_account(state, user, json_payload)
+        },
+        &auth::JWTAuth {
+            permission: Permission::OrganizationAccountWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

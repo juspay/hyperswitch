@@ -715,6 +715,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -773,6 +776,9 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(response.transaction_number),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         }),
                         ..item.data
                     }),
@@ -802,6 +808,9 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -845,6 +854,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -933,6 +945,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, PayboxSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -964,6 +979,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, TransactionResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.transaction_number),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1033,6 +1051,9 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(response.transaction_number),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1184,7 +1205,9 @@ impl
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let transaction_type = match item.router_data.request.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => {
                 Ok(MANDATE_AUTH_AND_CAPTURE_ONLY.to_string())
             }
             Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),

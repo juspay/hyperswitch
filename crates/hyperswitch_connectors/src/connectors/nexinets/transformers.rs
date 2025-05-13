@@ -593,6 +593,7 @@ fn get_payment_details_and_product(
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Bizum { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
             | BankRedirectData::OnlineBankingFinland { .. }

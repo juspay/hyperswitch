@@ -123,6 +123,9 @@ impl ConnectorCommon for Zsl {
             reason: Some(error_reason),
             attempt_status: Some(common_enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

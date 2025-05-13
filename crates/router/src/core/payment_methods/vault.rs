@@ -1252,9 +1252,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_vault<
-    D: pm_types::VaultingDataInterface + serde::Serialize,
->(
+pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
     key: String,
@@ -1285,12 +1283,12 @@ pub async fn get_fingerprint_id_from_vault<
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
-    pmd: &pm_types::PaymentMethodVaultingData,
+    merchant_context: &domain::MerchantContext,
+    pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: existing_vault_id
             .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
@@ -1317,11 +1315,11 @@ pub async fn add_payment_method_to_vault(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pm: &domain::PaymentMethod,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: pm
             .locker_id
             .clone()
@@ -1351,11 +1349,11 @@ pub async fn retrieve_payment_method_from_vault(
 #[instrument(skip_all)]
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id,
     }
     .encode_to_vec()
@@ -1401,7 +1399,9 @@ pub async fn add_delete_tokenized_data_task(
         runner,
         tag,
         tracking_data,
+        None,
         schedule_time,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;

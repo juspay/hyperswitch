@@ -1,9 +1,10 @@
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
   card_exp_month: "10",
-  card_exp_year: "50",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -11,20 +12,13 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4200000000000067",
   card_exp_month: "03",
-  card_exp_year: "2030",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "737",
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -36,12 +30,6 @@ const multiUseMandateData = {
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["refundPayment", "syncRefund"],
-          value: "connector_2",
-        },
-      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -89,12 +77,6 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["refundPayment", "syncRefund"],
-          value: "connector_2",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -112,12 +94,6 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["refundPayment", "syncRefund"],
-          value: "connector_2",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -135,12 +111,6 @@ export const connectorDetails = {
       },
     },
     Capture: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["refundPayment", "syncRefund"],
-          value: "connector_2",
-        },
-      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -158,10 +128,6 @@ export const connectorDetails = {
     },
     PartialCapture: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["refundPayment", "syncRefund"],
-          value: "connector_2",
-        },
         DELAY: {
           STATUS: true,
           TIMEOUT: 15000,
@@ -310,19 +276,29 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    SessionToken: {
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "trustpay",
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "trustpay",
+            },
+          ],
         },
       },
     },

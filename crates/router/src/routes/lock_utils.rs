@@ -39,8 +39,10 @@ pub enum ApiIdentifier {
     ApplePayCertificatesMigration,
     Relay,
     Documentation,
+    CardNetworkTokenization,
     Hypersense,
-    PaymentMethodsSession,
+    PaymentMethodSession,
+    ProcessTracker,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -110,6 +112,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
+            | Flow::GetPaymentMethodTokenData
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
@@ -117,7 +120,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
-            | Flow::PaymentMethodSave => Self::PaymentMethods,
+            | Flow::PaymentMethodSave
+            | Flow::TotalPaymentMethodCount => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
@@ -147,9 +151,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
             | Flow::PaymentsPostSessionTokens
+            | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
             | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection
+            | Flow::ProxyConfirmIntent
             | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
 
             Flow::PayoutsCreate
@@ -196,7 +202,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
-            Flow::CardsInfo => Self::CardsInfo,
+            Flow::CardsInfo
+            | Flow::CardsInfoCreate
+            | Flow::CardsInfoUpdate
+            | Flow::CardsInfoMigrate => Self::CardsInfo,
 
             Flow::CreateFile | Flow::DeleteFile | Flow::RetrieveFile => Self::Files,
 
@@ -239,6 +248,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SwitchOrg
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
+            | Flow::CreatePlatformAccount
             | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
@@ -313,13 +323,22 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::FeatureMatrix => Self::Documentation,
 
+            Flow::TokenizeCard
+            | Flow::TokenizeCardUsingPaymentMethodId
+            | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
+
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
             | Flow::HypersenseSignoutToken => Self::Hypersense,
 
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
-            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod => Self::PaymentMethodsSession,
+            | Flow::PaymentMethodSessionConfirm
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
+            | Flow::PaymentMethodSessionDeleteSavedPaymentMethod
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
+
+            Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
         }
     }
 }

@@ -400,12 +400,17 @@ pub trait ConnectorActions: Connector {
                 refund_amount: 100,
                 minor_refund_amount: MinorUnit::new(100),
                 connector_metadata: None,
+                refund_connector_metadata: None,
                 reason: None,
                 connector_refund_id: Some(refund_id),
                 browser_info: None,
                 split_refunds: None,
                 integrity_object: None,
                 refund_status: enums::RefundStatus::Pending,
+                merchant_account_id: None,
+                merchant_config_currency: None,
+                capture_method: None,
+                additional_payment_method_data: None,
             }),
             payment_info,
         );
@@ -572,7 +577,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -972,6 +977,7 @@ impl Default for PaymentAuthorizeType {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            request_extended_authorization: None,
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
@@ -980,6 +986,9 @@ impl Default for PaymentAuthorizeType {
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
             shipping_cost: None,
+            merchant_account_id: None,
+            merchant_config_currency: None,
+            connector_testing_data: None,
         };
         Self(data)
     }
@@ -1063,12 +1072,17 @@ impl Default for PaymentRefundType {
             minor_refund_amount: MinorUnit::new(100),
             webhook_url: None,
             connector_metadata: None,
+            refund_connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
             browser_info: None,
             split_refunds: None,
             integrity_object: None,
             refund_status: enums::RefundStatus::Pending,
+            merchant_account_id: None,
+            merchant_config_currency: None,
+            capture_method: None,
+            additional_payment_method_data: None,
         };
         Self(data)
     }
@@ -1117,7 +1131,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
         Err(_) => None,
     }
 }

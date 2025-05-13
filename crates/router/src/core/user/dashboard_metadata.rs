@@ -38,7 +38,6 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
-#[cfg(feature = "v1")]
 pub async fn get_multiple_metadata(
     state: SessionState,
     user: UserFromToken,
@@ -122,6 +121,7 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::OnboardingSurvey(req) => {
             Ok(types::MetaData::OnboardingSurvey(req))
         }
+        api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
     }
 }
 
@@ -150,6 +150,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
+        api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
     }
 }
 
@@ -232,6 +233,10 @@ fn into_response(
         DBEnum::OnboardingSurvey => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::OnboardingSurvey(resp))
+        }
+        DBEnum::ReconStatus => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::ReconStatus(resp))
         }
     }
 }
@@ -456,7 +461,7 @@ async fn insert_metadata(
                 pii::Email::from_str(inner_poc_email)
                     .change_context(UserErrors::EmailParsingError)?;
             }
-            let mut metadata = utils::insert_user_scoped_metadata_to_db(
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
                 user.merchant_id.clone(),
@@ -467,7 +472,7 @@ async fn insert_metadata(
             .await;
 
             if utils::is_update_required(&metadata) {
-                metadata = utils::update_user_scoped_metadata(
+                metadata = utils::update_merchant_scoped_metadata(
                     state,
                     user.user_id.clone(),
                     user.merchant_id.clone(),
@@ -494,7 +499,6 @@ async fn insert_metadata(
                         EntityType::Merchant,
                     )
                     .await?;
-
                     let email_contents = email_types::BizEmailProd::new(
                         state,
                         data,
@@ -594,6 +598,30 @@ async fn insert_metadata(
             )
             .await
         }
+        types::MetaData::ReconStatus(data) => {
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key,
+                data.clone(),
+            )
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_merchant_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await;
+            }
+            metadata
+        }
     }
 }
 
@@ -632,7 +660,6 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
-#[cfg(feature = "v1")]
 pub async fn backfill_metadata(
     state: &SessionState,
     user: &UserFromToken,
@@ -675,6 +702,11 @@ pub async fn backfill_metadata(
                 return Ok(None);
             };
 
+            #[cfg(feature = "v1")]
+            let processor_name = mca.connector_name.clone();
+
+            #[cfg(feature = "v2")]
+            let processor_name = mca.connector_name.to_string().clone();
             Some(
                 insert_metadata(
                     state,
@@ -682,13 +714,14 @@ pub async fn backfill_metadata(
                     DBEnum::StripeConnected,
                     types::MetaData::StripeConnected(api::ProcessorConnected {
                         processor_id: mca.get_id(),
-                        processor_name: mca.connector_name,
+                        processor_name,
                     }),
                 )
                 .await,
             )
             .transpose()
         }
+
         DBEnum::PaypalConnected => {
             let mca = if let Some(paypal_connected) = get_merchant_connector_account_by_name(
                 state,
@@ -715,6 +748,11 @@ pub async fn backfill_metadata(
                 return Ok(None);
             };
 
+            #[cfg(feature = "v1")]
+            let processor_name = mca.connector_name.clone();
+
+            #[cfg(feature = "v2")]
+            let processor_name = mca.connector_name.to_string().clone();
             Some(
                 insert_metadata(
                     state,
@@ -722,7 +760,7 @@ pub async fn backfill_metadata(
                     DBEnum::PaypalConnected,
                     types::MetaData::PaypalConnected(api::ProcessorConnected {
                         processor_id: mca.get_id(),
-                        processor_name: mca.connector_name,
+                        processor_name,
                     }),
                 )
                 .await,

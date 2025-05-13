@@ -1222,66 +1222,6 @@ impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensDa
     }
 }
 
-#[cfg(feature = "payouts")]
-pub trait CustomerDetails {
-    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
-    fn get_customer_name(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
-    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
-    fn get_customer_phone(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
-    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
-}
-
-#[cfg(feature = "payouts")]
-impl CustomerDetails for types::CustomerDetails {
-    fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError> {
-        self.customer_id
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
-            })
-    }
-
-    fn get_customer_name(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
-        self.name
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_name",
-            })
-    }
-
-    fn get_customer_email(&self) -> Result<Email, errors::ConnectorError> {
-        self.email
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_email",
-            })
-    }
-
-    fn get_customer_phone(
-        &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
-        self.phone
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_phone",
-            })
-    }
-
-    fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError> {
-        self.phone_country_code
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_phone_country_code",
-            })
-    }
-}
-
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
@@ -2456,30 +2396,6 @@ impl FraudCheckSaleRequest for fraud_check::FraudCheckSaleData {
 }
 
 #[cfg(feature = "frm")]
-pub trait FraudCheckCheckoutRequest {
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-}
-#[cfg(feature = "frm")]
-impl FraudCheckCheckoutRequest for fraud_check::FraudCheckCheckoutData {
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
-        self.order_details
-            .clone()
-            .ok_or_else(missing_field_err("order_details"))
-    }
-}
-
-#[cfg(feature = "frm")]
-pub trait FraudCheckTransactionRequest {
-    fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
-}
-#[cfg(feature = "frm")]
-impl FraudCheckTransactionRequest for fraud_check::FraudCheckTransactionData {
-    fn get_currency(&self) -> Result<storage_enums::Currency, Error> {
-        self.currency.ok_or_else(missing_field_err("currency"))
-    }
-}
-
-#[cfg(feature = "frm")]
 pub trait FraudCheckRecordReturnRequest {
     fn get_currency(&self) -> Result<storage_enums::Currency, Error>;
 }
@@ -2621,6 +2537,9 @@ impl
             status_code: http_code,
             attempt_status,
             connector_transaction_id,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -2789,6 +2708,7 @@ pub enum PaymentMethodDataType {
     BancontactCard,
     Bizum,
     Blik,
+    Eft,
     Eps,
     Giropay,
     Ideal,
@@ -2850,6 +2770,7 @@ pub enum PaymentMethodDataType {
     OpenBanking,
     NetworkToken,
     DirectCarrierBilling,
+    InstantBankTransfer,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2920,6 +2841,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     }
                     domain::payments::BankRedirectData::Bizum {} => Self::Bizum,
                     domain::payments::BankRedirectData::Blik { .. } => Self::Blik,
+                    domain::payments::BankRedirectData::Eft { .. } => Self::Eft,
                     domain::payments::BankRedirectData::Eps { .. } => Self::Eps,
                     domain::payments::BankRedirectData::Giropay { .. } => Self::Giropay,
                     domain::payments::BankRedirectData::Ideal { .. } => Self::Ideal,
@@ -2998,6 +2920,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer
+                    }
+                    domain::payments::BankTransferData::InstantBankTransfer {} => {
+                        Self::InstantBankTransfer
                     }
                 }
             }

@@ -161,7 +161,7 @@ impl EuclidAnalysable for ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct ConnectorVolumeSplit {
     pub connector: RoutableConnectorChoice,
     pub split: u8,
@@ -178,7 +178,7 @@ pub struct RoutableConnectorChoice {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
 pub enum RoutableChoiceKind {
     OnlyConnector,
     FullStruct,
@@ -337,7 +337,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 #[serde(
     tag = "type",
     content = "data",
@@ -642,6 +642,28 @@ impl DynamicRoutingAlgorithmRef {
     pub fn update_volume_split(&mut self, volume: Option<u8>) {
         self.dynamic_routing_volume_split = volume
     }
+
+    pub fn is_success_rate_routing_enabled(&self) -> bool {
+        self.success_based_algorithm
+            .as_ref()
+            .map(|success_based_routing| {
+                success_based_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn is_elimination_enabled(&self) -> bool {
+        self.elimination_routing_algorithm
+            .as_ref()
+            .map(|elimination_routing| {
+                elimination_routing.enabled_feature
+                    == DynamicRoutingFeatures::DynamicConnectorSelection
+                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
+            })
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -811,10 +833,21 @@ pub struct EliminationRoutingConfig {
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
 pub struct EliminationAnalyserConfig {
     pub bucket_size: Option<u64>,
     pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+impl EliminationAnalyserConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(bucket_size) = new.bucket_size {
+            self.bucket_size = Some(bucket_size)
+        }
+        if let Some(bucket_leak_interval_in_secs) = new.bucket_leak_interval_in_secs {
+            self.bucket_leak_interval_in_secs = Some(bucket_leak_interval_in_secs)
+        }
+    }
 }
 
 impl Default for EliminationRoutingConfig {
@@ -823,8 +856,21 @@ impl Default for EliminationRoutingConfig {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             elimination_analyser_config: Some(EliminationAnalyserConfig {
                 bucket_size: Some(5),
-                bucket_leak_interval_in_secs: Some(2),
+                bucket_leak_interval_in_secs: Some(60),
             }),
+        }
+    }
+}
+
+impl EliminationRoutingConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(params) = new.params {
+            self.params = Some(params)
+        }
+        if let Some(new_config) = new.elimination_analyser_config {
+            self.elimination_analyser_config
+                .as_mut()
+                .map(|config| config.update(new_config));
         }
     }
 }
@@ -891,6 +937,13 @@ pub enum SuccessRateSpecificityLevel {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedRoutingPayloadWrapper {
     pub updated_config: SuccessBasedRoutingConfig,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EliminationRoutingPayloadWrapper {
+    pub updated_config: EliminationRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
 }
@@ -1018,11 +1071,17 @@ impl ContractBasedRoutingConfig {
         if let Some(new_label_info) = new.label_info {
             new_label_info.iter().for_each(|new_label_info| {
                 if let Some(existing_label_infos) = &mut self.label_info {
-                    for existing_label_info in existing_label_infos {
+                    let mut updated = false;
+                    for existing_label_info in &mut *existing_label_infos {
                         if existing_label_info.mca_id == new_label_info.mca_id {
                             existing_label_info.update_target_time(new_label_info);
                             existing_label_info.update_target_count(new_label_info);
+                            updated = true;
                         }
+                    }
+
+                    if !updated {
+                        existing_label_infos.push(new_label_info.clone());
                     }
                 } else {
                     self.label_info = Some(vec![new_label_info.clone()]);

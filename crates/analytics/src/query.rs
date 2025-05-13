@@ -4,7 +4,7 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
-        auth_events::AuthEventFlows,
+        auth_events::{AuthEventDimensions, AuthEventFlows},
         disputes::DisputeDimensions,
         frm::{FrmDimensions, FrmTransactionType},
         payment_intents::PaymentIntentDimensions,
@@ -18,6 +18,9 @@ use api_models::{
         PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
+};
+use common_enums::{
+    AuthenticationConnectors, AuthenticationStatus, DecoupledAuthenticationType, TransactionStatus,
 };
 use common_utils::{
     errors::{CustomResult, ParsingError},
@@ -502,6 +505,10 @@ impl_to_sql_for_to_string!(
     Currency,
     RefundType,
     FrmTransactionType,
+    TransactionStatus,
+    AuthenticationStatus,
+    AuthenticationConnectors,
+    DecoupledAuthenticationType,
     Flow,
     &String,
     &bool,
@@ -519,7 +526,9 @@ impl_to_sql_for_to_string!(
     ApiEventDimensions,
     &DisputeDimensions,
     DisputeDimensions,
-    DisputeStage
+    DisputeStage,
+    AuthEventDimensions,
+    &AuthEventDimensions
 );
 
 #[derive(Debug, Clone, Copy)]

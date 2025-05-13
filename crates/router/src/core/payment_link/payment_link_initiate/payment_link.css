@@ -652,6 +652,10 @@ body {
   cursor: not-allowed;
 }
 
+#submit.not-ready {
+  background-color: #C2C2C2 !important;
+}
+
 #submit-spinner {
   width: 28px;
   height: 28px;

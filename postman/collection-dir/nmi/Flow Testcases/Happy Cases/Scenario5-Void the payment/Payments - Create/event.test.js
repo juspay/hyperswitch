@@ -63,9 +63,9 @@ if (jsonData?.client_secret) {
 // Response body should have value "requires_capture" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'processing'",
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_capture'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
+      pm.expect(jsonData.status).to.eql("requires_capture");
     },
   );
 }

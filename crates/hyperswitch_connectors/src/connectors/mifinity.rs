@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -20,7 +21,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundsRouterData,
@@ -38,6 +42,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use router_env::logger;
 use transformers::{self as mifinity, auth_headers};
@@ -149,6 +154,9 @@ impl ConnectorCommon for Mifinity {
                 reason: Some(CONNECTOR_UNAUTHORIZED_ERROR.to_string()),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             let response: Result<
@@ -184,6 +192,9 @@ impl ConnectorCommon for Mifinity {
                         ),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 }
 
@@ -500,4 +511,46 @@ impl IncomingWebhook for Mifinity {
     }
 }
 
-impl ConnectorSpecifications for Mifinity {}
+lazy_static! {
+    static ref MIFINITY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut mifinity_supported_payment_methods = SupportedPaymentMethods::new();
+        mifinity_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Mifinity,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        mifinity_supported_payment_methods
+    };
+
+    static ref MIFINITY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "MIFINITY",
+        description:
+            "Mifinity is a payment gateway empowering you to pay online, receive funds, and send money globally, the MiFinity eWallet supports super-low fees, offering infinite possibilities to do more of the things you love.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+    static ref MIFINITY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
+
+impl ConnectorSpecifications for Mifinity {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&*MIFINITY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*MIFINITY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&*MIFINITY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

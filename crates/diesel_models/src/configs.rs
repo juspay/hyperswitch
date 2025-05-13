@@ -13,10 +13,8 @@ pub struct ConfigNew {
 }
 
 #[derive(Default, Clone, Debug, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
-#[diesel(table_name = configs, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = configs, primary_key(key), check_for_backend(diesel::pg::Pg))]
 pub struct Config {
-    #[serde(skip)]
-    pub id: i32,
     pub key: String,
     pub config: String,
 }
@@ -49,7 +47,6 @@ impl From<ConfigUpdate> for ConfigUpdateInternal {
 impl From<ConfigNew> for Config {
     fn from(config_new: ConfigNew) -> Self {
         Self {
-            id: 0i32,
             key: config_new.key,
             config: config_new.config,
         }

@@ -164,6 +164,7 @@ impl
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Giropay { .. }
                 | BankRedirectData::Interac { .. }
@@ -342,6 +343,9 @@ fn get_iatpay_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: response.iata_payment_id.clone(),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -526,6 +530,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -562,6 +569,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(RefundsResponseData {

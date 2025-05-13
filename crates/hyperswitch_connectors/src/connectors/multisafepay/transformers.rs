@@ -525,6 +525,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -590,6 +591,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Interac { .. }
                 | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -777,6 +779,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Giropay { .. }
                 | BankRedirectData::Interac { .. }
@@ -1042,6 +1045,9 @@ pub fn populate_error_reason(
         status_code: http_code,
         attempt_status,
         connector_transaction_id,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 // REFUND :
@@ -1147,6 +1153,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, MultisafepayRefundResponse>>
                         status_code: item.http_code,
                         attempt_status,
                         connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     }),
                     ..item.data
                 })

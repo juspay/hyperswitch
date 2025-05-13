@@ -390,6 +390,7 @@ fn make_bank_redirect_request(
         BankRedirectData::BancontactCard { .. }
         | BankRedirectData::Bizum {}
         | BankRedirectData::Blik { .. }
+        | BankRedirectData::Eft { .. }
         | BankRedirectData::Eps { .. }
         | BankRedirectData::Interac { .. }
         | BankRedirectData::OnlineBankingCzechRepublic { .. }

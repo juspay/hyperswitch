@@ -282,7 +282,7 @@ impl
             VoucherData::PagoEfectivo => ZenPaymentChannels::PclBoacompraPagoefectivo,
             VoucherData::RedCompra => ZenPaymentChannels::PclBoacompraRedcompra,
             VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            VoucherData::Oxxo { .. }
+            VoucherData::Oxxo
             | VoucherData::Alfamart { .. }
             | VoucherData::Indomaret { .. }
             | VoucherData::SevenEleven { .. }
@@ -346,6 +346,7 @@ impl
             | BankTransferData::CimbVaBankTransfer { .. }
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -724,6 +725,7 @@ impl TryFrom<&BankRedirectData> for ZenPaymentsRequest {
             | BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Trustly { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Eps { .. }
             | BankRedirectData::Giropay { .. }
             | BankRedirectData::Przelewy24 { .. }
@@ -938,6 +940,9 @@ fn get_zen_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(response.id.clone()),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1084,6 +1089,9 @@ fn get_zen_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.id.clone()),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None

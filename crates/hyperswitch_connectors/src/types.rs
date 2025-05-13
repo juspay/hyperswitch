@@ -1,14 +1,41 @@
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_data_v2::RouterDataV2;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, RouterData},
-    router_flow_types::{AccessTokenAuth, Authorize, Capture, PSync, PreProcessing, Session, Void},
-    router_request_types::{
-        AccessTokenRequestData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+    router_flow_types::{
+        authentication::{
+            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        },
+        Accept, AccessTokenAuth, Authorize, Capture, Defend, Evidence, PSync, PostProcessing,
+        PreProcessing, Session, Upload, Void,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_request_types::{
+        authentication::{
+            ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
+            PreAuthNRequestData,
+        },
+        AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SubmitEvidenceRequestData, UploadFileRequestData,
+    },
+    router_response_types::{
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse, UploadFileResponse,
+    },
 };
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::{
+    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_request_types::fraud_check::{
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
+        FraudCheckSaleData, FraudCheckTransactionData,
+    },
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
+use hyperswitch_interfaces::api::ConnectorIntegration;
 
 pub(crate) type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<PSync, R, PaymentsSyncData, PaymentsResponseData>;
@@ -28,13 +55,89 @@ pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 
+pub(crate) type AcceptDisputeRouterData =
+    RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
+pub(crate) type SubmitEvidenceRouterData =
+    RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
+pub(crate) type UploadFileRouterData =
+    RouterData<Upload, UploadFileRequestData, UploadFileResponse>;
+pub(crate) type DefendDisputeRouterData =
+    RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
 #[cfg(feature = "payouts")]
-pub type PayoutsResponseRouterData<F, R> =
+pub(crate) type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 // TODO: Remove `ResponseRouterData` from router crate after all the related type aliases are moved to this crate.
-pub struct ResponseRouterData<Flow, R, Request, Response> {
+pub(crate) struct ResponseRouterData<Flow, R, Request, Response> {
+    pub(crate) response: R,
+    pub(crate) data: RouterData<Flow, Request, Response>,
+    pub(crate) http_code: u16,
+}
+#[cfg(feature = "frm")]
+pub(crate) type FrmFulfillmentRouterData =
+    RouterData<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmCheckoutType =
+    dyn ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmTransactionType =
+    dyn ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmTransactionRouterData =
+    RouterData<Transaction, FraudCheckTransactionData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmFulfillmentType =
+    dyn ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmCheckoutRouterData =
+    RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+#[cfg(feature = "v2")]
+pub(crate) struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
     pub response: R,
-    pub data: RouterData<Flow, Request, Response>,
+    pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
     pub http_code: u16,
 }
+
+pub(crate) type PreAuthNRouterData =
+    RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
+pub(crate) type PreAuthNVersionCallRouterData =
+    RouterData<PreAuthenticationVersionCall, PreAuthNRequestData, AuthenticationResponseData>;
+pub(crate) type ConnectorAuthenticationRouterData =
+    RouterData<Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
+pub(crate) type ConnectorPostAuthenticationRouterData = RouterData<
+    PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+pub(crate) type ConnectorAuthenticationType = dyn ConnectorIntegration<
+    Authentication,
+    ConnectorAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+pub(crate) type ConnectorPostAuthenticationType = dyn ConnectorIntegration<
+    PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+pub(crate) type ConnectorPreAuthenticationType =
+    dyn ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
+pub(crate) type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegration<
+    PreAuthenticationVersionCall,
+    PreAuthNRequestData,
+    AuthenticationResponseData,
+>;
+
+pub(crate) type PaymentsPostProcessingRouterData =
+    RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmSaleRouterData = RouterData<Sale, FraudCheckSaleData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmRecordReturnRouterData =
+    RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmRecordReturnType =
+    dyn ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmSaleType =
+    dyn ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>;

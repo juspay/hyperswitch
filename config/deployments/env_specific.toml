@@ -104,10 +104,11 @@ bucket_name = "bucket"   # The AWS S3 bucket name for file storage
 
 # This section provides configs for currency conversion api
 [forex_api]
-call_delay = 21600                # Expiration time for data in cache as well as redis in seconds
 api_key = ""                      # Api key for making request to foreign exchange Api
 fallback_api_key = ""             # Api key for the fallback service
-redis_lock_timeout = 100          # Redis remains write locked for 100 s once the acquire_redis_lock is called
+data_expiration_delay_in_seconds = 21600     # Expiration time for data in cache as well as redis in seconds
+redis_lock_timeout_in_seconds = 100        # Redis remains write locked for 100 s once the acquire_redis_lock is called
+redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redis
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
@@ -241,6 +242,7 @@ region = "report_download_config_region"                     # Region of the buc
 
 [opensearch]
 host = "https://localhost:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"

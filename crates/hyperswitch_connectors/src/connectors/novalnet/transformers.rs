@@ -175,7 +175,9 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
     fn try_from(item: &api_enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match item {
             api_enums::PaymentMethodType::ApplePay => Ok(Self::APPLEPAY),
-            api_enums::PaymentMethodType::Credit => Ok(Self::CREDITCARD),
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Ok(Self::CREDITCARD)
+            }
             api_enums::PaymentMethodType::GooglePay => Ok(Self::GOOGLEPAY),
             api_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -589,6 +591,9 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
@@ -899,7 +904,7 @@ pub struct NovalnetRefundsTransactionData {
     pub order_no: Option<String>,
     pub payment_type: String,
     pub refund: RefundData,
-    pub refunded_amount: u64,
+    pub refunded_amount: Option<u64>,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
@@ -910,7 +915,7 @@ pub struct NovalnetRefundsTransactionData {
 pub struct RefundData {
     amount: u64,
     currency: common_enums::Currency,
-    payment_type: String,
+    payment_type: Option<String>,
     tid: Option<Secret<i64>>,
 }
 
@@ -1572,7 +1577,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         return_url: None,
                         error_return_url: None,
                         payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
-                            wallet_data: Secret::new(payment_method_data.payment_data.clone()),
+                            wallet_data: payment_method_data.get_applepay_decoded_payment_data()?,
                         })),
                         enforce_3d: None,
                         create_token,

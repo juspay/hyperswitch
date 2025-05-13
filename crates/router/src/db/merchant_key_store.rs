@@ -63,7 +63,7 @@ impl MerchantKeyStoreInterface for Store {
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         let merchant_id = merchant_key_store.merchant_id.clone();
         merchant_key_store
             .construct_new()
@@ -85,7 +85,7 @@ impl MerchantKeyStoreInterface for Store {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
         let fetch_func = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_accounts_connection_read(self).await?;
 
             diesel_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
                 &conn,
@@ -127,7 +127,7 @@ impl MerchantKeyStoreInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let delete_func = || async {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = connection::pg_accounts_connection_write(self).await?;
             diesel_models::merchant_key_store::MerchantKeyStore::delete_by_merchant_id(
                 &conn,
                 merchant_id,
@@ -163,7 +163,7 @@ impl MerchantKeyStoreInterface for Store {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let fetch_func = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_accounts_connection_read(self).await?;
 
             diesel_models::merchant_key_store::MerchantKeyStore::list_multiple_key_stores(
                 &conn,
@@ -190,7 +190,7 @@ impl MerchantKeyStoreInterface for Store {
         from: u32,
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         let stores = diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
             &conn, from, to,
         )

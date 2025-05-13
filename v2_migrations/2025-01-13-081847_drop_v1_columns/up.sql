@@ -89,11 +89,42 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN authentication_data,
     DROP COLUMN payment_method_billing_address_id,
     DROP COLUMN connector_mandate_detail,
-    DROP COLUMN charge_id;
+    DROP COLUMN charge_id,
+    DROP COLUMN issuer_error_code,
+    DROP COLUMN issuer_error_message,
+    DROP COLUMN setup_future_usage_applied;
+
+
+ALTER TABLE payment_methods
+    DROP COLUMN IF EXISTS payment_method_id,
+    DROP COLUMN IF EXISTS accepted_currency,
+    DROP COLUMN IF EXISTS scheme,
+    DROP COLUMN IF EXISTS token,
+    DROP COLUMN IF EXISTS cardholder_name,
+    DROP COLUMN IF EXISTS issuer_name,
+    DROP COLUMN IF EXISTS issuer_country,
+    DROP COLUMN IF EXISTS payer_country,
+    DROP COLUMN IF EXISTS is_stored,
+    DROP COLUMN IF EXISTS direct_debit_token,
+    DROP COLUMN IF EXISTS swift_code,
+    DROP COLUMN IF EXISTS payment_method_issuer,
+    DROP COLUMN IF EXISTS payment_method_issuer_code,
+    DROP COLUMN IF EXISTS metadata,
+    DROP COLUMN IF EXISTS payment_method,
+    DROP COLUMN IF EXISTS payment_method_type;
+DROP TYPE IF EXISTS "PaymentMethodIssuerCode";
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE refund DROP COLUMN connector_refund_data,
-    DROP COLUMN connector_transaction_data;
+    DROP COLUMN connector_transaction_data,
+    DROP COLUMN issuer_error_code,
+    DROP COLUMN issuer_error_message;
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE captures DROP COLUMN connector_capture_data;
+
+-- Run below queries only when V1 is deprecated
+ALTER TABLE refund 
+    DROP COLUMN IF EXISTS internal_reference_id,
+    DROP COLUMN IF EXISTS refund_id,
+    DROP COLUMN IF EXISTS merchant_connector_id;

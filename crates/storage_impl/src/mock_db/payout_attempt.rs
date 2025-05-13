@@ -1,19 +1,18 @@
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
-use hyperswitch_domain_models::{
-    errors::StorageError,
-    payouts::{
-        payout_attempt::{
-            PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
-        },
-        payouts::Payouts,
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::{
+        PayoutAttempt, PayoutAttemptInterface, PayoutAttemptNew, PayoutAttemptUpdate,
     },
+    payouts::Payouts,
 };
 
 use super::MockDb;
+use crate::errors::StorageError;
 
 #[async_trait::async_trait]
 impl PayoutAttemptInterface for MockDb {
+    type Error = StorageError;
     async fn update_payout_attempt(
         &self,
         _this: &PayoutAttempt,
