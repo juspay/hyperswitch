@@ -1,6 +1,6 @@
 use error_stack::ResultExt;
 
-use crate::{errors, generate_id_with_default_len, generate_time_ordered_id_without_prefix, types};
+use crate::errors;
 
 /// A global id that can be used to identify a refund
 #[derive(
@@ -36,7 +36,6 @@ impl GlobalRefundId {
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalRefundId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
-        use error_stack::ResultExt;
         let merchant_ref_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
                 field_name: "refund_id",
