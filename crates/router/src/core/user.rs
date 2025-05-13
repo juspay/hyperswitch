@@ -9,8 +9,7 @@ use api_models::{
 };
 use common_enums::{connector_enums, EntityType, UserAuthType};
 use common_utils::{
-    fp_utils,
-    type_name,
+    fp_utils, type_name,
     types::{keymanager::Identifier, user::LineageContext},
 };
 #[cfg(feature = "email")]
