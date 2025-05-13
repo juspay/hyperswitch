@@ -1169,14 +1169,30 @@ impl Refunds {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2", feature = "oltp"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "refunds_v2",
+    any(feature = "olap", feature = "oltp")
+))]
 impl Refunds {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
 
-        route = route
-            .service(web::resource("").route(web::post().to(refunds::refunds_create)))
-            .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)));
+        #[cfg(feature = "olap")]
+        {
+            route =
+                route.service(web::resource("/list").route(web::get().to(refunds::refunds_list)));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(refunds::refunds_create)))
+                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)))
+                .service(
+                    web::resource("/{id}/update_metadata")
+                        .route(web::put().to(refunds::refunds_metadata_update)),
+                );
+        }
 
         route
     }
@@ -1252,6 +1268,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/update-saved-payment-method")
                         .route(web::put().to(payment_methods::payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/get-token")
+                        .route(web::get().to(payment_methods::get_payment_method_token_data)),
                 ),
         );
 
@@ -2027,10 +2047,18 @@ impl Profile {
                             .route(web::post().to(routing::set_dynamic_routing_volume_split)),
                     )
                     .service(
-                        web::scope("/elimination").service(
-                            web::resource("/toggle")
-                                .route(web::post().to(routing::toggle_elimination_routing)),
-                        ),
+                        web::scope("/elimination")
+                            .service(
+                                web::resource("/toggle")
+                                    .route(web::post().to(routing::toggle_elimination_routing)),
+                            )
+                            .service(web::resource("config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::elimination_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
                     )
                     .service(
                         web::scope("/contracts")
@@ -2189,6 +2217,7 @@ impl User {
             .service(
                 web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
             )
+            .service(web::resource("/create_platform").route(web::post().to(user::create_platform)))
             .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")

@@ -1,3 +1,7 @@
+use ::payment_methods::{
+    controller::PaymentMethodsController,
+    core::{migration, migration::payment_methods::migrate_payment_method},
+};
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
     all(not(feature = "customer_v2"), not(feature = "payment_methods_v2"))
@@ -31,10 +35,7 @@ use crate::{
     not(feature = "customer_v2")
 ))]
 use crate::{
-    core::{
-        customers,
-        payment_methods::{migration, tokenize},
-    },
+    core::{customers, payment_methods::tokenize},
     types::api::customers::CustomerRequest,
 };
 
@@ -281,7 +282,6 @@ pub async fn migrate_payment_method_api(
     json_payload: web::Json<payment_methods::PaymentMethodMigrate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -293,11 +293,15 @@ pub async fn migrate_payment_method_api(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(merchant_account, key_store),
             ));
-            Box::pin(cards::migrate_payment_method(
-                state,
+            Box::pin(migrate_payment_method(
+                &(&state).into(),
                 req,
                 &merchant_id,
                 &merchant_context,
+                &cards::PmCards {
+                    state: &state,
+                    merchant_context: &merchant_context,
+                },
             ))
             .await
         },
@@ -373,12 +377,17 @@ pub async fn migrate_payment_methods(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let controller = cards::PmCards {
+                    state: &state,
+                    merchant_context: &merchant_context,
+                };
                 Box::pin(migration::migrate_payment_methods(
-                    state,
+                    &(&state).into(),
                     req,
                     &merchant_id,
                     &merchant_context,
                     merchant_connector_id,
+                    &controller,
                 ))
                 .await
             }
@@ -677,6 +686,48 @@ pub async fn list_customer_payment_method_api(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::GetPaymentMethodTokenData))]
+pub async fn get_payment_method_token_data(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
+    json_payload: web::Json<api_models::payment_methods::GetTokenDataRequest>,
+) -> HttpResponse {
+    let flow = Flow::GetPaymentMethodTokenData;
+    let payment_method_id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payment_methods_routes::get_token_data_for_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                req,
+                payment_method_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::TotalPaymentMethodCount))]
 pub async fn get_total_payment_method_count(
     state: web::Data<AppState>,
@@ -765,11 +816,16 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, pm, _| {
+        |state, auth: auth::AuthenticationData, pm, _| async move {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            cards::retrieve_payment_method(state, pm, merchant_context)
+            cards::PmCards {
+                state: &state,
+                merchant_context: &merchant_context,
+            }
+            .retrieve_payment_method(pm)
+            .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -845,11 +901,16 @@ pub async fn payment_method_delete_api(
         state,
         &req,
         pm,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| async move {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            cards::delete_payment_method(state, merchant_context, req)
+            cards::PmCards {
+                state: &state,
+                merchant_context: &merchant_context,
+            }
+            .delete_payment_method(req)
+            .await
         },
         &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
@@ -921,13 +982,17 @@ pub async fn default_payment_method_set_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            cards::set_default_payment_method(
-                &state,
-                auth.merchant_account.get_id(),
-                auth.key_store,
+            let merchant_id = auth.merchant_account.get_id();
+            cards::PmCards {
+                state: &state,
+                merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(auth.merchant_account.clone(), auth.key_store),
+                )),
+            }
+            .set_default_payment_method(
+                merchant_id,
                 customer_id,
                 default_payment_method.payment_method_id,
-                auth.merchant_account.storage_scheme,
             )
             .await
         },

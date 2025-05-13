@@ -106,7 +106,7 @@ pub struct PreAuthenticationDetails {
 #[derive(Debug, Clone)]
 pub struct AuthenticationDetails {
     pub authn_flow_type: super::authentication::AuthNFlowType,
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<Secret<String>>,
     pub trans_status: common_enums::TransactionStatus,
     pub connector_metadata: Option<serde_json::Value>,
     pub ds_trans_id: Option<String>,

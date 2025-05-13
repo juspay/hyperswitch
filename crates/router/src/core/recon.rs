@@ -1,6 +1,6 @@
 use api_models::recon as recon_api;
 #[cfg(feature = "email")]
-use common_utils::{ext_traits::AsyncExt, types::theme::ThemeLineage};
+use common_utils::{ext_traits::AsyncExt, types::user::ThemeLineage};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use masking::{ExposeInterface, PeekInterface, Secret};
