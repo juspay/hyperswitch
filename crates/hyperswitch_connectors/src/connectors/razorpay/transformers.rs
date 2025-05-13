@@ -389,7 +389,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RazorpayRefundResponse>>
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status), ////We get Refund Status only by Webhooks
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
@@ -503,7 +503,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RazorpayRefundResponse>>
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status), ////We get Refund Status only by Webhooks
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
