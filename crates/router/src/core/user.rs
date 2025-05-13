@@ -8,7 +8,10 @@ use api_models::{
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::{EntityType, UserAuthType};
-use common_utils::{type_name, types::keymanager::Identifier};
+use common_utils::{
+    type_name,
+    types::{keymanager::Identifier, user::LineageContext},
+};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -3237,7 +3240,7 @@ pub async fn switch_org_for_user(
         }
     };
 
-    let lineage_context = domain::LineageContext {
+    let lineage_context = LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3250,9 +3253,11 @@ pub async fn switch_org_for_user(
             .clone(),
     };
 
-    lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
-        .await;
+    utils::user::spawn_async_lineage_context_update_to_db(
+        &state,
+        &user_from_token.user_id,
+        lineage_context,
+    );
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3449,7 +3454,7 @@ pub async fn switch_merchant_for_user_in_org(
         }
     };
 
-    let lineage_context = domain::LineageContext {
+    let lineage_context = LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3462,9 +3467,11 @@ pub async fn switch_merchant_for_user_in_org(
             .clone(),
     };
 
-    lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
-        .await;
+    utils::user::spawn_async_lineage_context_update_to_db(
+        &state,
+        &user_from_token.user_id,
+        lineage_context,
+    );
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3582,7 +3589,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         }
     };
 
-    let lineage_context = domain::LineageContext {
+    let lineage_context = LineageContext {
         user_id: user_from_token.user_id.clone(),
         merchant_id: user_from_token.merchant_id.clone(),
         role_id: role_id.clone(),
@@ -3595,9 +3602,11 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             .clone(),
     };
 
-    lineage_context
-        .try_set_lineage_context_in_cache(&state, user_from_token.user_id.as_str())
-        .await;
+    utils::user::spawn_async_lineage_context_update_to_db(
+        &state,
+        &user_from_token.user_id,
+        lineage_context,
+    );
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
