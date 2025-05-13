@@ -1,7 +1,7 @@
 use common_enums::EntityType;
 use common_utils::{
     date_time, id_type,
-    types::theme::{EmailThemeConfig, ThemeLineage},
+    types::user::{EmailThemeConfig, ThemeLineage},
 };
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
