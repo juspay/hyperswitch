@@ -126,8 +126,15 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<RazorpayOrderResponse>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpiDetails {
-    flow: String,
+    flow: UpiFlow,
     vpa: Secret<String, pii::UpiVpaMaskingStrategy>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpiFlow {
+    Collect,
+    Intent,
 }
 
 #[derive(Debug, Serialize)]
@@ -138,12 +145,18 @@ pub struct RazorpayPaymentsRequest {
     order_id: String,
     email: Email,
     contact: Secret<String>,
-    method: String,
+    method: RazorpayPaymentMethod,
     upi: UpiDetails,
     #[serde(skip_serializing_if = "Option::is_none")]
     ip: Option<Secret<String, IpAddress>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     user_agent: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RazorpayPaymentMethod {
+    Upi,
 }
 
 impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for RazorpayPaymentsRequest {
@@ -163,9 +176,9 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         .clone()
                         .ok_or_else(missing_field_err("payment_method_data.upi.collect.vpa_id"))?;
                     (
-                        "upi".to_string(),
+                        RazorpayPaymentMethod::Upi,
                         UpiDetails {
-                            flow: "collect".to_string(),
+                            flow: UpiFlow::Collect,
                             vpa: vpa_secret,
                         },
                     )
@@ -189,7 +202,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
 
         Ok(Self {
             amount: item.amount,
-            currency: router_request.currency.to_string().to_uppercase(),
+            currency: router_request.currency.to_string(),
             order_id,
             email,
             contact: contact_number,
@@ -273,13 +286,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
             ..item.data
         })
     }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AccountDetails {
-    razorpay_id: Secret<String>,
-    razorpay_secret: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
