@@ -21,6 +21,7 @@ pub struct Connectors {
     pub bambora: ConnectorParams,
     pub bamboraapac: ConnectorParams,
     pub bankofamerica: ConnectorParams,
+    pub barclaycard: ConnectorParams,
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,

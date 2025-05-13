@@ -313,6 +313,9 @@ impl ConnectorData {
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
+                // enums::Connector::Barclaycard => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard)))
+                // }
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
                 }

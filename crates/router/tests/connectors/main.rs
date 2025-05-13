@@ -16,6 +16,7 @@ mod bambora;
 mod bamboraapac;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
+mod barclaycard;
 #[cfg(feature = "dummy_connector")]
 mod billwerk;
 mod bitpay;
