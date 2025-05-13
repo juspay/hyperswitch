@@ -1,4 +1,5 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use base64::Engine;
 use common_enums::enums::{self, PaymentMethodType};
@@ -31,8 +32,9 @@ use hyperswitch_domain_models::{
         SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, PaymentsResponseData, RefundsResponseData,
-        RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
+        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse, PaymentMethodDetails,
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -2216,4 +2218,815 @@ impl FileUpload for Adyen {
     }
 }
 
-impl ConnectorSpecifications for Adyen {}
+static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods1 = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+        enums::CaptureMethod::ManualMultiple,
+    ];
+
+    let supported_capture_methods2 = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_capture_methods3 = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::Maestro,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+    ];
+
+    let mut adyen_supported_payment_methods = SupportedPaymentMethods::new();
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Paypal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::AliPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::AliPayHk,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::GoPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::KakaoPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Gcash,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Momo,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::TouchNGo,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::MbWay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::MobilePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::WeChatPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::SamsungPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Paze,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Twint,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Vipps,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Dana,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        PaymentMethodType::Swish,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::Klarna,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::Affirm,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::AfterpayClearpay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::PayBright,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::Walley,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::Alma,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::PayLater,
+        PaymentMethodType::Atome,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::BancontactCard,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Bizum,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Blik,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Eps,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Ideal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingCzechRepublic,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingFinland,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingPoland,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingSlovakia,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingFpx,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingThailand,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::OpenBankingUk,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        PaymentMethodType::Trustly,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Sepa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods1.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        PaymentMethodType::Bacs,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::PermataBankTransfer,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::BcaBankTransfer,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::BniVa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::BriVa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::CimbVa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::DanamonVa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::MandiriVa,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        PaymentMethodType::Pix,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::CardRedirect,
+        PaymentMethodType::Knet,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::CardRedirect,
+        PaymentMethodType::Benefit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::CardRedirect,
+        PaymentMethodType::MomoAtm,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::Boleto,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::Alfamart,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::Indomaret,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::Oxxo,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::SevenEleven,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::Lawson,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::MiniStop,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::FamilyMart,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::Seicomart,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::Voucher,
+        PaymentMethodType::PayEasy,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::GiftCard,
+        PaymentMethodType::PaySafeCard,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods3.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods.add(
+        enums::PaymentMethod::GiftCard,
+        PaymentMethodType::Givex,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
+    adyen_supported_payment_methods
+});
+
+static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Adyen",
+        description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[enums::EventClass] = &[
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+    #[cfg(feature = "payouts")]
+    enums::EventClass::Payouts,
+    enums::EventClass::Mandates,
+];
+
+impl ConnectorSpecifications for Adyen {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&ADYEN_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*ADYEN_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
