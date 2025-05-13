@@ -3685,7 +3685,7 @@ mod tests {
             created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            is_iframe_redirection_enabled:None,
+            is_iframe_redirection_enabled: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3761,7 +3761,7 @@ mod tests {
             created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            is_iframe_redirection_enabled:None
+            is_iframe_redirection_enabled: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3835,7 +3835,7 @@ mod tests {
             created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            is_iframe_redirection_enabled:None,
+            is_iframe_redirection_enabled: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

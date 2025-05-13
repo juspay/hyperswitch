@@ -1879,7 +1879,7 @@ where
             attempts: None,
             billing: None,  //TODO: add this
             shipping: None, //TODO: add this
-            is_iframe_redirection_enabled:None
+            is_iframe_redirection_enabled: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -1990,7 +1990,7 @@ where
             next_action: None,
             attempts,
             return_url,
-            is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled
+            is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
