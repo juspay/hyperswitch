@@ -1,6 +1,6 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::{EntityType, MerchantProductType};
-use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
+use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, Secret};
