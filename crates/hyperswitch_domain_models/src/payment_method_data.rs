@@ -95,7 +95,6 @@ pub struct Card {
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
-    // we use this as the card type for co-badged cards as well
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
@@ -807,13 +806,6 @@ impl
             Option<payment_methods::CoBadgedCardData>,
         ),
     ) -> Self {
-        let first_co_badged_card_network =
-            co_badged_card_data_optional
-                .as_ref()
-                .and_then(|co_badged_card_data| {
-                    co_badged_card_data.co_badged_card_networks.first().cloned()
-                });
-
         let api_models::payments::Card {
             card_number,
             card_exp_month,
@@ -834,7 +826,7 @@ impl
             card_exp_year,
             card_cvc,
             card_issuer,
-            card_network: first_co_badged_card_network.or(card_network),
+            card_network,
             card_type,
             card_issuing_country,
             bank_code,

@@ -2415,6 +2415,23 @@ impl CardNetwork {
             | Self::Maestro => true,
         }
     }
+
+    pub fn is_us_local_network(&self) -> bool {
+        match self {
+            Self::Star | Self::Pulse | Self::Accel | Self::Nyce => true,
+            Self::Interac
+            | Self::CartesBancaires
+            | Self::Visa
+            | Self::Mastercard
+            | Self::AmericanExpress
+            | Self::JCB
+            | Self::DinersClub
+            | Self::Discover
+            | Self::UnionPay
+            | Self::RuPay
+            | Self::Maestro => false,
+        }
+    }
 }
 
 /// Stage of the dispute
