@@ -1,7 +1,7 @@
-#[cfg(feature = "v1")]
-use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_enums::RequestIncrementalAuthorization;
+#[cfg(feature = "v1")]
+use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
@@ -36,10 +36,10 @@ use super::payment_attempt::PaymentAttempt;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::address::Address;
-#[cfg(feature = "v1")]
-use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::routing;
+#[cfg(feature = "v1")]
+use crate::RemoteStorageObject;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
