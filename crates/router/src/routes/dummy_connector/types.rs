@@ -227,12 +227,11 @@ impl GetPaymentMethodDetails for DummyConnectorUpiType {
     }
     fn get_image_link(&self, base_url: &str) -> String {
         let image_name = match self {
-            Self::UpiCollect => "UPI_COLLECT.svg"
+            Self::UpiCollect => "UPI_COLLECT.svg",
         };
         format!("{}{}", base_url, image_name)
     }
 }
-
 
 impl GetPaymentMethodDetails for DummyConnectorWallet {
     fn get_name(&self) -> &'static str {

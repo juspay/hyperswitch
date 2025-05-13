@@ -245,19 +245,19 @@ impl ProcessPaymentAttempt for types::DummyConnectorUpiCollect {
     ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
         let upi_collect_reponse = self.get_flow_from_upi_collect()?;
         if let Some(error) = upi_collect_reponse.error {
-                Err(error)?;
+            Err(error)?;
         }
-        Ok(payment_attempt.build_payment_data(upi_collect_reponse.status, None,  None))
+        Ok(payment_attempt.build_payment_data(upi_collect_reponse.status, None, None))
     }
 }
 
-impl types::DummyConnectorUpiCollect{
+impl types::DummyConnectorUpiCollect {
     pub fn get_flow_from_upi_collect(
         self,
     ) -> types::DummyConnectorResult<types::DummyConnectorUpiFlow> {
         let vpa_id = self.vpa_id.peek();
         if !vpa_id.contains('@') {
-            return Ok(types::DummyConnectorUpiFlow{
+            return Ok(types::DummyConnectorUpiFlow {
                 status: types::DummyConnectorStatus::Failed,
                 error: Some(errors::DummyConnectorErrors::PaymentDeclined {
                     message: "Invalid Upi id",
@@ -265,24 +265,16 @@ impl types::DummyConnectorUpiCollect{
             });
         };
         match vpa_id.as_str() {
-            "failure@upi" => {
-                Ok(types::DummyConnectorUpiFlow{
-                    status: types::DummyConnectorStatus::Failed,
-                    error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
-
-                })
-            },
-            _ => {
-                Ok(types::DummyConnectorUpiFlow{
-                    status: types::DummyConnectorStatus::Succeeded,
-                    error: None,
-
-                })
-            },
+            "failure@upi" => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Failed,
+                error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
+            }),
+            _ => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Succeeded,
+                error: None,
+            }),
         }
-
     }
-    
 }
 
 impl types::DummyConnectorCard {
@@ -373,10 +365,9 @@ impl ProcessPaymentAttempt for types::DummyConnectorPaymentMethodData {
                 card.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
             }
             Self::Upi(upi_data) => match upi_data {
-                types::DummyConnectorUpi::UpiCollect(upi_collect) => {
-                    upi_collect.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
-                }
-            }
+                types::DummyConnectorUpi::UpiCollect(upi_collect) => upi_collect
+                    .build_payment_data_from_payment_attempt(payment_attempt, redirect_url),
+            },
             Self::Wallet(wallet) => {
                 wallet.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
             }
