@@ -17,7 +17,16 @@ use crate::schema_v2::business_profile;
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
@@ -307,7 +316,16 @@ impl ProfileUpdateInternal {
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
