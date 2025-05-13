@@ -96,7 +96,6 @@ use crate::core::routing::helpers as routing_helpers;
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
-    connector::utils::missing_field_err,
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -5410,22 +5409,6 @@ pub struct IncrementalAuthorizationDetails {
     pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-pub trait CustomerDetailsExt {
-    type Error;
-    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
-    fn get_email(&self) -> Result<pii::Email, Self::Error>;
-}
-
-impl CustomerDetailsExt for CustomerDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error> {
-        self.name.clone().ok_or_else(missing_field_err("name"))
-    }
-    fn get_email(&self) -> Result<pii::Email, Self::Error> {
-        self.email.clone().ok_or_else(missing_field_err("email"))
-    }
 }
 
 pub async fn get_payment_link_response_from_id(

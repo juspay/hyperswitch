@@ -252,6 +252,7 @@ pub trait PayoutIndividualDetailsExt {
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
 }
 
+//remove before pr
 #[cfg(feature = "payouts")]
 impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
     type Error = error_stack::Report<errors::ConnectorError>;

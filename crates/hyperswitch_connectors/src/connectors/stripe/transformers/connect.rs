@@ -1,17 +1,17 @@
 use api_models;
-use common_utils::pii::Email;
+use common_enums::{enums, Currency};
+use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::ErrorDetails;
 use crate::{
-    connector::utils::{PayoutsData, RouterData},
-    core::{errors, payments::CustomerDetailsExt},
-    types::{self, storage::enums, PayoutIndividualDetailsExt},
-    utils::OptionExt,
+    types::{PayoutIndividualDetailsExt as _, PayoutsResponseRouterData},
+    utils::{CustomerDetails as _, PayoutsData as _, RouterData},
 };
-
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -33,7 +33,7 @@ pub struct StripeConnectErrorResponse {
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutCreateRequest {
     amount: i64,
-    currency: enums::Currency,
+    currency: Currency,
     destination: String,
     transfer_group: String,
 }
@@ -56,7 +56,7 @@ pub struct TransferReversals {
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutFulfillRequest {
     amount: i64,
-    currency: enums::Currency,
+    currency: Currency,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -190,7 +190,7 @@ pub struct RecipientBankAccountRequest {
     #[serde(rename = "external_account[country]")]
     external_account_country: enums::CountryAlpha2,
     #[serde(rename = "external_account[currency]")]
-    external_account_currency: enums::Currency,
+    external_account_currency: Currency,
     #[serde(rename = "external_account[account_holder_name]")]
     external_account_account_holder_name: Secret<String>,
     #[serde(rename = "external_account[account_number]")]
@@ -207,9 +207,9 @@ pub struct StripeConnectRecipientAccountCreateResponse {
 }
 
 // Payouts create/transfer request transform
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let connector_customer_id = item.get_connector_customer_id()?;
         Ok(Self {
@@ -222,17 +222,17 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateReque
 }
 
 // Payouts create response transform
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
-    for types::PayoutsRouterData<F>
+impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
+    for PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>,
+        item: PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>,
     ) -> Result<Self, Self::Error> {
         let response: StripeConnectPayoutCreateResponse = item.response;
 
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
+            response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresFulfillment),
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
@@ -246,9 +246,9 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateRes
 }
 
 // Payouts fulfill request transform
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         Ok(Self {
             amount: request.amount,
@@ -258,17 +258,17 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequ
 }
 
 // Payouts fulfill response transform
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>>
-    for types::PayoutsRouterData<F>
+impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>>
+    for PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>,
+        item: PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>,
     ) -> Result<Self, Self::Error> {
         let response: StripeConnectPayoutFulfillResponse = item.response;
 
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
+            response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(response.status)),
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
@@ -282,9 +282,9 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillRe
 }
 
 // Payouts reversal request transform
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectReversalRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectReversalRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.amount,
         })
@@ -292,15 +292,15 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectReversalRequest {
 }
 
 // Payouts reversal response transform
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
-    for types::PayoutsRouterData<F>
+impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
+    for PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>,
+        item: PayoutsResponseRouterData<F, StripeConnectReversalResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
+            response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::Cancelled),
                 connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
@@ -314,12 +314,12 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
 }
 
 // Recipient creation request transform
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let customer_details = request.get_customer_details()?;
-        let customer_email = customer_details.get_email()?;
+        let customer_email = customer_details.get_customer_email()?;
         let address = item.get_billing_address()?.clone();
         let payout_vendor_details = request.get_vendor_details()?;
         let (vendor_details, individual_details) = (
@@ -366,16 +366,16 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
 }
 
 // Recipient creation response transform
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>>
-    for types::PayoutsRouterData<F>
+impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>>
+    for PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>,
+        item: PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>,
     ) -> Result<Self, Self::Error> {
         let response: StripeConnectRecipientCreateResponse = item.response;
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
+            response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresVendorAccountCreation),
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
@@ -389,13 +389,13 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreate
 }
 
 // Recipient account's creation request
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRequest {
+impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let payout_method_data = item.get_payout_method_data()?;
         let customer_details = request.get_customer_details()?;
-        let customer_name = customer_details.get_name()?;
+        let customer_name = customer_details.get_customer_name()?;
         let payout_vendor_details = request.get_vendor_details()?;
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Card(_) => {
@@ -450,15 +450,15 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
 }
 
 // Recipient account's creation response
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>>
-    for types::PayoutsRouterData<F>
+impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>>
+    for PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>,
+        item: PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PayoutsResponseData {
+            response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::RequiresCreation),
                 connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
