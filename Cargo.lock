@@ -3870,12 +3870,14 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "serde_repr",
  "serde_urlencoded",
  "serde_with",
  "sha1",
  "strum 0.26.3",
  "time",
  "unicode-normalization",
+ "unidecode",
  "url",
  "urlencoding",
  "uuid",
@@ -5477,10 +5479,15 @@ checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 name = "payment_methods"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-trait",
  "common_utils",
  "dyn-clone",
  "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking",
+ "serde",
+ "serde_json",
  "storage_impl",
 ]
 
@@ -6530,7 +6537,6 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_qs",
- "serde_repr",
  "serde_urlencoded",
  "serde_with",
  "serial_test",
@@ -6546,7 +6552,6 @@ dependencies = [
  "totp-rs",
  "tracing-futures",
  "unicode-segmentation",
- "unidecode",
  "url",
  "urlencoding",
  "utoipa",

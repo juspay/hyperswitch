@@ -18,6 +18,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
+
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -612,6 +613,10 @@ pub enum BankTransferData {
         cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
         cnpj: Option<Secret<String>>,
+        /// Source bank account UUID
+        source_bank_account_id: Option<MaskedBankAccount>,
+        /// Destination bank account UUID.
+        destination_bank_account_id: Option<MaskedBankAccount>,
     },
     Pse {},
     LocalBankTransfer {
@@ -657,7 +662,7 @@ pub struct NetworkTokenData {
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,
-    pub card_issuing_country: Option<String>,
+    pub card_issuing_country: Option<common_enums::CountryAlpha2>,
     pub bank_code: Option<String>,
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
@@ -1450,9 +1455,19 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Self::MandiriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::Pix { pix_key, cpf, cnpj } => {
-                Self::Pix { pix_key, cpf, cnpj }
-            }
+            api_models::payments::BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            } => Self::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            },
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
@@ -1478,11 +1493,19 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
             BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
-            BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
+            BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+            } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
                     cnpj: cnpj.map(MaskedBankAccount::from),
+                    source_bank_account_id,
+                    destination_bank_account_id,
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
@@ -1855,7 +1878,7 @@ pub enum PaymentMethodsData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
-    pub issuer_country: Option<String>,
+    pub issuer_country: Option<common_enums::CountryAlpha2>,
     pub network_token_expiry_month: Option<Secret<String>>,
     pub network_token_expiry_year: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
@@ -1911,7 +1934,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
 impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetails) -> Self {
         Self {
-            issuer_country: item.card_issuing_country.map(|c| c.to_string()),
+            issuer_country: item.card_issuing_country,
             last4_digits: Some(item.network_token.get_last4()),
             network_token_expiry_month: Some(item.network_token_exp_month),
             network_token_expiry_year: Some(item.network_token_exp_year),

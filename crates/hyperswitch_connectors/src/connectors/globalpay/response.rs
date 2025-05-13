@@ -4,6 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::requests;
+use crate::utils::deserialize_optional_currency;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalpayPaymentsResponse {
@@ -31,6 +32,7 @@ pub struct GlobalpayPaymentsResponse {
     /// The country in ISO-3166-1(alpha-2 code) format.
     pub country: Option<String>,
     /// The currency of the amount in ISO-4217(alpha-3)
+    #[serde(deserialize_with = "deserialize_optional_currency")]
     pub currency: Option<Currency>,
     /// Information relating to a currency conversion.
     pub currency_conversion: Option<requests::CurrencyConversion>,

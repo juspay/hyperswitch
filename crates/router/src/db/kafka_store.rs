@@ -1281,7 +1281,6 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2"))]
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
         state: &KeyManagerState,
@@ -1289,13 +1288,14 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        self.list_enabled_connector_accounts_by_profile_id(
-            state,
-            profile_id,
-            key_store,
-            connector_type,
-        )
-        .await
+        self.diesel_store
+            .list_enabled_connector_accounts_by_profile_id(
+                state,
+                profile_id,
+                key_store,
+                connector_type,
+            )
+            .await
     }
 
     async fn insert_merchant_connector_account(
@@ -1716,6 +1716,24 @@ impl PaymentAttemptInterface for KafkaStore {
             .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
                 payment_id,
                 merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+                key_manager_state,
+                merchant_key_store,
+                payment_id,
                 storage_scheme,
             )
             .await
@@ -2759,7 +2777,6 @@ impl RefundInterface for KafkaStore {
         Ok(refund)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2827,6 +2844,26 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn filter_refund_by_constraints(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_details: refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_constraints(
+                merchant_id,
+                refund_details,
+                storage_scheme,
+                limit,
+                offset,
+            )
+            .await
+    }
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "refunds_v2"),
@@ -2869,6 +2906,18 @@ impl RefundInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_details: refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -3280,7 +3329,11 @@ impl StorageInterface for KafkaStore {
     }
 }
 
-impl GlobalStorageInterface for KafkaStore {}
+impl GlobalStorageInterface for KafkaStore {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}

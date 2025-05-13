@@ -13,7 +13,6 @@ use crate::{
             helpers,
             operations::{self, ValidateStatusForOperation},
         },
-        utils::ValidatePlatformMerchant,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -97,11 +96,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsRetrieveRequest, Payment
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsRetrieveRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         };
 
@@ -119,24 +118,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsRetrieveRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_account.storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
-            .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        payment_intent
-            .validate_platform_merchant(platform_merchant_account.map(|ma| ma.get_id()))?;
 
         let payment_attempt = payment_intent
             .active_attempt_id
@@ -144,7 +143,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .async_map(|active_attempt| async {
                 db.find_payment_attempt_by_id(
                     key_manager_state,
-                    key_store,
+                    merchant_context.get_merchant_key_store(),
                     active_attempt,
                     storage_scheme,
                 )
@@ -184,7 +183,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                     db.find_payment_attempts_by_payment_intent_id(
                         key_manager_state,
                         payment_id,
-                        key_store,
+                        merchant_context.get_merchant_key_store(),
                         storage_scheme,
                     )
                     .await
@@ -263,12 +262,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentStatusData<F>,
-        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         match &payment_data.payment_attempt {
             Some(payment_attempt) if payment_data.should_sync_with_connector => {

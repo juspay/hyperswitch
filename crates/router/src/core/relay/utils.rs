@@ -111,6 +111,7 @@ pub async fn construct_relay_refund_router_data<F>(
             merchant_account_id: None,
             merchant_config_currency: None,
             capture_method: None,
+            additional_payment_method_data: None,
         },
 
         response: Err(ErrorResponse::default()),

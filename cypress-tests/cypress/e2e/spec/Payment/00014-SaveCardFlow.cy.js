@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
-import State from "../../../utils/State";
 import { generateRandomName } from "../../../utils/RequestBodyUtils";
+import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -714,7 +714,6 @@ describe("Card - SaveCard payment flow test", () => {
                 // Copy all properties from the original card details.
                 ...data.Request.payment_method_data.card,
                 // Set the desired modifications for this specific test case.
-                card_exp_year: "55", // Update expiry year.
                 card_holder_name: card_holder_name, // Update card holder name.
               },
             },

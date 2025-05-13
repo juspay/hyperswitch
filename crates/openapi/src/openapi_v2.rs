@@ -148,6 +148,8 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for refunds
         routes::refunds::refunds_create,
+        routes::refunds::refunds_retrieve,
+        routes::refunds::refunds_list,
 
         // Routes for Revenue Recovery flow under Process Tracker
         routes::revenue_recovery::revenue_recovery_pt_retrieve_api
@@ -187,7 +189,6 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
-        api_models::refunds::RefundRequest,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
@@ -204,6 +205,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorResponse,
         api_models::admin::MerchantConnectorListResponse,
         api_models::admin::AuthenticationConnectorDetails,
+        api_models::admin::ExternalVaultConnectorDetails,
         api_models::admin::ExtendedCardInfoConfig,
         api_models::admin::BusinessGenericLinkConfig,
         api_models::admin::BusinessCollectLinkConfig,
@@ -271,6 +273,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::BankType,
         api_models::enums::BankHolderType,
         api_models::enums::CardNetwork,
+        api_models::enums::TokenDataType,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
@@ -544,6 +547,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodsSessionUpdateRequest,
         api_models::payment_methods::NetworkTokenResponse,
         api_models::payment_methods::NetworkTokenDetailsPaymentMethod,
+        api_models::payment_methods::NetworkTokenDetailsResponse,
+        api_models::payment_methods::TokenDataResponse,
+        api_models::payment_methods::TokenDetailsResponse,
         api_models::payment_methods::TokenizeCardRequest,
         api_models::payment_methods::TokenizeDataRequest,
         api_models::payment_methods::TokenizePaymentMethodRequest,
@@ -703,6 +709,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::ErrorDetails,
         api_models::payments::CtpServiceDetails,
+        api_models::payments::AdyenConnectorMetadata,
+        api_models::payments::AdyenTestingData,
         api_models::feature_matrix::FeatureMatrixListResponse,
         api_models::feature_matrix::FeatureMatrixRequest,
         api_models::feature_matrix::ConnectorFeatureMatrixResponse,

@@ -11,7 +11,7 @@ use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::merchant_connector_account;
 #[cfg(feature = "v2")]
-use crate::{enums, schema_v2::merchant_connector_account, types};
+use crate::schema_v2::merchant_connector_account;
 
 #[cfg(feature = "v1")]
 #[derive(

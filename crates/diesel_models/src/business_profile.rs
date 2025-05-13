@@ -370,6 +370,10 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
 
 impl Profile {
@@ -438,6 +442,10 @@ pub struct ProfileNew {
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub id: common_utils::id_type::ProfileId,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -490,6 +498,10 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -539,6 +551,10 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled,
             is_debit_routing_enabled,
             merchant_business_country,
+            revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data,
+            is_external_vault_enabled,
+            external_vault_connector_details,
         } = self;
         Profile {
             id: source.id,
@@ -620,6 +636,14 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type
+                .or(source.revenue_recovery_retry_algorithm_type),
+            revenue_recovery_retry_algorithm_data: revenue_recovery_retry_algorithm_data
+                .or(source.revenue_recovery_retry_algorithm_data),
+            is_external_vault_enabled: is_external_vault_enabled
+                .or(source.is_external_vault_enabled),
+            external_vault_connector_details: external_vault_connector_details
+                .or(source.external_vault_connector_details),
         }
     }
 }
@@ -636,6 +660,14 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ExternalVaultConnectorDetails {
+    pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+}
+
+common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct CardTestingGuardConfig {
     pub is_card_ip_blocking_enabled: bool,
     pub card_ip_blocking_threshold: i32,
@@ -647,6 +679,25 @@ pub struct CardTestingGuardConfig {
 }
 
 common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
+
+impl Default for CardTestingGuardConfig {
+    fn default() -> Self {
+        Self {
+            is_card_ip_blocking_enabled: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_STATUS,
+            card_ip_blocking_threshold: common_utils::consts::DEFAULT_CARD_IP_BLOCKING_THRESHOLD,
+            is_guest_user_card_blocking_enabled:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS,
+            guest_user_card_blocking_threshold:
+                common_utils::consts::DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD,
+            is_customer_id_blocking_enabled:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_STATUS,
+            customer_id_blocking_threshold:
+                common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
+            card_testing_guard_expiry:
+                common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+        }
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
@@ -697,6 +748,7 @@ pub struct PaymentLinkConfigRequest {
     pub payment_form_header_text: Option<String>,
     pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -726,3 +778,11 @@ pub struct BusinessGenericLinkConfig {
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct RevenueRecoveryAlgorithmData {
+    pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

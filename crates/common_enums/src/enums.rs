@@ -6,7 +6,7 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
 };
 
-pub use accounts::MerchantProductType;
+pub use accounts::{MerchantAccountType, MerchantProductType, OrganizationType};
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
@@ -210,6 +210,29 @@ pub enum CardDiscovery {
     Manual,
     SavedCard,
     ClickToPay,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryAlgorithmType {
+    Monitoring,
+    Smart,
+    Cascading,
 }
 
 /// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
@@ -1899,7 +1922,10 @@ pub enum PaymentMethodType {
 
 impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(self, Self::ApplePay | Self::GooglePay | Self::SamsungPay)
+        matches!(
+            self,
+            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+        )
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
@@ -6608,6 +6634,66 @@ pub enum RomaniaStatesAbbreviation {
 }
 
 #[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display, strum::EnumString,
+)]
+pub enum BrazilStatesAbbreviation {
+    #[strum(serialize = "AC")]
+    Acre,
+    #[strum(serialize = "AL")]
+    Alagoas,
+    #[strum(serialize = "AP")]
+    Amapá,
+    #[strum(serialize = "AM")]
+    Amazonas,
+    #[strum(serialize = "BA")]
+    Bahia,
+    #[strum(serialize = "CE")]
+    Ceará,
+    #[strum(serialize = "DF")]
+    DistritoFederal,
+    #[strum(serialize = "ES")]
+    EspíritoSanto,
+    #[strum(serialize = "GO")]
+    Goiás,
+    #[strum(serialize = "MA")]
+    Maranhão,
+    #[strum(serialize = "MT")]
+    MatoGrosso,
+    #[strum(serialize = "MS")]
+    MatoGrossoDoSul,
+    #[strum(serialize = "MG")]
+    MinasGerais,
+    #[strum(serialize = "PA")]
+    Pará,
+    #[strum(serialize = "PB")]
+    Paraíba,
+    #[strum(serialize = "PR")]
+    Paraná,
+    #[strum(serialize = "PE")]
+    Pernambuco,
+    #[strum(serialize = "PI")]
+    Piauí,
+    #[strum(serialize = "RJ")]
+    RioDeJaneiro,
+    #[strum(serialize = "RN")]
+    RioGrandeDoNorte,
+    #[strum(serialize = "RS")]
+    RioGrandeDoSul,
+    #[strum(serialize = "RO")]
+    Rondônia,
+    #[strum(serialize = "RR")]
+    Roraima,
+    #[strum(serialize = "SC")]
+    SantaCatarina,
+    #[strum(serialize = "SP")]
+    SãoPaulo,
+    #[strum(serialize = "SE")]
+    Sergipe,
+    #[strum(serialize = "TO")]
+    Tocantins,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
@@ -7818,6 +7904,17 @@ pub enum ErrorCategory {
     ProcessorDeclineIncorrectData,
 }
 
+impl ErrorCategory {
+    pub fn should_perform_elimination_routing(self) -> bool {
+        match self {
+            Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Debug,
@@ -8092,4 +8189,17 @@ pub enum ProcessTrackerRunner {
 pub enum CryptoPadding {
     PKCS7,
     ZeroPadding,
+}
+
+/// The type of token data to fetch for get-token endpoint
+
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenDataType {
+    /// Fetch single use token for the given payment method
+    SingleUseToken,
+    /// Fetch multi use token for the given payment method
+    MultiUseToken,
+    /// Fetch network token for the given payment method
+    NetworkToken,
 }

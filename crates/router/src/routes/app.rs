@@ -49,6 +49,8 @@ use super::pm_auth;
 use super::poll;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -119,7 +121,7 @@ pub struct SessionState {
     pub base_url: String,
     pub tenant: Tenant,
     #[cfg(feature = "olap")]
-    pub opensearch_client: Arc<OpenSearchClient>,
+    pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
@@ -152,6 +154,7 @@ pub trait SessionStateInfo {
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -208,6 +211,9 @@ impl SessionStateInfo for SessionState {
     fn session_state(&self) -> SessionState {
         self.clone()
     }
+    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+        self.global_store.to_owned()
+    }
 }
 #[derive(Clone)]
 pub struct AppState {
@@ -224,7 +230,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pools: HashMap<id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
-    pub opensearch_client: Arc<OpenSearchClient>,
+    pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
@@ -343,12 +349,12 @@ impl AppState {
 
             #[allow(clippy::expect_used)]
             #[cfg(feature = "olap")]
-            let opensearch_client = Arc::new(
-                conf.opensearch
-                    .get_opensearch_client()
-                    .await
-                    .expect("Failed to create opensearch client"),
-            );
+            let opensearch_client = conf
+                .opensearch
+                .get_opensearch_client()
+                .await
+                .expect("Failed to initialize OpenSearch client.")
+                .map(Arc::new);
 
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -502,7 +508,7 @@ impl AppState {
             #[cfg(feature = "email")]
             email_client: Arc::clone(&self.email_client),
             #[cfg(feature = "olap")]
-            opensearch_client: Arc::clone(&self.opensearch_client),
+            opensearch_client: self.opensearch_client.clone(),
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
@@ -1202,6 +1208,31 @@ impl Refunds {
     }
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "refunds_v2",
+    any(feature = "olap", feature = "oltp")
+))]
+impl Refunds {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            route =
+                route.service(web::resource("/list").route(web::get().to(refunds::refunds_list)));
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(refunds::refunds_create)))
+                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)));
+        }
+
+        route
+    }
+}
+
 #[cfg(feature = "payouts")]
 pub struct Payouts;
 
@@ -1272,6 +1303,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/update-saved-payment-method")
                         .route(web::put().to(payment_methods::payment_method_update_api)),
+                )
+                .service(
+                    web::resource("/get-token")
+                        .route(web::get().to(payment_methods::get_payment_method_token_data)),
                 ),
         );
 
@@ -2047,10 +2082,18 @@ impl Profile {
                             .route(web::post().to(routing::set_dynamic_routing_volume_split)),
                     )
                     .service(
-                        web::scope("/elimination").service(
-                            web::resource("/toggle")
-                                .route(web::post().to(routing::toggle_elimination_routing)),
-                        ),
+                        web::scope("/elimination")
+                            .service(
+                                web::resource("/toggle")
+                                    .route(web::post().to(routing::toggle_elimination_routing)),
+                            )
+                            .service(web::resource("config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::elimination_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
                     )
                     .service(
                         web::scope("/contracts")
@@ -2209,6 +2252,7 @@ impl User {
             .service(
                 web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
             )
+            .service(web::resource("/create_platform").route(web::post().to(user::create_platform)))
             .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")

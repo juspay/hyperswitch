@@ -155,3 +155,6 @@ pub struct UasFlowData {
 
 #[derive(Debug, Clone)]
 pub struct BillingConnectorPaymentsSyncFlowData;
+
+#[derive(Debug, Clone)]
+pub struct BillingConnectorInvoiceSyncFlowData;
