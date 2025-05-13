@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::LazyLock,
+};
 
 use api_models::{
     user as user_api,
@@ -11,7 +14,6 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
-use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
@@ -49,24 +51,25 @@ pub async fn get_authorization_info_with_groups(
 
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
-    static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
-        PermissionGroup::iter()
-            .map(|group| (group.parent(), group))
-            .fold(
-                HashMap::new(),
-                |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
-                    acc.entry(key).or_default().push(value);
-                    acc
-                },
-            )
-            .into_iter()
-            .map(|(name, value)| user_role_api::ParentInfo {
-                name: name.clone(),
-                description: info::get_parent_group_description(name),
-                groups: value,
-            })
-            .collect()
-    });
+    static GROUPS_WITH_PARENT_TAGS: LazyLock<Vec<user_role_api::ParentInfo>> =
+        LazyLock::new(|| {
+            PermissionGroup::iter()
+                .map(|group| (group.parent(), group))
+                .fold(
+                    HashMap::new(),
+                    |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
+                        acc.entry(key).or_default().push(value);
+                        acc
+                    },
+                )
+                .into_iter()
+                .map(|(name, value)| user_role_api::ParentInfo {
+                    name: name.clone(),
+                    description: info::get_parent_group_description(name),
+                    groups: value,
+                })
+                .collect()
+        });
 
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
