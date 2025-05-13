@@ -54,7 +54,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
-pub(crate) const METRICS_HOST_TAG_NAME: &str = "host";
 pub const MAX_ROUTING_CONFIGS_PER_MERCHANT: usize = 100;
 pub const ROUTING_CONFIG_ID_LENGTH: usize = 10;
 
