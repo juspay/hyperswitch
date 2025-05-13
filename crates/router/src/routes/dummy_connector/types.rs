@@ -417,4 +417,5 @@ pub type DummyConnectorResult<T> = CustomResult<T, DummyConnectorErrors>;
 pub struct DummyConnectorUpiFlow {
     pub status: DummyConnectorStatus,
     pub error: Option<DummyConnectorErrors>,
+    pub is_next_action_required: bool,
 }

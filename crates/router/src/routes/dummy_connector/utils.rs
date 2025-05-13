@@ -241,13 +241,17 @@ impl ProcessPaymentAttempt for types::DummyConnectorUpiCollect {
     fn build_payment_data_from_payment_attempt(
         self,
         payment_attempt: types::DummyConnectorPaymentAttempt,
-        _redirect_url: String,
+        redirect_url: String,
     ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-        let upi_collect_reponse = self.get_flow_from_upi_collect()?;
-        if let Some(error) = upi_collect_reponse.error {
+        let upi_collect_response = self.get_flow_from_upi_collect()?;
+        if let Some(error) = upi_collect_response.error {
             Err(error)?;
         }
-        Ok(payment_attempt.build_payment_data(upi_collect_reponse.status, None, None))
+        let next_action = upi_collect_response.is_next_action_required.then_some(types::DummyConnectorNextAction::RedirectToUrl(
+            redirect_url
+        ));
+        let return_url =  payment_attempt.payment_request.return_url.clone();
+        Ok(payment_attempt.build_payment_data(upi_collect_response.status, next_action, return_url))
     }
 }
 
@@ -256,22 +260,24 @@ impl types::DummyConnectorUpiCollect {
         self,
     ) -> types::DummyConnectorResult<types::DummyConnectorUpiFlow> {
         let vpa_id = self.vpa_id.peek();
-        if !vpa_id.contains('@') {
-            return Ok(types::DummyConnectorUpiFlow {
-                status: types::DummyConnectorStatus::Failed,
-                error: Some(errors::DummyConnectorErrors::PaymentDeclined {
-                    message: "Invalid Upi id",
-                }),
-            });
-        };
         match vpa_id.as_str() {
             "failure@upi" => Ok(types::DummyConnectorUpiFlow {
                 status: types::DummyConnectorStatus::Failed,
                 error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
+                is_next_action_required: false,
+
+            }),
+            "success@upi" => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Processing,
+                error: None,
+                is_next_action_required: true,
             }),
             _ => Ok(types::DummyConnectorUpiFlow {
-                status: types::DummyConnectorStatus::Succeeded,
-                error: None,
+                status: types::DummyConnectorStatus::Failed,
+                error: Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Invalid Upi id",
+                }),
+                is_next_action_required: false,
             }),
         }
     }
