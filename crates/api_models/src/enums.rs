@@ -170,7 +170,7 @@ pub enum BillingConnectors {
     DummyBillingConnector,
 }
 
-#[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
