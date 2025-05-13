@@ -247,11 +247,17 @@ impl ProcessPaymentAttempt for types::DummyConnectorUpiCollect {
         if let Some(error) = upi_collect_response.error {
             Err(error)?;
         }
-        let next_action = upi_collect_response.is_next_action_required.then_some(types::DummyConnectorNextAction::RedirectToUrl(
-            redirect_url
-        ));
-        let return_url =  payment_attempt.payment_request.return_url.clone();
-        Ok(payment_attempt.build_payment_data(upi_collect_response.status, next_action, return_url))
+        let next_action = upi_collect_response
+            .is_next_action_required
+            .then_some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url));
+        let return_url = payment_attempt.payment_request.return_url.clone();
+        Ok(
+            payment_attempt.build_payment_data(
+                upi_collect_response.status,
+                next_action,
+                return_url,
+            ),
+        )
     }
 }
 
@@ -265,7 +271,6 @@ impl types::DummyConnectorUpiCollect {
                 status: types::DummyConnectorStatus::Failed,
                 error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
                 is_next_action_required: false,
-
             }),
             "success@upi" => Ok(types::DummyConnectorUpiFlow {
                 status: types::DummyConnectorStatus::Processing,
