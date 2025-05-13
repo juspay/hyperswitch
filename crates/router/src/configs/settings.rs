@@ -7,12 +7,13 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
+    crm::CrmManagerConfig,
     file_storage::FileStorageConfig,
     grpc_client::GrpcClientSettings,
     managers::{
@@ -21,8 +22,11 @@ use external_services::{
     },
 };
 pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+use hyperswitch_interfaces::{
+    secrets_interface::secret_state::{
+        RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+    },
+    types::Proxy,
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
@@ -96,6 +100,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
@@ -716,15 +721,6 @@ pub struct Jwekey {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct Proxy {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_hosts: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
 pub struct Server {
     pub port: u16,
     pub workers: usize,
@@ -985,6 +981,10 @@ impl Settings<SecuredSecret> {
         self.api_keys.get_inner().validate()?;
 
         self.file_storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.crm
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
