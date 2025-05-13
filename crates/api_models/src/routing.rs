@@ -844,6 +844,7 @@ impl Default for EliminationRoutingConfig {
 pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<SuccessBasedRoutingConfigBody>,
+    pub decision_engine_configs: Option<DecisionEngineSuccessRateData>,
 }
 
 impl Default for SuccessBasedRoutingConfig {
@@ -860,6 +861,7 @@ impl Default for SuccessBasedRoutingConfig {
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
             }),
+            decision_engine_configs: None,
         }
     }
 }
@@ -936,6 +938,31 @@ impl SuccessBasedRoutingConfig {
         }
         if let Some(new_config) = new.config {
             self.config.as_mut().map(|config| config.update(new_config));
+        }
+    }
+
+    pub fn open_router_config_default() -> Self {
+        Self {
+            params: None,
+            config: None,
+            decision_engine_configs: Some(DecisionEngineSuccessRateData {
+                default_latency_threshold: Some(90.0),
+                default_bucket_size: Some(200),
+                default_hedging_percent: Some(5.0),
+                default_lower_reset_factor: None,
+                default_upper_reset_factor: None,
+                default_gateway_extra_score: None,
+                sub_level_input_config: Some(vec![DecisionEngineSRSubLevelInputConfig {
+                    payment_method_type: Some("CARD".to_string()),
+                    payment_method: None,
+                    latency_threshold: None,
+                    bucket_size: Some(200),
+                    hedging_percent: Some(5.0),
+                    lower_reset_factor: None,
+                    upper_reset_factor: None,
+                    gateway_extra_score: None,
+                }]),
+            }),
         }
     }
 }
@@ -1072,4 +1099,42 @@ impl RoutableConnectorChoiceWithBucketName {
             bucket_name,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionEngineSuccessRateData {
+    pub default_latency_threshold: Option<f64>,
+    pub default_bucket_size: Option<i32>,
+    pub default_hedging_percent: Option<f64>,
+    pub default_lower_reset_factor: Option<f64>,
+    pub default_upper_reset_factor: Option<f64>,
+    pub default_gateway_extra_score: Option<Vec<DecisionEngineGatewayWiseExtraScore>>,
+    pub sub_level_input_config: Option<Vec<DecisionEngineSRSubLevelInputConfig>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionEngineSRSubLevelInputConfig {
+    pub payment_method_type: Option<String>,
+    pub payment_method: Option<String>,
+    pub latency_threshold: Option<f64>,
+    pub bucket_size: Option<i32>,
+    pub hedging_percent: Option<f64>,
+    pub lower_reset_factor: Option<f64>,
+    pub upper_reset_factor: Option<f64>,
+    pub gateway_extra_score: Option<Vec<DecisionEngineGatewayWiseExtraScore>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionEngineGatewayWiseExtraScore {
+    pub gateway_name: String,
+    pub gateway_sigma_factor: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionEngineEliminationData {
+    pub threshold: f64,
 }

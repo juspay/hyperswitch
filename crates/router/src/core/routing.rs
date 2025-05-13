@@ -1456,6 +1456,7 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
+    // Call to DE here to update SR configs else do the below invalidation
     state
         .grpc_client
         .dynamic_routing

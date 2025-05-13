@@ -1443,6 +1443,8 @@ pub async fn disable_dynamic_routing_algorithm(
                     })?
                 };
 
+                // Call to DE here
+
                 let cache_key = format!(
                     "{}_{}",
                     business_profile.get_id().get_string_repr(),
@@ -1761,6 +1763,8 @@ pub async fn default_specific_dynamic_routing_setup(
             .into())
         }
     };
+
+    // Call to DE here
 
     let record = db
         .insert_routing_algorithm(algo)
