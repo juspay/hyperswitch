@@ -332,6 +332,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
+            // api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,
             api_enums::Connector::Zen => Self::Zen,
             api_enums::Connector::Zsl => Self::Zsl,
@@ -986,8 +987,15 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     }
 }
 
-impl ForeignFrom<&storage::Authentication> for payments::ExternalAuthenticationDetailsResponse {
-    fn foreign_from(authn_data: &storage::Authentication) -> Self {
+impl
+    ForeignFrom<
+        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    > for payments::ExternalAuthenticationDetailsResponse
+{
+    fn foreign_from(
+        authn_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    ) -> Self {
+        let authn_data = &authn_store.authentication;
         let version = authn_data
             .maximum_supported_version
             .as_ref()
@@ -1823,7 +1831,7 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
-        Self::new(item.org_id, item.org_name)
+        Self::new(item.org_id, item.org_type, item.org_name)
     }
 }
 
@@ -1831,13 +1839,17 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationCreateRequest) -> Self {
-        let org_new = api_models::organization::OrganizationNew::new(None);
+        // Create a new organization with a standard type by default
+        let org_new = api_models::organization::OrganizationNew::new(
+            common_enums::OrganizationType::Standard,
+            None,
+        );
         let api_models::organization::OrganizationCreateRequest {
             organization_name,
             organization_details,
             metadata,
         } = item;
-        let mut org_new_db = Self::new(org_new.org_id, Some(organization_name));
+        let mut org_new_db = Self::new(org_new.org_id, org_new.org_type, Some(organization_name));
         org_new_db.organization_details = organization_details;
         org_new_db.metadata = metadata;
         org_new_db
@@ -2046,6 +2058,26 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
             three_ds_requestor_app_url: item.three_ds_requestor_app_url,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
+    for diesel_models::business_profile::ExternalVaultConnectorDetails
+{
+    fn foreign_from(item: api_models::admin::ExternalVaultConnectorDetails) -> Self {
+        Self {
+            vault_connector_id: item.vault_connector_id,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
+    for api_models::admin::ExternalVaultConnectorDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::ExternalVaultConnectorDetails) -> Self {
+        Self {
+            vault_connector_id: item.vault_connector_id,
         }
     }
 }

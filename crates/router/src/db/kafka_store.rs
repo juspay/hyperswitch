@@ -5,7 +5,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
@@ -1288,13 +1288,14 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        self.list_enabled_connector_accounts_by_profile_id(
-            state,
-            profile_id,
-            key_store,
-            connector_type,
-        )
-        .await
+        self.diesel_store
+            .list_enabled_connector_accounts_by_profile_id(
+                state,
+                profile_id,
+                key_store,
+                connector_type,
+            )
+            .await
     }
 
     async fn insert_merchant_connector_account(
@@ -2843,6 +2844,26 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn filter_refund_by_constraints(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_details: refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_constraints(
+                merchant_id,
+                refund_details,
+                storage_scheme,
+                limit,
+                offset,
+            )
+            .await
+    }
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "refunds_v2"),
@@ -2885,6 +2906,18 @@ impl RefundInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_details: refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store

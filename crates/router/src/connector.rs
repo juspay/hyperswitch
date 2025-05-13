@@ -39,7 +39,8 @@ pub use hyperswitch_connectors::connectors::{
     thunes::Thunes, trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
     wellsfargo, wellsfargo::Wellsfargo, worldline, worldline::Worldline, worldpay,
-    worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    worldpay::Worldpay, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit, zen,
+    zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]

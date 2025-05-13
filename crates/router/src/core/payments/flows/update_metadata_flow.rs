@@ -30,19 +30,18 @@ impl
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsUpdateMetadataRouterData> {
-        Box::pin(transformers::construct_payment_router_data::<
-            api::UpdateMetadata,
-            types::PaymentsUpdateMetadataData,
-        >(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_context,
-            customer,
-            merchant_connector_account,
-            merchant_recipient_data,
-            header_payload,
-        ))
+        Box::pin(
+            transformers::construct_payment_router_data_for_update_metadata(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_context,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
         .await
     }
 

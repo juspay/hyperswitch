@@ -662,7 +662,7 @@ pub struct NetworkTokenData {
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,
-    pub card_issuing_country: Option<String>,
+    pub card_issuing_country: Option<common_enums::CountryAlpha2>,
     pub bank_code: Option<String>,
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
@@ -1878,7 +1878,7 @@ pub enum PaymentMethodsData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
-    pub issuer_country: Option<String>,
+    pub issuer_country: Option<common_enums::CountryAlpha2>,
     pub network_token_expiry_month: Option<Secret<String>>,
     pub network_token_expiry_year: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
@@ -1934,7 +1934,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
 impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetails) -> Self {
         Self {
-            issuer_country: item.card_issuing_country.map(|c| c.to_string()),
+            issuer_country: item.card_issuing_country,
             last4_digits: Some(item.network_token.get_last4()),
             network_token_expiry_month: Some(item.network_token_exp_month),
             network_token_expiry_year: Some(item.network_token_exp_year),
