@@ -1,6 +1,7 @@
 use diesel_models::enums::Currency;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use common_utils::pii;
 use url::Url;
 
 use crate::{
@@ -73,7 +74,33 @@ pub enum PaymentMethodData {
     Card(DummyConnectorCard),
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
+    Upi(DummyConnectorUpi),
 }
+
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DummyConnectorUpi {
+    UpiCollect(DummyConnectorUpiCollect),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub struct DummyConnectorUpiCollect {
+    vpa_id: Secret<String, pii::UpiVpaMaskingStrategy>,
+}
+
+impl TryFrom<domain::UpiCollectData> for DummyConnectorUpi {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: domain::UpiCollectData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::UpiCollect( DummyConnectorUpiCollect{
+            vpa_id: value.vpa_id.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "vpa_id",
+            })?,
+        }))
+    }
+}
+
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DummyConnectorCard {
@@ -161,6 +188,17 @@ impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
                     card_holder_name,
                 ))?))
             }
+            domain::PaymentMethodData::Upi(ref req_upi_data) => {
+                match req_upi_data {
+                    domain::UpiData::UpiCollect(data) => {
+                        Ok(PaymentMethodData::Upi(DummyConnectorUpi::try_from(
+                            data.clone(),
+                        )?))
+                    },
+                    domain::UpiData::UpiIntent(_) => 
+                    Err(errors::ConnectorError::NotImplemented("UPI Intent".to_string()).into()),
+                }
+            }
             domain::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodData::Wallet(wallet_data.clone().try_into()?))
             }
@@ -231,8 +269,14 @@ pub struct PaymentsResponse {
 #[serde(rename_all = "lowercase")]
 pub enum PaymentMethodType {
     Card,
+    Upi(DummyConnectorUpiType),
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum DummyConnectorUpiType {
+    UpiCollect
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>

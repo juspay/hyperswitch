@@ -1,5 +1,5 @@
 use api_models::enums::Currency;
-use common_utils::{errors::CustomResult, generate_id_with_default_len};
+use common_utils::{errors::CustomResult, generate_id_with_default_len, pii};
 use error_stack::report;
 use masking::Secret;
 use router_env::types::FlowMetric;
@@ -129,6 +129,7 @@ pub trait GetPaymentMethodDetails {
 #[serde(rename_all = "lowercase")]
 pub enum DummyConnectorPaymentMethodData {
     Card(DummyConnectorCard),
+    Upi(DummyConnectorUpi),
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
 }
@@ -140,6 +141,7 @@ pub enum DummyConnectorPaymentMethodData {
 pub enum DummyConnectorPaymentMethodType {
     #[default]
     Card,
+    Upi(DummyConnectorUpiType),
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
 }
@@ -148,6 +150,9 @@ impl From<DummyConnectorPaymentMethodData> for DummyConnectorPaymentMethodType {
     fn from(value: DummyConnectorPaymentMethodData) -> Self {
         match value {
             DummyConnectorPaymentMethodData::Card(_) => Self::Card,
+            DummyConnectorPaymentMethodData::Upi(upi_data) => match upi_data {
+                DummyConnectorUpi::UpiCollect(_) => Self::Upi(DummyConnectorUpiType::UpiCollect),
+            },
             DummyConnectorPaymentMethodData::Wallet(wallet) => Self::Wallet(wallet),
             DummyConnectorPaymentMethodData::PayLater(pay_later) => Self::PayLater(pay_later),
         }
@@ -158,6 +163,7 @@ impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
     fn get_name(&self) -> &'static str {
         match self {
             Self::Card => "3D Secure",
+            Self::Upi(upi_type) => upi_type.get_name(),
             Self::Wallet(wallet) => wallet.get_name(),
             Self::PayLater(pay_later) => pay_later.get_name(),
         }
@@ -166,6 +172,7 @@ impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
     fn get_image_link(&self, base_url: &str) -> String {
         match self {
             Self::Card => format!("{}{}", base_url, "CARD.svg"),
+            Self::Upi(upi_type) => upi_type.get_image_link(base_url),
             Self::Wallet(wallet) => wallet.get_image_link(base_url),
             Self::PayLater(pay_later) => pay_later.get_image_link(base_url),
         }
@@ -179,6 +186,17 @@ pub struct DummyConnectorCard {
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvc: Secret<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DummyConnectorUpiCollect {
+    pub vpa_id: Secret<String, pii::UpiVpaMaskingStrategy>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DummyConnectorUpi {
+    UpiCollect(DummyConnectorUpiCollect),
 }
 
 pub enum DummyConnectorCardFlow {
@@ -195,6 +213,26 @@ pub enum DummyConnectorWallet {
     AliPay,
     AliPayHK,
 }
+
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+pub enum DummyConnectorUpiType {
+    UpiCollect,
+}
+
+impl GetPaymentMethodDetails for DummyConnectorUpiType {
+    fn get_name(&self) -> &'static str {
+        match self {
+            Self::UpiCollect => "UPI Collect",
+        }
+    }
+    fn get_image_link(&self, base_url: &str) -> String {
+        let image_name = match self {
+            Self::UpiCollect => "UPI_COLLECT.svg"
+        };
+        format!("{}{}", base_url, image_name)
+    }
+}
+
 
 impl GetPaymentMethodDetails for DummyConnectorWallet {
     fn get_name(&self) -> &'static str {
@@ -376,3 +414,8 @@ pub type DummyConnectorResponse<T> =
     CustomResult<services::ApplicationResponse<T>, DummyConnectorErrors>;
 
 pub type DummyConnectorResult<T> = CustomResult<T, DummyConnectorErrors>;
+
+pub struct DummyConnectorUpiFlow {
+    pub status: DummyConnectorStatus,
+    pub error: Option<DummyConnectorErrors>,
+}
