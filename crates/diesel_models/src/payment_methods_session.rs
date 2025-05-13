@@ -12,7 +12,7 @@ pub struct PaymentMethodSession {
     pub expires_at: time::PrimitiveDateTime,
     pub associated_payment_methods: Option<Vec<common_utils::id_type::GlobalPaymentMethodId>>,
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
-    pub associated_token_id : Option<common_utils::id_type::GlobalTokenId>,
+    pub associated_token_id: Option<common_utils::id_type::GlobalTokenId>,
 }
 
 #[cfg(feature = "v2")]
