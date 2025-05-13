@@ -380,3 +380,11 @@ pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::M
         Ok(id_type::MerchantId::new_from_unix_timestamp())
     }
 }
+
+pub fn get_base_url(state: &SessionState) -> &str {
+    if !state.conf.multitenancy.enabled {
+        &state.conf.user.base_url
+    } else {
+        &state.tenant.user.control_center_url
+    }
+}
