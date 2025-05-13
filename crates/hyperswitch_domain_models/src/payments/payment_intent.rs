@@ -1,6 +1,4 @@
 #[cfg(feature = "v2")]
-use common_enums;
-#[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};

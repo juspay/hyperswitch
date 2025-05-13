@@ -670,7 +670,6 @@ fn compile_payment_method_enabled(
     Ok(agg_id)
 }
 
-#[allow(unused_macros)]
 macro_rules! collect_global_variants {
     ($parent_enum:ident) => {
         &mut dir::enums::$parent_enum::iter()
@@ -721,7 +720,6 @@ fn global_vec_pmt(
         .collect::<Vec<_>>()
 }
 
-#[allow(dead_code)]
 fn compile_graph_for_countries_and_currencies(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     config: &kgraph_types::CurrencyCountryFlowFilter,
