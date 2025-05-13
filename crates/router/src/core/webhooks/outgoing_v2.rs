@@ -12,10 +12,7 @@ use router_env::{
     tracing::{self, Instrument},
 };
 
-use super::{
-    types,
-    utils,
-};
+use super::{types, utils};
 use crate::{
     core::errors::{self, CustomResult},
     events::outgoing_webhook_logs,
@@ -385,9 +382,11 @@ async fn build_and_send_request(
         .await
 }
 
-fn parse_response_and_get_status_code(response: Option<crypto::Encryptable<masking::Secret<String>>>) -> Option<u16> {
-    let webhook_response: Option<webhook_events::OutgoingWebhookResponseContent> =
-        response.and_then(|res| {
+fn parse_response_and_get_status_code(
+    response: Option<crypto::Encryptable<masking::Secret<String>>>,
+) -> Option<u16> {
+    let webhook_response: Option<webhook_events::OutgoingWebhookResponseContent> = response
+        .and_then(|res| {
             ext_traits::StringExt::parse_struct(
                 masking::PeekInterface::peek(res.get_inner()),
                 "OutgoingWebhookResponseContent",

@@ -106,7 +106,7 @@ impl WebhookResponse {
                 Secret::from(String::from("Non-UTF-8 response body"))
             })
     }
-    
+
     fn get_header(&self) -> Vec<(String, Secret<String>)> {
         self.response
             .headers()
@@ -128,5 +128,4 @@ impl WebhookResponse {
             })
             .collect::<Vec<_>>()
     }
-    
 }

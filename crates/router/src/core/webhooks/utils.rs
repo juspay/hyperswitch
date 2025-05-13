@@ -175,7 +175,9 @@ pub fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_
     )
 }
 
-pub fn increment_webhook_outgoing_not_received_count(merchant_id: &common_utils::id_type::MerchantId) {
+pub fn increment_webhook_outgoing_not_received_count(
+    merchant_id: &common_utils::id_type::MerchantId,
+) {
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
         1,
         router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
