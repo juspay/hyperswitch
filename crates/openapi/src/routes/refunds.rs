@@ -129,6 +129,7 @@ pub async fn refunds_update() {}
     operation_id = "List all Refunds",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn refunds_list() {}
 
 /// Refunds - List For the Given profiles
@@ -266,3 +267,20 @@ pub async fn refunds_metadata_update() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn refunds_retrieve() {}
+
+/// Refunds - List
+///
+/// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
+#[utoipa::path(
+    get,
+    path = "/v2/refunds/list",
+    request_body=RefundListRequest,
+    responses(
+        (status = 200, description = "List of refunds", body = RefundListResponse),
+    ),
+    tag = "Refunds",
+    operation_id = "List all Refunds",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub fn refunds_list() {}
