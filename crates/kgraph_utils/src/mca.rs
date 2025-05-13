@@ -1,20 +1,15 @@
 #[cfg(feature = "v1")]
 use std::str::FromStr;
 
-use api_models::enums as api_enums;
 #[cfg(feature = "v1")]
-use api_models::{
-    admin as admin_api, payment_methods::RequestPaymentMethodTypes, refunds::MinorUnit,
-};
-use euclid::frontend::dir;
-#[cfg(feature = "v1")]
+use api_models::payment_methods::RequestPaymentMethodTypes;
+use api_models::{admin as admin_api, enums as api_enums, refunds::MinorUnit};
 use euclid::{
     dirval,
-    frontend::ast,
+    frontend::{ast, dir},
     types::{NumValue, NumValueRefinement},
 };
 use hyperswitch_constraint_graph as cgraph;
-#[cfg(feature = "v1")]
 use strum::IntoEnumIterator;
 
 use crate::{error::KgraphError, transformers::IntoDirValue, types as kgraph_types};

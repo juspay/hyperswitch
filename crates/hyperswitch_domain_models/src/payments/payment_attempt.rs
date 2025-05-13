@@ -49,10 +49,11 @@ use crate::{
     router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
+use crate::{behaviour, errors, ForeignIDRef};
+#[cfg(feature = "v1")]
 use crate::{
-    behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    router_request_types, ForeignIDRef,
+    router_request_types,
 };
 
 #[async_trait::async_trait]
