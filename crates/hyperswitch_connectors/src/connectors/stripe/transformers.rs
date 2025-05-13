@@ -2058,7 +2058,7 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
 impl TryFrom<&TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
-        // Card flow for tokenization is handled seperately because of API contact difference
+        // Card flow for tokenization is handled separately because of API contact difference
         let request_payment_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
@@ -2667,6 +2667,45 @@ pub fn get_connector_metadata(
     Ok(next_action_response)
 }
 
+pub fn get_payment_method_id(
+    latest_charge: Option<StripeChargeEnum>,
+    payment_method_id_from_intent_root: Secret<String>,
+) -> String {
+    match latest_charge {
+        Some(StripeChargeEnum::ChargeObject(charge)) => match charge.payment_method_details {
+            Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => bancontact
+                .attached_payment_method
+                .map(|attached_payment_method| attached_payment_method.expose())
+                .unwrap_or(payment_method_id_from_intent_root.expose()),
+            Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => ideal
+                .attached_payment_method
+                .map(|attached_payment_method| attached_payment_method.expose())
+                .unwrap_or(payment_method_id_from_intent_root.expose()),
+            Some(StripePaymentMethodDetailsResponse::Blik)
+            | Some(StripePaymentMethodDetailsResponse::Eps)
+            | Some(StripePaymentMethodDetailsResponse::Fpx)
+            | Some(StripePaymentMethodDetailsResponse::Giropay)
+            | Some(StripePaymentMethodDetailsResponse::Przelewy24)
+            | Some(StripePaymentMethodDetailsResponse::Card { .. })
+            | Some(StripePaymentMethodDetailsResponse::Klarna)
+            | Some(StripePaymentMethodDetailsResponse::Affirm)
+            | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+            | Some(StripePaymentMethodDetailsResponse::AmazonPay)
+            | Some(StripePaymentMethodDetailsResponse::ApplePay)
+            | Some(StripePaymentMethodDetailsResponse::Ach)
+            | Some(StripePaymentMethodDetailsResponse::Sepa)
+            | Some(StripePaymentMethodDetailsResponse::Becs)
+            | Some(StripePaymentMethodDetailsResponse::Bacs)
+            | Some(StripePaymentMethodDetailsResponse::Wechatpay)
+            | Some(StripePaymentMethodDetailsResponse::Alipay)
+            | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
+            | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
+            | None => payment_method_id_from_intent_root.expose(),
+        },
+        Some(StripeChargeEnum::ChargeId(_)) | None => payment_method_id_from_intent_root.expose(),
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, PaymentIntentSyncResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
@@ -2689,46 +2728,11 @@ where
                 // Implemented Save and re-use payment information for recurring charges
                 // For more info: https://docs.stripe.com/recurring-payments#accept-recurring-payments
                 // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
-                let connector_mandate_id = Some(payment_method_id.clone().expose());
-                let payment_method_id = match item.response.latest_charge.clone() {
-                    Some(StripeChargeEnum::ChargeObject(charge)) => {
-                        match charge.payment_method_details {
-                            Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
-                                bancontact
-                                    .attached_payment_method
-                                    .map(|attached_payment_method| attached_payment_method.expose())
-                                    .unwrap_or(payment_method_id.expose())
-                            }
-                            Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => ideal
-                                .attached_payment_method
-                                .map(|attached_payment_method| attached_payment_method.expose())
-                                .unwrap_or(payment_method_id.expose()),
-                            Some(StripePaymentMethodDetailsResponse::Blik)
-                            | Some(StripePaymentMethodDetailsResponse::Eps)
-                            | Some(StripePaymentMethodDetailsResponse::Fpx)
-                            | Some(StripePaymentMethodDetailsResponse::Giropay)
-                            | Some(StripePaymentMethodDetailsResponse::Przelewy24)
-                            | Some(StripePaymentMethodDetailsResponse::Card { .. })
-                            | Some(StripePaymentMethodDetailsResponse::Klarna)
-                            | Some(StripePaymentMethodDetailsResponse::Affirm)
-                            | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
-                            | Some(StripePaymentMethodDetailsResponse::AmazonPay)
-                            | Some(StripePaymentMethodDetailsResponse::ApplePay)
-                            | Some(StripePaymentMethodDetailsResponse::Ach)
-                            | Some(StripePaymentMethodDetailsResponse::Sepa)
-                            | Some(StripePaymentMethodDetailsResponse::Becs)
-                            | Some(StripePaymentMethodDetailsResponse::Bacs)
-                            | Some(StripePaymentMethodDetailsResponse::Wechatpay)
-                            | Some(StripePaymentMethodDetailsResponse::Alipay)
-                            | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
-                            | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
-                            | None => payment_method_id.expose(),
-                        }
-                    }
-                    Some(StripeChargeEnum::ChargeId(_)) | None => payment_method_id.expose(),
-                };
+                let payment_method_id =
+                    get_payment_method_id(item.response.latest_charge.clone(), payment_method_id);
+
                 MandateReference {
-                    connector_mandate_id,
+                    connector_mandate_id: Some(payment_method_id.clone()),
                     payment_method_id: Some(payment_method_id),
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
