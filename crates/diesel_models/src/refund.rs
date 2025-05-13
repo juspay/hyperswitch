@@ -757,6 +757,24 @@ impl RefundUpdate {
             processor_refund_data: connector_refund_id.extract_hashed_data(),
         }
     }
+
+    pub fn build_error_update_for_refund_failure(
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_error_message: Option<String>,
+        refund_error_code: Option<String>,
+        storage_scheme: &storage_enums::MerchantStorageScheme,
+    ) -> Self {
+        Self::ErrorUpdate {
+            refund_status,
+            refund_error_message,
+            refund_error_code,
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
+            processor_refund_data: None,
+            unified_code: None,
+            unified_message: None,
+        }
+    }
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
