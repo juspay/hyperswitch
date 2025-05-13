@@ -513,6 +513,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
                 enums::Connector::Stripebilling => Ok(ConnectorEnum::Old(Box::new(
+			enums::Connector::Tabapay => Ok(ConnectorEnum::Old(Box::new(connector::Tabapay))),
                     connector::Stripebilling::new(),
                 ))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),

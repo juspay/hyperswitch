@@ -4,6 +4,7 @@ pub mod stripe;
 pub mod utils;
 
 pub use hyperswitch_connectors::connectors::{
+    tabapay, tabapay::Tabapay,
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
     airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, authorizedotnet,
     authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,

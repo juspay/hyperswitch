@@ -317,7 +317,8 @@ macro_rules! default_imp_for_connector_request_id {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
-default_imp_for_connector_request_id!(connector::Stripe);
+default_imp_for_connector_request_id!(
+    connectors::Tabapay,connector::Stripe);
 
 macro_rules! default_imp_for_accept_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -848,7 +849,8 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 #[cfg(feature = "frm")]
-default_imp_for_fraud_check!(connector::Stripe);
+default_imp_for_fraud_check!(
+    connectors::Tabapay,connector::Stripe);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_sale {
@@ -1147,7 +1149,8 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_connector_authentication!(connector::Stripe);
+default_imp_for_connector_authentication!(
+    connectors::Tabapay,connector::Stripe);
 
 macro_rules! default_imp_for_authorize_session_token {
     ($($path:ident::$connector:ident),*) => {

@@ -328,3 +328,7 @@ api_key = "API Key"
 
 [recurly]
 api_key= "API Key"
+
+[tabapay]
+api_key = "Bearer MyTabaPayApiKey"
+key1 = "MyTabaPayMerchantId"
