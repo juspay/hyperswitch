@@ -72,6 +72,7 @@ pub struct Profile {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -123,6 +124,7 @@ pub struct ProfileSetter {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -179,6 +181,7 @@ impl From<ProfileSetter> for Profile {
             force_3ds_challenge: value.force_3ds_challenge,
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
+            is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
         }
     }
 }
@@ -237,6 +240,7 @@ pub struct ProfileGeneralUpdate {
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -310,6 +314,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     force_3ds_challenge,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_iframe_redirection_enabled,
                 } = *update;
 
                 Self {
@@ -356,6 +361,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     force_3ds_challenge,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_iframe_redirection_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -404,6 +410,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -450,6 +457,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -496,6 +504,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -542,6 +551,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -588,6 +598,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -634,6 +645,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
             },
         }
     }
@@ -700,6 +712,7 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: Some(self.force_3ds_challenge),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
         })
     }
 
@@ -790,6 +803,7 @@ impl super::behaviour::Conversion for Profile {
                 force_3ds_challenge: item.force_3ds_challenge.unwrap_or_default(),
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,
+                is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             })
         }
         .await
@@ -851,6 +865,7 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: Some(self.force_3ds_challenge),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
         })
     }
 }
@@ -907,6 +922,7 @@ pub struct Profile {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -961,6 +977,7 @@ pub struct ProfileSetter {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -1020,6 +1037,7 @@ impl From<ProfileSetter> for Profile {
             merchant_business_country: value.merchant_business_country,
             revenue_recovery_retry_algorithm_type: value.revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: value.revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_external_vault_enabled: value.is_external_vault_enabled,
             external_vault_connector_details: value.external_vault_connector_details,
         }
@@ -1080,6 +1098,7 @@ pub struct ProfileGeneralUpdate {
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -1157,6 +1176,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_secret_key,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    is_iframe_redirection_enabled,
                     is_external_vault_enabled,
                     external_vault_connector_details,
                 } = *update;
@@ -1207,6 +1227,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     revenue_recovery_retry_algorithm_type: None,
                     revenue_recovery_retry_algorithm_data: None,
+                    is_iframe_redirection_enabled: None,
                     is_external_vault_enabled,
                     external_vault_connector_details,
                 }
@@ -1260,6 +1281,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1311,6 +1333,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1362,6 +1385,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1413,6 +1437,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1464,6 +1489,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1515,6 +1541,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1566,6 +1593,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1617,6 +1645,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1669,6 +1698,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: Some(revenue_recovery_retry_algorithm_type),
                 revenue_recovery_retry_algorithm_data,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
@@ -1742,6 +1772,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
         })
@@ -1835,6 +1866,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_business_country: item.merchant_business_country,
                 revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
                 revenue_recovery_retry_algorithm_data: item.revenue_recovery_retry_algorithm_data,
+                is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
                 is_external_vault_enabled: item.is_external_vault_enabled,
                 external_vault_connector_details: item.external_vault_connector_details,
             })
@@ -1902,6 +1934,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
         })
