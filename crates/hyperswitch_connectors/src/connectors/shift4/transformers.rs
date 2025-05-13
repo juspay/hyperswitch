@@ -339,6 +339,8 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland { .. }
+            | BankTransferData::InstantBankTransferPoland { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),

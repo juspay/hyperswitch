@@ -765,6 +765,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::LocalBankTransfer
             | enums::PaymentMethodType::InstantBankTransfer
+            | enums::PaymentMethodType::InstantBankTransferFinland
+            | enums::PaymentMethodType::InstantBankTransferPoland
             | enums::PaymentMethodType::SepaBankTransfer
             | enums::PaymentMethodType::Walley
             | enums::PaymentMethodType::Fps
@@ -1296,6 +1298,8 @@ fn create_stripe_payment_method(
                 domain::BankTransferData::Pse {}
                 | domain::BankTransferData::LocalBankTransfer { .. }
                 | domain::BankTransferData::InstantBankTransfer {}
+                | domain::BankTransferData::InstantBankTransferFinland { .. }
+                | domain::BankTransferData::InstantBankTransferPoland { .. }
                 | domain::BankTransferData::PermataBankTransfer { .. }
                 | domain::BankTransferData::BcaBankTransfer { .. }
                 | domain::BankTransferData::BniVaBankTransfer { .. }
@@ -3928,6 +3932,8 @@ impl
                 | domain::BankTransferData::DanamonVaBankTransfer { .. }
                 | domain::BankTransferData::LocalBankTransfer { .. }
                 | domain::BankTransferData::InstantBankTransfer {}
+                | domain::BankTransferData::InstantBankTransferFinland {}
+                | domain::BankTransferData::InstantBankTransferPoland {}
                 | domain::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("stripe"),

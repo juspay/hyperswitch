@@ -3225,6 +3225,56 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
             )]),
         ),
         (
+            enums::PaymentMethodType::InstantBankTransferFinland,
+            connectors(vec![(
+                Connector::Trustpay,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::Email,
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["FI"]),
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::InstantBankTransferPoland,
+            connectors(vec![(
+                Connector::Trustpay,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::Email,
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["PL"]),
+                    ],
+                ),
+            )]),
+        ),
+        (
             enums::PaymentMethodType::Bacs,
             connectors(vec![(
                 Connector::Stripe,
