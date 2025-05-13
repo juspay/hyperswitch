@@ -74,8 +74,6 @@ hkdf = "0.12.4"
 http = "0.2.12"
 hyper = "0.14.28"
 infer = "0.15.0"
-iso_currency = "0.4.4"
-isocountry = "0.3.2"
 josekit = "0.8.6"
 jsonwebtoken = "9.2.0"
 maud = { version = "0.26.0", features = ["actix-web"] }
