@@ -393,6 +393,14 @@ pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::M
     }
 }
 
+pub fn get_base_url(state: &SessionState) -> &str {
+    if !state.conf.multitenancy.enabled {
+        &state.conf.user.base_url
+    } else {
+        &state.tenant.user.control_center_url
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
