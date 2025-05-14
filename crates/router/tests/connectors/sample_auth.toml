@@ -324,3 +324,7 @@ api_key = "API Key"
 
 [recurly]
 api_key= "API Key"
+
+[sumup]
+api_key = "{{SumUpApiKey}}" # User will replace with actual sandbox key
+# merchant_code = "{{SumUpMerchantCode}}" # If needed for tests and not part of connector_account_details

@@ -69,6 +69,7 @@ pub mod shift4;
 pub mod square;
 pub mod stax;
 pub mod stripebilling;
+pub mod sumup;
 pub mod taxjar;
 pub mod thunes;
 pub mod trustpay;
@@ -83,15 +84,14 @@ pub mod zen;
 pub mod zsl;
 
 pub use self::{
-    aci::Aci, adyen::Adyen, amazonpay::Amazonpay,
-    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
-    bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap,
-    boku::Boku, braintree::Braintree, cashtocode::Cashtocode, chargebee::Chargebee,
-    checkout::Checkout, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
-    ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
-    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon,
-    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
-    getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    aci::Aci, adyen::Adyen, amazonpay::Amazonpay, authorizedotnet::Authorizedotnet,
+    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk,
+    bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
+    chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
+    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, cybersource::Cybersource,
+    datatrans::Datatrans, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
+    elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu,
+    forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, multisafepay::Multisafepay,
@@ -99,8 +99,8 @@ pub use self::{
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
     paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
-    shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
-    thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
+    shift4::Shift4, square::Square, stax::Stax, stripebilling::Stripebilling, sumup::Sumup,
+    taxjar::Taxjar, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
     zsl::Zsl,

@@ -93,6 +93,7 @@ pub struct Connectors {
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub stripebilling: ConnectorParams,
+    pub sumup: ConnectorParams,
     pub taxjar: ConnectorParams,
     pub threedsecureio: ConnectorParams,
     pub thunes: ConnectorParams,
