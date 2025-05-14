@@ -123,7 +123,7 @@ All notable changes to HyperSwitch will be documented here.
 - **authentication:** Create authentications to fallback to ApiKeyAuth if AdminApiAuth fails ([#7744](https://github.com/juspay/hyperswitch/pull/7744)) ([`d6c26c5`](https://github.com/juspay/hyperswitch/commit/d6c26c5d75652a2ba2ecfbc0df7d33172df1705b))
 - **connector:**
   - Add recovery support for recurly [v2] ([#7497](https://github.com/juspay/hyperswitch/pull/7497)) ([`68e22ee`](https://github.com/juspay/hyperswitch/commit/68e22eefe81980666737e34336210dbea57ff40d))
-  - [AIRWALLEX, ELAVON, NOVALNET, XENDIT] add in feature API ([#7163](https://github.com/juspay/hyperswitch/pull/7163)) ([`98738d0`](https://github.com/juspay/hyperswitch/commit/98738d0b923415a0f72ea9d7b535ab376bc12a20))
+  - [ELAVON, NOVALNET, XENDIT] add in feature API ([#7163](https://github.com/juspay/hyperswitch/pull/7163)) ([`98738d0`](https://github.com/juspay/hyperswitch/commit/98738d0b923415a0f72ea9d7b535ab376bc12a20))
 - **router:** Support `card` in `payment_method_subtype` [V2] ([#7662](https://github.com/juspay/hyperswitch/pull/7662)) ([`187cceb`](https://github.com/juspay/hyperswitch/commit/187cceb39d760ada4f1df816f8174d59602e68eb))
 - Add open API reference for Intelligent router ([#7727](https://github.com/juspay/hyperswitch/pull/7727)) ([`bce9d48`](https://github.com/juspay/hyperswitch/commit/bce9d48277853824668e09d774ce55352623e243))
 
@@ -1532,7 +1532,7 @@ All notable changes to HyperSwitch will be documented here.
 
 ### Refactors
 
-- **connector:** [Airwallex] add device_data in payment request ([#6881](https://github.com/juspay/hyperswitch/pull/6881)) ([`573974b`](https://github.com/juspay/hyperswitch/commit/573974b3a5d53b279bd3959e400ac682aaacd474))
+<!--  -->
 - **customers_v2:** Include minor fixes for customer v2 flows ([#6876](https://github.com/juspay/hyperswitch/pull/6876)) ([`5cdeaf8`](https://github.com/juspay/hyperswitch/commit/5cdeaf8e6002ad087dba2a562f86b51e97516d29))
 - **dynamic_routing:** Add col payment_method_type in dynamic_routing_stats ([#6853](https://github.com/juspay/hyperswitch/pull/6853)) ([`492fd87`](https://github.com/juspay/hyperswitch/commit/492fd871a14e60e02f17fe073544bc40e79a7220))
 - **grpc:** Send `x-tenant-id` and `x-request-id` in grpc headers ([#6904](https://github.com/juspay/hyperswitch/pull/6904)) ([`dc0a92d`](https://github.com/juspay/hyperswitch/commit/dc0a92dc108c91d6c5f998af417e382aa7a0d9f1))

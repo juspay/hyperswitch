@@ -232,7 +232,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Apple pay and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -398,7 +398,7 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Apple pay and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<pii::SecretSerdeValue>,
 
@@ -568,7 +568,7 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Apple pay and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<pii::SecretSerdeValue>,
 
@@ -1072,7 +1072,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<serde_json::Value>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Apple pay and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -5388,7 +5388,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Apple pay and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -6680,11 +6680,10 @@ pub struct ApplepaySessionRequest {
     pub initiative_context: String,
 }
 
-/// Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+/// Some connectors like Apple Pay and Noon might require some additional information, find specific details in the child attributes below.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
-    pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
     pub braintree: Option<BraintreeData>,
 }
@@ -6715,11 +6714,6 @@ impl ConnectorMetadata {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct AirwallexData {
-    /// payload required by airwallex
-    payload: Option<String>,
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct NoonData {

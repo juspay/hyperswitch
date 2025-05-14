@@ -117,7 +117,7 @@ macro_rules! default_imp_for_authorize_session_token {
 default_imp_for_authorize_session_token!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -216,7 +216,7 @@ macro_rules! default_imp_for_calculate_tax {
 default_imp_for_calculate_tax!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -316,7 +316,7 @@ macro_rules! default_imp_for_session_update {
 default_imp_for_session_update!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -416,7 +416,7 @@ macro_rules! default_imp_for_post_session_tokens {
 default_imp_for_post_session_tokens!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -600,7 +600,7 @@ macro_rules! default_imp_for_incremental_authorization {
 default_imp_for_incremental_authorization!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -700,7 +700,7 @@ macro_rules! default_imp_for_create_customer {
 default_imp_for_create_customer!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -974,7 +974,7 @@ macro_rules! default_imp_for_post_processing_steps{
 default_imp_for_post_processing_steps!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1076,7 +1076,7 @@ macro_rules! default_imp_for_approve {
 default_imp_for_approve!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1178,7 +1178,7 @@ macro_rules! default_imp_for_reject {
 default_imp_for_reject!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1280,7 +1280,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 default_imp_for_webhook_source_verification!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1381,7 +1381,7 @@ macro_rules! default_imp_for_accept_dispute {
 
 default_imp_for_accept_dispute!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1481,7 +1481,7 @@ macro_rules! default_imp_for_submit_evidence {
 
 default_imp_for_submit_evidence!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1581,7 +1581,7 @@ macro_rules! default_imp_for_defend_dispute {
 
 default_imp_for_defend_dispute!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1690,7 +1690,7 @@ macro_rules! default_imp_for_file_upload {
 
 default_imp_for_file_upload!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1783,7 +1783,7 @@ macro_rules! default_imp_for_payouts {
 
 default_imp_for_payouts!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1882,7 +1882,7 @@ macro_rules! default_imp_for_payouts_create {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -1984,7 +1984,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 default_imp_for_payouts_retrieve!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2085,7 +2085,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2187,7 +2187,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2287,7 +2287,7 @@ macro_rules! default_imp_for_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
     connectors::Aci,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2390,7 +2390,7 @@ macro_rules! default_imp_for_payouts_quote {
 default_imp_for_payouts_quote!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2493,7 +2493,7 @@ macro_rules! default_imp_for_payouts_recipient {
 default_imp_for_payouts_recipient!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2596,7 +2596,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 default_imp_for_payouts_recipient_account!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2699,7 +2699,7 @@ macro_rules! default_imp_for_frm_sale {
 default_imp_for_frm_sale!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2803,7 +2803,7 @@ macro_rules! default_imp_for_frm_checkout {
 default_imp_for_frm_checkout!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -2907,7 +2907,7 @@ macro_rules! default_imp_for_frm_transaction {
 default_imp_for_frm_transaction!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3011,7 +3011,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 default_imp_for_frm_fulfillment!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3115,7 +3115,7 @@ macro_rules! default_imp_for_frm_record_return {
 default_imp_for_frm_record_return!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3216,7 +3216,7 @@ macro_rules! default_imp_for_revoking_mandates {
 default_imp_for_revoking_mandates!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3314,7 +3314,7 @@ macro_rules! default_imp_for_uas_pre_authentication {
 default_imp_for_uas_pre_authentication!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3413,7 +3413,7 @@ macro_rules! default_imp_for_uas_post_authentication {
 default_imp_for_uas_post_authentication!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3513,7 +3513,7 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 default_imp_for_uas_authentication_confirmation!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3605,7 +3605,7 @@ macro_rules! default_imp_for_connector_request_id {
 default_imp_for_connector_request_id!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Authorizedotnet,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -3699,7 +3699,7 @@ macro_rules! default_imp_for_fraud_check {
 default_imp_for_fraud_check!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3825,7 +3825,7 @@ macro_rules! default_imp_for_connector_authentication {
 default_imp_for_connector_authentication!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -3925,7 +3925,7 @@ macro_rules! default_imp_for_uas_authentication {
 default_imp_for_uas_authentication!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -4017,7 +4017,7 @@ macro_rules! default_imp_for_revenue_recovery {
 default_imp_for_revenue_recovery! {
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -4120,7 +4120,7 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 default_imp_for_billing_connector_payment_sync!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,
@@ -4221,7 +4221,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 default_imp_for_revenue_recovery_record_back!(
     connectors::Aci,
     connectors::Adyen,
-    connectors::Airwallex,
+    
     connectors::Amazonpay,
     connectors::Authorizedotnet,
     connectors::Bambora,

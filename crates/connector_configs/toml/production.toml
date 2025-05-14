@@ -253,50 +253,6 @@ required=true
 type="Text"
 
 
-[airwallex]
-[[airwallex.credit]]
-  payment_method_type = "Mastercard"
-[[airwallex.credit]]
-  payment_method_type = "Visa"
-[[airwallex.credit]]
-  payment_method_type = "Interac"
-[[airwallex.credit]]
-  payment_method_type = "AmericanExpress"
-[[airwallex.credit]]
-  payment_method_type = "JCB"
-[[airwallex.credit]]
-  payment_method_type = "DinersClub"
-[[airwallex.credit]]
-  payment_method_type = "Discover"
-[[airwallex.credit]]
-  payment_method_type = "CartesBancaires"
-[[airwallex.credit]]
-  payment_method_type = "UnionPay"
-[[airwallex.debit]]
-  payment_method_type = "Mastercard"
-[[airwallex.debit]]
-  payment_method_type = "Visa"
-[[airwallex.debit]]
-  payment_method_type = "Interac"
-[[airwallex.debit]]
-  payment_method_type = "AmericanExpress"
-[[airwallex.debit]]
-  payment_method_type = "JCB"
-[[airwallex.debit]]
-  payment_method_type = "DinersClub"
-[[airwallex.debit]]
-  payment_method_type = "Discover"
-[[airwallex.debit]]
-  payment_method_type = "CartesBancaires"
-[[airwallex.debit]]
-  payment_method_type = "UnionPay"
-body_type="BodyKey"
-[airwallex.connector_auth.BodyKey]
-api_key="API Key"
-key1="Client ID"
-[airwallex.connector_webhook_details]
-merchant_secret="Source verification key"
-
 [authorizedotnet]
 [[authorizedotnet.credit]]
   payment_method_type = "Mastercard"

@@ -56,7 +56,6 @@ pub enum RoutableConnectors {
     DummyConnector7,
     Aci,
     Adyen,
-    Airwallex,
     // Amazonpay,
     Authorizedotnet,
     Bankofamerica,
@@ -199,7 +198,6 @@ pub enum Connector {
     DummyConnector7,
     Aci,
     Adyen,
-    Airwallex,
     // Amazonpay,
     Authorizedotnet,
     Bambora,
@@ -330,7 +328,6 @@ impl Connector {
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
-            (Self::Airwallex, _)
                 | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Jpmorgan, _)
@@ -366,7 +363,6 @@ impl Connector {
             // Add Separate authentication support for connectors
             | Self::Adyen
             | Self::Adyenplatform
-            | Self::Airwallex
             // | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
@@ -461,7 +457,7 @@ impl Connector {
     }
 
     pub fn is_pre_processing_required_before_authorize(self) -> bool {
-        matches!(self, Self::Airwallex)
+        matches!(self)
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
@@ -515,7 +511,6 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::DummyConnector7 => Self::DummyConnector7,
             RoutableConnectors::Aci => Self::Aci,
             RoutableConnectors::Adyen => Self::Adyen,
-            RoutableConnectors::Airwallex => Self::Airwallex,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
             RoutableConnectors::Billwerk => Self::Billwerk,
@@ -623,7 +618,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::DummyConnector7 => Ok(Self::DummyConnector7),
             Connector::Aci => Ok(Self::Aci),
             Connector::Adyen => Ok(Self::Adyen),
-            Connector::Airwallex => Ok(Self::Airwallex),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
             Connector::Billwerk => Ok(Self::Billwerk),

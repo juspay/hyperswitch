@@ -8,7 +8,6 @@
 mod aci_ui;
 mod adyen_uk_ui;
 mod adyen_uk_wh_ui;
-mod airwallex_ui;
 mod authorizedotnet_ui;
 mod authorizedotnet_wh_ui;
 mod bambora_ui;

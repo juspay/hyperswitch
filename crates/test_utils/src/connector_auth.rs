@@ -16,7 +16,6 @@ pub struct ConnectorAuthentication {
     pub adyen_uk: Option<BodyKey>,
     #[cfg(feature = "payouts")]
     pub adyen_uk: Option<SignatureKey>,
-    pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<HeaderKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
@@ -345,7 +344,6 @@ pub struct AutomationConfigs {
     pub globalpay_gateway_merchant_id: Option<String>,
     pub authorizedotnet_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
-    pub airwallex_merchant_name: Option<String>,
     pub adyen_bancontact_username: Option<String>,
     pub adyen_bancontact_pass: Option<String>,
 }
