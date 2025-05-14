@@ -5390,7 +5390,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
-    pub authentication: Option<domain::authentication::AuthenticationStore>,
+    pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
@@ -7704,7 +7704,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             auth_response,
             authentication.clone(),
             None,
-            merchant_context.get_merchant_key_store(),
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
@@ -7738,7 +7737,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             payment_intent.psd2_sca_exemption_type,
             payment_intent.payment_id,
             payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
-            merchant_context.get_merchant_key_store(),
         ))
         .await?
     };
@@ -8029,9 +8027,7 @@ pub trait OperationSessionGetters<F> {
     fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey>;
     fn get_setup_mandate(&self) -> Option<&MandateData>;
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
-    fn get_authentication(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>;
+    fn get_authentication(&self) -> Option<&storage::Authentication>;
     fn get_frm_message(&self) -> Option<FraudCheck>;
     fn get_refunds(&self) -> Vec<storage::Refund>;
     fn get_disputes(&self) -> Vec<storage::Dispute>;
@@ -8162,10 +8158,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.poll_config.clone()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&storage::Authentication> {
         self.authentication.as_ref()
     }
 
@@ -8431,10 +8424,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&storage::Authentication> {
         todo!()
     }
 
@@ -8655,10 +8645,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&storage::Authentication> {
         todo!()
     }
 
@@ -8880,10 +8867,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&storage::Authentication> {
         todo!()
     }
 
@@ -9105,10 +9089,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&storage::Authentication> {
         todo!()
     }
 
