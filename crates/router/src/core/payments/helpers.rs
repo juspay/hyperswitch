@@ -2116,6 +2116,11 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             .network_token_requestor_reference_id
             .clone(),
     );
+
+    let co_badged_card_data = payment_method_info
+        .get_payment_methods_data()
+        .and_then(|payment_methods_data| payment_methods_data.get_co_badged_card_data());
+
     match vault_fetch_action {
         VaultFetchAction::FetchCardDetailsFromLocker => {
             let card = vault_data
@@ -2128,6 +2133,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                         &payment_intent.merchant_id,
                         locker_id,
                         card_token_data,
+                        co_badged_card_data,
                     )
                     .await
                 })
@@ -2178,6 +2184,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                     &payment_intent.merchant_id,
                                     locker_id,
                                     card_token_data,
+                                    co_badged_card_data,
                                 )
                                 .await
                             })
@@ -2242,6 +2249,7 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
             &payment_intent.merchant_id,
             locker_id,
             card_token_data,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2259,7 +2267,9 @@ pub async fn fetch_card_details_from_locker(
     merchant_id: &id_type::MerchantId,
     locker_id: &str,
     card_token_data: Option<&domain::CardToken>,
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
 ) -> RouterResult<domain::Card> {
+    logger::debug!("Fetching card details from locker");
     let card = cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2304,7 +2314,7 @@ pub async fn fetch_card_details_from_locker(
         card_issuing_country: None,
         bank_code: None,
     };
-    Ok(api_card.into())
+    Ok(domain::Card::from((api_card, co_badged_card_data)))
 }
 
 #[cfg(all(
@@ -4737,15 +4747,26 @@ pub async fn get_additional_payment_data(
                 _ => None,
             };
 
-            let card_network = match card_data
+            // Added an additional check for card_data.co_badged_card_data.is_some()
+            // because is_cobadged_card() only returns true if the card number matches a specific regex.
+            // However, this regex does not cover all possible co-badged networks.
+            // The co_badged_card_data field is populated based on a co-badged BIN lookup
+            // and helps identify co-badged cards that may not match the regex alone.
+            // Determine the card network based on cobadge detection and co-badged BIN data
+            let is_cobadged_based_on_regex = card_data
                 .card_number
                 .is_cobadged_card()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Card cobadge check failed due to an invalid card network regex",
-                )? {
-                true => card_data.card_network.clone(),
-                false => None,
+                )?;
+
+            let card_network = match (
+                is_cobadged_based_on_regex,
+                card_data.co_badged_card_data.is_some(),
+            ) {
+                (false, false) => None,
+                _ => card_data.card_network.clone(),
             };
 
             let last4 = Some(card_data.card_number.get_last4());

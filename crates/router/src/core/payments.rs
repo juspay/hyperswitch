@@ -360,7 +360,7 @@ where
         &operation,
         state,
         &business_profile,
-        &payment_data,
+        &mut payment_data,
         connector,
     )
     .await;
@@ -615,8 +615,8 @@ where
                         (business_profile.is_debit_routing_enabled && is_debit_routing_performed)
                             .then(|| find_connector_with_networks(&mut connectors))
                             .flatten()
-                            .map(|(connector_data, local_network)| {
-                                payment_data.set_local_network(local_network);
+                            .map(|(connector_data, network)| {
+                                payment_data.set_card_network(network);
                                 connector_data
                             }) {
                         connector_from_network
@@ -8076,7 +8076,11 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     );
-    fn set_local_network(&mut self, local_network: enums::CardNetwork);
+    fn set_card_network(&mut self, card_network: enums::CardNetwork);
+    fn set_co_badged_card_data(
+        &mut self,
+        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+    );
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     fn set_frm_message(&mut self, frm_message: FraudCheck);
@@ -8306,9 +8310,37 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_attempt.merchant_connector_id = merchant_connector_id;
     }
 
-    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+    fn set_card_network(&mut self, card_network: enums::CardNetwork) {
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
-            card.card_network = Some(local_network);
+            card.card_network = Some(card_network);
+        };
+    }
+
+    fn set_co_badged_card_data(
+        &mut self,
+        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+    ) {
+        let co_badged_card_data =
+            api_models::payment_methods::CoBadgedCardData::from(debit_routing_ouput);
+        let card_type = debit_routing_ouput
+            .card_type
+            .clone()
+            .to_string()
+            .to_uppercase();
+        logger::debug!("set co-badged card data");
+        if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
+            card.co_badged_card_data = Some(co_badged_card_data);
+            card.card_type = Some(card_type);
+            logger::debug!("set co-badged card data in payment method data");
+        } else if let Some(
+            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card),
+        ) = &mut self
+            .get_payment_method_info()
+            .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
+        {
+            card.co_badged_card_data = Some(co_badged_card_data);
+            card.card_type = Some(card_type);
+            logger::debug!("set co-badged card data in payment method info");
         };
     }
 
@@ -8534,7 +8566,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+    fn set_card_network(&mut self, card_network: enums::CardNetwork) {
+        todo!()
+    }
+
+    fn set_co_badged_card_data(
+        &mut self,
+        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+    ) {
         todo!()
     }
 
@@ -8775,7 +8814,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+    fn set_card_network(&mut self, card_network: enums::CardNetwork) {
+        todo!()
+    }
+
+    fn set_co_badged_card_data(
+        &mut self,
+        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+    ) {
         todo!()
     }
 
@@ -8988,7 +9034,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+    fn set_card_network(&mut self, card_network: enums::CardNetwork) {
+        todo!()
+    }
+
+    fn set_co_badged_card_data(
+        &mut self,
+        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+    ) {
         todo!()
     }
 
@@ -9211,7 +9264,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn set_local_network(&mut self, local_network: enums::CardNetwork) {
+    fn set_card_network(&mut self, card_network: enums::CardNetwork) {
+        todo!()
+    }
+
+    fn set_co_badged_card_data(
+        &mut self,
+        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+    ) {
         todo!()
     }
 
