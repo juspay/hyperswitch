@@ -258,6 +258,8 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    // Call to DE here
+
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
@@ -1170,6 +1172,8 @@ pub async fn merchant_account_delete(
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
+
+    // Call to DE here
 
     let state = state.clone();
     authentication::decision::spawn_tracked_job(

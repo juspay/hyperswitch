@@ -12,8 +12,8 @@ use std::sync::Arc;
 use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use common_utils::ext_traits::ValueExt;
-use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
+use common_utils::ext_traits::{BytesExt, ValueExt};
+use common_utils::{ext_traits::Encode, id_type, request, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
@@ -53,6 +53,7 @@ use crate::{
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
     core::{metrics as core_metrics, routing},
+    headers, services,
     types::transformers::ForeignInto,
 };
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -1469,8 +1470,6 @@ pub async fn disable_dynamic_routing_algorithm(
                     })?
                 };
 
-                // Call to DE here
-
                 let cache_key = format!(
                     "{}_{}",
                     business_profile.get_id().get_string_repr(),
@@ -1576,6 +1575,14 @@ pub async fn disable_dynamic_routing_algorithm(
                 )
             }
         };
+
+    // Call to DE here
+    if state.conf.open_router.enabled {
+        disable_decision_engine_dynamic_routing_setup(state, business_profile.get_id())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to disable dynamic routing setup in decision engine")?;
+    }
 
     // redact cache for dynamic routing config
     let _ = cache::redact_from_redis_and_publish(
@@ -1791,6 +1798,13 @@ pub async fn default_specific_dynamic_routing_setup(
     };
 
     // Call to DE here
+    // Need to map out the cases if this call should always be made or not
+    if state.conf.open_router.enabled {
+        enable_decision_engine_dynamic_routing_setup(state, business_profile.get_id())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to setup decision engine dynamic routing")?;
+    }
 
     let record = db
         .insert_routing_algorithm(algo)
@@ -1893,4 +1907,198 @@ impl DynamicRoutingConfigParamsInterpolator {
         }
         parts.join(":")
     }
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn enable_decision_engine_dynamic_routing_setup(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> RouterResult<()> {
+    logger::debug!(
+        "performing call with open_router for profile {}",
+        profile_id.get_string_repr()
+    );
+
+    create_merchant_on_decision_engine_if_not_exists(state, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup merchant_account on decision engine")?;
+
+    let default_success_based_routing_config =
+        routing_types::SuccessBasedRoutingConfig::open_router_config_default();
+
+    let decision_engine_request = open_router::DecisionEngineConfigSetupRequest {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        config: open_router::DecisionEngineConfigVariant::SuccessRate(
+            default_success_based_routing_config
+                .decision_engine_configs
+                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Decision engine config not found".to_string(),
+                })?,
+        ),
+    };
+
+    let url = format!("{}/{}", &state.conf.open_router.url, "rule/create");
+    call_decision_engine::<_, String>(state, url, Some(decision_engine_request))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup decision engine dynamic routing")?;
+
+    Ok(())
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn update_decision_engine_dynamic_routing_setup(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+    request: routing_types::SuccessBasedRoutingConfig,
+) -> RouterResult<()> {
+    logger::debug!(
+        "performing call with open_router for profile {}",
+        profile_id.get_string_repr()
+    );
+
+    create_merchant_on_decision_engine_if_not_exists(state, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup merchant_account on decision engine")?;
+
+    let decision_engine_request = open_router::DecisionEngineConfigSetupRequest {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        config: open_router::DecisionEngineConfigVariant::SuccessRate(
+            request.decision_engine_configs.ok_or(
+                errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Decision engine config not found".to_string(),
+                },
+            )?,
+        ),
+    };
+
+    let url = format!("{}/{}", &state.conf.open_router.url, "rule/update");
+    call_decision_engine::<_, String>(state, url, Some(decision_engine_request))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup decision engine dynamic routing")?;
+
+    Ok(())
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn disable_decision_engine_dynamic_routing_setup(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> RouterResult<()> {
+    logger::debug!(
+        "performing call with open_router for profile {}",
+        profile_id.get_string_repr()
+    );
+
+    create_merchant_on_decision_engine_if_not_exists(state, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup merchant_account on decision engine")?;
+
+    let decision_engine_request = open_router::FetchRoutingConfig {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        algorithm: open_router::AlgorithmType::SuccessRate,
+    };
+
+    let url = format!("{}/{}", &state.conf.open_router.url, "rule/delete");
+    call_decision_engine::<_, String>(state, url, Some(decision_engine_request))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup decision engine dynamic routing")?;
+
+    Ok(())
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+pub async fn call_decision_engine<Req, Res>(
+    state: &SessionState,
+    url: String,
+    request_body: Option<Req>,
+) -> RouterResult<Res>
+where
+    Req: serde::Serialize + serde::de::DeserializeOwned + Debug + Send + Sync + Clone + 'static,
+    Res: serde::de::DeserializeOwned + Debug + Send + Sync + Clone,
+{
+    let mut request = request::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        state.tenant.tenant_id.get_string_repr().to_owned().into(),
+    );
+
+    if let Some(req) = request_body {
+        request.set_body(request::RequestContent::Json(Box::new(req.clone())));
+    }
+
+    let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?; // fix error types
+
+    match response {
+        Ok(resp) => {
+            let response: Res = resp
+                .response
+                .parse_struct("String")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            Ok(response)
+        }
+        Err(err) => {
+            let err_resp: open_router::ErrorResponse =
+                err.response
+                    .parse_struct("ErrorResponse")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            logger::error!("open_router_error_response: {:?}", err_resp);
+            Err(errors::ApiErrorResponse::InternalServerError.into())
+        }
+    }
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+pub async fn create_merchant_on_decision_engine_if_not_exists(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> RouterResult<()> {
+    logger::debug!(
+        "performing call with open_router for profile {}",
+        profile_id.get_string_repr()
+    );
+
+    let url = format!(
+        "{}/{}/{}",
+        &state.conf.open_router.url,
+        "merchant-account",
+        profile_id.get_string_repr()
+    );
+    let merchant_account: Option<open_router::MerchantAccount> =
+        call_decision_engine::<(), _>(state, url, None)
+            .await
+            .map_err(|err| {
+                logger::error!("Error in fetching merchant from decision engine: {:?}", err)
+            })
+            .ok();
+
+    if merchant_account.is_none() {
+        let merchant_account_req = open_router::MerchantAccount {
+            merchant_id: profile_id.get_string_repr().to_string(),
+            gateway_success_rate_based_decider_input: None,
+        };
+
+        let url = format!(
+            "{}/{}",
+            &state.conf.open_router.url, "merchant-account/create"
+        );
+        call_decision_engine::<_, String>(state, url, Some(merchant_account_req))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to setup decision engine dynamic routing")?;
+    }
+
+    Ok(())
 }

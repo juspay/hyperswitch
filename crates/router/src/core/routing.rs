@@ -54,6 +54,8 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use helpers::update_decision_engine_dynamic_routing_setup;
 
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
@@ -1432,7 +1434,7 @@ pub async fn success_based_routing_update_configs(
         name: dynamic_routing_algo_to_update.name,
         description: dynamic_routing_algo_to_update.description,
         kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update),
+        algorithm_data: serde_json::json!(config_to_update.clone()),
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
@@ -1467,23 +1469,30 @@ pub async fn success_based_routing_update_configs(
     );
 
     // Call to DE here to update SR configs else do the below invalidation
-    state
-        .grpc_client
-        .dynamic_routing
-        .success_rate_client
-        .as_ref()
-        .async_map(|sr_client| async {
-            sr_client
-                .invalidate_success_rate_routing_keys(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the routing keys")
-        })
-        .await
-        .transpose()?;
+    if state.conf.open_router.enabled {
+        update_decision_engine_dynamic_routing_setup(&state, &profile_id, config_to_update)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the success rate routing config in DE")?;
+    } else {
+        state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .async_map(|sr_client| async {
+                sr_client
+                    .invalidate_success_rate_routing_keys(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
