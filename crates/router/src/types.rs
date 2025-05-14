@@ -115,10 +115,7 @@ pub use hyperswitch_interfaces::types::{
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
-use crate::{
-    connector::utils::missing_field_err,
-    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
-};
+use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::{
