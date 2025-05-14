@@ -38,14 +38,15 @@ pub enum RetryAction {
 
 #[derive(Debug, Clone)]
 pub enum ConnectorSelectionAction {
-    SelectSameConnectorNetwork(
+    SelectCurrentConnectorAndNetwork(
         api::ConnectorData,
         CardNetwork,
     ), 
+    SelectCurrentConnector(api::ConnectorData),
     SelectConnectorWithGlobalNetwork,
     RemoveCurrentNetworkAndChooseAnother(CardNetwork),
     RemoveCurrentConnectorAndChooseDifferentConnector(api::ConnectorData),
-    SelectNextConnectorNetwork,
+    SelectNextConnector,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -54,10 +55,30 @@ pub enum AlternateNetworkRetry {
     AlternateNetworkRetryNotPossible,
 }
 
+impl From<bool> for AlternateNetworkRetry {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::AlternateNetworkRetryPossible
+        } else {
+            Self::AlternateNetworkRetryNotPossible
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum StepUpRetry {
     StepUpRetryPossible,
     StepUpRetryNotPossible,
+}
+
+impl From<bool> for StepUpRetry {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::StepUpRetryPossible
+        } else {
+            Self::StepUpRetryNotPossible
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,10 +87,30 @@ pub enum PanRetry {
     PanRetryNotPossible,
 }
 
+impl From<bool> for PanRetry {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::PanRetryPossible
+        } else {
+            Self::PanRetryNotPossible
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum PrevNetworkType {
     PrevNetworkIsGlobal,
     PrevNetworkIsLocal,
+}
+
+impl From<bool> for PrevNetworkType {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::PrevNetworkIsGlobal
+        } else {
+            Self::PrevNetworkIsLocal
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -78,6 +119,15 @@ pub enum DebitRoutingStatus {
     DebitRoutingNotApplied,
 }
 
+impl From<bool> for DebitRoutingStatus {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::DebitRoutingApplied
+        } else {
+            Self::DebitRoutingNotApplied
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct RetryContext {
@@ -93,45 +143,25 @@ impl RetryContext {
     pub fn new(
         alternate_network_retry_possible: bool,
         step_up_retry_possible: bool,
-        should_retry_with_pan: bool,
+        pan_retry_possible: bool,
         prev_is_global_network: bool,
         is_debit_routing_performed: bool,
     ) -> Self {
         RetryContext {
-            alternate_network_retry: if alternate_network_retry_possible {
-                AlternateNetworkRetry::AlternateNetworkRetryPossible
-            } else {
-                AlternateNetworkRetry::AlternateNetworkRetryNotPossible
-            },
-            step_up_retry: if step_up_retry_possible {
-                StepUpRetry::StepUpRetryPossible
-            } else {
-                StepUpRetry::StepUpRetryNotPossible
-            },
-            pan_retry: if should_retry_with_pan {
-                PanRetry::PanRetryPossible
-            } else {
-                PanRetry::PanRetryNotPossible
-            },
-            prev_network_type: if prev_is_global_network {
-                PrevNetworkType::PrevNetworkIsGlobal
-            } else {
-                PrevNetworkType::PrevNetworkIsLocal
-            },
-            debit_routing_status: if is_debit_routing_performed {
-                DebitRoutingStatus::DebitRoutingApplied
-            } else {
-                DebitRoutingStatus::DebitRoutingNotApplied
-            },
+            alternate_network_retry: alternate_network_retry_possible.into(),
+            step_up_retry: step_up_retry_possible.into(),
+            pan_retry: pan_retry_possible.into(),
+            prev_network_type: prev_is_global_network.into(),
+            debit_routing_status: is_debit_routing_performed.into(),
         }
     }
 }
 
 pub fn determine_retry_plan(
     context: &RetryContext,
-    previous_connector: Option<api::ConnectorData>,
+    previous_connector: api::ConnectorData,
     previous_network: Option<CardNetwork>,
-) -> (RetryAction, ConnectorSelectionAction) {
+) -> RouterResult<(RetryAction, ConnectorSelectionAction)> {
     use AlternateNetworkRetry::*;
     use StepUpRetry::*;
     use PanRetry::*;
@@ -145,85 +175,135 @@ pub fn determine_retry_plan(
         context.prev_network_type,
         context.debit_routing_status,
     ) {
-        (AlternateNetworkRetryPossible, StepUpRetryPossible, _, PrevNetworkIsGlobal, _) => (
-            RetryAction::StepUpRetry,
-            ConnectorSelectionAction::SelectSameConnectorNetwork(
-                previous_connector
-                .expect("Previous connector must be available"),
-                previous_network.expect("Previous network must be available"),
-            ),
-        ),
-        (AlternateNetworkRetryPossible, StepUpRetryPossible, _, PrevNetworkIsLocal, _) => (
+        //For debit routing and alternate network retry cases, we need to keep/expeact a previous network.
+        (AlternateNetworkRetryPossible, StepUpRetryPossible, _, PrevNetworkIsGlobal, _) => {
+            let prev_network = previous_network.ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Previous network must be available for debit routing and alternate network retry cases",
+                )
+            })?;
+            Ok((
+                RetryAction::StepUpRetry,
+                ConnectorSelectionAction::SelectCurrentConnectorAndNetwork(
+                    previous_connector,
+                    prev_network,
+                ),
+            ))
+        }
+        (AlternateNetworkRetryPossible, StepUpRetryPossible, _, PrevNetworkIsLocal, _) => Ok((
             RetryAction::StepUpRetry,
             ConnectorSelectionAction::SelectConnectorWithGlobalNetwork,
-        ),
-        (AlternateNetworkRetryPossible, StepUpRetryNotPossible, _, _, _) => (
-            RetryAction::NetworkRetry,
-            ConnectorSelectionAction::RemoveCurrentNetworkAndChooseAnother(
-                previous_network.expect("Previous network must be available"),
-            ),
-        ),
-        (AlternateNetworkRetryNotPossible, StepUpRetryPossible, _, _, _) => (
-            RetryAction::StepUpRetry,
-            ConnectorSelectionAction::SelectSameConnectorNetwork(
-                previous_connector
-                .expect("Previous connector must be available"),
-                previous_network.expect("Previous network must be available"),
-            ),
-        ),
-        (AlternateNetworkRetryNotPossible, StepUpRetryNotPossible, PanRetryPossible, _, _) => (
+        )),
+        (AlternateNetworkRetryPossible, StepUpRetryNotPossible, _, _, _) => {
+            let prev_network = previous_network.ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Previous network must be available for debit routing and alternate network retry cases",
+                )
+            })?;
+            Ok((
+                RetryAction::NetworkRetry,
+                ConnectorSelectionAction::RemoveCurrentNetworkAndChooseAnother(prev_network),
+            ))
+        }
+        (AlternateNetworkRetryNotPossible, StepUpRetryPossible, _, _, DebitRoutingApplied) => {
+            let prev_network = previous_network.ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Previous network must be available for debit routing and alternate network retry cases",
+                )
+            })?;
+            Ok((
+                RetryAction::StepUpRetry,
+                ConnectorSelectionAction::SelectCurrentConnectorAndNetwork(
+                    previous_connector,
+                    prev_network,
+                ),
+            ))
+        }
+        (AlternateNetworkRetryNotPossible, StepUpRetryPossible, _, _, DebitRoutingNotApplied) => {
+            Ok((
+                RetryAction::StepUpRetry,
+                ConnectorSelectionAction::SelectCurrentConnector(previous_connector),
+            ))
+        }
+        (
+            AlternateNetworkRetryNotPossible,
+            StepUpRetryNotPossible,
+            PanRetryPossible,
+            _,
+            DebitRoutingApplied,
+        ) => {
+            let prev_network = previous_network.ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Previous network must be available for debit routing and alternate network retry cases",
+                )
+            })?;
+            Ok((
+                RetryAction::PanRetry,
+                ConnectorSelectionAction::SelectCurrentConnectorAndNetwork(
+                    previous_connector,
+                    prev_network,
+                ),
+            ))
+        }
+        (
+            AlternateNetworkRetryNotPossible,
+            StepUpRetryNotPossible,
+            PanRetryPossible,
+            _,
+            DebitRoutingNotApplied,
+        ) => Ok((
             RetryAction::PanRetry,
-            ConnectorSelectionAction::SelectSameConnectorNetwork(
-                previous_connector
-                .expect("Previous connector must be available"),
-                previous_network.expect("Previous network must be available"),
-            ),
-        ),
+            ConnectorSelectionAction::SelectCurrentConnector(previous_connector),
+        )),
         (
             AlternateNetworkRetryNotPossible,
             StepUpRetryNotPossible,
             PanRetryNotPossible,
             _,
             DebitRoutingApplied,
-        ) => (
+        ) => Ok((
             RetryAction::AutoRetry,
             ConnectorSelectionAction::RemoveCurrentConnectorAndChooseDifferentConnector(
-                previous_connector.expect("Previous connector must be available"),
+                previous_connector,
             ),
-        ),
+        )),
         (
             AlternateNetworkRetryNotPossible,
             StepUpRetryNotPossible,
             PanRetryNotPossible,
             _,
             DebitRoutingNotApplied,
-        ) => (
+        ) => Ok((
             RetryAction::AutoRetry,
-            ConnectorSelectionAction::SelectNextConnectorNetwork,
-        ),
+            ConnectorSelectionAction::SelectNextConnector,
+        )),
     }
 }
 
 impl ConnectorSelectionAction {
-    pub fn apply(
+    pub fn select_connector_and_network(
         &self,
         connectors: &mut IntoIter<api::ConnectorRoutingData>,
-    ) -> RouterResult<(api::ConnectorData, CardNetwork)> {
+    ) -> RouterResult<(api::ConnectorData, Option<CardNetwork>)> {
         match self {
-            ConnectorSelectionAction::SelectSameConnectorNetwork(prev_connector,prev_network) => {
-                Ok((prev_connector.clone(), prev_network.clone()))
+            ConnectorSelectionAction::SelectCurrentConnectorAndNetwork(prev_connector,prev_network) => {
+                Ok((prev_connector.clone(), Some(prev_network.clone())))
+            }
+            ConnectorSelectionAction::SelectCurrentConnector(prev_connector) => {
+                Ok((prev_connector.clone(), None))
             }
             ConnectorSelectionAction::SelectConnectorWithGlobalNetwork => {
-                super::get_next_connector_with_global_network(connectors)
+
+                super::get_next_connector_with_global_network(connectors).map(|(connector, network)| (connector, Some(network)))
             }
             ConnectorSelectionAction::RemoveCurrentNetworkAndChooseAnother(prev_network) => {
-                super::remove_current_network_and_choose_another(connectors, prev_network.clone())
+                super::remove_current_network_and_choose_another(connectors, prev_network.clone()).map(|(connector, network)| (connector, Some(network)))
             }
             ConnectorSelectionAction::RemoveCurrentConnectorAndChooseDifferentConnector(prev_connector) => {
-                super::remove_current_connector_and_choose_different_connector(connectors, prev_connector.clone())
+                super::remove_current_connector_and_choose_different_connector(connectors, prev_connector.clone()).map(|(connector, network)| (connector, Some(network)))
             }
-            ConnectorSelectionAction::SelectNextConnectorNetwork => {
-                super::select_next_connector_network(connectors)
+            ConnectorSelectionAction::SelectNextConnector => {
+                super::get_connector_data(connectors).map(|connector| (connector.connector_data, None))
             }
         }
     }
@@ -268,8 +348,6 @@ where
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
-    let mut initial_gsm = get_gsm(state, &router_data).await?;
-
     let mut previous_network: Option<CardNetwork> = match &payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::Card(card)) => card.card_network.clone(),
         _ => None,
@@ -278,13 +356,8 @@ where
     let mut previous_connector: api::ConnectorData = original_connector_data.clone();
 
     loop {
-        // Use initial_gsm for first time alone
-        let gsm = match initial_gsm.as_ref() {
-            Some(gsm) => Some(gsm.clone()),
-            None => get_gsm(state, &router_data).await?,
-        };
-
-        match get_gsm_decision(gsm) {
+        let gsm = get_gsm(state, &router_data).await?;
+        match get_gsm_decision(gsm.clone()) {
             api_models::gsm::GsmDecision::Retry => {
                 retries =
                     get_retries(state, retries, merchant_account.get_id(), business_profile).await;
@@ -302,9 +375,9 @@ where
                 }
 
                 //Check if step-up to threeDS is possible and merchant has enabled
-                let step_up_possible = initial_gsm
-                    .clone()
-                    .map(|gsm| gsm.step_up_possible)
+                let step_up_possible = gsm
+                    .as_ref()
+                    .map(|gsm_entry| gsm_entry.step_up_possible)
                     .unwrap_or(false);
 
                 #[cfg(feature = "v1")]
@@ -319,11 +392,10 @@ where
                     storage_enums::AuthenticationType::NoThreeDs
                 );
 
-                // let gsm_feature_flags = gsm.get_effective_feature_flags();
-                // let gsm_feature_flags = gsm.get_effective_feature_flags();
+                // kept hardcoded to true for now, logic will be added in a separte PR 
                 // let alternate_network_retry_possible = gsm_feature_flags.alternate_network_possible && business_profile.is_debit_routing_enabled && is_debit_routing_performed;
+                //TODO: remove this hardcoded value after the PR is merged and separate debit routing and alternate network retry logic 
                 let alternate_network_retry_possible = true;
-
                 let step_up_retry_possible = if step_up_possible && is_no_three_ds_payment {
                     is_step_up_enabled_for_merchant_connector(
                         state,
@@ -346,7 +418,7 @@ where
                     .unwrap_or(false);
 
                 let pan_retry_possible = is_network_token
-                    && initial_gsm
+                    && gsm
                         .as_ref()
                         .map(|gsm| gsm.clear_pan_possible)
                         .unwrap_or(false)
@@ -363,18 +435,20 @@ where
                 
                 let (retry_action, connector_selection_action) = determine_retry_plan(
                         &retry_context,
-                        Some(previous_connector.clone()),
+                        previous_connector.clone(),
                         previous_network.clone(),
-                    );
+                    )?;
                     
                 let is_step_up_retry = matches!(retry_action, RetryAction::StepUpRetry);
                 let is_pan_retry = matches!(retry_action, RetryAction::PanRetry);
                     
-                let (new_connector, new_network) = connector_selection_action.apply(&mut connector_routing_data)?;
+                let (new_connector, new_network) = connector_selection_action.select_connector_and_network(&mut connector_routing_data)?;
                 
                 previous_connector = new_connector.clone();
-                previous_network = Some(new_network.clone());
-                payment_data.set_network(new_network.clone());
+                previous_network = new_network.clone();
+                if let Some(network) = new_network {
+                    payment_data.set_network(network.clone());
+                }
 
                 router_data = do_retry(
                         &state.clone(),
@@ -396,6 +470,10 @@ where
                     .await?;
 
                 retries = retries.map(|i| i - 1);
+                //Break the loop if step-up retry is performed
+                if is_step_up_retry {
+                    break;
+                }
             }
             api_models::gsm::GsmDecision::Requeue => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
@@ -406,7 +484,6 @@ where
             }
             api_models::gsm::GsmDecision::DoDefault => break,
         }
-        initial_gsm = None;
     }
     Ok(router_data)
 }

@@ -1523,21 +1523,6 @@ pub fn remove_current_connector_and_choose_different_connector(
         .attach_printable("Connector with different connector not found in connectors iterator")
 }
 
-pub fn select_next_connector_network(
-    connectors: &mut IntoIter<api::ConnectorRoutingData>,
-) -> RouterResult<(api::ConnectorData, enums::CardNetwork)> {
-    let connector_data = connectors
-        .next()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("No next connector found in the connectors iterator")?;
-
-    let network = connector_data
-        .network
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Network missing in next connector data")?;
-
-    Ok((connector_data.connector_data, network))
-}
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
