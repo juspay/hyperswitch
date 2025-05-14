@@ -1032,7 +1032,7 @@ pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
-    tokenization_service_response: Option<api_models::tokenization::TokenizationResponse>,
+    tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()

@@ -230,6 +230,8 @@ impl ApiEventMetric for PaymentMethodSessionResponse {
         })
     }
 }
+#[cfg(feature = "v2")]
+impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for tokenization::TokenizationResponse {}
+impl ApiEventMetric for tokenization::GenericTokenizationResponse {}

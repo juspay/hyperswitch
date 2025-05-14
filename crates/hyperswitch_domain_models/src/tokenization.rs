@@ -17,6 +17,7 @@ use crate::{merchant_key_store::MerchantKeyStore, types};
 pub struct Tokenization {
     pub id: common_utils::id_type::GlobalTokenId,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub locker_id: String,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
@@ -29,6 +30,7 @@ pub struct Tokenization {
 pub struct TokenizationNew {
     pub id: common_utils::id_type::GlobalTokenId,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub locker_id: String,
     pub flag: common_enums::TokenizationFlag,
     pub version: common_enums::ApiVersion,
@@ -61,6 +63,7 @@ impl super::behaviour::Conversion for Tokenization {
         Ok(diesel_models::tokenization::Tokenization {
             id: self.id,
             merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
             locker_id: self.locker_id,
             created_at: self.created_at,
             updated_at: self.updated_at,
@@ -78,6 +81,7 @@ impl super::behaviour::Conversion for Tokenization {
         Ok(Self {
             id: item.id,
             merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
             locker_id: item.locker_id,
             created_at: item.created_at,
             updated_at: item.updated_at,
@@ -90,6 +94,7 @@ impl super::behaviour::Conversion for Tokenization {
         Ok(diesel_models::tokenization::Tokenization {
             id: self.id,
             merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
             locker_id: self.locker_id,
             created_at: self.created_at,
             updated_at: self.updated_at,

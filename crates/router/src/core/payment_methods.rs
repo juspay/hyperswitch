@@ -2683,6 +2683,8 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
+    let customer_id = payment_method_session.customer_id.clone();
+
     let create_payment_method_request = get_payment_method_create_request(
         request
             .payment_method_data
@@ -2691,7 +2693,7 @@ pub async fn payment_methods_session_confirm(
             .get_required_value("payment_method_data")?,
         request.payment_method_type,
         request.payment_method_subtype,
-        payment_method_session.customer_id.clone(),
+        customer_id.clone(),
         unified_billing_address.as_ref(),
         Some(&payment_method_session),
     )
@@ -2750,9 +2752,12 @@ pub async fn payment_methods_session_confirm(
         Some(tokenization_data) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
-                &merchant_account,
-                &key_store,
-                tokenization_data,
+                &merchant_context.get_merchant_account(),
+                &merchant_context.get_merchant_key_store(),
+                api_models::tokenization::GenericTokenizationRequest{
+                    customer_id: customer_id.clone(),
+                    token_request: tokenization_data,
+                },
             )
             .await?;
             let token = match tokenization_response {

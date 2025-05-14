@@ -29,6 +29,7 @@ use crate::{query::generics, schema_v2::tokenization, PgPooledConn, StorageResul
 pub struct Tokenization {
     pub id: common_utils::id_type::GlobalTokenId,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub locker_id: String,
@@ -57,6 +58,7 @@ impl Tokenization {
 pub struct TokenizationNew {
     pub id: common_utils::id_type::GlobalTokenId,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
     pub locker_id: String,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,

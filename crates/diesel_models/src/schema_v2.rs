@@ -1384,6 +1384,8 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 255]
         merchant_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         #[max_length = 255]
