@@ -134,15 +134,12 @@ impl Theme {
     pub async fn update_by_theme_id_and_lineage(
         conn: &PgPooledConn,
         theme_id: String,
-        lineage: ThemeLineage,
         update: ThemeUpdate,
     ) -> StorageResult<Self> {
         let update_internal: ThemeUpdateInternal = update.into();
-        let predicate = dsl::theme_id
-            .eq(theme_id)
-            .and(Self::lineage_filter(lineage));
 
-        generics::generic_update_with_unique_predicate_get_result_no_clone::<
+        let predicate = dsl::theme_id.eq(theme_id);
+        generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,

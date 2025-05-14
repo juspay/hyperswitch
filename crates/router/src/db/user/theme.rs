@@ -31,10 +31,9 @@ pub trait ThemeInterface {
         lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
-    async fn update_theme_by_lineage_and_theme_id(
+    async fn update_theme_by_theme_id(
         &self,
         theme_id: String,
-        lineage: ThemeLineage,
         theme_update: ThemeUpdate,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
@@ -88,14 +87,13 @@ impl ThemeInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    async fn update_theme_by_lineage_and_theme_id(
+    async fn update_theme_by_theme_id(
         &self,
         theme_id: String,
-        lineage: ThemeLineage,
         theme_update: ThemeUpdate,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Theme::update_by_theme_id_and_lineage(&conn, theme_id, lineage, theme_update)
+        storage::Theme::update_by_theme_id_and_lineage(&conn, theme_id, theme_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -275,10 +273,9 @@ impl ThemeInterface for MockDb {
             )
     }
 
-    async fn update_theme_by_lineage_and_theme_id(
+    async fn update_theme_by_theme_id(
         &self,
         theme_id: String,
-        lineage: ThemeLineage,
         theme_update: ThemeUpdate,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let mut themes = self.themes.lock().await;

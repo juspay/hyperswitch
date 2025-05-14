@@ -29,7 +29,6 @@ pub struct UploadFileAssetData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadFileRequest {
-    pub lineage: ThemeLineage,
     pub asset_name: String,
     pub asset_data: Secret<Vec<u8>>,
 }
@@ -44,7 +43,6 @@ pub struct CreateThemeRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateThemeRequest {
-    pub lineage: ThemeLineage,
     pub theme_data: ThemeData,
     pub email_config: Option<EmailThemeConfig>,
 }
