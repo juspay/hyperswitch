@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.05.0-hotfix4
+
+### Bug Fixes
+
+- **payment:** Disable payment update via client config ([#8012](https://github.com/juspay/hyperswitch/pull/8012)) ([`7606782`](https://github.com/juspay/hyperswitch/commit/76067829dc3489a05f77c7d3b0b05c445136abe9))
+
+### Refactors
+
+- **authentication:** Moved cavv storing from table to temp locker ([#8021](https://github.com/juspay/hyperswitch/pull/8021)) ([`996fc98`](https://github.com/juspay/hyperswitch/commit/996fc98101a071a6c64aa291bf4de84c2d722551))
+
+**Full Changelog:** [`2025.05.05.0-hotfix3...2025.05.05.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.05.05.0-hotfix3...2025.05.05.0-hotfix4)
+
+
+- - -
+
 ## 2025.05.05.0-hotfix3
 
 ### Refactors
