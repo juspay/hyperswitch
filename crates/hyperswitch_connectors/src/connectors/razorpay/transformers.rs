@@ -141,7 +141,7 @@ pub enum UpiFlow {
 #[serde(rename_all = "snake_case")]
 pub struct RazorpayPaymentsRequest {
     amount: MinorUnit,
-    currency: String,
+    currency: enums::Currency,
     order_id: String,
     email: Email,
     contact: Secret<String>,
@@ -198,11 +198,11 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
         let order_id = item.router_data.get_preprocessing_id()?;
         let email = router_request.get_email()?;
         let ip = router_request.get_ip_address_as_optional();
-        let user_agent = router_request.get_user_agent_as_optional();
+        let user_agent = router_request.get_optional_user_agent();
 
         Ok(Self {
             amount: item.amount,
-            currency: router_request.currency.to_string(),
+            currency: router_request.currency,
             order_id,
             email,
             contact: contact_number,
