@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.14.0
+
+### Features
+
+- **refunds_v2:** Add refund update core flow in v2 apis ([#7724](https://github.com/juspay/hyperswitch/pull/7724)) ([`04dc14a`](https://github.com/juspay/hyperswitch/commit/04dc14a93022d03d74b02ae244ee8bb8afa50c27))
+- **router:** Add outgoing payment webhooks for v2 ([#6613](https://github.com/juspay/hyperswitch/pull/6613)) ([`aa6ebf8`](https://github.com/juspay/hyperswitch/commit/aa6ebf8aeff5e7c6fc49beb161ecb2038472c3a5))
+- **users:** Store and retrieve lineage_context from DB instead of Redis ([#7940](https://github.com/juspay/hyperswitch/pull/7940)) ([`6f22a93`](https://github.com/juspay/hyperswitch/commit/6f22a9306ce75a3f7c92e17f260107c044c16063))
+
+### Bug Fixes
+
+- **connector:** [stripe] fix bank redirect (`bancontact_card`) recurring mandate ([#7990](https://github.com/juspay/hyperswitch/pull/7990)) ([`40fd473`](https://github.com/juspay/hyperswitch/commit/40fd473989b04f70c1dc78025a555a972ffe2596))
+
+### Refactors
+
+- **Connector:** [signifyd,threedsecureio,wellsfargopayout,wise] move from routers to hyperswitch_connectors ([#7953](https://github.com/juspay/hyperswitch/pull/7953)) ([`1dabfe3`](https://github.com/juspay/hyperswitch/commit/1dabfe3e2c0d9b72e41a5bd61c5a394248b7997b))
+- **paymentMethods:** Move all pm migration related changes to payment methods crate ([#7786](https://github.com/juspay/hyperswitch/pull/7786)) ([`9c8cf93`](https://github.com/juspay/hyperswitch/commit/9c8cf93662edd7ff10552153b9697186cdb2ad5c))
+
+### Miscellaneous Tasks
+
+- **users:** Add hubspot tracking to prod intent ([#7798](https://github.com/juspay/hyperswitch/pull/7798)) ([`67f38f8`](https://github.com/juspay/hyperswitch/commit/67f38f864e963a41667142a6042ab7b0e557eb2c))
+- Resolve v2 warnings in common_utils ([#7358](https://github.com/juspay/hyperswitch/pull/7358)) ([`338a953`](https://github.com/juspay/hyperswitch/commit/338a95372c846ca8e313218be3101bb3e2744063))
+
+**Full Changelog:** [`2025.05.13.0...2025.05.14.0`](https://github.com/juspay/hyperswitch/compare/2025.05.13.0...2025.05.14.0)
+
+
+- - -
+
 ## 2025.05.13.0
 
 ### Features
