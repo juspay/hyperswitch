@@ -132,21 +132,30 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
         );
         return Ok(());
     }
+
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &tracking_data.merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await?;
     for webhook_detail in webhook_details.iter() {
         let webhook_detail_clone = webhook_detail.clone();
         let cloned_state = cloned_state.clone();
         let merchant_account = merchant_account.clone();
         let business_profile = business_profile.clone();
-        let merchant_key_store = merchant_key_store.clone();
         let content = content.clone();
         let payment_id = payment_id.to_string().to_owned().clone();
-
+        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            merchant_account.clone(),
+            key_store.clone(),
+        )));
         tokio::spawn(async move {
             webhooks_core::create_event_and_trigger_outgoing_webhook(
                 cloned_state,
-                merchant_account,
+                merchant_context,
                 business_profile,
-                &merchant_key_store,
                 event_type,
                 event_class,
                 payment_id,
@@ -308,18 +317,18 @@ pub async fn trigger_outgoing_webhook_retry_workflow(
                 )
                 .await?;
 
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(merchant_account.clone(), key_store.clone()),
-                ));
-                // TODO: Add request state for the PT flows as well
-                let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
-                    state.clone(),
-                    state.get_req_state(),
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    &tracking_data,
-                ))
-                .await?;
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account.clone(), key_store.clone()),
+            ));
+            // TODO: Add request state for the PT flows as well
+            let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
+                state.clone(),
+                state.get_req_state(),
+                merchant_account.clone(),
+                key_store.clone(),
+                &tracking_data,
+            ))
+            .await?;
 
             match event_type {
                 // Resource status is same as the event type of the current event
@@ -332,18 +341,15 @@ pub async fn trigger_outgoing_webhook_retry_workflow(
                         timestamp: event.created_at,
                     };
 
-                        let request_content = webhooks_core::get_outgoing_webhook_request(
-                            &merchant_context,
-                            outgoing_webhook,
-                            &business_profile,
-                        )
-                        .map_err(|error| {
-                            logger::error!(
-                                ?error,
-                                "Failed to obtain outgoing webhook request content"
-                            );
-                            errors::ProcessTrackerError::EApiErrorResponse
-                        })?;
+                    let request_content = webhooks_core::get_outgoing_webhook_request(
+                        &merchant_context,
+                        outgoing_webhook,
+                        &business_profile,
+                    )
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to obtain outgoing webhook request content");
+                        errors::ProcessTrackerError::EApiErrorResponse
+                    })?;
 
                     Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                         state.clone(),

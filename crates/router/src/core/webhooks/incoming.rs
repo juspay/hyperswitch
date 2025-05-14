@@ -855,7 +855,6 @@ async fn payouts_incoming_webhook_flow(
             .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
         }
 
-
         Ok(WebhookResponseTracker::Payout {
             payout_id: updated_payout_attempt.payout_id,
             status: updated_payout_attempt.status,
@@ -1440,20 +1439,12 @@ async fn mandates_incoming_webhook_flow(
                 merchant_context.get_merchant_account().get_id(),
                 &mandate_id,
                 storage::MandateUpdate::StatusUpdate { mandate_status },
-                mandate,
-                merchant_account.storage_scheme,
+                mandate.clone(),
+                merchant_context.get_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-        let mandates_response = Box::new(
-            api::mandates::MandateResponse::from_db_mandate(
-                &state,
-                key_store.clone(),
-                updated_mandate.clone(),
-                merchant_account.storage_scheme,
-            )
-            .await?,
-        );
+
         let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
         if let Some(outgoing_event_type) = event_type {
             let primary_object_created_at = Some(mandate.created_at);
