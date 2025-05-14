@@ -8831,7 +8831,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
-        todo!()
+        self.payment_attempt.as_ref().unwrap()
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
         todo!()
