@@ -763,6 +763,10 @@ impl PaymentIntent {
             })
             .transpose()
     }
+
+    pub fn get_currency(&self) -> storage_enums::Currency {
+        self.amount_details.currency
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -911,6 +915,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub revenue_recovery_data: RevenueRecoveryData,
+    pub payment_address: payment_address::PaymentAddress,
 }
 
 #[cfg(feature = "v2")]

@@ -28,9 +28,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
-    router_flow_types::{Checkout, Fulfillment, Transaction},
+    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
+        FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -129,3 +130,14 @@ pub(crate) type ConnectorPreAuthenticationVersionCallType = dyn ConnectorIntegra
 
 pub(crate) type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmSaleRouterData = RouterData<Sale, FraudCheckSaleData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmRecordReturnRouterData =
+    RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmRecordReturnType =
+    dyn ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type FrmSaleType =
+    dyn ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>;

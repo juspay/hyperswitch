@@ -11,7 +11,6 @@ use hyperswitch_domain_models::router_request_types as domain_request_types;
 use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
-use super::migration;
 use crate::{
     core::payment_methods::{
         cards::{add_card_to_hs_locker, create_encrypted_data, tokenize_card_flow},
