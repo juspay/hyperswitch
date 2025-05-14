@@ -270,6 +270,9 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Sets the payment button text for Payment Links; doesn't affect core flows.
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1161,6 +1164,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+
+    /// Sets the payment button text for Payment Links; doesn't affect core flows.
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5130,6 +5136,9 @@ pub struct PaymentsResponse {
 
     /// Error message received from the issuer in case of failed payments
     pub issuer_error_message: Option<String>,
+
+    /// Sets the payment button text for Payment Links; doesn't affect core flows.
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5472,6 +5481,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Sets the payment button text for Payment Links; doesn't affect core flows.
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5506,6 +5518,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
                 .request_external_three_ds_authentication
                 .clone(),
             force_3ds_challenge: request.force_3ds_challenge,
+            is_setup_mandate_flow: request.is_setup_mandate_flow,
         }
     }
 }
@@ -8087,7 +8100,6 @@ pub struct PaymentLinkDetails {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
     pub capture_method: Option<common_enums::CaptureMethod>,
-    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -8131,7 +8143,6 @@ pub struct PaymentLinkStatusDetails {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
-    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

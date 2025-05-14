@@ -1592,6 +1592,7 @@ impl PaymentCreate {
             created_by: None,
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
+            is_setup_mandate_flow: request.is_setup_mandate_flow,
         })
     }
 

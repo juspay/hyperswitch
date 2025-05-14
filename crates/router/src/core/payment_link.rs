@@ -7,7 +7,7 @@ use api_models::{
 use common_utils::{
     consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
     ext_traits::{OptionExt, ValueExt},
-    types::{AmountConvertor, StringMajorUnitForCore},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -141,7 +141,6 @@ pub async fn form_payment_link_data(
                 payment_form_header_text: None,
                 payment_form_label_type: None,
                 show_card_terms: None,
-                is_setup_mandate_flow: None,
             }
         };
 
@@ -273,7 +272,6 @@ pub async fn form_payment_link_data(
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             capture_method: payment_attempt.capture_method,
-            setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
         };
 
         return Ok((
@@ -283,6 +281,14 @@ pub async fn form_payment_link_data(
         ));
     };
 
+    let is_setup_mandate_flow = payment_intent.is_setup_mandate_flow.or_else(|| {
+        (amount == StringMajorUnit::new("0.00".to_string())
+            && payment_attempt
+                .setup_future_usage_applied
+                .as_ref()
+                .is_some_and(|usage| *usage == storage_enums::FutureUsage::OffSession))
+        .then_some(true)
+    });
     let payment_link_details = api_models::payments::PaymentLinkDetails {
         amount,
         currency,
@@ -322,9 +328,8 @@ pub async fn form_payment_link_data(
         payment_form_header_text: payment_link_config.payment_form_header_text.clone(),
         payment_form_label_type: payment_link_config.payment_form_label_type,
         show_card_terms: payment_link_config.show_card_terms,
-        is_setup_mandate_flow: payment_link_config.is_setup_mandate_flow,
+        is_setup_mandate_flow,
         capture_method: payment_attempt.capture_method,
-        setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
     };
 
     Ok((
@@ -705,7 +710,6 @@ pub fn get_payment_link_config_based_on_priority(
         payment_form_header_text,
         payment_form_label_type,
         show_card_terms,
-        is_setup_mandate_flow,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -723,7 +727,6 @@ pub fn get_payment_link_config_based_on_priority(
         (payment_form_header_text),
         (payment_form_label_type),
         (show_card_terms),
-        (is_setup_mandate_flow),
     );
 
     let payment_link_config =
@@ -755,7 +758,6 @@ pub fn get_payment_link_config_based_on_priority(
             payment_form_header_text,
             payment_form_label_type,
             show_card_terms,
-            is_setup_mandate_flow,
         };
 
     Ok((payment_link_config, domain_name))
@@ -869,7 +871,6 @@ pub async fn get_payment_link_status(
             payment_form_header_text: None,
             payment_form_label_type: None,
             show_card_terms: None,
-            is_setup_mandate_flow: None,
         }
     };
 
@@ -957,7 +958,6 @@ pub async fn get_payment_link_status(
         unified_code: Some(unified_code),
         unified_message: unified_translated_message,
         capture_method: payment_attempt.capture_method,
-        setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,
