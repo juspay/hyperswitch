@@ -1,5 +1,5 @@
 use common_enums;
-use common_utils::id_type::{GlobalTokenId, GlobalCustomerId};
+use common_utils::id_type::{GlobalCustomerId, GlobalTokenId};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use masking::Secret;
