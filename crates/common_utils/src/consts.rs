@@ -180,3 +180,9 @@ pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/"
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 /// Length of generated tokens
 pub const TOKEN_LENGTH: usize = 32;
+
+/// The tag name used for identifying the host in metrics.
+pub const METRICS_HOST_TAG_NAME: &str = "host";
+
+/// API client request timeout (in seconds)
+pub const REQUEST_TIME_OUT: u64 = 30;

@@ -17,6 +17,7 @@ use external_services::{
     grpc_client::{GrpcClients, GrpcHeaders},
 };
 use hyperswitch_interfaces::{
+    crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
@@ -126,6 +127,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -237,6 +239,7 @@ pub struct AppState {
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -398,6 +401,7 @@ impl AppState {
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
             let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
+            let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -420,6 +424,7 @@ impl AppState {
                 encryption_client,
                 grpc_client,
                 theme_storage_client,
+                crm_client,
             }
         })
         .await
@@ -513,6 +518,7 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
+            crm_client: self.crm_client.clone(),
         })
     }
 }
@@ -1189,7 +1195,11 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("").route(web::post().to(refunds::refunds_create)))
-                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)));
+                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)))
+                .service(
+                    web::resource("/{id}/update_metadata")
+                        .route(web::put().to(refunds::refunds_metadata_update)),
+                );
         }
 
         route
