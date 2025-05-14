@@ -19,10 +19,7 @@ use crate::{
     logger,
     routes::{app::SessionStateInfo, SessionState},
     services,
-    types::{
-        domain,
-        transformers::ForeignFrom,
-    },
+    types::{domain, transformers::ForeignFrom},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -340,7 +337,7 @@ pub(crate) fn get_outgoing_webhook_request(
 }
 
 fn get_custom_webhook_headers(
-    business_profile: &domain::Profile
+    business_profile: &domain::Profile,
 ) -> Result<Option<HashMap<String, String>>, Report<errors::WebhooksFlowError>> {
     let custom_headers = business_profile
         .outgoing_webhook_custom_http_headers
@@ -626,7 +623,9 @@ impl ForeignFrom<&webhooks::OutgoingWebhookContent> for diesel_models::EventMeta
     }
 }
 
-impl ForeignFrom<diesel_models::EventMetadata> for outgoing_webhook_events::OutgoingWebhookEventContent {
+impl ForeignFrom<diesel_models::EventMetadata>
+    for outgoing_webhook_events::OutgoingWebhookEventContent
+{
     fn foreign_from(event_metadata: diesel_models::EventMetadata) -> Self {
         match event_metadata {
             diesel_models::EventMetadata::Payment { payment_id } => Self::Payment {
@@ -680,7 +679,9 @@ async fn handle_error_response(
 > {
     let schedule_webhook_retry = match delivery_attempt {
         common_enums::WebhookDeliveryAttempt::InitialAttempt
-        | common_enums::WebhookDeliveryAttempt::ManualRetry => types::ScheduleWebhookRetry::NoSchedule,
+        | common_enums::WebhookDeliveryAttempt::ManualRetry => {
+            types::ScheduleWebhookRetry::NoSchedule
+        }
         common_enums::WebhookDeliveryAttempt::AutomaticRetry => {
             // ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker))
             todo!()
