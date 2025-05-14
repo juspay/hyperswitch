@@ -2,9 +2,11 @@ use common_enums;
 use common_utils::id_type::{GlobalTokenId, GlobalCustomerId};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+use masking::Secret;
+use utoipa::{schema, ToSchema};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GenericTokenizationResponse {
     #[schema(value_type = String, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
     pub id: GlobalTokenId,
@@ -23,17 +25,16 @@ pub enum TokenizationFlag {
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GenericTokenizationRequest{
     #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
     pub customer_id: GlobalCustomerId,
     #[schema(value_type = Object,example = json!({ "city": "NY", "unit": "245" }))]
-    pub token_request: serde_json::Value,
+    pub token_request: masking::Secret<serde_json::Value>,
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct TokenizationQueryParameters {
-    #[schema(value_type = Bool, example = "true")]
     pub reveal: Option<bool>,
 }

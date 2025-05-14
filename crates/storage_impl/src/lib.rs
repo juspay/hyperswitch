@@ -34,6 +34,8 @@ use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use diesel_models::tokenization::Tokenization;
+// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+// pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
@@ -510,7 +512,6 @@ impl UniqueConstraints for diesel_models::tokenization::Tokenization {
     fn unique_constraints(&self) -> Vec<String> {
         vec![
             format!("id_{}", self.id.get_string_repr()),
-            format!("locker_id_{}", self.locker_id),
         ]
     }
 

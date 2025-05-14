@@ -604,7 +604,7 @@ pub struct PaymentMethodSession {
     pub return_url: Option<common_utils::types::Url>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-    pub tokenization_data: Option<Value>,
+    pub tokenization_data: Option<masking::Secret<Value>>,
     pub expires_at: PrimitiveDateTime,
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
@@ -865,7 +865,7 @@ pub enum PaymentMethodsSessionUpdateEnum {
         billing: Option<Encryptable<Address>>,
         psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
         network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-        tokenization_data: Option<Value>,
+        tokenization_data: Option<masking::Secret<Value>>,
     },
 }
 
@@ -925,7 +925,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub billing: Option<Encryptable<Address>>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-    pub tokenization_data: Option<Value>,
+    pub tokenization_data: Option<masking::Secret<Value>>,
 }
 
 #[cfg(all(

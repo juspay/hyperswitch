@@ -2850,7 +2850,7 @@ pub struct PaymentMethodSessionRequest {
 
     /// The json to be used for tokeniation
     #[schema(value_type = Option<serde_json::Value>)]
-    pub tokenization_data: Option<serde_json::Value>,
+    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2870,7 +2870,7 @@ pub struct PaymentMethodsSessionUpdateRequest {
 
     /// The json to be used for tokeniation
     #[schema(value_type = Option<serde_json::Value>)]
-    pub tokenization_data: Option<serde_json::Value>,
+    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2937,7 +2937,7 @@ pub struct PaymentMethodSessionResponse {
 
     /// The json to be used for tokeniation
     #[schema(value_type = Option<serde_json::Value>)]
-    pub tokenization_data: Option<serde_json::Value>,
+    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
 
     /// The iso timestamp when the session will expire
     /// Trying to retrieve the session or any operations on the session after this time will result in an error
