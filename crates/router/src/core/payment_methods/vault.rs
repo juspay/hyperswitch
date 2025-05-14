@@ -1316,7 +1316,6 @@ pub async fn add_payment_method_to_vault(
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    // pm: &domain::PaymentMethod,//do we need pm? locker id should be suffice
     vault_id: &domain::VaultId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
