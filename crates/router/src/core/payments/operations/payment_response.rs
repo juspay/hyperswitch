@@ -1995,19 +1995,20 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     payment_data.payment_attempt = payment_attempt;
 
     payment_data.authentication = match payment_data.authentication {
-        Some(authentication) => {
+        Some(mut authentication_store) => {
             let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
             let updated_authentication = state
                 .store
                 .update_authentication_by_merchant_id_authentication_id(
-                    authentication,
+                    authentication_store.authentication,
                     authentication_update,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            Some(updated_authentication)
+            authentication_store.authentication = updated_authentication;
+            Some(authentication_store)
         }
         None => None,
     };
@@ -2147,36 +2148,49 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
-                        &state,
-                        &payment_attempt,
-                        routable_connectors.clone(),
-                        &profile_id,
-                        dynamic_routing_algo_ref.clone(),
-                        dynamic_routing_config_params_interpolator.clone(),
-                    )
-                    .await
-                    .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
-                    .ok();
+                    let should_route_to_open_router = state.conf.open_router.enabled;
 
-                    if let Some(gsm_error_category) = gsm_error_category {
-                        if gsm_error_category.should_perform_elimination_routing() {
-                            logger::info!("Performing update window for elimination routing");
-                            routing_helpers::update_window_for_elimination_routing(
-                                &state,
-                                &payment_attempt,
-                                &profile_id,
-                                dynamic_routing_algo_ref.clone(),
-                                dynamic_routing_config_params_interpolator.clone(),
-                                gsm_error_category,
-                            )
-                            .await
-                            .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-                            .ok();
+                    if should_route_to_open_router {
+                        routing_helpers::update_gateway_score_helper_with_open_router(
+                            &state,
+                            &payment_attempt,
+                            &profile_id,
+                            dynamic_routing_algo_ref.clone(),
+                        )
+                        .await
+                        .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
+                        .ok();
+                    } else {
+                        routing_helpers::push_metrics_with_update_window_for_success_based_routing(
+                            &state,
+                            &payment_attempt,
+                            routable_connectors.clone(),
+                            &profile_id,
+                            dynamic_routing_algo_ref.clone(),
+                            dynamic_routing_config_params_interpolator.clone(),
+                        )
+                        .await
+                        .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
+                        .ok();
+
+                        if let Some(gsm_error_category) = gsm_error_category {
+                            if gsm_error_category.should_perform_elimination_routing() {
+                                logger::info!("Performing update window for elimination routing");
+                                routing_helpers::update_window_for_elimination_routing(
+                                    &state,
+                                    &payment_attempt,
+                                    &profile_id,
+                                    dynamic_routing_algo_ref.clone(),
+                                    dynamic_routing_config_params_interpolator.clone(),
+                                    gsm_error_category,
+                                )
+                                .await
+                                .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                                .ok();
+                            };
                         };
-                    };
 
-                    routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
+                        routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
                         &state,
                         &payment_attempt,
                         routable_connectors,
@@ -2187,6 +2201,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .await
                     .map_err(|e| logger::error!(contract_based_routing_metrics_error=?e))
                     .ok();
+                    }
                 }
                 .in_current_span(),
             );
