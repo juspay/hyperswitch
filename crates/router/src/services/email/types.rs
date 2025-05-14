@@ -320,15 +320,6 @@ pub fn get_link_with_token(
 
     email_url
 }
-
-pub fn get_base_url(state: &SessionState) -> &str {
-    if !state.conf.multitenancy.enabled {
-        &state.conf.user.base_url
-    } else {
-        &state.tenant.user.control_center_url
-    }
-}
-
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
@@ -576,7 +567,7 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            user_name: data.poc_name.unwrap_or_default().into(),
+            user_name: data.poc_name.unwrap_or_default(),
             poc_email: data.poc_email.unwrap_or_default(),
             legal_business_name: data.legal_business_name.unwrap_or_default(),
             business_location: data
