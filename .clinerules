@@ -67,6 +67,17 @@ Create additional files/folders within memory-bank/ when they help organize:
 - Testing strategies
 - Deployment procedures
 
+## Reusable Guides (`guide/` directory)
+
+Beyond the Memory Bank, which captures evolving project context, the `guide/` directory stores standalone, reusable guides for common, well-defined tasks. These guides provide standardized, step-by-step procedures.
+
+- **Purpose**: To offer actionable checklists and best practices for recurring complex operations, ensuring consistency and accuracy.
+- **Usage**: When a task aligns with an existing guide (e.g., "connector integration"), I should refer to and utilize that guide in conjunction with the Memory Bank's contextual information.
+- **Example**:
+    - `guide/connector_integration_guide.md`: A detailed step-by-step process for adding new payment connectors to Hyperswitch.
+
+While the Memory Bank helps me understand *what* the project is and *where it's at*, these guides help me understand *how* to perform specific, standardized tasks within the project. I should consult relevant guides when applicable, in addition to my mandatory Memory Bank review.
+
 ## Core Workflows
 
 ### Plan Mode
