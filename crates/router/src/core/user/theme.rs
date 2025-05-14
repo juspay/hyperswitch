@@ -1,7 +1,7 @@
 use api_models::user::theme as theme_api;
 use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
-    types::theme::ThemeLineage,
+    types::user::ThemeLineage,
 };
 use diesel_models::user::theme::ThemeNew;
 use error_stack::ResultExt;
@@ -97,7 +97,7 @@ pub async fn upload_file_to_theme_storage(
 
     theme_utils::upload_file_to_theme_bucket(
         &state,
-        &theme_utils::get_specific_file_key(&theme_id, &request.asset_name),
+        &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
         request.asset_data.expose(),
     )
     .await?;
@@ -174,7 +174,7 @@ pub async fn update_theme(
     let db_theme = match request.email_config {
         Some(email_config) => {
             let theme_update =
-                diesel_models::user::theme::ThemeUpdate::EmailConfig { email_config }.into();
+                diesel_models::user::theme::ThemeUpdate::EmailConfig { email_config };
             state
                 .store
                 .update_theme_by_theme_id(theme_id.clone(), theme_update)

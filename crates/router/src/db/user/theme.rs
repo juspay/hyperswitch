@@ -1,4 +1,4 @@
-use common_utils::types::theme::ThemeLineage;
+use common_utils::types::user::ThemeLineage;
 use diesel_models::user::theme::{self as storage, ThemeUpdate};
 use error_stack::report;
 
@@ -281,7 +281,7 @@ impl ThemeInterface for MockDb {
         let mut themes = self.themes.lock().await;
         themes
             .iter_mut()
-            .find(|theme| theme.theme_id == theme_id && check_theme_with_lineage(theme, &lineage))
+            .find(|theme| theme.theme_id == theme_id)
             .map(|theme| {
                 match theme_update {
                     ThemeUpdate::ThemeName { theme_name } => {
@@ -299,8 +299,8 @@ impl ThemeInterface for MockDb {
             })
             .ok_or_else(|| {
                 report!(errors::StorageError::ValueNotFound(format!(
-                    "Theme with id {} and lineage {:?} not found",
-                    theme_id, lineage
+                    "Theme with id {} not found",
+                    theme_id,
                 )))
             })
     }

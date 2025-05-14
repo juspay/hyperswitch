@@ -44,9 +44,9 @@ if [[ "$(echo "${HEALTH_RESPONSE}" | jq --raw-output '.error')" != 'null' ]]; th
 
     CURL_COMMAND+=(
         "--data-urlencode" "status=${STATUS}"
-        "--data-urlencode" "error_type=${ERROR_TYPE}"
-        "--data-urlencode" "error_message=${ERROR_MESSAGE}"
-        "--data-urlencode" "error_code=${ERROR_CODE}"
+        "--data-urlencode" "error_type='${ERROR_TYPE}'"
+        "--data-urlencode" "error_message='${ERROR_MESSAGE}'"
+        "--data-urlencode" "error_code='${ERROR_CODE}'"
     )
 else
     STATUS="success"

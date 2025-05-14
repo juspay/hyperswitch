@@ -3,19 +3,19 @@ use std::sync::Arc;
 use api_models::user as user_api;
 use common_enums::UserAuthType;
 use common_utils::{
-    encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
+    encryption::Encryption,
+    errors::CustomResult,
+    id_type, type_name,
+    types::{keymanager::Identifier, user::LineageContext},
 };
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
-use router_env::env;
+use router_env::{env, logger};
 
 use crate::{
-    consts::user::{
-        LINEAGE_CONTEXT_PREFIX, LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS, REDIS_SSO_PREFIX,
-        REDIS_SSO_TTL,
-    },
+    consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
     services::{
@@ -23,7 +23,7 @@ use crate::{
         authorization::roles::RoleInfo,
     },
     types::{
-        domain::{self, LineageContext, MerchantAccount, UserFromStorage},
+        domain::{self, MerchantAccount, UserFromStorage},
         transformers::ForeignFrom,
     },
 };
@@ -293,11 +293,7 @@ pub fn create_merchant_account_request_for_org(
     org: organization::Organization,
     product_type: common_enums::MerchantProductType,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
-    let merchant_id = if matches!(env::which(), env::Env::Production) {
-        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().expose())?)?
-    } else {
-        id_type::MerchantId::new_from_unix_timestamp()
-    };
+    let merchant_id = generate_env_specific_merchant_id(req.merchant_name.clone().expose())?;
 
     let company_name = domain::UserCompanyName::new(req.merchant_name.expose())?;
     Ok(api_models::admin::MerchantAccountCreate {
@@ -345,48 +341,50 @@ pub async fn validate_email_domain_auth_type_using_db(
     .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
 }
 
-pub async fn get_lineage_context_from_cache(
-    state: &SessionState,
-    user_id: &str,
-) -> UserResult<Option<LineageContext>> {
-    let connection = get_redis_connection_for_global_tenant(state)?;
-    let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
-    let lineage_context = connection
-        .get_key::<Option<String>>(&key.into())
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to get lineage context from redis")?;
-
-    match lineage_context {
-        Some(json_str) => {
-            let ctx = serde_json::from_str::<LineageContext>(&json_str)
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to deserialize LineageContext from JSON")?;
-            Ok(Some(ctx))
-        }
-        None => Ok(None),
-    }
-}
-
-pub async fn set_lineage_context_in_cache(
+pub fn spawn_async_lineage_context_update_to_db(
     state: &SessionState,
     user_id: &str,
     lineage_context: LineageContext,
-) -> UserResult<()> {
-    let connection = get_redis_connection_for_global_tenant(state)?;
-    let key = format!("{}{}", LINEAGE_CONTEXT_PREFIX, user_id);
-    let serialized_lineage_context: String = serde_json::to_string(&lineage_context)
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to serialize LineageContext")?;
-    connection
-        .set_key_with_expiry(
-            &key.into(),
-            serialized_lineage_context,
-            LINEAGE_CONTEXT_TIME_EXPIRY_IN_SECS,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to set lineage context in redis")?;
+) {
+    let state = state.clone();
+    let lineage_context = lineage_context.clone();
+    let user_id = user_id.to_owned();
+    tokio::spawn(async move {
+        match state
+            .global_store
+            .update_user_by_user_id(
+                &user_id,
+                diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
+            )
+            .await
+        {
+            Ok(_) => {
+                logger::debug!("Successfully updated lineage context for user {}", user_id);
+            }
+            Err(e) => {
+                logger::error!(
+                    "Failed to update lineage context for user {}: {:?}",
+                    user_id,
+                    e
+                );
+            }
+        }
+    });
+}
 
-    Ok(())
+pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {
+    if matches!(env::which(), env::Env::Production) {
+        let raw_id = domain::MerchantId::new(value)?;
+        Ok(id_type::MerchantId::try_from(raw_id)?)
+    } else {
+        Ok(id_type::MerchantId::new_from_unix_timestamp())
+    }
+}
+
+pub fn get_base_url(state: &SessionState) -> &str {
+    if !state.conf.multitenancy.enabled {
+        &state.conf.user.base_url
+    } else {
+        &state.tenant.user.control_center_url
+    }
 }

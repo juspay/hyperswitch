@@ -2,7 +2,7 @@ use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
 use common_utils::{
     id_type,
-    types::theme::{EmailThemeConfig, ThemeLineage},
+    types::user::{EmailThemeConfig, ThemeLineage},
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
