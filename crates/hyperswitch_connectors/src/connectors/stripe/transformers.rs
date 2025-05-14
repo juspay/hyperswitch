@@ -45,7 +45,7 @@ use url::Url;
 
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
-    utils::{convert_uppercase, ApplePay as _, ApplePayDecrypt as _, RouterData as _},
+    utils::{convert_uppercase, ApplePay, ApplePayDecrypt, RouterData as OtherRouterData},
 };
 #[cfg(feature = "payouts")]
 pub mod connect;

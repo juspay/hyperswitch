@@ -75,7 +75,7 @@ use stripe::auth_headers;
 
 use self::transformers as stripe;
 #[cfg(feature = "payouts")]
-use crate::utils::{PayoutsData as _, RouterData as _};
+use crate::utils::{PayoutsData as OtherPayoutsData, RouterData as OtherRouterData};
 use crate::{
     constants::headers::{AUTHORIZATION, CONTENT_TYPE, STRIPE_COMPATIBLE_CONNECT_ACCOUNT},
     types::{
@@ -84,7 +84,7 @@ use crate::{
     utils::{
         self, get_authorise_integrity_object, get_capture_integrity_object,
         get_refund_integrity_object, get_sync_integrity_object, PaymentMethodDataType,
-        RefundsRequestData as _,
+        RefundsRequestData as OtherRefundsRequestData,
     },
 };
 #[derive(Clone)]
