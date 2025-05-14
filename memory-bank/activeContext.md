@@ -2,11 +2,11 @@
 
 ## Current Focus
 
-- [What is the current area of work?]
+- Understanding and documenting the connector integration process for Hyperswitch.
 
 ## Recent Changes
 
-- [List recent significant changes]
+- Researched and compiled a detailed summary of the steps required to add a new payment connector to the Hyperswitch system.
 
 ## Next Steps
 
@@ -22,4 +22,4 @@
 
 ## Learnings & Insights
 
-- [Capture any new learnings or insights about the project]
+- Gained a comprehensive understanding of the connector architecture, including the role of `hyperswitch_connectors` crate, `common_enums` for connector registration, the structure of `transformers.rs` and the main connector logic file, testing procedures, and configuration in both backend and the Control Center.
