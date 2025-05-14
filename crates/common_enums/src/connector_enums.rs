@@ -457,7 +457,7 @@ impl Connector {
     }
 
     pub fn is_pre_processing_required_before_authorize(self) -> bool {
-        matches!(self)
+        false
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
