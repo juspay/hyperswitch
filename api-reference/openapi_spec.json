@@ -25900,6 +25900,10 @@
               }
             ],
             "nullable": true
+          },
+          "decision_engine_routing_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
