@@ -95,6 +95,7 @@ impl From<CardIssuer> for String {
             CardIssuer::DinersClub => "005",
             CardIssuer::CarteBlanche => "006",
             CardIssuer::JCB => "007",
+            CardIssuer::CartesBancaires => "036",
         };
         card_type.to_string()
     }
@@ -4300,7 +4301,7 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         common_enums::CardNetwork::JCB => Some("007"),
         common_enums::CardNetwork::DinersClub => Some("005"),
         common_enums::CardNetwork::Discover => Some("004"),
-        common_enums::CardNetwork::CartesBancaires => Some("006"),
+        common_enums::CardNetwork::CartesBancaires => Some("036"),
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
