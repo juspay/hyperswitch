@@ -17,7 +17,7 @@ use hyperswitch_domain_models;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use masking::Secret;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use router_env::{instrument, tracing, Flow, logger};
+use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
 
@@ -28,10 +28,10 @@ use crate::{
         errors::{self, RouterResult},
         tokenization,
     },
+    headers::X_CUSTOMER_ID,
     routes::{app::StorageInterface, AppState, SessionState},
     services::{self, api as api_service, authentication as auth},
     types::{api, domain, payment_methods as pm_types},
-    headers::X_CUSTOMER_ID,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::TokenizationCreate))]
@@ -63,11 +63,9 @@ pub async fn create_token_vault_api(
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
-            &auth::V2ClientAuth(
-                common_utils::types::authentication::ResourceId::Customer(
-                    customer_id,
-                ),
-            ),
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Customer(
+                customer_id,
+            )),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
