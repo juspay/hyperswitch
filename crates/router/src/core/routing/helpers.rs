@@ -1920,11 +1920,6 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         profile_id.get_string_repr()
     );
 
-    create_merchant_on_decision_engine_if_not_exists(state, profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup merchant_account on decision engine")?;
-
     let default_success_based_routing_config =
         routing_types::SuccessBasedRoutingConfig::open_router_config_default();
 
@@ -1940,10 +1935,15 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     };
 
     let url = format!("{}/{}", &state.conf.open_router.url, "rule/create");
-    call_decision_engine::<_, String>(state, url, Some(decision_engine_request))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
+    call_decision_engine::<_, String>(
+        state,
+        url,
+        services::Method::Post,
+        Some(decision_engine_request),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to setup decision engine dynamic routing")?;
 
     Ok(())
 }
@@ -1960,11 +1960,6 @@ pub async fn update_decision_engine_dynamic_routing_setup(
         profile_id.get_string_repr()
     );
 
-    create_merchant_on_decision_engine_if_not_exists(state, profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup merchant_account on decision engine")?;
-
     let decision_engine_request = open_router::DecisionEngineConfigSetupRequest {
         merchant_id: profile_id.get_string_repr().to_string(),
         config: open_router::DecisionEngineConfigVariant::SuccessRate(
@@ -1977,10 +1972,15 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     };
 
     let url = format!("{}/{}", &state.conf.open_router.url, "rule/update");
-    call_decision_engine::<_, String>(state, url, Some(decision_engine_request))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
+    call_decision_engine::<_, String>(
+        state,
+        url,
+        services::Method::Post,
+        Some(decision_engine_request),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to setup decision engine dynamic routing")?;
 
     Ok(())
 }
@@ -1996,21 +1996,21 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
         profile_id.get_string_repr()
     );
 
-    create_merchant_on_decision_engine_if_not_exists(state, profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup merchant_account on decision engine")?;
-
     let decision_engine_request = open_router::FetchRoutingConfig {
         merchant_id: profile_id.get_string_repr().to_string(),
         algorithm: open_router::AlgorithmType::SuccessRate,
     };
 
     let url = format!("{}/{}", &state.conf.open_router.url, "rule/delete");
-    call_decision_engine::<_, String>(state, url, Some(decision_engine_request))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
+    call_decision_engine::<_, String>(
+        state,
+        url,
+        services::Method::Post,
+        Some(decision_engine_request),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to setup decision engine dynamic routing")?;
 
     Ok(())
 }
@@ -2019,13 +2019,14 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
 pub async fn call_decision_engine<Req, Res>(
     state: &SessionState,
     url: String,
+    method: services::Method,
     request_body: Option<Req>,
 ) -> RouterResult<Res>
 where
     Req: serde::Serialize + serde::de::DeserializeOwned + Debug + Send + Sync + Clone + 'static,
     Res: serde::de::DeserializeOwned + Debug + Send + Sync + Clone,
 {
-    let mut request = request::Request::new(services::Method::Post, &url);
+    let mut request = request::Request::new(method, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::X_TENANT_ID,
@@ -2077,7 +2078,7 @@ pub async fn create_merchant_on_decision_engine_if_not_exists(
         profile_id.get_string_repr()
     );
     let merchant_account: Option<open_router::MerchantAccount> =
-        call_decision_engine::<(), _>(state, url, None)
+        call_decision_engine::<(), _>(state, url, services::Method::Get, None)
             .await
             .map_err(|err| {
                 logger::error!("Error in fetching merchant from decision engine: {:?}", err)
@@ -2094,10 +2095,15 @@ pub async fn create_merchant_on_decision_engine_if_not_exists(
             "{}/{}",
             &state.conf.open_router.url, "merchant-account/create"
         );
-        call_decision_engine::<_, String>(state, url, Some(merchant_account_req))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to setup decision engine dynamic routing")?;
+        call_decision_engine::<_, String>(
+            state,
+            url,
+            services::Method::Post,
+            Some(merchant_account_req),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup decision engine dynamic routing")?;
     }
 
     Ok(())
