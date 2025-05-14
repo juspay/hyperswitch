@@ -91,7 +91,7 @@ pub trait RefundInterface {
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -138,7 +138,7 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -150,6 +150,7 @@ pub trait RefundInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::report;
+    use hyperswitch_domain_models::refunds;
     use router_env::{instrument, tracing};
 
     use super::RefundInterface;
@@ -323,6 +324,28 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+        #[instrument(skip_all)]
+        async fn filter_refund_by_constraints(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: refunds::RefundListConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+            limit: i64,
+            offset: i64,
+        ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+                limit,
+                offset,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[cfg(all(
             any(feature = "v1", feature = "v2"),
             not(feature = "refunds_v2"),
@@ -374,6 +397,24 @@ mod storage {
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
+                &conn,
+                merchant_id,
+                refund_details,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+        #[instrument(skip_all)]
+        async fn get_total_count_of_refunds(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -990,7 +1031,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
@@ -1071,7 +1112,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
