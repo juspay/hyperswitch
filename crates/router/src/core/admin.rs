@@ -1424,6 +1424,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Facilitapay => {
                 facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
+                facilitapay::transformers::FacilitapayConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Fiserv => {

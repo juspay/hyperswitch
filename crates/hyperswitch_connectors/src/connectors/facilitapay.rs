@@ -19,11 +19,13 @@ use hyperswitch_domain_models::{
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        CompleteAuthorize, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -31,7 +33,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -42,7 +45,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, RefreshTokenType, Response},
+    types::{self, PaymentsPreProcessingType, RefreshTokenType, Response},
     webhooks,
 };
 use lazy_static::lazy_static;
@@ -58,6 +61,7 @@ use responses::{
 use transformers::parse_facilitapay_error_response;
 
 use crate::{
+    connectors::facilitapay::responses::FacilitapayPreProcessAdiqTokenResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils::{self, RefundsRequestData},
@@ -89,6 +93,8 @@ impl api::Refund for Facilitapay {}
 impl api::RefundExecute for Facilitapay {}
 impl api::RefundSync for Facilitapay {}
 impl api::PaymentToken for Facilitapay {}
+impl api::PaymentsPreProcessing for Facilitapay {}
+impl api::PaymentsCompleteAuthorize for Facilitapay {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Facilitapay
@@ -339,6 +345,57 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Facilitapay
+{
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/threeds/token",
+            connectors.facilitapay.external_3ds_service_adiq_base_url,
+        ))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsPreProcessingType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: FacilitapayPreProcessAdiqTokenResponse = res
+            .response
+            .parse_struct("FacilitapayPreProcessAdiqTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+}
+
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Facilitapay {
     fn get_headers(
         &self,
@@ -427,6 +484,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Facilitapay
+{
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Facilitapay {
@@ -779,6 +841,12 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress
+        ];
+
         let mut facilitapay_supported_payment_methods = SupportedPaymentMethods::new();
 
         facilitapay_supported_payment_methods.add(
@@ -789,6 +857,24 @@ lazy_static! {
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: facilitapay_supported_capture_methods.clone(),
                 specific_features: None,
+            },
+        );
+        facilitapay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: facilitapay_supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone()
+                        }
+                    })
+                ),
             },
         );
 

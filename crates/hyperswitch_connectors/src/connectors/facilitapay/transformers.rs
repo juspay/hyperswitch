@@ -1,16 +1,18 @@
-use api_models::payments::QrCodeInformation;
+use api_models::payments::{CustomerIdentificationDocumentType, QrCodeInformation};
 use common_enums::{enums, PaymentMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, Encode},
+    new_type::MaskedBankAccount,
+    pii,
     types::StringMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankTransferData, Card, PaymentMethodData},
+    payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{PaymentsPreProcessingData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -18,16 +20,17 @@ use hyperswitch_interfaces::{
     consts, errors, events::connector_api_logs::ConnectorEvent, types::Response,
 };
 use masking::{ExposeInterface, Secret};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use super::{
     requests::{
-        DocumentType, FacilitapayAuthRequest, FacilitapayCardThreeDsData,
-        FacilitapayCardTransactionRequest, FacilitapayCredentials, FacilitapayCustomerRequest,
-        FacilitapayPaymentsRequest, FacilitapayPerson, FacilitapayPixTransactionRequest,
-        FacilitapayRefundRequest, FacilitapayRouterData, FacilitapayTransactionRequest,
-        SoftDescriptor,
+        BrowserLanguageEnabled, FacilitapayAuthRequest, FacilitapayCardDetails,
+        FacilitapayCardThreeDsData, FacilitapayCardTransactionRequest, FacilitapayCredentials,
+        FacilitapayCustomerRequest, FacilitapayPaymentsRequest, FacilitapayPerson,
+        FacilitapayPixTransactionRequest, FacilitapayRefundRequest, FacilitapayRouterData,
+        FacilitapayTransactionRequest, SoftDescriptor,
     },
     responses::{
         FacilitapayAuthResponse, FacilitapayCustomerResponse, FacilitapayPaymentStatus,
@@ -35,9 +38,11 @@ use super::{
     },
 };
 use crate::{
+    connectors::facilitapay::responses::FacilitapayPreProcessAdiqTokenResponse,
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        is_payment_failure, missing_field_err, CardData, QrImage, RouterData as OtherRouterData,
+        self, is_payment_failure, missing_field_err, BrowserInformationData, CardData,
+        PaymentsAuthorizeRequestData, QrImage, RouterData as OtherRouterData,
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -51,6 +56,50 @@ impl<T> From<(StringMajorUnit, T)> for FacilitapayRouterData<T> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FacilitapayAuthType {
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FacilitapayConnectorMetadataObject {
+    // pub destination_account_number: Secret<String>,
+    pub destination_account_number: MaskedBankAccount,
+}
+
+impl TryFrom<&ConnectorAuthType> for FacilitapayAuthType {
+    type Error = Error;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                username: key1.to_owned(),
+                password: api_key.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for FacilitapayConnectorMetadataObject {
+    type Error = Error;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
+impl TryFrom<&RefreshTokenRouterData> for FacilitapayAuthRequest {
+    type Error = Error;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let auth_type = FacilitapayAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self::from_auth_type(&auth_type))
+    }
+}
+
 impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
     for FacilitapayPaymentsRequest
 {
@@ -58,11 +107,13 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let metadata =
+            FacilitapayConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
                 BankTransferData::Pix {
                     source_bank_account_id,
-                    destination_bank_account_id,
                     ..
                 } => {
                     // Set expiry time to 15 minutes from now
@@ -81,12 +132,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                                     field_name: "source bank account id",
                                 },
                             )?,
-
-                            to_bank_account_id: destination_bank_account_id.clone().ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "destination bank account id",
-                                },
-                            )?,
+                            to_bank_account_id: metadata.destination_account_number,
                             currency: item.router_data.request.currency,
                             exchange_currency: item.router_data.request.currency,
                             value: item.amount.clone(),
@@ -124,15 +170,15 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 if !item.router_data.clone().is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Non-ThreeDs".to_owned(),
-                        connector: "deutschebank",
+                        connector: "Facilitapay",
                     }
                     .into())
                 } else {
                     let facilitapay_card_details = FacilitapayCardDetails {
-                        card_number: card.card_number,
+                        card_number: card.card_number.clone(),
                         expiry_date: card
                             .get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
-                        cvc: card.card_cvc,
+                        cvc: card.card_cvc.clone(),
                         card_brand: card
                             .card_network
                             .map(|cn| cn.to_string())
@@ -142,20 +188,46 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                             .ok_or_else(missing_field_err("card.card_holder_name"))?,
                     };
 
-                    // New field in routerData
-                    let to_bank_account_id = "";
-                    
-                    // This should be taken from Merchant Account description
-                    let raw_descriptor_string: String =
-                        "This is a soft descriptor that is longer than 17 characters".to_string();
-                    
-                    let descriptor =
-                        facilitapay::requests::SoftDescriptor::new(raw_descriptor_string);
-                    // descriptor.as_str() would now be "This is a soft de"
+                    let to_bank_account_id = metadata.destination_account_number;
 
+                    let descriptor =
+                        SoftDescriptor::new(if item.router_data.description.is_some() {
+                            item.router_data.description.clone().unwrap_or_default()
+                        } else {
+                            "PAYMENT_ORDER".to_string()
+                        });
+
+                    let browser_info = item.router_data.request.get_browser_info()?;
 
                     let three_ds_data = FacilitapayCardThreeDsData {
                         soft_descriptor: descriptor,
+
+                        // to update - need adiq setup
+                        url_site_3ds: "sandbox-portal.facilitapay.com".to_string(),
+                        code_3ds: item.router_data.get_preprocessing_id()?,
+
+                        code_anti_fraud: Secret::from(uuid::Uuid::new_v4().to_string()),
+
+                        http_accept_browser_value: browser_info.get_accept_header()?,
+                        http_browser_language: browser_info.get_language()?,
+                        http_browser_java_enabled: if browser_info.get_java_enabled()? {
+                            BrowserLanguageEnabled::Yes
+                        } else {
+                            BrowserLanguageEnabled::No
+                        },
+                        http_browser_javascript_enabled: if browser_info
+                            .get_java_script_enabled()?
+                        {
+                            BrowserLanguageEnabled::Yes
+                        } else {
+                            BrowserLanguageEnabled::No
+                        },
+                        http_browser_color_depth: browser_info.get_color_depth()?.to_string(),
+                        http_browser_screen_height: browser_info.get_screen_height()?.to_string(),
+                        http_browser_screen_width: browser_info.get_screen_width()?.to_string(),
+                        http_browser_time_difference: browser_info.get_time_zone()?.to_string(),
+                        user_agent_browser_value: browser_info.get_user_agent()?.to_string(),
+                        ip_address: browser_info.get_ip_address()?,
                     };
 
                     let transaction_data = FacilitapayTransactionRequest::Card(Box::new(
@@ -213,45 +285,19 @@ impl FacilitapayAuthRequest {
     }
 }
 
-// Auth Struct
-#[derive(Debug, Clone)]
-pub struct FacilitapayAuthType {
-    pub(super) username: Secret<String>,
-    pub(super) password: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for FacilitapayAuthType {
-    type Error = Error;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                username: key1.to_owned(),
-                password: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
-}
-
-impl TryFrom<&RefreshTokenRouterData> for FacilitapayAuthRequest {
-    type Error = Error;
-    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
-        let auth_type = FacilitapayAuthType::try_from(&item.connector_auth_type)?;
-        Ok(Self::from_auth_type(&auth_type))
-    }
-}
-
-fn convert_to_document_type(document_type: &str) -> Result<DocumentType, errors::ConnectorError> {
+fn convert_to_document_type(
+    document_type: &str,
+) -> Result<CustomerIdentificationDocumentType, errors::ConnectorError> {
     match document_type.to_lowercase().as_str() {
-        "cc" => Ok(DocumentType::CedulaDeCiudadania),
-        "cnpj" => Ok(DocumentType::CadastroNacionaldaPessoaJurídica),
-        "cpf" => Ok(DocumentType::CadastrodePessoasFísicas),
-        "curp" => Ok(DocumentType::ClaveÚnicadeRegistrodePoblación),
-        "nit" => Ok(DocumentType::NúmerodeIdentificaciónTributaria),
-        "passport" => Ok(DocumentType::Passport),
-        "rfc" => Ok(DocumentType::RegistroFederaldeContribuyentes),
-        "rut" => Ok(DocumentType::RolUnicoTributario),
-        "tax_id" | "taxid" => Ok(DocumentType::TaxId),
+        "cc" => Ok(CustomerIdentificationDocumentType::CedulaDeCiudadania),
+        "cnpj" => Ok(CustomerIdentificationDocumentType::CadastroNacionaldaPessoaJurídica),
+        "cpf" => Ok(CustomerIdentificationDocumentType::CadastrodePessoasFísicas),
+        "curp" => Ok(CustomerIdentificationDocumentType::ClaveÚnicadeRegistrodePoblación),
+        "nit" => Ok(CustomerIdentificationDocumentType::NúmerodeIdentificaciónTributaria),
+        "passport" => Ok(CustomerIdentificationDocumentType::Passport),
+        "rfc" => Ok(CustomerIdentificationDocumentType::RegistroFederaldeContribuyentes),
+        "rut" => Ok(CustomerIdentificationDocumentType::RolUnicoTributario),
+        "tax_id" | "taxid" => Ok(CustomerIdentificationDocumentType::TaxId),
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Document type '{document_type}'"),
             connector: "Facilitapay",
@@ -352,18 +398,49 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for FacilitapayCustomerRequest
                     let document_type = convert_to_document_type("cpf")?;
                     (document_type, document_number)
                 }
-                _ => {
-                    return Err(errors::ConnectorError::NotImplemented(
+                BankTransferData::AchBankTransfer {}
+                | BankTransferData::SepaBankTransfer {}
+                | BankTransferData::BacsBankTransfer {}
+                | BankTransferData::MultibancoBankTransfer {}
+                | BankTransferData::PermataBankTransfer {}
+                | BankTransferData::BcaBankTransfer {}
+                | BankTransferData::BniVaBankTransfer {}
+                | BankTransferData::BriVaBankTransfer {}
+                | BankTransferData::CimbVaBankTransfer {}
+                | BankTransferData::DanamonVaBankTransfer {}
+                | BankTransferData::MandiriVaBankTransfer {}
+                | BankTransferData::Pse {}
+                | BankTransferData::InstantBankTransfer {}
+                | BankTransferData::LocalBankTransfer { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
-                    )
-                    .into())
+                    ))?
                 }
             },
-            _ => {
-                return Err(errors::ConnectorError::NotImplemented(
+            PaymentMethodData::Card(card_info) => (
+                convert_to_document_type("cpf")?,
+                Secret::new("12345678909".to_string()),
+            ),
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through Facilitapay".to_string(),
-                )
-                .into())
+                ))?
             }
         };
 
@@ -403,6 +480,40 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.data.customer_id.expose(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            FacilitapayPreProcessAdiqTokenResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+{
+    type Error = Error;
+
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            FacilitapayPreProcessAdiqTokenResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let jwt_token = item.response.jwt;
+        let order_number = item.response.order_number;
+
+        // for building challenge, can check bluesnap, worldpay
+        Ok(Self {
+            preprocessing_id: Some(order_number.clone()),
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: jwt_token.expose(),
             }),
             ..item.data
         })

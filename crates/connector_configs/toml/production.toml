@@ -2517,7 +2517,7 @@ merchant_secret="Source verification key"
   payment_experience = "invoke_sdk_client"
 [[paypal.wallet]]
   payment_method_type = "paypal"
-  payment_experience = "redirect_to_url"  
+  payment_experience = "redirect_to_url"
 is_verifiable = true
 [paypal.connector_auth.BodyKey]
 api_key="Client Secret"
@@ -4412,3 +4412,9 @@ type="Text"
 [facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"
+[facilitapay.metadata.destination_account_number]
+  name="destination_account_number"
+  label="Destination Account Number"
+  placeholder="Enter Destination Account Number"
+  required=true
+  type="Text"
