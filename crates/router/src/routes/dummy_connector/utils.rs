@@ -267,12 +267,12 @@ impl types::DummyConnectorUpiCollect {
     ) -> types::DummyConnectorResult<types::DummyConnectorUpiFlow> {
         let vpa_id = self.vpa_id.peek();
         match vpa_id.as_str() {
-            "failure@upi" => Ok(types::DummyConnectorUpiFlow {
+            consts::DUMMY_CONNECTOR_UPI_FAILURE_VPA_ID => Ok(types::DummyConnectorUpiFlow {
                 status: types::DummyConnectorStatus::Failed,
                 error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
                 is_next_action_required: false,
             }),
-            "success@upi" => Ok(types::DummyConnectorUpiFlow {
+            consts::DUMMY_CONNECTOR_UPI_SUCCESS_VPA_ID => Ok(types::DummyConnectorUpiFlow {
                 status: types::DummyConnectorStatus::Processing,
                 error: None,
                 is_next_action_required: true,
