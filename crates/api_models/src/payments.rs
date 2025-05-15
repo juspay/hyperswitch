@@ -2842,6 +2842,52 @@ pub struct GiftCardDetails {
     pub cvc: Secret<String>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerIdentificationDocumentType {
+    /// CC is the Cedula de Ciudadania, is a 10-digit number, which is the national identity card for Colombian citizens.
+    /// It is used for citizen identification purposes.
+    #[serde(rename = "cc")]
+    CedulaDeCiudadania,
+    /// CNPJ stands for Cadastro Nacional da Pessoa Jurídica, is a 14-digit number,
+    /// which is the national registry of legal entities in Brazil used as a unique identifier for Brazilian companies.
+    #[serde(rename = "cnpj")]
+    CadastroNacionaldaPessoaJurídica,
+    /// CPF stands for Cadastro de Pessoas Físicas, is a 11-digit number,
+    /// which is the national registry of natural persons in Brazil used as a unique identifier for Brazilian citizens.
+    #[serde(rename = "cpf")]
+    CadastrodePessoasFísicas,
+    /// CURP stands for Clave Única de Registro de Población,is a 18-digit number used as a unique identifier for Mexican citizens.
+    /// It is used to track tax information and other identification purposes by the government.
+    #[serde(rename = "curp")]
+    ClaveÚnicadeRegistrodePoblación,
+    /// NIT is the Número de Identificación Tributaria, is a 10-digit number, which is the tax identification number in Colombia. Used for companies.
+    #[serde(rename = "nit")]
+    NúmerodeIdentificaciónTributaria,
+    /// Passport is the travel document usually issued by a country's government
+    Passport,
+    /// RFC stands for Registro Federal de Contribuyentes, is a 13-digit number used as a unique identifier for Mexican companies.
+    #[serde(rename = "rfc")]
+    RegistroFederaldeContribuyentes,
+    /// RUT stands for Rol Unico Tributario, is a 9-digit number used as a unique identifier for Chilean citizens and companies.
+    #[serde(rename = "rut")]
+    RolUnicoTributario,
+    /// A Taxpayer Identification Number is an identifying number used for tax purposes
+    TaxId,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AdditionalCustomerInformation {
+    /// The type of document provided by the customer
+    pub document_type: Option<CustomerIdentificationDocumentType>,
+
+    /// The document identification number
+    pub document_number: Option<Secret<String>>,
+
+    /// Optional country code for validation context
+    pub country: Option<String>,
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AdditionalCardInfo {
@@ -3419,12 +3465,8 @@ pub enum BankTransferData {
         cnpj: Option<Secret<String>>,
 
         /// Source bank account number
-        #[schema(value_type = Option<String>, example = "8b2812f0-d6c8-4073-97bb-9fa964d08bc5")]
+        #[schema(value_type = Option<MaskedBankAccount>, example = "********-****-****-****-************")]
         source_bank_account_id: Option<MaskedBankAccount>,
-
-        /// Destination bank account number
-        #[schema(value_type = Option<String>, example = "9b95f84e-de61-460b-a14b-f23b4e71c97b")]
-        destination_bank_account_id: Option<MaskedBankAccount>,
     },
     Pse {},
     LocalBankTransfer {

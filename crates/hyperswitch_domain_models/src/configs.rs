@@ -43,7 +43,7 @@ pub struct Connectors {
     pub dummyconnector: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub elavon: ConnectorParams,
-    pub facilitapay: ConnectorParams,
+    pub facilitapay: ConnectorParamsWith3rdPartyServiceUrls,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
@@ -225,4 +225,13 @@ pub struct ConnectorParamsWithThreeUrls {
     pub secondary_base_url: String,
     /// third base url
     pub third_base_url: String,
+}
+
+/// struct ConnectorParamsWith3rdPartyServiceUrls
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWith3rdPartyServiceUrls {
+    pub base_url: String,
+    pub external_3ds_service_adiq_base_url: String,
+    pub external_3ds_service_cardinal_commerce_base_url: String,
 }

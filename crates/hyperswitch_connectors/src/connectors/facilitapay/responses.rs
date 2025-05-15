@@ -1,8 +1,7 @@
+use api_models::payments::CustomerIdentificationDocumentType;
 use common_utils::{pii, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
-use super::requests::DocumentType;
 
 // Response body for POST /sign_in
 #[derive(Debug, Deserialize, Serialize)]
@@ -29,7 +28,7 @@ pub enum SubjectKycStatus {
 #[serde(rename_all = "snake_case")]
 pub struct FacilitapaySubject {
     pub social_name: Secret<String>,
-    pub document_type: DocumentType,
+    pub document_type: CustomerIdentificationDocumentType,
     pub document_number: Secret<String>,
     // In documentation, both CountryAlpha2 and String are used. We cannot rely on CountryAlpha2.
     pub fiscal_country: String,
@@ -75,14 +74,22 @@ pub struct PixInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CreditCardResponseInfo {
     pub id: String,
-    pub status: Option<String>,
-    pub document_type: String,
-    pub document_number: Secret<String>,
+    pub inserted_at: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<CustomerIdentificationDocumentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub birthdate: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone_country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone_area_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone_number: Option<Secret<String>>,
-    pub inserted_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub masked_card_number: Option<String>,
 }
 
 // PaymentsResponse
@@ -115,43 +122,93 @@ pub struct FacilitapayPaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OwnerCompany {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub social_name: Option<Secret<String>>,
     #[serde(rename = "id")]
     pub company_id: Option<String>,
-    pub document_type: DocumentType,
-    pub document_number: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<CustomerIdentificationDocumentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BankInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub swift: Option<Secret<String>>,
     pub name: Option<String>,
     #[serde(rename = "id")]
     pub bank_id: Secret<String>,
+    /// Bank code in Brazil (3 digits). You can also use the ispb field below to identify a bank instead of the code.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<Secret<String>>,
+    /// An 8-digit code that identifies the bank in the Brazilian payments system. It can dismiss the use of the 3-digit code.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ispb: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BankAccountDetail {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_info: Option<PixInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_document_type: Option<CustomerIdentificationDocumentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner_document_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub owner_company: Option<OwnerCompany>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nickname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub internal: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub intermediary_bank_account: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub intermediary_bank_account_id: Option<Secret<String>>,
     #[serde(rename = "id")]
     pub bank_account_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iban: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub flow_type: Option<String>,
     pub currency: api_models::enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank: Option<BankInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub aba: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FacilitapayPreProcessAdiqTokenResponse {
+    /// The token is used to setup Cardinal SDK
+    pub jwt: Secret<String>,
+    /// code3DS is the code that will be used to identify the transaction in the 3DS flow
+    #[serde(rename = "orderNumber")]
+    pub order_number: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ThreeDsChallenge {
+    pub three_ds_version: String,
+    /// CReq for the ACS
+    pub pareq: Secret<String>,
+    /// threeDSServerTransID
+    pub authentication_transaction_id: Secret<String>,
+    pub acs_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -167,40 +224,59 @@ pub struct TransactionData {
     pub to_bank_account: BankAccountDetail,
 
     // Details about the source - mutually exclusive
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from_credit_card: Option<CreditCardResponseInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from_bank_account: Option<BankAccountDetail>, // Populated for PIX
 
     // Subject information (customer)
     pub subject_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<FacilitapaySubject>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_is_receiver: Option<bool>,
 
     // Source identification (potentially redundant with subject or card/bank info)
     pub source_name: Secret<String>,
-    pub source_document_type: DocumentType,
+    pub source_document_type: CustomerIdentificationDocumentType,
     pub source_document_number: Secret<String>,
 
     // Timestamps and flags
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inserted_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub for_exchange: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exchange_under_request: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub estimated_value_until_exchange: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cleared: Option<bool>,
 
     // PIX specific field
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_pix_code: Option<String>, // QR code string for PIX
 
     // Exchange details
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exchanged_value: Option<StringMajorUnit>,
 
     // Cancelation details
     #[serde(rename = "canceled_reason")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cancelled_reason: Option<String>,
     #[serde(rename = "canceled_at")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cancelled_at: Option<String>,
 
+    // 3DS Challenge data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub threeds_challenge: Option<ThreeDsChallenge>,
+
     // Other fields
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_transaction: Option<Secret<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<serde_json::Value>,
 }
 
