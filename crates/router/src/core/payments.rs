@@ -1432,6 +1432,7 @@ pub fn get_connector_data(
         .attach_printable("Connector not found in connectors iterator")
 }
 
+#[cfg(feature = "v1")]
 pub fn find_connector_with_networks(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
 ) -> Option<(api::ConnectorData, enums::CardNetwork)> {
@@ -1442,6 +1443,7 @@ pub fn find_connector_with_networks(
     })
 }
 
+#[cfg(feature = "v1")]
 fn get_connector_data_with_routing_decision(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
     business_profile: &domain::Profile,

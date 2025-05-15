@@ -303,15 +303,16 @@ pub struct RoutingAlgorithmHelpers<'h> {
     pub routing_algorithm: &'h routing_types::RoutingAlgorithm,
 }
 
+#[cfg(feature = "v1")]
 pub enum RoutingDecisionData {
     DebitRouting(DebitRoutingDecisionData),
 }
-
+#[cfg(feature = "v1")]
 pub struct DebitRoutingDecisionData {
     pub card_network: common_enums::enums::CardNetwork,
     pub debit_routing_result: open_router::DebitRoutingOutput,
 }
-
+#[cfg(feature = "v1")]
 impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
@@ -337,7 +338,7 @@ impl RoutingDecisionData {
         })
     }
 }
-
+#[cfg(feature = "v1")]
 impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
