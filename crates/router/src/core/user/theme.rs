@@ -189,15 +189,16 @@ pub async fn update_theme(
             .to_not_found_response(UserErrors::ThemeNotFound)?,
     };
 
-    theme_utils::upload_file_to_theme_bucket(
-        &state,
-        &theme_utils::get_theme_file_key(&db_theme.theme_id),
-        request
-            .theme_data
-            .encode_to_vec()
-            .change_context(UserErrors::InternalServerError)?,
-    )
-    .await?;
+    if let Some(theme_data) = request.theme_data {
+        theme_utils::upload_file_to_theme_bucket(
+            &state,
+            &theme_utils::get_theme_file_key(&db_theme.theme_id),
+            theme_data
+                .encode_to_vec()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await?;
+    }
 
     let file = theme_utils::retrieve_file_from_theme_bucket(
         &state,
