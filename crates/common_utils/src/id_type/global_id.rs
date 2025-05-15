@@ -134,7 +134,7 @@ impl GlobalId {
     ) -> Result<Self, GlobalIdError> {
         let length_id = LengthId::from(input_string)?;
         let input_string = &length_id.0 .0;
-        let (cell_id, remaining) = input_string
+        let (cell_id, _remaining) = input_string
             .split_once("_")
             .ok_or(GlobalIdError::InvalidIdFormat)?;
 

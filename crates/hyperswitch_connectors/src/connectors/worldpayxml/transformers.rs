@@ -1,20 +1,29 @@
+use common_enums::enums;
 use common_utils::types::StringMinorUnit;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::PaymentsAuthorizeRequestData,
 };
 
 //TODO: Fill the struct with respective fields
-pub struct WellsfargopayoutRouterData<T> {
+pub struct WorldpayxmlRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for WellsfargopayoutRouterData<T> {
+impl<T> From<(StringMinorUnit, T)> for WorldpayxmlRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
@@ -26,13 +35,13 @@ impl<T> From<(StringMinorUnit, T)> for WellsfargopayoutRouterData<T> {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct WellsfargopayoutPaymentsRequest {
+pub struct WorldpayxmlPaymentsRequest {
     amount: StringMinorUnit,
-    card: WellsfargopayoutCard,
+    card: WorldpayxmlCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct WellsfargopayoutCard {
+pub struct WorldpayxmlCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -40,16 +49,14 @@ pub struct WellsfargopayoutCard {
     complete: bool,
 }
 
-impl TryFrom<&WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>>
-    for WellsfargopayoutPaymentsRequest
-{
+impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for WorldpayxmlPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = WellsfargopayoutCard {
+            PaymentMethodData::Card(req_card) => {
+                let card = WorldpayxmlCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -61,22 +68,22 @@ impl TryFrom<&WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>>
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct WellsfargopayoutAuthType {
+pub struct WorldpayxmlAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for WellsfargopayoutAuthType {
+impl TryFrom<&ConnectorAuthType> for WorldpayxmlAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -87,53 +94,41 @@ impl TryFrom<&types::ConnectorAuthType> for WellsfargopayoutAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum WellsfargopayoutPaymentStatus {
+pub enum WorldpayxmlPaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<WellsfargopayoutPaymentStatus> for enums::AttemptStatus {
-    fn from(item: WellsfargopayoutPaymentStatus) -> Self {
+impl From<WorldpayxmlPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: WorldpayxmlPaymentStatus) -> Self {
         match item {
-            WellsfargopayoutPaymentStatus::Succeeded => Self::Charged,
-            WellsfargopayoutPaymentStatus::Failed => Self::Failure,
-            WellsfargopayoutPaymentStatus::Processing => Self::Authorizing,
+            WorldpayxmlPaymentStatus::Succeeded => Self::Charged,
+            WorldpayxmlPaymentStatus::Failed => Self::Failure,
+            WorldpayxmlPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WellsfargopayoutPaymentsResponse {
-    status: WellsfargopayoutPaymentStatus,
+pub struct WorldpayxmlPaymentsResponse {
+    status: WorldpayxmlPaymentStatus,
     id: String,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            WellsfargopayoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, WorldpayxmlPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            WellsfargopayoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, WorldpayxmlPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+            status: common_enums::AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -151,17 +146,13 @@ impl<F, T>
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct WellsfargopayoutRefundRequest {
+pub struct WorldpayxmlRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&WellsfargopayoutRouterData<&types::RefundsRouterData<F>>>
-    for WellsfargopayoutRefundRequest
-{
+impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for WorldpayxmlRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &WellsfargopayoutRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &WorldpayxmlRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -197,15 +188,13 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -214,15 +203,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -233,7 +220,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct WellsfargopayoutErrorResponse {
+pub struct WorldpayxmlErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,

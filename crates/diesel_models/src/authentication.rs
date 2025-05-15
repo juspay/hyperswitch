@@ -129,7 +129,6 @@ pub enum AuthenticationUpdate {
         acquirer_country_code: Option<String>,
     },
     AuthenticationUpdate {
-        authentication_value: Option<String>,
         trans_status: common_enums::TransactionStatus,
         authentication_type: common_enums::DecoupledAuthenticationType,
         acs_url: Option<String>,
@@ -143,7 +142,6 @@ pub enum AuthenticationUpdate {
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
         eci: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
     },
@@ -177,7 +175,6 @@ pub struct AuthenticationUpdateInternal {
     pub connector_metadata: Option<serde_json::Value>,
     pub maximum_supported_version: Option<common_utils::types::SemanticVersion>,
     pub threeds_server_transaction_id: Option<String>,
-    pub cavv: Option<String>,
     pub authentication_flow_type: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub eci: Option<String>,
@@ -211,7 +208,6 @@ impl Default for AuthenticationUpdateInternal {
             connector_metadata: Default::default(),
             maximum_supported_version: Default::default(),
             threeds_server_transaction_id: Default::default(),
-            cavv: Default::default(),
             authentication_flow_type: Default::default(),
             message_version: Default::default(),
             eci: Default::default(),
@@ -247,7 +243,6 @@ impl AuthenticationUpdateInternal {
             connector_metadata,
             maximum_supported_version,
             threeds_server_transaction_id,
-            cavv,
             authentication_flow_type,
             message_version,
             eci,
@@ -282,7 +277,6 @@ impl AuthenticationUpdateInternal {
                 .or(source.maximum_supported_version),
             threeds_server_transaction_id: threeds_server_transaction_id
                 .or(source.threeds_server_transaction_id),
-            cavv: cavv.or(source.cavv),
             authentication_flow_type: authentication_flow_type.or(source.authentication_flow_type),
             message_version: message_version.or(source.message_version),
             eci: eci.or(source.eci),
@@ -369,7 +363,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
-                authentication_value,
                 trans_status,
                 authentication_type,
                 acs_url,
@@ -381,7 +374,6 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 ds_trans_id,
             } => Self {
-                cavv: authentication_value,
                 trans_status: Some(trans_status),
                 authentication_type: Some(authentication_type),
                 acs_url,
@@ -396,12 +388,10 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
                 trans_status,
-                authentication_value,
                 eci,
                 authentication_status,
             } => Self {
                 trans_status: Some(trans_status),
-                cavv: authentication_value,
                 eci,
                 authentication_status: Some(authentication_status),
                 ..Default::default()
