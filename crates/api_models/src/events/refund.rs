@@ -22,13 +22,6 @@ impl ApiEventMetric for RefundRequest {
     }
 }
 
-#[cfg(feature = "v2")]
-impl ApiEventMetric for refunds::RefundsCreateRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
-    }
-}
-
 #[cfg(feature = "v1")]
 impl ApiEventMetric for refunds::RefundResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
