@@ -90,7 +90,6 @@ impl Theme {
 #[derive(Clone, Debug, Default, AsChangeset, DebugAsDisplay)]
 #[diesel(table_name = themes)]
 pub struct ThemeUpdateInternal {
-    pub theme_name: Option<String>,
     pub email_primary_color: Option<String>,
     pub email_foreground_color: Option<String>,
     pub email_background_color: Option<String>,
@@ -100,24 +99,18 @@ pub struct ThemeUpdateInternal {
 
 #[derive(Clone)]
 pub enum ThemeUpdate {
-    ThemeName { theme_name: String },
     EmailConfig { email_config: EmailThemeConfig },
 }
 
 impl From<ThemeUpdate> for ThemeUpdateInternal {
     fn from(value: ThemeUpdate) -> Self {
         match value {
-            ThemeUpdate::ThemeName { theme_name } => Self {
-                theme_name: Some(theme_name),
-                ..Default::default()
-            },
             ThemeUpdate::EmailConfig { email_config } => Self {
                 email_primary_color: Some(email_config.primary_color),
                 email_foreground_color: Some(email_config.foreground_color),
                 email_background_color: Some(email_config.background_color),
                 email_entity_name: Some(email_config.entity_name),
                 email_entity_logo_url: Some(email_config.entity_logo_url),
-                ..Default::default()
             },
         }
     }

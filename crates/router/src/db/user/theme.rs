@@ -284,9 +284,6 @@ impl ThemeInterface for MockDb {
             .find(|theme| theme.theme_id == theme_id)
             .map(|theme| {
                 match theme_update {
-                    ThemeUpdate::ThemeName { theme_name } => {
-                        theme.theme_name = theme_name;
-                    }
                     ThemeUpdate::EmailConfig { email_config } => {
                         theme.email_primary_color = email_config.primary_color;
                         theme.email_foreground_color = email_config.foreground_color;
