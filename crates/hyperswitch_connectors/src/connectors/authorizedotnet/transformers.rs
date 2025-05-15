@@ -467,11 +467,9 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                    ))?
-                }
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?,
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
