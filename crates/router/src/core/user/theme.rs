@@ -178,8 +178,7 @@ pub async fn update_theme(
                 .store
                 .update_theme_by_theme_id(theme_id.clone(), theme_update)
                 .await
-                .to_not_found_response(UserErrors::ThemeNotFound)
-                .attach_printable("Failed to update theme database record")?
+                .to_not_found_response(UserErrors::ThemeNotFound)?
         }
         None => state
             .store
@@ -194,7 +193,8 @@ pub async fn update_theme(
             &theme_utils::get_theme_file_key(&db_theme.theme_id),
             theme_data
                 .encode_to_vec()
-                .change_context(UserErrors::InternalServerError)?,
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to parse ThemeData")?,
         )
         .await?;
     }
