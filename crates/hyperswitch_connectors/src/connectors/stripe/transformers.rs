@@ -685,7 +685,6 @@ pub enum StripePaymentMethodType {
     Wechatpay,
     #[serde(rename = "cashapp")]
     Cashapp,
-    #[serde(rename = "revolut_pay")]
     RevolutPay,
 }
 
@@ -1509,7 +1508,6 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                 ))
                 .into(),
             ),
-
             WalletData::AliPayQr(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
@@ -2332,7 +2330,6 @@ pub enum StripePaymentMethodDetailsResponse {
     Wechatpay,
     Alipay,
     CustomerBalance,
-    #[serde(rename = "revolut_pay")]
     RevolutPay,
 }
 
@@ -2719,7 +2716,7 @@ pub fn get_payment_method_id(
             | Some(StripePaymentMethodDetailsResponse::Alipay)
             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
             | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
-            |Some(StripePaymentMethodDetailsResponse::RevolutPay) // NOT SURE
+            | Some(StripePaymentMethodDetailsResponse::RevolutPay)
             | None => payment_method_id_from_intent_root.expose(),
         },
         Some(StripeChargeEnum::ChargeId(_)) | None => payment_method_id_from_intent_root.expose(),
