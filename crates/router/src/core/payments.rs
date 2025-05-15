@@ -92,7 +92,7 @@ use super::{
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
@@ -528,6 +528,7 @@ where
                         &business_profile,
                         false,
                         false,
+                        None,
                     )
                     .await?;
 
@@ -611,18 +612,12 @@ where
 
                     let mut connectors = connectors.clone().into_iter();
 
-                    let connector_data = if let Some(connector_from_network) =
-                        (business_profile.is_debit_routing_enabled && is_debit_routing_performed)
-                            .then(|| find_connector_with_networks(&mut connectors))
-                            .flatten()
-                            .map(|(connector_data, network)| {
-                                payment_data.set_card_network(network);
-                                connector_data
-                            }) {
-                        connector_from_network
-                    } else {
-                        get_connector_data(&mut connectors)?.connector_data
-                    };
+                    let (connector_data, routing_decision) =
+                        get_connector_data_with_routing_decision(
+                            &mut connectors,
+                            &business_profile,
+                            is_debit_routing_performed,
+                        )?;
 
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -656,6 +651,7 @@ where
                         &business_profile,
                         false,
                         false,
+                        routing_decision,
                     )
                     .await?;
 
@@ -1444,6 +1440,28 @@ pub fn find_connector_with_networks(
             .network
             .map(|network| (connector.connector_data, network))
     })
+}
+
+fn get_connector_data_with_routing_decision(
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+    business_profile: &domain::Profile,
+    is_debit_routing_performed: bool,
+) -> RouterResult<(
+    api::ConnectorData,
+    Option<routing_helpers::RoutingDecisionData>,
+)> {
+    // Check for debit routing conditions early
+    if business_profile.is_debit_routing_enabled && is_debit_routing_performed {
+        if let Some((data, card_network)) = find_connector_with_networks(connectors) {
+            let routing_decision =
+                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(card_network);
+            return Ok((data, Some(routing_decision)));
+        }
+    }
+
+    // Fallback path (either debit routing is disabled or no match found)
+    let connector_data = get_connector_data(connectors)?.connector_data;
+    Ok((connector_data, None))
 }
 
 #[cfg(feature = "v2")]
@@ -3008,6 +3026,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     is_retry_payment: bool,
     should_retry_with_pan: bool,
+    routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -3069,6 +3088,10 @@ where
     )
     .await?;
     *payment_data = pd;
+
+    // This is used to apply any kind of routing decision to the required data,
+    // before the call to `connector` is made.
+    routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
 
     // Validating the blocklist guard and generate the fingerprint
     blocklist_guard(state, merchant_context, operation, payment_data).await?;
@@ -7999,7 +8022,6 @@ pub trait PaymentMethodChecker<F> {
     fn should_update_in_post_update_tracker(&self) -> bool;
     fn should_update_in_update_tracker(&self) -> bool;
 }
-
 #[cfg(feature = "v1")]
 impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
     fn should_update_in_post_update_tracker(&self) -> bool {
@@ -8333,6 +8355,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     }
 
     fn set_card_network(&mut self, card_network: enums::CardNetwork) {
+        logger::debug!("set card network {:?}", card_network.clone());
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
             card.card_network = Some(card_network);
         };

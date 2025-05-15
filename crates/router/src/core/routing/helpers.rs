@@ -304,6 +304,52 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
+pub enum RoutingDecisionData {
+    DebitRouting(DebitRoutingDecisionData),
+}
+
+#[derive(Clone, Debug)]
+pub struct DebitRoutingDecisionData {
+    pub card_network: common_enums::enums::CardNetwork,
+}
+
+
+impl RoutingDecisionData {
+    pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
+    where
+        F: Send + Clone,
+        D: crate::core::payments::OperationSessionGetters<F>
+            + crate::core::payments::OperationSessionSetters<F>
+            + Send
+            + Sync
+            + Clone,
+    {
+        match self {
+            Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
+        }
+    }
+
+    pub fn get_debit_routing_decision_data(network: common_enums::enums::CardNetwork) -> Self {
+        Self::DebitRouting(DebitRoutingDecisionData {
+            card_network: network,
+        })
+    }
+}
+
+impl DebitRoutingDecisionData {
+    pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
+    where
+        F: Send + Clone,
+        D: crate::core::payments::OperationSessionGetters<F>
+            + crate::core::payments::OperationSessionSetters<F>
+            + Send
+            + Sync
+            + Clone,
+    {
+        payment_data.set_card_network(self.card_network.clone());
+    }
+}
+#[derive(Clone, Debug)]
 pub struct ConnectNameAndMCAIdForProfile<'a>(
     pub  FxHashSet<(
         &'a common_enums::connector_enums::Connector,
