@@ -19,7 +19,7 @@ use crate::{
 };
 
 #[cfg(feature = "accounts_cache")]
-const CACHE_KEY_PREFIX : &'static str = "BUSINESS_PROFILE";
+const CACHE_KEY_PREFIX: &'static str = "BUSINESS_PROFILE";
 
 #[async_trait::async_trait]
 pub trait ProfileInterface
@@ -189,15 +189,20 @@ impl ProfileInterface for Store {
         {
             cache::get_or_populate_in_memory(
                 self,
-                &format!("{}_{}_{}", CACHE_KEY_PREFIX, profile_name, merchant_id.get_string_repr()),
+                &format!(
+                    "{}_{}_{}",
+                    CACHE_KEY_PREFIX,
+                    profile_name,
+                    merchant_id.get_string_repr()
+                ),
                 fetch_func,
-                &ACCOUNTS_CACHE
+                &ACCOUNTS_CACHE,
             )
             .await?
             .convert(
                 key_manager_state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into()
+                merchant_key_store.merchant_id.clone().into(),
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -532,9 +537,19 @@ async fn publish_and_redact_business_profile_cache(
 ) -> CustomResult<(), errors::StorageError> {
     let cache_key = CacheKind::Accounts(profile.get_id().get_string_repr().into());
     let profile_name_key = CacheKind::Accounts(
-        format!("{}_{}_{}", CACHE_KEY_PREFIX, profile.profile_name, profile.merchant_id.get_string_repr()).into()
+        format!(
+            "{}_{}_{}",
+            CACHE_KEY_PREFIX,
+            profile.profile_name,
+            profile.merchant_id.get_string_repr()
+        )
+        .into(),
     );
 
-    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), vec![cache_key, profile_name_key]).await?;
+    cache::redact_from_redis_and_publish(
+        store.get_cache_store().as_ref(),
+        vec![cache_key, profile_name_key],
+    )
+    .await?;
     Ok(())
 }
