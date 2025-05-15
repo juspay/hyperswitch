@@ -93,7 +93,7 @@ impl ThemeInterface for Store {
         theme_update: ThemeUpdate,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Theme::update_by_theme_id_and_lineage(&conn, theme_id, theme_update)
+        storage::Theme::update_by_theme_id(&conn, theme_id, theme_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

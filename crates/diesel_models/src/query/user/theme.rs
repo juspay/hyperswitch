@@ -131,7 +131,7 @@ impl Theme {
         .await
     }
 
-    pub async fn update_by_theme_id_and_lineage(
+    pub async fn update_by_theme_id(
         conn: &PgPooledConn,
         theme_id: String,
         update: ThemeUpdate,
