@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.15.0
+
+### Features
+
+- **connector_cloning:** Create API for cloning connectors between merchants and profiles. ([#7949](https://github.com/juspay/hyperswitch/pull/7949)) ([`82f15e9`](https://github.com/juspay/hyperswitch/commit/82f15e950faee37f38aa6bbccfd1ee4a7b938ba8))
+- **euclid:** Integration with decision engine ([#7930](https://github.com/juspay/hyperswitch/pull/7930)) ([`4087cd2`](https://github.com/juspay/hyperswitch/commit/4087cd276e08fb936b36cb01512462240fe6c4ab))
+
+### Refactors
+
+- **cypress:** Fix adyen ideal bank redirect and refactor `handleFlow` ([#7848](https://github.com/juspay/hyperswitch/pull/7848)) ([`919f8b4`](https://github.com/juspay/hyperswitch/commit/919f8b4674b7625d66c3dc59164534f498f83f1a))
+- **routing:** Add connectors from current active routing algorithm before adding fallback connectors ([#7921](https://github.com/juspay/hyperswitch/pull/7921)) ([`c2ad04f`](https://github.com/juspay/hyperswitch/commit/c2ad04f4a02ce8ca93be4a9df4b42645c37e0df0))
+- Remove unused functions ([#7994](https://github.com/juspay/hyperswitch/pull/7994)) ([`46e830a`](https://github.com/juspay/hyperswitch/commit/46e830a87f60c1c2117c4b48a1c2ecbb6cf9e4d7))
+
+**Full Changelog:** [`2025.05.14.0...2025.05.15.0`](https://github.com/juspay/hyperswitch/compare/2025.05.14.0...2025.05.15.0)
+
+
+- - -
+
 ## 2025.05.14.0
 
 ### Features
