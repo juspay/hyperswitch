@@ -2678,6 +2678,7 @@ impl GetPaymentMethodType for WalletData {
             Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
+            Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
         }
     }
 }
@@ -3602,6 +3603,8 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     // The wallet data for Mifinity Ewallet
     Mifinity(MifinityData),
+    // The wallet data for Mifinity RevolutPay
+    RevolutPay(RevolutPayData),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -3653,7 +3656,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
             | Self::CashappQr(_)
-            | Self::SwishQr(_) => None,
+            | Self::SwishQr(_)
+            | Self::RevolutPay(_) => None,
         }
     }
 }
@@ -3887,6 +3891,9 @@ pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct RevolutPayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {

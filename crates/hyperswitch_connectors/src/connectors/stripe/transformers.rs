@@ -562,6 +562,7 @@ pub enum StripeWallet {
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
     Cashapp(CashappPayment),
+    RevolutPay(RevolutpayPayment),
     ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
 }
 
@@ -611,6 +612,11 @@ pub struct AmazonpayPayment {
     pub payment_method_types: StripePaymentMethodType,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct RevolutpayPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment {
     #[serde(rename = "payment_method_data[type]")]
@@ -679,6 +685,8 @@ pub enum StripePaymentMethodType {
     Wechatpay,
     #[serde(rename = "cashapp")]
     Cashapp,
+    #[serde(rename = "revolut_pay")]
+    RevolutPay,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -717,6 +725,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Blik => Ok(Self::Blik),
             enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
+            enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             // Stripe expects PMT as Card for Recurring Mandates Payments
             enums::PaymentMethodType::GooglePay => Ok(Self::Card),
             enums::PaymentMethodType::Boleto
@@ -1082,6 +1091,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         WalletData::WeChatPayQr(_) => Ok(Some(StripePaymentMethodType::Wechatpay)),
         WalletData::CashappQr(_) => Ok(Some(StripePaymentMethodType::Cashapp)),
         WalletData::AmazonPayRedirect(_) => Ok(Some(StripePaymentMethodType::AmazonPay)),
+        WalletData::RevolutPay(_) => Ok(Some(StripePaymentMethodType::RevolutPay)),
         WalletData::MobilePayRedirect(_) => Err(ConnectorError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
         )),
@@ -1487,6 +1497,11 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                     payment_method_types: StripePaymentMethodType::AmazonPay,
                 },
             ))),
+            WalletData::RevolutPay(_) => {
+                Ok(Self::Wallet(StripeWallet::RevolutPay(RevolutpayPayment {
+                    payment_method_types: StripePaymentMethodType::RevolutPay,
+                })))
+            }
             WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
@@ -1494,6 +1509,7 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                 ))
                 .into(),
             ),
+
             WalletData::AliPayQr(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
@@ -2316,6 +2332,8 @@ pub enum StripePaymentMethodDetailsResponse {
     Wechatpay,
     Alipay,
     CustomerBalance,
+    #[serde(rename = "revolut_pay")]
+    RevolutPay,
 }
 
 pub struct AdditionalPaymentMethodDetails {
@@ -2360,6 +2378,7 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Wechatpay
             | Self::Alipay
             | Self::CustomerBalance
+            | Self::RevolutPay
             | Self::Cashapp { .. } => None,
         }
     }
@@ -2700,6 +2719,7 @@ pub fn get_payment_method_id(
             | Some(StripePaymentMethodDetailsResponse::Alipay)
             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
             | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
+            |Some(StripePaymentMethodDetailsResponse::RevolutPay) // NOT SURE
             | None => payment_method_id_from_intent_root.expose(),
         },
         Some(StripeChargeEnum::ChargeId(_)) | None => payment_method_id_from_intent_root.expose(),

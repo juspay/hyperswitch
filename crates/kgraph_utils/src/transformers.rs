@@ -151,6 +151,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::CryptoCurrency => {
                 Ok(dirval!(CryptoType = CryptoCurrency))
             }
+            api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
             api_enums::PaymentMethodType::Ach => match self.1 {
                 api_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Ach)),
                 api_enums::PaymentMethod::BankTransfer => Ok(dirval!(BankTransferType = Ach)),

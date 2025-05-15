@@ -1918,6 +1918,7 @@ pub enum PaymentMethodType {
     OpenBankingPIS,
     DirectCarrierBilling,
     InstantBankTransfer,
+    RevolutPay,
 }
 
 impl PaymentMethodType {
@@ -2030,6 +2031,7 @@ impl PaymentMethodType {
             Self::Mifinity => "MiFinity",
             Self::OpenBankingPIS => "Open Banking PIS",
             Self::DirectCarrierBilling => "Direct Carrier Billing",
+            Self::RevolutPay => "RevolutPay",
         };
         display_name.to_string()
     }

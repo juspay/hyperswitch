@@ -2864,6 +2864,8 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[stripe.wallet]]
   payment_method_type = "google_pay"
+[[stripe.wallet]]
+  payment_method_type = "revolut_pay"
 is_verifiable = true
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"
