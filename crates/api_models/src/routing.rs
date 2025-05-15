@@ -831,6 +831,7 @@ pub struct ToggleDynamicRoutingPath {
 pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
+    pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
@@ -858,6 +859,7 @@ impl Default for EliminationRoutingConfig {
                 bucket_size: Some(5),
                 bucket_leak_interval_in_secs: Some(60),
             }),
+            decision_engine_configs: None,
         }
     }
 }
@@ -872,7 +874,29 @@ impl EliminationRoutingConfig {
                 .as_mut()
                 .map(|config| config.update(new_config));
         }
+        if let Some(new_config) = new.decision_engine_configs {
+            self.decision_engine_configs
+                .as_mut()
+                .map(|config| config.update(new_config));
+        }
     }
+
+    pub fn open_router_config_default() -> Self {
+        Self {
+            elimination_analyser_config: None,
+            params: None,
+            decision_engine_configs: Some(open_router::DecisionEngineEliminationData {
+                threshold: 0.35,
+            }),
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub enum DynamicRoutingConfigs {
+    SuccessRate(SuccessBasedRoutingConfig),
+    Elimination(EliminationRoutingConfig),
+    ContractBased(ContractBasedRoutingConfig),
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]

@@ -1757,8 +1757,12 @@ pub async fn default_specific_dynamic_routing_setup(
     let timestamp = common_utils::date_time::now();
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let default_success_based_routing_config =
-                routing_types::SuccessBasedRoutingConfig::default();
+            let default_success_based_routing_config = if state.conf.open_router.enabled {
+                routing_types::SuccessBasedRoutingConfig::open_router_config_default()
+            } else {
+                routing_types::SuccessBasedRoutingConfig::default()
+            };
+
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -1773,8 +1777,11 @@ pub async fn default_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let default_elimination_routing_config =
-                routing_types::EliminationRoutingConfig::default();
+            let default_elimination_routing_config = if state.conf.open_router.enabled {
+                routing_types::EliminationRoutingConfig::open_router_config_default()
+            } else {
+                routing_types::EliminationRoutingConfig::default()
+            };
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
@@ -1800,10 +1807,14 @@ pub async fn default_specific_dynamic_routing_setup(
     // Call to DE here
     // Need to map out the cases if this call should always be made or not
     if state.conf.open_router.enabled {
-        enable_decision_engine_dynamic_routing_setup(state, business_profile.get_id())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to setup decision engine dynamic routing")?;
+        enable_decision_engine_dynamic_routing_setup(
+            state,
+            business_profile.get_id(),
+            dynamic_routing_type,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to setup decision engine dynamic routing")?;
     }
 
     let record = db
@@ -1914,24 +1925,48 @@ impl DynamicRoutingConfigParamsInterpolator {
 pub async fn enable_decision_engine_dynamic_routing_setup(
     state: &SessionState,
     profile_id: &common_utils::id_type::ProfileId,
+    dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
         profile_id.get_string_repr()
     );
 
-    let default_success_based_routing_config =
-        routing_types::SuccessBasedRoutingConfig::open_router_config_default();
-
-    let decision_engine_request = open_router::DecisionEngineConfigSetupRequest {
-        merchant_id: profile_id.get_string_repr().to_string(),
-        config: open_router::DecisionEngineConfigVariant::SuccessRate(
-            default_success_based_routing_config
-                .decision_engine_configs
-                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Decision engine config not found".to_string(),
-                })?,
-        ),
+    let default_engine_config_request = match dynamic_routing_type {
+        routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            let default_success_based_routing_config =
+                routing_types::SuccessBasedRoutingConfig::open_router_config_default();
+            open_router::DecisionEngineConfigSetupRequest {
+                merchant_id: profile_id.get_string_repr().to_string(),
+                config: open_router::DecisionEngineConfigVariant::SuccessRate(
+                    default_success_based_routing_config
+                        .decision_engine_configs
+                        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Decision engine config not found".to_string(),
+                        })?,
+                ),
+            }
+        }
+        routing_types::DynamicRoutingType::EliminationRouting => {
+            let default_elimination_based_routing_config =
+                routing_types::EliminationRoutingConfig::open_router_config_default();
+            open_router::DecisionEngineConfigSetupRequest {
+                merchant_id: profile_id.get_string_repr().to_string(),
+                config: open_router::DecisionEngineConfigVariant::Elimination(
+                    default_elimination_based_routing_config
+                        .decision_engine_configs
+                        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Decision engine config not found".to_string(),
+                        })?,
+                ),
+            }
+        }
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
+        }
     };
 
     let url = format!("{}/{}", &state.conf.open_router.url, "rule/create");
@@ -1939,7 +1974,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         state,
         url,
         services::Method::Post,
-        Some(decision_engine_request),
+        Some(default_engine_config_request),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1953,22 +1988,44 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
 pub async fn update_decision_engine_dynamic_routing_setup(
     state: &SessionState,
     profile_id: &common_utils::id_type::ProfileId,
-    request: routing_types::SuccessBasedRoutingConfig,
+    request: routing_types::DynamicRoutingConfigs,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
         profile_id.get_string_repr()
     );
 
-    let decision_engine_request = open_router::DecisionEngineConfigSetupRequest {
-        merchant_id: profile_id.get_string_repr().to_string(),
-        config: open_router::DecisionEngineConfigVariant::SuccessRate(
-            request.decision_engine_configs.ok_or(
-                errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Decision engine config not found".to_string(),
-                },
-            )?,
-        ),
+    let decision_engine_request = match request {
+        routing_types::DynamicRoutingConfigs::SuccessRate(config) => {
+            open_router::DecisionEngineConfigSetupRequest {
+                merchant_id: profile_id.get_string_repr().to_string(),
+                config: open_router::DecisionEngineConfigVariant::SuccessRate(
+                    config.decision_engine_configs.ok_or(
+                        errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Decision engine config not found".to_string(),
+                        },
+                    )?,
+                ),
+            }
+        }
+        routing_types::DynamicRoutingConfigs::Elimination(config) => {
+            open_router::DecisionEngineConfigSetupRequest {
+                merchant_id: profile_id.get_string_repr().to_string(),
+                config: open_router::DecisionEngineConfigVariant::Elimination(
+                    config.decision_engine_configs.ok_or(
+                        errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Decision engine config not found".to_string(),
+                        },
+                    )?,
+                ),
+            }
+        }
+        routing_types::DynamicRoutingConfigs::ContractBased(_) => {
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
+        }
     };
 
     let url = format!("{}/{}", &state.conf.open_router.url, "rule/update");

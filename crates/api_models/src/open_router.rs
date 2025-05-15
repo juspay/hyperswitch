@@ -123,6 +123,7 @@ pub struct DecisionEngineConfigSetupRequest {
 #[serde(rename_all = "camelCase")]
 pub enum DecisionEngineConfigVariant {
     SuccessRate(DecisionEngineSuccessRateData),
+    Elimination(DecisionEngineEliminationData),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -224,10 +225,16 @@ impl DecisionEngineGatewayWiseExtraScore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineEliminationData {
     pub threshold: f64,
+}
+
+impl DecisionEngineEliminationData {
+    pub fn update(&mut self, new_config: Self) {
+        self.threshold = new_config.threshold;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
