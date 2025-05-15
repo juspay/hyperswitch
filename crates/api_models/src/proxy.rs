@@ -13,12 +13,22 @@ pub struct ProxyRequest {
     pub headers: Value,
     /// The vault token that is used to fetch sensitive data from the vault
     pub token: String,
+    /// The type of token that is used to fetch sensitive data from the vault
+    pub token_type: TokenType
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub enum TokenType {
+    TokenizationId,
+    PaymentMethodId
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyResponse {
     /// The response received from the destination
     pub response: Value,
+    pub status_code: u16,
+    pub response_headers: Value,
 }
 
 impl common_utils::events::ApiEventMetric for ProxyRequest {}

@@ -13,18 +13,13 @@ use x509_parser::nom::{
 };
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
+use super::errors::{self, RouterResponse, RouterResult};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    core::payments,
     logger,
     routes::SessionState,
     services::{self, request::Mask},
-    types::{
-        api::{self},
-        domain,
-    },
-    utils::ConnectorResponseExt,
+    types::domain,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use serde_json::Value;
@@ -32,9 +27,7 @@ use serde_json::Value;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug)]
 struct TokenReference {
-    full_match: String,
     field: String,
-    token: String,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -57,9 +50,7 @@ fn parse_token(input: &str) -> IResult<&str, TokenReference> {
     Ok((
         input,
         TokenReference {
-            full_match: format!("{{{{ ${} }}}}", field),
             field: field.to_string(),
-            token: String::new(),
         },
     ))
 }
@@ -101,13 +92,18 @@ async fn process_value(
                 if s.matches("{{").count() > 1 {
                     let mut result = s.clone();
                     let mut tokens_processed = true;
-                    
+
                     while result.contains("{{") && result.contains("}}") {
                         let start = result.find("{{").unwrap();
-                        let end = result[start..].find("}}").map(|pos| start + pos + 2).unwrap_or(result.len());
-                        
+                        let end = result[start..]
+                            .find("}}")
+                            .map(|pos| start + pos + 2)
+                            .unwrap_or(result.len());
+
                         if let Ok((_, token_ref)) = parse_token(&result[start..end]) {
-                            if let Ok(field_value) = extract_field_from_vault_data(vault_data, &token_ref.field) {
+                            if let Ok(field_value) =
+                                extract_field_from_vault_data(vault_data, &token_ref.field)
+                            {
                                 let value_str = match field_value {
                                     Value::String(s) => s,
                                     _ => field_value.to_string(),
@@ -122,7 +118,7 @@ async fn process_value(
                             break;
                         }
                     }
-                    
+
                     if tokens_processed {
                         Ok(Value::String(result))
                     } else {
@@ -146,30 +142,28 @@ async fn process_value(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
     let result = match vault_data {
-        Value::Object(obj) => {
-            obj.get(field_name).cloned().or_else(|| {
-                obj.values()
-                    .filter_map(|val| {
-                        if let Value::Object(inner_obj) = val {
-                            inner_obj.get(field_name).cloned().or_else(|| {
-                                inner_obj
-                                    .values()
-                                    .filter_map(|deeper_val| {
-                                        if let Value::Object(deepest_obj) = deeper_val {
-                                            deepest_obj.get(field_name).cloned()
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .next()
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .next()
-            })
-        }
+        Value::Object(obj) => obj.get(field_name).cloned().or_else(|| {
+            obj.values()
+                .filter_map(|val| {
+                    if let Value::Object(inner_obj) = val {
+                        inner_obj.get(field_name).cloned().or_else(|| {
+                            inner_obj
+                                .values()
+                                .filter_map(|deeper_val| {
+                                    if let Value::Object(deepest_obj) = deeper_val {
+                                        deepest_obj.get(field_name).cloned()
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .next()
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .next()
+        }),
         _ => None,
     };
 
@@ -191,11 +185,12 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
 pub async fn proxy_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let token = &req.token;
+    //TODO: match on token type, 
+    //if token_type is tokenization id then fetch vault id from tokenization table
+    //else if token_type is payment method id then fetch vault id from payment method table
     let vault_id = domain::VaultId::generate(token.clone());
 
     let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
@@ -208,7 +203,6 @@ pub async fn proxy_core(
 
     let vault_data = serde_json::to_value(&vault_response.data)
         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-
 
     let processed_body =
         process_value(&state, &merchant_account, req.req_body, token, &vault_data).await?;
@@ -234,8 +228,11 @@ pub async fn proxy_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
-            Err(err_res) => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(format!("Response Deserialization Failed: {err_res:?}")), //move it to 2xx
+            Err(err_res) =>
+            {
+                logger::error!("Response Deserialization Failed: {err_res:?}");
+                Ok(err_res)
+            }
             Ok(res) => Ok(res),
         })
         .inspect_err(|_| {})?;
@@ -245,9 +242,21 @@ pub async fn proxy_core(
         .parse_struct("ProxyResponse")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let status_code = res.status_code;
+    let response_headers = res.headers.as_ref()
+        .map(|h| {
+            let map: std::collections::BTreeMap<_, _> = h.iter()
+                .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                .collect();
+            serde_json::to_value(map).unwrap_or_else(|_| serde_json::json!({}))
+        })
+        .unwrap_or_else(|| serde_json::json!({}));
+
     Ok(services::ApplicationResponse::Json(
         proxy_api_models::ProxyResponse {
-            response: response_body,//send status code, response headers
+            response: response_body,
+            status_code,
+            response_headers,
         },
     ))
 }
