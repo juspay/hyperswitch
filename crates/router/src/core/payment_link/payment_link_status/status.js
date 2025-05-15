@@ -4,6 +4,16 @@
  * UTIL FUNCTIONS
  */
 
+function decodeUri(uri) {
+  try {
+    var uriStr = decodeURIComponent(uri);
+    return JSON.parse(uriStr);
+  } catch (e) {
+    console.error("Error decoding and parsing string URI:", e);
+    return uri;
+  }
+}
+
 /**
  * Ref - https://github.com/onury/invert-color/blob/master/lib/cjs/invert.js
  */
@@ -86,7 +96,12 @@ window.state = {
   isMobileView: window.innerWidth <= 1400,
 };
 
-const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
+// @ts-ignore
+var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+var paymentDetails = decodeUri(encodedPaymentDetails);
+
+// @ts-ignore
+const translations = getTranslations(paymentDetails.locale);
 
 var isFramed = false;
 try {
@@ -122,9 +137,6 @@ function emitPaymentStatus(paymentDetails) {
  *  - Initialize SDK
  **/
 function boot() {
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
-
   // Emit latest payment status
   if (isFramed) {
     emitPaymentStatus(paymentDetails);
@@ -272,7 +284,7 @@ function renderStatusDetails(paymentDetails) {
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
   // @ts-ignore
-  merchantLogoNode.src = window.__PAYMENT_DETAILS.merchant_logo;
+  merchantLogoNode.src = paymentDetails.merchant_logo;
   merchantLogoNode.alt = "";
 
   // Form content items
