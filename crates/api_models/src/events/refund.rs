@@ -59,6 +59,13 @@ impl ApiEventMetric for RefundsRetrieveRequest {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for refunds::RefundsRetrieveRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for RefundUpdateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
