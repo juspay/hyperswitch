@@ -11,10 +11,8 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums::{RoutableConnectors, TransactionType},
-    open_router,
-};
+use crate::enums::{RoutableConnectors, TransactionType};
+use crate::open_router;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]

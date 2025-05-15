@@ -11,9 +11,12 @@ use std::sync::Arc;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::open_router;
 use api_models::routing as routing_types;
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use common_utils::ext_traits::{BytesExt, ValueExt};
-use common_utils::{ext_traits::Encode, id_type, request, types::keymanager::KeyManagerState};
+use common_utils::{
+    ext_traits::{BytesExt, ValueExt},
+    request,
+};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
@@ -2116,52 +2119,4 @@ where
             Err(errors::ApiErrorResponse::InternalServerError.into())
         }
     }
-}
-
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-pub async fn create_merchant_on_decision_engine_if_not_exists(
-    state: &SessionState,
-    profile_id: &id_type::ProfileId,
-) -> RouterResult<()> {
-    logger::debug!(
-        "performing call with open_router for profile {}",
-        profile_id.get_string_repr()
-    );
-
-    let url = format!(
-        "{}/{}/{}",
-        &state.conf.open_router.url,
-        "merchant-account",
-        profile_id.get_string_repr()
-    );
-    let merchant_account: Option<open_router::MerchantAccount> =
-        call_decision_engine::<(), _>(state, url, services::Method::Get, None)
-            .await
-            .map_err(|err| {
-                logger::error!("Error in fetching merchant from decision engine: {:?}", err)
-            })
-            .ok();
-
-    if merchant_account.is_none() {
-        let merchant_account_req = open_router::MerchantAccount {
-            merchant_id: profile_id.get_string_repr().to_string(),
-            gateway_success_rate_based_decider_input: None,
-        };
-
-        let url = format!(
-            "{}/{}",
-            &state.conf.open_router.url, "merchant-account/create"
-        );
-        call_decision_engine::<_, String>(
-            state,
-            url,
-            services::Method::Post,
-            Some(merchant_account_req),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
-    }
-
-    Ok(())
 }

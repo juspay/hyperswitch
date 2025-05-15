@@ -507,22 +507,27 @@ pub async fn link_routing_config(
             );
 
                 // Call to DE here to update SR configs
-                if state.conf.open_router.enabled {
-                    let success_rate_config = routing_algorithm
-                        .algorithm_data
-                        .clone()
-                        .parse_value("SuccessBasedRoutingConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to deserialize SuccessBasedRoutingConfig")?;
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        let success_rate_config = routing_algorithm
+                            .algorithm_data
+                            .clone()
+                            .parse_value("SuccessBasedRoutingConfig")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("unable to deserialize SuccessBasedRoutingConfig")?;
 
-                    update_decision_engine_dynamic_routing_setup(
-                        &state,
-                        business_profile.get_id(),
-                        routing::DynamicRoutingConfigs::SuccessRate(success_rate_config),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update the success rate routing config in DE")?;
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing::DynamicRoutingConfigs::SuccessRate(success_rate_config),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the success rate routing config in DE",
+                        )?;
+                    }
                 }
             } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
             {
@@ -538,23 +543,27 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::EliminationRouting,
             );
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        let elimination_config = routing_algorithm
+                            .algorithm_data
+                            .clone()
+                            .parse_value("EliminationRoutingConfig")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("unable to deserialize EliminationRoutingConfig")?;
 
-                if state.conf.open_router.enabled {
-                    let elimination_config = routing_algorithm
-                        .algorithm_data
-                        .clone()
-                        .parse_value("EliminationRoutingConfig")
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing::DynamicRoutingConfigs::Elimination(elimination_config),
+                        )
+                        .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to deserialize EliminationRoutingConfig")?;
-
-                    update_decision_engine_dynamic_routing_setup(
-                        &state,
-                        business_profile.get_id(),
-                        routing::DynamicRoutingConfigs::Elimination(elimination_config),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update the success rate routing config in DE")?;
+                        .attach_printable(
+                            "Failed to update the success rate routing config in DE",
+                        )?;
+                    }
                 }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
