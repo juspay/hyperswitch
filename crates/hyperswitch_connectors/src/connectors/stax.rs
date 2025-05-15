@@ -1004,11 +1004,8 @@ static STAX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static STAX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-    enums::EventClass::Disputes,
-];
+static STAX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Stax {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
