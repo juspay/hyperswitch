@@ -356,7 +356,7 @@ where
     )
     .await?;
 
-    let (connector, is_debit_routing_performed) = debit_routing::perform_debit_routing(
+    let (connector, debit_routing_output) = debit_routing::perform_debit_routing(
         &operation,
         state,
         &business_profile,
@@ -616,7 +616,7 @@ where
                         get_connector_data_with_routing_decision(
                             &mut connectors,
                             &business_profile,
-                            is_debit_routing_performed,
+                            debit_routing_output,
                         )?;
 
                     let schedule_time = if should_add_task_to_process_tracker {
@@ -1445,23 +1445,25 @@ pub fn find_connector_with_networks(
 fn get_connector_data_with_routing_decision(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
     business_profile: &domain::Profile,
-    is_debit_routing_performed: bool,
+    debit_routing_output: Option<api_models::open_router::DebitRoutingOutput>,
 ) -> RouterResult<(
     api::ConnectorData,
     Option<routing_helpers::RoutingDecisionData>,
 )> {
-    // Check for debit routing conditions early
-    if business_profile.is_debit_routing_enabled && is_debit_routing_performed {
-        if let Some((data, card_network)) = find_connector_with_networks(connectors) {
+    if business_profile.is_debit_routing_enabled {
+        if let Some((output, (data, card_network))) =
+            debit_routing_output.zip(find_connector_with_networks(connectors))
+        {
             let routing_decision =
-                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(card_network);
+                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(
+                    card_network,
+                    output,
+                );
             return Ok((data, Some(routing_decision)));
         }
     }
 
-    // Fallback path (either debit routing is disabled or no match found)
-    let connector_data = get_connector_data(connectors)?.connector_data;
-    Ok((connector_data, None))
+    Ok((get_connector_data(connectors)?.connector_data, None))
 }
 
 #[cfg(feature = "v2")]
@@ -8394,8 +8396,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     }
 
     fn set_card_network(&mut self, card_network: enums::CardNetwork) {
-        logger::debug!("set card network {:?}", card_network.clone());
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
+            logger::debug!("set card network {:?}", card_network.clone());
             card.card_network = Some(card_network);
         };
     }
@@ -8406,21 +8408,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     ) {
         let co_badged_card_data =
             api_models::payment_methods::CoBadgedCardData::from(debit_routing_ouput);
-        let card_type = debit_routing_ouput.card_type.clone().to_string().to_uppercase();
-        logger::debug!("set co-badged card data");
+        let card_type = debit_routing_ouput
+            .card_type
+            .clone()
+            .to_string()
+            .to_uppercase();
         if let Some(domain::PaymentMethodData::Card(card)) = &mut self.payment_method_data {
             card.co_badged_card_data = Some(co_badged_card_data);
             card.card_type = Some(card_type);
             logger::debug!("set co-badged card data in payment method data");
-        } else if let Some(
-            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(card),
-        ) = &mut self
-            .get_payment_method_info()
-            .and_then(|payment_method_info| payment_method_info.get_payment_methods_data())
-        {
-            card.co_badged_card_data = Some(co_badged_card_data);
-            card.card_type = Some(card_type);
-            logger::debug!("set co-badged card data in payment method info");
         };
     }
 

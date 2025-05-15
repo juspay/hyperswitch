@@ -4612,8 +4612,14 @@ pub async fn get_additional_payment_data(
                 is_cobadged_based_on_regex,
                 card_data.co_badged_card_data.is_some(),
             ) {
-                (false, false) => None,
-                _ => card_data.card_network.clone(),
+                (false, false) => {
+                    logger::warn!("Card network is not cobadged");
+                    None
+                }
+                _ => {
+                    logger::warn!("Card network is cobadged");
+                    card_data.card_network.clone()
+                }
             };
 
             let last4 = Some(card_data.card_number.get_last4());

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
 use common_utils::id_type;
 use error_stack::ResultExt;
@@ -24,19 +24,26 @@ use crate::{
     },
 };
 
+pub struct DebitRoutingResult {
+    pub debit_routing_connector_call_type: ConnectorCallType,
+    pub debit_routing_output: open_router::DebitRoutingOutput,
+}
+
 pub async fn perform_debit_routing<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     connector: Option<ConnectorCallType>,
-) -> (Option<ConnectorCallType>, bool)
+) -> (
+    Option<ConnectorCallType>,
+    Option<open_router::DebitRoutingOutput>,
+)
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let mut debit_routing_output = None;
-    let mut is_debit_routing_performed = true;
 
     if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
         if let Some(acquirer_country) = business_profile.merchant_business_country {
@@ -90,16 +97,16 @@ where
                                 )
                                 .await
                             }
-                            ConnectorCallType::SessionMultiple(session_connector_data) => {
+                            ConnectorCallType::SessionMultiple(_) => {
                                 logger::info!("SessionMultiple connector type is not supported for debit routing");
-                                Some(ConnectorCallType::SessionMultiple(session_connector_data))
+                                None
                             }
                             #[cfg(feature = "v2")]
                             ConnectorCallType::Skip => {
                                 logger::info!(
                                     "Skip connector type is not supported for debit routing"
                                 );
-                                Some(ConnectorCallType::Skip)
+                                None
                             }
                         };
                     }
@@ -108,14 +115,16 @@ where
         }
     }
 
-    // If debit_routing_output is None, we return the output of static routing
-    if debit_routing_output.is_none() {
-        debit_routing_output = connector;
-        is_debit_routing_performed = false;
+    if let Some(debit_routing_output) = debit_routing_output {
+        (
+            Some(debit_routing_output.debit_routing_connector_call_type),
+            Some(debit_routing_output.debit_routing_output),
+        )
+    } else {
+        // If debit_routing_output is None, return the static routing output (connector)
         logger::info!("Debit routing is not performed, returning static routing output");
+        (connector, None)
     }
-
-    (debit_routing_output, is_debit_routing_performed)
 }
 
 pub fn should_perform_debit_routing_for_the_flow<Op: Debug, F: Clone, D>(
@@ -212,45 +221,55 @@ async fn handle_pre_determined_connector<F, D>(
     connector_data: &api::ConnectorRoutingData,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
-) -> Option<ConnectorCallType>
+) -> Option<DebitRoutingResult>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
         logger::debug!("Chosen connector is supported for debit routing");
-        let fee_sorted_debit_networks =
-            get_sorted_co_badged_networks_by_fee::<F, D>(state, payment_data, acquirer_country)
+
+        let debit_routing_output =
+            get_debit_routing_output::<F, D>(state, payment_data, acquirer_country)
                 .await?;
+
+        logger::debug!(
+            "Sorted co-badged networks: {:?}",
+            debit_routing_output.co_badged_card_networks
+        );
 
         let valid_connectors = build_connector_routing_data(
             connector_data,
             debit_routing_config,
-            &fee_sorted_debit_networks,
+            &debit_routing_output.co_badged_card_networks,
         );
 
         if !valid_connectors.is_empty() {
-            return Some(ConnectorCallType::Retryable(valid_connectors));
+            return Some(DebitRoutingResult {
+                debit_routing_connector_call_type: ConnectorCallType::Retryable(valid_connectors),
+                debit_routing_output,
+            });
         }
     }
+
     None
 }
 
-pub async fn get_sorted_co_badged_networks_by_fee<
+pub async fn get_debit_routing_output<
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
 >(
     state: &SessionState,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
-) -> Option<Vec<enums::CardNetwork>> {
+) -> Option<open_router::DebitRoutingOutput> {
     logger::debug!("Fetching sorted card networks");
     let payment_attempt = payment_data.get_payment_attempt();
 
     let (saved_co_badged_card_data, saved_card_type, card_isin) =
         extract_saved_card_info(payment_data);
 
-    let debit_routing_output_optional = match (
+    match (
         saved_co_badged_card_data
             .clone()
             .zip(saved_card_type.clone()),
@@ -264,14 +283,12 @@ pub async fn get_sorted_co_badged_networks_by_fee<
             let co_badged_card_data = saved_co_badged_card_data
                 .zip(saved_card_type)
                 .and_then(|(co_badged, card_type)| {
-                    api_models::open_router::DebitRoutingRequestData::try_from((
-                        co_badged, card_type,
-                    ))
-                    .map(Some)
-                    .map_err(|error| {
-                        logger::warn!("Failed to convert co-badged card data: {:?}", error);
-                    })
-                    .ok()
+                    open_router::DebitRoutingRequestData::try_from((co_badged, card_type))
+                        .map(Some)
+                        .map_err(|error| {
+                            logger::warn!("Failed to convert co-badged card data: {:?}", error);
+                        })
+                        .ok()
                 })
                 .flatten();
 
@@ -280,7 +297,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<
                 return None;
             }
 
-            let co_badged_card_request = api_models::open_router::CoBadgedCardRequest {
+            let co_badged_card_request = open_router::CoBadgedCardRequest {
                 merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
                 acquirer_country,
                 co_badged_card_data,
@@ -298,19 +315,7 @@ pub async fn get_sorted_co_badged_networks_by_fee<
             })
             .ok()
         }
-    };
-
-    debit_routing_output_optional
-        .as_ref()
-        .map(|debit_routing_output| payment_data.set_co_badged_card_data(debit_routing_output));
-
-    debit_routing_output_optional.map(|data| {
-        logger::info!(
-            "Co-badged card networks: {:?}",
-            data.co_badged_card_networks
-        );
-        data.co_badged_card_networks
-    })
+    }
 }
 
 fn extract_saved_card_info<F, D>(
@@ -397,7 +402,7 @@ async fn handle_retryable_connector<F, D>(
     connector_data_list: Vec<api::ConnectorRoutingData>,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
-) -> Option<ConnectorCallType>
+) -> Option<DebitRoutingResult>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -411,9 +416,14 @@ where
     let mut supported_connectors = Vec::new();
 
     if is_any_debit_routing_connector_supported {
-        let fee_sorted_debit_networks =
-            get_sorted_co_badged_networks_by_fee::<F, D>(state, payment_data, acquirer_country)
+        let debit_routing_output =
+            get_debit_routing_output::<F, D>(state, payment_data, acquirer_country)
                 .await?;
+
+        logger::debug!(
+            "Sorted co-badged networks: {:?}",
+            debit_routing_output.co_badged_card_networks
+        );
 
         for connector_data in &connector_data_list {
             if debit_routing_supported_connectors
@@ -422,16 +432,21 @@ where
                 let valid = build_connector_routing_data(
                     connector_data,
                     debit_routing_config,
-                    &fee_sorted_debit_networks,
+                    &debit_routing_output.co_badged_card_networks,
                 );
                 supported_connectors.extend(valid);
             }
         }
+
+        if !supported_connectors.is_empty() {
+            return Some(DebitRoutingResult {
+                debit_routing_connector_call_type: ConnectorCallType::Retryable(
+                    supported_connectors,
+                ),
+                debit_routing_output,
+            });
+        }
     }
 
-    if supported_connectors.is_empty() {
-        None
-    } else {
-        Some(ConnectorCallType::Retryable(supported_connectors))
-    }
+    None
 }

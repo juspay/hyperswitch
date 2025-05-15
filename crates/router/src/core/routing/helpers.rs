@@ -8,7 +8,7 @@ use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[cfg(feature = "v1")]
 use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -303,16 +303,14 @@ pub struct RoutingAlgorithmHelpers<'h> {
     pub routing_algorithm: &'h routing_types::RoutingAlgorithm,
 }
 
-#[derive(Clone, Debug)]
 pub enum RoutingDecisionData {
     DebitRouting(DebitRoutingDecisionData),
 }
 
-#[derive(Clone, Debug)]
 pub struct DebitRoutingDecisionData {
     pub card_network: common_enums::enums::CardNetwork,
+    pub debit_routing_result: open_router::DebitRoutingOutput,
 }
-
 
 impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
@@ -329,9 +327,13 @@ impl RoutingDecisionData {
         }
     }
 
-    pub fn get_debit_routing_decision_data(network: common_enums::enums::CardNetwork) -> Self {
+    pub fn get_debit_routing_decision_data(
+        network: common_enums::enums::CardNetwork,
+        debit_routing_result: open_router::DebitRoutingOutput,
+    ) -> Self {
         Self::DebitRouting(DebitRoutingDecisionData {
             card_network: network,
+            debit_routing_result,
         })
     }
 }
@@ -347,6 +349,7 @@ impl DebitRoutingDecisionData {
             + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
+        payment_data.set_co_badged_card_data(&self.debit_routing_result);
     }
 }
 #[derive(Clone, Debug)]

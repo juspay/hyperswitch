@@ -655,7 +655,7 @@ where
                                 let updated_pmd = updated_card.as_ref().map(|card| {
                                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
                                         card.clone(),
-                                        None,
+                                        co_badged_card_data,
                                     )))
                                 });
                                 let pm_data_encrypted: Option<

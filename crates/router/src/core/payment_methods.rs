@@ -867,11 +867,11 @@ fn get_card_network_with_us_local_debit_network_override(
     card_network: Option<common_enums::CardNetwork>,
     co_badged_card_data: Option<&payment_methods::CoBadgedCardData>,
 ) -> Option<common_enums::CardNetwork> {
-    // logger::debug!("get_card_network_with_us_local_debit_network_override",);
     if let Some(true) = card_network
         .as_ref()
         .map(|network| network.is_us_local_network())
     {
+        services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
         co_badged_card_data.and_then(|data| {
             data.co_badged_card_networks
                 .iter()
