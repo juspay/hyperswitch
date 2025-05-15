@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use crate::enums::{RoutableConnectors, TransactionType};
-use crate::open_router;
 use common_utils::{errors::ParsingError, ext_traits::ValueExt, pii};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
@@ -12,6 +10,11 @@ pub use euclid::{
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use crate::{
+    enums::{RoutableConnectors, TransactionType},
+    open_router,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]

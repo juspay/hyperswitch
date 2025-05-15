@@ -19,6 +19,8 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
@@ -54,8 +56,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use helpers::update_decision_engine_dynamic_routing_setup;
 
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
