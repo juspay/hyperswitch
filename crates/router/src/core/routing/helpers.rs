@@ -1924,7 +1924,7 @@ impl DynamicRoutingConfigParamsInterpolator {
 #[instrument(skip_all)]
 pub async fn enable_decision_engine_dynamic_routing_setup(
     state: &SessionState,
-    profile_id: &common_utils::id_type::ProfileId,
+    profile_id: &id_type::ProfileId,
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<()> {
     logger::debug!(
@@ -1987,7 +1987,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
 #[instrument(skip_all)]
 pub async fn update_decision_engine_dynamic_routing_setup(
     state: &SessionState,
-    profile_id: &common_utils::id_type::ProfileId,
+    profile_id: &id_type::ProfileId,
     request: routing_types::DynamicRoutingConfigs,
 ) -> RouterResult<()> {
     logger::debug!(
@@ -2046,7 +2046,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
 #[instrument(skip_all)]
 pub async fn disable_decision_engine_dynamic_routing_setup(
     state: &SessionState,
-    profile_id: &common_utils::id_type::ProfileId,
+    profile_id: &id_type::ProfileId,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
@@ -2121,7 +2121,7 @@ where
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 pub async fn create_merchant_on_decision_engine_if_not_exists(
     state: &SessionState,
-    profile_id: &common_utils::id_type::ProfileId,
+    profile_id: &id_type::ProfileId,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
