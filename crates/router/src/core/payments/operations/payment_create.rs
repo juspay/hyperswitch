@@ -1592,6 +1592,9 @@ impl PaymentCreate {
             created_by: None,
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
+            is_iframe_redirection_enabled: request
+                .is_iframe_redirection_enabled
+                .or(business_profile.is_iframe_redirection_enabled),
         })
     }
 
