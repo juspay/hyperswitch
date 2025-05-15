@@ -4,6 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
+use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -14,6 +15,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
+use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -38,7 +40,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::{
         self,
-        api::{self as service_api, client},
+        api::{self as service_api},
         authentication, pm_auth as payment_initiation_service,
     },
     types::{
@@ -144,6 +146,7 @@ pub async fn update_organization(
         organization_name: req.organization_name,
         organization_details: req.organization_details,
         metadata: req.metadata,
+        platform_merchant_id: req.platform_merchant_id,
     };
     state
         .accounts_store
@@ -342,6 +345,31 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
+        let merchant_account_type = match organization.get_organization_type() {
+            OrganizationType::Standard => MerchantAccountType::Standard,
+
+            OrganizationType::Platform => {
+                let accounts = state
+                    .store
+                    .list_merchant_accounts_by_organization_id(
+                        &state.into(),
+                        &organization.get_organization_id(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+                let platform_account_exists = accounts
+                    .iter()
+                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
+
+                if platform_account_exists {
+                    MerchantAccountType::Connected
+                } else {
+                    MerchantAccountType::Platform
+                }
+            }
+        };
+
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
 
@@ -411,6 +439,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     is_platform_account: false,
                     product_type: self.product_type,
+                    merchant_account_type,
                 },
             )
         }
@@ -467,7 +496,10 @@ impl CreateOrValidateOrganization {
         match self {
             #[cfg(feature = "v1")]
             Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(None);
+                let new_organization = api_models::organization::OrganizationNew::new(
+                    OrganizationType::Standard,
+                    None,
+                );
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await
@@ -635,6 +667,18 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
+        let merchant_account_type = match organization.get_organization_type() {
+            OrganizationType::Standard => MerchantAccountType::Standard,
+            // Blocking v2 merchant account create for platform
+            OrganizationType::Platform => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Merchant account creation is not allowed for a platform organization"
+                        .to_string(),
+                }
+                .into())
+            }
+        };
+
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
         let key_manager_state = state.into();
@@ -681,6 +725,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     is_platform_account: false,
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
+                    merchant_account_type,
                 }),
             )
         }
@@ -1612,6 +1657,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Worldpayxml => {
+            //     worldpayxml::transformers::WorldpayxmlAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // },
             api_enums::Connector::Xendit => {
                 xendit::transformers::XenditAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -4004,6 +4053,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: None,
             revenue_recovery_retry_algorithm_data: None,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4438,6 +4491,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
