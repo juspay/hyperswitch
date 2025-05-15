@@ -590,6 +590,8 @@ pub enum Flow {
     TokenizationCreate,
     /// Tokenization retrieve flow
     TokenizationRetrieve,
+    /// Clone Connector flow
+    CloneConnector,
 }
 
 /// Trait for providing generic behaviour to flow metric
