@@ -169,6 +169,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -388,6 +389,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -550,6 +552,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -677,6 +680,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -837,6 +841,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1044,6 +1049,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1242,6 +1248,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1431,6 +1438,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -2858,6 +2866,7 @@ where
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
             issuer_error_code: payment_attempt.issuer_error_code,
             issuer_error_message: payment_attempt.issuer_error_message,
+            whole_connector_response: payment_data.get_whole_connector_response(),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3148,6 +3157,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             card_discovery: pa.card_discovery,
             force_3ds_challenge: pi.force_3ds_challenge,
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
+            whole_connector_response: None,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
         }

@@ -160,6 +160,7 @@ impl RelayInterface for RelayRefund {
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .to_refund_failed_response()?;
@@ -462,6 +463,7 @@ pub async fn sync_relay_refund_with_gateway(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

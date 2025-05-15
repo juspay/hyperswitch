@@ -433,6 +433,7 @@ impl RevenueRecoveryAttempt {
                 force_sync: false,
                 expand_attempts: true,
                 param: None,
+                all_keys_required: None,
             },
             payment_intent.payment_id.clone(),
             payments::CallConnectorAction::Avoid,
@@ -811,6 +812,7 @@ impl BillingConnectorPaymentsSyncResponseData {
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
@@ -978,6 +980,7 @@ impl BillingConnectorInvoiceSyncResponseData {
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
