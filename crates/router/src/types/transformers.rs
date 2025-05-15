@@ -370,6 +370,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                     message: "Taxjar is not a routable connector".to_string(),
                 })?
             }
+            api_enums::Connector::Vgs => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Vgs is not a routable connector".to_string(),
+                })?
+            }
         })
     }
 }

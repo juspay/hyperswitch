@@ -1735,7 +1735,7 @@ pub fn build_redirection_form(
                         (PreEscaped(format!(
                             r#"
                                 function submitCollectionReference(collectionReference) {{
-                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/(\w+)\/(\w+)\/\w+/, "payments/$1/$2/redirect/complete/worldpay");
+                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
                                     var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
                                         if (typeof collectionReference === "string" && collectionReference.length > 0) {{
@@ -1748,7 +1748,7 @@ pub fn build_redirection_form(
                                             input.value = collectionReference;
                                             form.appendChild(input);
                                             document.body.appendChild(form);
-                                            form.submit();;
+                                            form.submit();
                                         }} else {{
                                             window.location.replace(redirectUrl);
                                         }}

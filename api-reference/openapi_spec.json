@@ -16525,6 +16525,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
+          },
+          "platform_merchant_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/id_type.MerchantId"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
