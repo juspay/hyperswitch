@@ -237,6 +237,57 @@ impl ProcessPaymentAttempt for types::DummyConnectorCard {
     }
 }
 
+impl ProcessPaymentAttempt for types::DummyConnectorUpiCollect {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        let upi_collect_response = self.get_flow_from_upi_collect()?;
+        if let Some(error) = upi_collect_response.error {
+            Err(error)?;
+        }
+        let next_action = upi_collect_response
+            .is_next_action_required
+            .then_some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url));
+        let return_url = payment_attempt.payment_request.return_url.clone();
+        Ok(
+            payment_attempt.build_payment_data(
+                upi_collect_response.status,
+                next_action,
+                return_url,
+            ),
+        )
+    }
+}
+
+impl types::DummyConnectorUpiCollect {
+    pub fn get_flow_from_upi_collect(
+        self,
+    ) -> types::DummyConnectorResult<types::DummyConnectorUpiFlow> {
+        let vpa_id = self.vpa_id.peek();
+        match vpa_id.as_str() {
+            consts::DUMMY_CONNECTOR_UPI_FAILURE_VPA_ID => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Failed,
+                error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
+                is_next_action_required: false,
+            }),
+            consts::DUMMY_CONNECTOR_UPI_SUCCESS_VPA_ID => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Processing,
+                error: None,
+                is_next_action_required: true,
+            }),
+            _ => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Failed,
+                error: Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Invalid Upi id",
+                }),
+                is_next_action_required: false,
+            }),
+        }
+    }
+}
+
 impl types::DummyConnectorCard {
     pub fn get_flow_from_card_number(
         self,
@@ -324,6 +375,10 @@ impl ProcessPaymentAttempt for types::DummyConnectorPaymentMethodData {
             Self::Card(card) => {
                 card.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
             }
+            Self::Upi(upi_data) => match upi_data {
+                types::DummyConnectorUpi::UpiCollect(upi_collect) => upi_collect
+                    .build_payment_data_from_payment_attempt(payment_attempt, redirect_url),
+            },
             Self::Wallet(wallet) => {
                 wallet.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
             }
