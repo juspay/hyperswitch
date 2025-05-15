@@ -1035,6 +1035,7 @@ pub enum CardIssuer {
     DinersClub,
     JCB,
     CarteBlanche,
+    CartesBancaires,
 }
 
 pub trait CardData {
