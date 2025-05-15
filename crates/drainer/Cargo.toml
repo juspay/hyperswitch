@@ -14,7 +14,7 @@ v1 = ["diesel_models/v1", "hyperswitch_interfaces/v1", "common_utils/v1"]
 
 [dependencies]
 actix-web = "4.5.1"
-async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
+async-bb8-diesel = "0.2.1"
 async-trait = "0.1.79"
 bb8 = "0.8"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
