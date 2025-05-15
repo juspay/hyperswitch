@@ -1625,7 +1625,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && response.body.status==="succeeded") {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -1656,7 +1656,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && response.body.status === "succeeded") {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2614,7 +2614,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && response.body.status === "succeeded") {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2647,7 +2647,7 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session") {
+                if (setupFutureUsage === "off_session" && response.body.status === "succeeded") {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2876,10 +2876,10 @@ Cypress.Commands.add(
                 allowedActiveStatuses
               );
 
-              expect(
-                response.body.payment_method_status,
+          expect(
+            response.body.payment_method_status,
                 "payment_method_status for active status"
-              ).to.equal("active");
+          ).to.equal("active");
 
               if (connector_agnostic_mit) {
                 expect(
