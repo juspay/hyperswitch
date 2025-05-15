@@ -152,6 +152,7 @@ pub async fn perform_post_authentication(
         key_store.key.get_inner(),
     )
     .await
+    .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
     .attach_printable("cavv not present after authentication flow")
     .ok();
 
