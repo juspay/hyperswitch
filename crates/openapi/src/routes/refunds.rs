@@ -112,6 +112,7 @@ pub async fn refunds_retrieve_with_body() {}
     operation_id = "Update a Refund",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn refunds_update() {}
 
 /// Refunds - List
@@ -128,6 +129,7 @@ pub async fn refunds_update() {}
     operation_id = "List all Refunds",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn refunds_list() {}
 
 /// Refunds - List For the Given profiles
@@ -214,6 +216,38 @@ pub async fn refunds_filter_list() {}
 #[cfg(feature = "v2")]
 pub async fn refunds_create() {}
 
+/// Refunds - Metadata Update
+///
+/// Updates the properties of a Refund object. This API can be used to attach a reason for the refund or metadata fields
+#[utoipa::path(
+    put,
+    path = "/v2/refunds/{id}/update_metadata",
+    params(
+        ("id" = String, Path, description = "The identifier for refund")
+    ),
+    request_body(
+        content = RefundMetadataUpdateRequest,
+        examples(
+            (
+                "Update refund reason" = (
+                    value = json!({
+                        "reason": "Paid by mistake"
+                      })
+                )
+            )
+        )
+    ),
+    responses(
+        (status = 200, description = "Refund updated", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Refunds",
+    operation_id = "Update Refund Metadata and Reason",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn refunds_metadata_update() {}
+
 /// Refunds - Retrieve
 ///
 /// Retrieves a Refund. This may be used to get the status of a previously initiated refund
@@ -233,3 +267,20 @@ pub async fn refunds_create() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn refunds_retrieve() {}
+
+/// Refunds - List
+///
+/// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
+#[utoipa::path(
+    get,
+    path = "/v2/refunds/list",
+    request_body=RefundListRequest,
+    responses(
+        (status = 200, description = "List of refunds", body = RefundListResponse),
+    ),
+    tag = "Refunds",
+    operation_id = "List all Refunds",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub fn refunds_list() {}

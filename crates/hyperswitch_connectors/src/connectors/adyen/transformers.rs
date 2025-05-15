@@ -2172,6 +2172,7 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::DinersClub => Ok(Self::Diners),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
+            utils::CardIssuer::CartesBancaires => Ok(Self::Cartebancaire),
         }
     }
 }
