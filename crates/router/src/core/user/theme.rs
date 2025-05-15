@@ -3,7 +3,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
     types::user::ThemeLineage,
 };
-use diesel_models::user::theme::ThemeNew;
+use diesel_models::user::theme::{ThemeNew, ThemeUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
@@ -173,13 +173,12 @@ pub async fn update_theme(
 ) -> UserResponse<theme_api::GetThemeResponse> {
     let db_theme = match request.email_config {
         Some(email_config) => {
-            let theme_update =
-                diesel_models::user::theme::ThemeUpdate::EmailConfig { email_config };
+            let theme_update = ThemeUpdate::EmailConfig { email_config };
             state
                 .store
                 .update_theme_by_theme_id(theme_id.clone(), theme_update)
                 .await
-                .change_context(UserErrors::InternalServerError)
+                .to_not_found_response(UserErrors::ThemeNotFound)
                 .attach_printable("Failed to update theme database record")?
         }
         None => state
