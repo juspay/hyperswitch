@@ -6527,7 +6527,7 @@ where
     }
 
     if let Some(routing_algorithm) = request_straight_through {
-        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+        let (connectors, check_eligibility) = routing::perform_straight_through_routing(
             &routing_algorithm,
             payment_data.get_creds_identifier(),
         )
@@ -6535,57 +6535,34 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
+            let new_pd = payment_data.clone();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                payment_data.get_setup_mandate(),
-                payment_data.get_payment_attempt(),
-                payment_data.get_payment_intent(),
-                payment_data.get_payment_method_data(),
-                payment_data.get_address(),
-                payment_data.get_recurring_details(),
-                payment_data.get_currency(),
+                new_pd.get_setup_mandate(),
+                new_pd.get_payment_attempt(),
+                new_pd.get_payment_intent(),
+                new_pd.get_payment_method_data(),
+                new_pd.get_address(),
+                new_pd.get_recurring_details(),
+                new_pd.get_currency(),
             );
 
-            connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state.clone(),
-                merchant_context.get_merchant_key_store(),
-                connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors,
+            return route_connector_v1_for_payments(
+                &state,
+                merchant_context,
                 business_profile,
+                payment_data,
+                transaction_data,
+                routing_data,
+                eligible_connectors,
+                mandate_type,
+                Some(connectors),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+            .await;
         }
-
-        let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id.clone(),
-                )
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-        return decide_multiplex_connector_for_normal_or_recurring_payment(
-            &state,
-            payment_data,
-            routing_data,
-            connector_data,
-            mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
-            business_profile.is_network_tokenization_enabled,
-        )
-        .await;
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+        let (connectors, check_eligibility) = routing::perform_straight_through_routing(
             routing_algorithm,
             payment_data.get_creds_identifier(),
         )
@@ -6593,53 +6570,30 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
+            let new_pd = payment_data.clone();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                payment_data.get_setup_mandate(),
-                payment_data.get_payment_attempt(),
-                payment_data.get_payment_intent(),
-                payment_data.get_payment_method_data(),
-                payment_data.get_address(),
-                payment_data.get_recurring_details(),
-                payment_data.get_currency(),
+                new_pd.get_setup_mandate(),
+                new_pd.get_payment_attempt(),
+                new_pd.get_payment_intent(),
+                new_pd.get_payment_method_data(),
+                new_pd.get_address(),
+                new_pd.get_recurring_details(),
+                new_pd.get_currency(),
             );
 
-            connectors = routing::perform_eligibility_analysis_with_fallback(
+            return route_connector_v1_for_payments(
                 &state,
-                merchant_context.get_merchant_key_store(),
-                connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors,
+                merchant_context,
                 business_profile,
+                payment_data,
+                transaction_data,
+                routing_data,
+                eligible_connectors,
+                mandate_type,
+                Some(connectors),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+            .await;
         }
-
-        let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id,
-                )
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-        return decide_multiplex_connector_for_normal_or_recurring_payment(
-            &state,
-            payment_data,
-            routing_data,
-            connector_data,
-            mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
-            business_profile.is_network_tokenization_enabled,
-        )
-        .await;
     }
 
     let new_pd = payment_data.clone();
@@ -6662,6 +6616,7 @@ where
         routing_data,
         eligible_connectors,
         mandate_type,
+        None,
     )
     .await
 }
@@ -7225,6 +7180,7 @@ pub async fn route_connector_v1_for_payments<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    connector_list: Option<Vec<api_models::routing::RoutableConnectorChoice>>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -7242,7 +7198,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let mut connectors = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -7252,10 +7208,20 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // adds straight through connectors to the list of connectors in the active routing algorithm
+    // and perform eligibility analysis on the combined set of connectors
+
+    connectors = connector_list
+        .map(|mut straight_through_connectors| {
+            straight_through_connectors.extend(connectors.clone());
+            straight_through_connectors
+        })
+        .unwrap_or_else(|| connectors);
+
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    let connectors = routing::perform_eligibility_analysis_with_fallback(
+    connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
         connectors,
@@ -7437,7 +7403,6 @@ pub async fn route_connector_v1_for_payouts(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
-
     let first_connector_choice = connectors
         .first()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)

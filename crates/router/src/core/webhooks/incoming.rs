@@ -1466,7 +1466,7 @@ async fn mandates_incoming_webhook_flow(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 updated_mandate.clone(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_merchant_account(),
             )
             .await?,
         );
