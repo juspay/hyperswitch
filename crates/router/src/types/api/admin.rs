@@ -274,6 +274,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
+            is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             is_external_vault_enabled: item.is_external_vault_enabled,
             external_vault_connector_details: item
                 .external_vault_connector_details
@@ -441,5 +442,6 @@ pub async fn create_profile_from_merchant_account(
         force_3ds_challenge: request.force_3ds_challenge.unwrap_or_default(),
         is_debit_routing_enabled: request.is_debit_routing_enabled.unwrap_or_default(),
         merchant_business_country: request.merchant_business_country,
+        is_iframe_redirection_enabled: request.is_iframe_redirection_enabled,
     }))
 }

@@ -8006,6 +8006,7 @@
           "threedsecureio",
           "trustpay",
           "tsys",
+          "vgs",
           "volt",
           "wellsfargo",
           "wise",
@@ -8239,7 +8240,8 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
-          "billing_processor"
+          "billing_processor",
+          "vault_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -14143,6 +14145,14 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "platform_merchant_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/id_type.MerchantId"
+              }
+            ],
             "nullable": true
           }
         },
