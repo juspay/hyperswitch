@@ -18,6 +18,9 @@ use crate::{
     },
 };
 
+#[cfg(feature = "accounts_cache")]
+const CACHE_KEY_PREFIX : &'static str = "BUSINESS_PROFILE";
+
 #[async_trait::async_trait]
 pub trait ProfileInterface
 where
@@ -175,17 +178,43 @@ impl ProfileInterface for Store {
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
-        storage::Profile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+        let fetch_func = || async {
+            let conn = connection::pg_accounts_connection_read(self).await?;
+            storage::Profile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            cache::get_or_populate_in_memory(
+                self,
+                &format!("{}_{}_{}", CACHE_KEY_PREFIX, profile_name, merchant_id.get_string_repr()),
+                fetch_func,
+                &ACCOUNTS_CACHE
+            )
+            .await?
             .convert(
                 key_manager_state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
+                merchant_key_store.merchant_id.clone().into()
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(
+                    key_manager_state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
     }
 
     #[instrument(skip_all)]
@@ -502,7 +531,10 @@ async fn publish_and_redact_business_profile_cache(
     profile: &storage::Profile,
 ) -> CustomResult<(), errors::StorageError> {
     let cache_key = CacheKind::Accounts(profile.get_id().get_string_repr().into());
+    let profile_name_key = CacheKind::Accounts(
+        format!("{}_{}_{}", CACHE_KEY_PREFIX, profile.profile_name, profile.merchant_id.get_string_repr()).into()
+    );
 
-    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), vec![cache_key]).await?;
+    cache::redact_from_redis_and_publish(store.get_cache_store().as_ref(), vec![cache_key, profile_name_key]).await?;
     Ok(())
 }
