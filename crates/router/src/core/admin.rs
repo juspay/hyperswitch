@@ -3910,6 +3910,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
+            tokenize_fields: self.tokenize_fields,
         }))
     }
 
@@ -4057,6 +4058,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             external_vault_connector_details: self
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
+            tokenize_fields: self.tokenize_fields,
         }))
     }
 }
@@ -4357,6 +4359,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 force_3ds_challenge: self.force_3ds_challenge, //
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
+                tokenize_fields: self.tokenize_fields,
             },
         )))
     }
@@ -4495,6 +4498,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 external_vault_connector_details: self
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
+                tokenize_fields: self.tokenize_fields,
             },
         )))
     }

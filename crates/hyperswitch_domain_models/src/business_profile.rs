@@ -73,6 +73,7 @@ pub struct Profile {
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -123,7 +124,8 @@ pub struct ProfileSetter {
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: bool,
     pub is_debit_routing_enabled: bool,
-    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -180,6 +182,7 @@ impl From<ProfileSetter> for Profile {
             force_3ds_challenge: value.force_3ds_challenge,
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
+            tokenize_fields: value.tokenize_fields,
         }
     }
 }
@@ -237,7 +240,8 @@ pub struct ProfileGeneralUpdate {
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
     pub is_debit_routing_enabled: bool,
-    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -311,6 +315,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     force_3ds_challenge,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    tokenize_fields,
                 } = *update;
 
                 Self {
@@ -357,6 +362,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     force_3ds_challenge,
                     is_debit_routing_enabled,
                     merchant_business_country,
+                    tokenize_fields,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -405,6 +411,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -451,6 +458,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -497,6 +505,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -543,6 +552,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -589,6 +599,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -635,6 +646,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 force_3ds_challenge: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                tokenize_fields: None,
             },
         }
     }
@@ -701,6 +713,7 @@ impl super::behaviour::Conversion for Profile {
             force_3ds_challenge: Some(self.force_3ds_challenge),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            tokenize_fields: self.tokenize_fields,
         })
     }
 
@@ -791,6 +804,7 @@ impl super::behaviour::Conversion for Profile {
                 force_3ds_challenge: item.force_3ds_challenge.unwrap_or_default(),
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,
+                tokenize_fields: item.tokenize_fields,
             })
         }
         .await
@@ -848,10 +862,10 @@ impl super::behaviour::Conversion for Profile {
             authentication_product_ids: self.authentication_product_ids,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
-            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-            force_3ds_challenge: Some(self.force_3ds_challenge),
+            is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
+            tokenize_fields: self.tokenize_fields,
         })
     }
 }
@@ -910,6 +924,7 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -964,6 +979,7 @@ pub struct ProfileSetter {
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1023,6 +1039,7 @@ impl From<ProfileSetter> for Profile {
             revenue_recovery_retry_algorithm_data: value.revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled: value.is_external_vault_enabled,
             external_vault_connector_details: value.external_vault_connector_details,
+            tokenize_fields: value.tokenize_fields,
         }
     }
 }
@@ -1091,6 +1108,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1168,6 +1186,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    tokenize_fields,
                 } = *update;
                 Self {
                     profile_name,
@@ -1218,6 +1237,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     revenue_recovery_retry_algorithm_data: None,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    tokenize_fields,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1271,6 +1291,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1322,6 +1343,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1373,6 +1395,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1424,6 +1447,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1475,6 +1499,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1526,6 +1551,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1577,6 +1603,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1628,6 +1655,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -1680,6 +1708,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 revenue_recovery_retry_algorithm_data,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
         }
     }
@@ -1753,6 +1782,7 @@ impl super::behaviour::Conversion for Profile {
             revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
+            tokenize_fields: self.tokenize_fields,
         })
     }
 
@@ -1846,6 +1876,7 @@ impl super::behaviour::Conversion for Profile {
                 revenue_recovery_retry_algorithm_data: item.revenue_recovery_retry_algorithm_data,
                 is_external_vault_enabled: item.is_external_vault_enabled,
                 external_vault_connector_details: item.external_vault_connector_details,
+                tokenize_fields: item.tokenize_fields,
             })
         }
         .await
@@ -1913,6 +1944,7 @@ impl super::behaviour::Conversion for Profile {
             revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
+            tokenize_fields: self.tokenize_fields,
         })
     }
 }

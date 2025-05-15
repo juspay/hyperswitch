@@ -1999,6 +1999,10 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Field names that should be tokenized when they appear in payment data
+    #[schema(value_type = Option<Vec<String>>, example = r#"["card_number", "card_cvc"]"#)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[nutype::nutype(
@@ -2137,6 +2141,10 @@ pub struct ProfileCreate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Field names that should be tokenized when they appear in payment data
+    #[schema(value_type = Option<Vec<String>>, example = r#"["card_number", "card_cvc"]"#)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -2296,6 +2304,10 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Field names that should be tokenized when they appear in payment data
+    #[schema(value_type = Option<Vec<String>>, example = r#"["card_number", "card_cvc"]"#)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2442,6 +2454,10 @@ pub struct ProfileResponse {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Field names that should be tokenized when they appear in payment data
+    #[schema(value_type = Option<Vec<String>>, example = r#"["card_number", "card_cvc"]"#)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -2590,6 +2606,10 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Field names that should be tokenized when they appear in payment data
+    #[schema(value_type = Option<Vec<String>>, example = r#"["card_number", "card_cvc"]"#)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2722,6 +2742,10 @@ pub struct ProfileUpdate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Field names that should be tokenized when they appear in payment data
+    #[schema(value_type = Option<Vec<String>>, example = r#"["card_number", "card_cvc"]"#)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

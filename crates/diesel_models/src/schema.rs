@@ -225,6 +225,7 @@ diesel::table! {
         merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        tokenize_fields -> Nullable<Array<Nullable<Text>>>,
     }
 }
 
