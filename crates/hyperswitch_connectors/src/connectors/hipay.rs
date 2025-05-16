@@ -244,7 +244,7 @@ impl ConnectorCommon for Hipay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code.to_string(),
+            code: response.code,
             message: response.message,
             reason: response.description,
             attempt_status: None,
