@@ -1429,35 +1429,37 @@ pub async fn retrieve_payment_method_from_vault(
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let is_external_vault_enabled = profile.is_external_vault_enabled();
 
-    if is_external_vault_enabled {
-        let external_vault_source = pm.external_vault_source.as_ref();
+    match is_external_vault_enabled {
+        true => {
+            let external_vault_source = pm.external_vault_source.as_ref();
 
-        let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
-            state,
-            merchant_context.get_merchant_account().get_id(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            profile.get_id(),
-            "",
-            external_vault_source,
-        )
-        .await
-        .attach_printable(
-            "failed to fetch merchant connector account for external vault retrieve",
-        )?;
+            let merchant_connector_account =
+                payments_core::helpers::get_merchant_connector_account(
+                    state,
+                    merchant_context.get_merchant_account().get_id(),
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    profile.get_id(),
+                    "",
+                    external_vault_source,
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault retrieve",
+                )?;
 
-        retrieve_payment_method_from_vault_external(
-            state,
-            merchant_context.get_merchant_account(),
-            pm,
-            merchant_connector_account,
-        )
-        .await
-    } else {
-        retrieve_payment_method_from_vault_internal(state, merchant_context, pm)
+            retrieve_payment_method_from_vault_external(
+                state,
+                merchant_context.get_merchant_account(),
+                pm,
+                merchant_connector_account,
+            )
+            .await
+        }
+        false => retrieve_payment_method_from_vault_internal(state, merchant_context, pm)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")
+            .attach_printable("Failed to retrieve payment method from vault"),
     }
 }
 
@@ -1569,33 +1571,37 @@ pub async fn delete_payment_method_data_from_vault(
         .get_required_value("locker_id")
         .attach_printable("Missing locker_id in PaymentMethod")?;
 
-    if is_external_vault_enabled {
-        let external_vault_source = pm.external_vault_source.as_ref();
+    match is_external_vault_enabled {
+        true => {
+            let external_vault_source = pm.external_vault_source.as_ref();
 
-        let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
-            state,
-            merchant_context.get_merchant_account().get_id(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            profile.get_id(),
-            "",
-            external_vault_source,
-        )
-        .await
-        .attach_printable("failed to fetch merchant connector account for external vault delete")?;
+            let merchant_connector_account =
+                payments_core::helpers::get_merchant_connector_account(
+                    state,
+                    merchant_context.get_merchant_account().get_id(),
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    profile.get_id(),
+                    "",
+                    external_vault_source,
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault delete",
+                )?;
 
-        delete_payment_method_data_from_vault_external(
-            state,
-            merchant_context.get_merchant_account(),
-            merchant_connector_account,
-            vault_id.clone(),
-        )
-        .await
-    } else {
-        delete_payment_method_data_from_vault_internal(state, merchant_context, vault_id)
+            delete_payment_method_data_from_vault_external(
+                state,
+                merchant_context.get_merchant_account(),
+                merchant_connector_account,
+                vault_id.clone(),
+            )
+            .await
+        }
+        false => delete_payment_method_data_from_vault_internal(state, merchant_context, vault_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to delete payment method from vault")
+            .attach_printable("Failed to delete payment method from vault"),
     }
 }
 

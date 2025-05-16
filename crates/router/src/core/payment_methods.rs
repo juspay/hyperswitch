@@ -1949,36 +1949,48 @@ pub async fn vault_payment_method(
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let is_external_vault_enabled = profile.is_external_vault_enabled();
 
-    if is_external_vault_enabled {
-        let external_vault_source: id_type::MerchantConnectorAccountId = profile
-            .external_vault_connector_details
-            .clone()
-            .map(|connector_details| connector_details.vault_connector_id.clone())
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("mca_id not present for external vault")?;
+    match is_external_vault_enabled {
+        true => {
+            let external_vault_source: id_type::MerchantConnectorAccountId = profile
+                .external_vault_connector_details
+                .clone()
+                .map(|connector_details| connector_details.vault_connector_id.clone())
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("mca_id not present for external vault")?;
 
-        let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
-            state,
-            merchant_context.get_merchant_account().get_id(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            profile.get_id(),
-            "",
-            Some(&external_vault_source),
-        )
-        .await
-        .attach_printable("failed to fetch merchant connector account for external vault insert")?;
+            let merchant_connector_account =
+                payments_core::helpers::get_merchant_connector_account(
+                    state,
+                    merchant_context.get_merchant_account().get_id(),
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    profile.get_id(),
+                    "",
+                    Some(&external_vault_source),
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault insert",
+                )?;
 
-        vault_payment_method_external(
-            state,
-            pmd,
-            merchant_context.get_merchant_account(),
-            merchant_connector_account,
-        )
-        .await
-    } else {
-        vault_payment_method_internal(state, pmd, merchant_context, existing_vault_id, customer_id)
+            vault_payment_method_external(
+                state,
+                pmd,
+                merchant_context.get_merchant_account(),
+                merchant_connector_account,
+            )
             .await
+        }
+        false => {
+            vault_payment_method_internal(
+                state,
+                pmd,
+                merchant_context,
+                existing_vault_id,
+                customer_id,
+            )
+            .await
+        }
     }
 }
 
