@@ -1879,6 +1879,7 @@ where
             attempts: None,
             billing: None,  //TODO: add this
             shipping: None, //TODO: add this
+            is_iframe_redirection_enabled: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -1989,6 +1990,7 @@ where
             next_action: None,
             attempts,
             return_url,
+            is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2586,17 +2588,27 @@ where
                             }
                         }))
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
-                            api_models::payments::NextActionData::RedirectToUrl {
-                                redirect_to_url: helpers::create_startpay_url(
-                                    base_url,
-                                    &payment_attempt,
-                                    &payment_intent,
-                                ),
+                            // Check if iframe redirection is enabled in the business profile
+                            let redirect_url = helpers::create_startpay_url(
+                                base_url,
+                                &payment_attempt,
+                                &payment_intent,
+                            );
+                            // Check if redirection inside popup is enabled in the payment intent
+                            if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
+                                api_models::payments::NextActionData::RedirectInsidePopup {
+                                    popup_url: redirect_url,
+                                }
+                            } else {
+                                api_models::payments::NextActionData::RedirectToUrl {
+                                    redirect_to_url: redirect_url,
+                                }
                             }
                         }))
-                        .or(match payment_data.get_authentication().as_ref(){
-                            Some(authentication) => {
-                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
+                        .or(match payment_data.get_authentication(){
+                            Some(authentication_store) => {
+                                let authentication = &authentication_store.authentication;
+                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_store.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
                                     let poll_config = payment_data.get_poll_config().unwrap_or_default();
                                     let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
@@ -2857,6 +2869,7 @@ where
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
             issuer_error_code: payment_attempt.issuer_error_code,
             issuer_error_message: payment_attempt.issuer_error_message,
+            is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3149,6 +3162,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
+            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled
         }
     }
 }

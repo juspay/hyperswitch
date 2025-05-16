@@ -525,6 +525,7 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
+        crm: conf.crm,
         #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
@@ -535,5 +536,6 @@ pub(crate) async fn fetch_raw_secrets(
         platform: conf.platform,
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
+        clone_connector_allowlist: conf.clone_connector_allowlist,
     }
 }

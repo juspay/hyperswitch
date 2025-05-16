@@ -62,6 +62,7 @@ pub enum RoutableConnectors {
     Adyen,
     Airwallex,
     // Amazonpay,
+    Archipel,
     Authorizedotnet,
     Bankofamerica,
     Billwerk,
@@ -140,12 +141,14 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
+    // Vgs
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
+    // Worldpayxml,
     Xendit,
     Zen,
     Plaid,
@@ -209,6 +212,7 @@ pub enum Connector {
     Adyen,
     Airwallex,
     // Amazonpay,
+    Archipel,
     Authorizedotnet,
     Bambora,
     Bamboraapac,
@@ -290,12 +294,14 @@ pub enum Connector {
     Trustpay,
     Tsys,
     // UnifiedAuthenticationService,
+    Vgs,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
+    // Worldpayxml,
     Signifyd,
     Plaid,
     Riskified,
@@ -447,12 +453,14 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
+            | Self::Vgs
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            // | Self::Worldpayxml
             | Self::Xendit
             | Self::Zen
             | Self::Zsl
@@ -467,7 +475,7 @@ impl Connector {
             | Self::Noon
             | Self::Stripe
             | Self::Datatrans => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
         }
     }
 
@@ -529,6 +537,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Aci => Self::Aci,
             RoutableConnectors::Adyen => Self::Adyen,
             RoutableConnectors::Airwallex => Self::Airwallex,
+            RoutableConnectors::Archipel => Self::Archipel,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
             RoutableConnectors::Billwerk => Self::Billwerk,
@@ -603,6 +612,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Wise => Self::Wise,
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
+            // RoutableConnectors::Worldpayxml => Self::Worldpayxml,
             RoutableConnectors::Zen => Self::Zen,
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
@@ -639,6 +649,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Aci => Ok(Self::Aci),
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Airwallex => Ok(Self::Airwallex),
+            Connector::Archipel => Ok(Self::Archipel),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
             Connector::Billwerk => Ok(Self::Billwerk),
@@ -711,6 +722,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldline => Ok(Self::Worldline),
             Connector::Worldpay => Ok(Self::Worldpay),
+            // Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Xendit => Ok(Self::Xendit),
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
@@ -726,6 +738,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Netcetera
             | Connector::Taxjar
             | Connector::Threedsecureio
+            | Connector::Vgs
             | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
         }
     }

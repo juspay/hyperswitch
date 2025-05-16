@@ -1162,6 +1162,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4472,6 +4475,7 @@ pub enum NextActionType {
     DisplayBankTransferInformation,
     DisplayWaitScreen,
     CollectOtp,
+    RedirectInsidePopup,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4481,6 +4485,10 @@ pub enum NextActionData {
     #[cfg(feature = "v1")]
     RedirectToUrl {
         redirect_to_url: String,
+    },
+    #[cfg(feature = "v1")]
+    RedirectInsidePopup {
+        popup_url: String,
     },
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
@@ -5131,6 +5139,9 @@ pub struct PaymentsResponse {
 
     /// Error message received from the issuer in case of failed payments
     pub issuer_error_message: Option<String>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5473,6 +5484,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5573,7 +5587,7 @@ pub struct ErrorDetails {
 
 /// Token information that can be used to initiate transactions by the merchant.
 #[cfg(feature = "v2")]
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConnectorTokenDetails {
     /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
@@ -5589,7 +5603,7 @@ pub struct ConnectorTokenDetails {
 /// For example
 /// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -5687,6 +5701,9 @@ pub struct PaymentsResponse {
     /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
