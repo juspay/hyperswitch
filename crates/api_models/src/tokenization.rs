@@ -1,8 +1,8 @@
 use common_enums;
 use common_utils::id_type::{GlobalCustomerId, GlobalTokenId};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use masking::Secret;
 use utoipa::{schema, ToSchema};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -26,7 +26,7 @@ pub enum TokenizationFlag {
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct GenericTokenizationRequest{
+pub struct GenericTokenizationRequest {
     #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
     pub customer_id: GlobalCustomerId,
     #[schema(value_type = Object,example = json!({ "city": "NY", "unit": "245" }))]

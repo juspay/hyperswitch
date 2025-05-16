@@ -23,15 +23,13 @@ use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
-use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use tokio::time;
 
+use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-
 use crate::{
-    connection,
-    diesel_error_to_data_error, errors,
+    connection, diesel_error_to_data_error, errors,
     kv_router_store::{
         FilterResourceParams, FindResourceBy, InsertResourceParams, KVRouterStore,
         UpdateResourceParams,
@@ -61,8 +59,6 @@ pub trait TokenizationInterface {
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
 }
-
-
 
 #[async_trait::async_trait]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -129,7 +125,9 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        self.router_store.insert_tokenization(tokenization, merchant_key_store, key_manager_state).await
+        self.router_store
+            .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
+            .await
     }
 
     async fn get_entity_id_vault_id_by_token_id(
@@ -139,7 +137,9 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        self.router_store.get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state).await
+        self.router_store
+            .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
     }
 }
 
