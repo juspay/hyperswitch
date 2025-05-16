@@ -167,3 +167,44 @@ impl AsRef<[u8]> for Secret<Vec<u8>> {
         self.peek().as_slice()
     }
 }
+
+/// Strategy for masking JSON values
+pub enum JsonMaskStrategy {}
+
+impl Strategy<serde_json::Value> for JsonMaskStrategy {
+    fn fmt(value: &serde_json::Value, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match value {
+            serde_json::Value::Object(map) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, val) in map {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    write!(f, "\"{}\":", key)?;
+                    Self::fmt(val, f)?;
+                }
+                write!(f, "}}")
+            }
+            serde_json::Value::Array(arr) => {
+                write!(f, "[")?;
+                let mut first = true;
+                for val in arr {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    first = false;
+                    Self::fmt(val, f)?;
+                }
+                write!(f, "]")
+            }
+            serde_json::Value::String(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::Bool(_) => {
+                write!(f, "\"*** {} ***\"", std::any::type_name::<serde_json::Value>())
+            }
+            serde_json::Value::Null => write!(f, "null"),
+        }
+    }
+}

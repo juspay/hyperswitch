@@ -18,7 +18,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use masking::Secret;
+use masking::{Secret, JsonMaskStrategy};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -149,8 +149,10 @@ pub async fn get_token_vault_core(
         .get("data")
         .cloned()
         .unwrap_or(serde_json::Value::Null);
+    
     let response_data = if !query_params.1 {
-        mask_sensitive_data(data_json)
+        // Use the JsonMaskStrategy to mask sensitive values while preserving JSON structure
+        apply_json_mask_strategy(data_json)
     } else {
         data_json
     };
@@ -161,25 +163,29 @@ pub async fn get_token_vault_core(
     ))
 }
 
+// Helper function that applies JsonMaskStrategy while preserving the JSON structure
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-fn mask_sensitive_data(value: serde_json::Value) -> serde_json::Value {
+fn apply_json_mask_strategy(value: serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {
             let mut masked = serde_json::Map::new();
             for (key, val) in map {
-                masked.insert(key, mask_sensitive_data(val));
+                masked.insert(key, apply_json_mask_strategy(val));
             }
             serde_json::Value::Object(masked)
         }
         serde_json::Value::Array(arr) => {
             // Recursively mask each element in arrays
-            let masked_arr = arr.into_iter().map(mask_sensitive_data).collect();
+            let masked_arr = arr.into_iter().map(apply_json_mask_strategy).collect();
             serde_json::Value::Array(masked_arr)
         }
         serde_json::Value::String(_)
         | serde_json::Value::Number(_)
         | serde_json::Value::Bool(_) => {
-            serde_json::Value::String("*** alloc::string::String ***".to_string())
+            // Create a Secret with JsonMaskStrategy for each primitive value
+            let secret = Secret::<_, JsonMaskStrategy>::new(value);
+            // Convert the Debug output of the masked value to a JSON string
+            serde_json::Value::String(format!("{:?}", secret))
         }
         // Keep null as is
         serde_json::Value::Null => serde_json::Value::Null,
