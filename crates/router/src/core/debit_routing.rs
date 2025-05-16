@@ -105,39 +105,36 @@ where
     }
 }
 
-async fn should_execute_debit_routing<F, D>(
+async fn should_execute_debit_routing<F, Req, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
-    operation: &BoxedOperation<'_, F, (), D>,
+    operation: &BoxedOperation<'_, F, Req, D>,
     payment_data: &D,
 ) -> bool
 where
     F: Send + Clone,
-    D: OperationSessionGetters<F> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
-        if business_profile.merchant_business_country.is_some() {
-            logger::info!("Debit routing is enabled for the profile");
+    if business_profile.is_debit_routing_enabled
+        && state.conf.open_router.enabled
+        && business_profile.merchant_business_country.is_some()
+    {
+        logger::info!("Debit routing is enabled for the profile");
 
-            let debit_routing_config = &state.conf.debit_routing_config;
+        let debit_routing_config = &state.conf.debit_routing_config;
 
-            if should_perform_debit_routing_for_the_flow(
-                operation,
+        if should_perform_debit_routing_for_the_flow(operation, payment_data, debit_routing_config)
+        {
+            let is_debit_routable_connector_present = check_for_debit_routing_connector_in_profile(
+                state,
+                business_profile.get_id(),
                 payment_data,
-                debit_routing_config,
-            ) {
-                let is_debit_routable_connector_present =
-                    check_for_debit_routing_connector_in_profile(
-                        state,
-                        business_profile.get_id(),
-                        payment_data,
-                    )
-                    .await;
+            )
+            .await;
 
-                if is_debit_routable_connector_present {
-                    logger::debug!("Debit routable connector is configured for the profile");
-                    return true;
-                }
+            if is_debit_routable_connector_present {
+                logger::debug!("Debit routable connector is configured for the profile");
+                return true;
             }
         }
     }
@@ -429,8 +426,6 @@ where
                 .contains(&connector_data.connector_data.connector_name)
         });
 
-    let mut supported_connectors = Vec::new();
-
     if is_any_debit_routing_connector_supported {
         let debit_routing_output =
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
@@ -440,18 +435,16 @@ where
             debit_routing_output.co_badged_card_networks
         );
 
-        for connector_data in &connector_data_list {
-            if debit_routing_supported_connectors
-                .contains(&connector_data.connector_data.connector_name)
-            {
-                let valid = build_connector_routing_data(
+        let supported_connectors: Vec<_> = connector_data_list
+            .iter()
+            .flat_map(|connector_data| {
+                build_connector_routing_data(
                     connector_data,
                     debit_routing_config,
                     &debit_routing_output.co_badged_card_networks,
-                );
-                supported_connectors.extend(valid);
-            }
-        }
+                )
+            })
+            .collect();
 
         if !supported_connectors.is_empty() {
             return Some(DebitRoutingResult {

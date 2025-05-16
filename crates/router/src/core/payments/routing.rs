@@ -1,5 +1,6 @@
 mod transformers;
 pub mod utils;
+use crate::core::payments::routing::utils::EuclidApiHandler;
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
@@ -7,6 +8,8 @@ use std::collections::hash_map;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::headers;
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -18,7 +21,7 @@ use api_models::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::{ext_traits::BytesExt, request};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -59,7 +62,7 @@ use crate::core::payouts;
 use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 use crate::{
     core::{errors, errors as oss_errors, routing},
-    headers, logger, services,
+    logger, services,
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
@@ -1604,31 +1607,20 @@ pub async fn perform_open_routing_for_debit_routing(
         Some(or_types::RankingAlgorithm::NtwBasedRouting),
     );
 
-    let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
-    let mut request = request::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        state.tenant.tenant_id.get_string_repr().to_owned().into(),
-    );
-    request.set_body(request::RequestContent::Json(Box::new(
-        open_router_req_body,
-    )));
-
-    let response = services::call_connector_api(state, request, "open_router_debit_routing_call")
+    let response: Result<DecidedGateway, or_types::ErrorResponse> =
+        utils::EuclidApiClient::send_euclid_request(
+            state,
+            services::Method::Post,
+            "decide-gateway",
+            Some(open_router_req_body),
+            None,
+        )
         .await
         .change_context(errors::RoutingError::OpenRouterCallFailed)
         .attach_printable("Open router call failed for debit routing")?;
 
     let output = match response {
-        Ok(resp) => {
-            let decided_gateway: DecidedGateway = resp
-                .response
-                .parse_struct("DecidedGateway")
-                .change_context(errors::RoutingError::OpenRouterError(
-                    "Failed to parse the response from open_router".into(),
-                ))?;
-
+        Ok(decided_gateway) => {
             let debit_routing_output = decided_gateway
                 .debit_routing_output
                 .get_required_value("debit_routing_output")
@@ -1639,14 +1631,8 @@ pub async fn perform_open_routing_for_debit_routing(
 
             Ok(debit_routing_output)
         }
-        Err(err) => {
-            let err_resp: or_types::ErrorResponse = err
-                .response
-                .parse_struct("ErrorResponse")
-                .change_context(errors::RoutingError::OpenRouterError(
-                    "Failed to parse the response from open_router".into(),
-                ))?;
-            logger::error!("open_router_error_response: {:?}", err_resp);
+        Err(error_response) => {
+            logger::error!("open_router_error_response: {:?}", error_response);
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to perform debit routing in open router".into(),
             ))
