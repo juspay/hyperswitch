@@ -1,5 +1,10 @@
+use std::time::Duration;
+use crate::errors::CustomResult;
+use common_enums::ApiClientError;
 use masking::{Maskable, Secret};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "async_ext")]
+use router_env::tracing_actix_web::RequestId;
 
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
@@ -189,3 +194,77 @@ impl Default for RequestBuilder {
         Self::new()
     }
 }
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct Proxy {
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_hosts: Option<String>,
+}
+
+impl Default for Proxy {
+    fn default() -> Self {
+        Self {
+            http_url: Default::default(),
+            https_url: Default::default(),
+            idle_pool_connection_timeout: Some(90),
+            bypass_proxy_hosts: Default::default(),
+        }
+    }
+}
+pub trait RequestBuilderInterface: Send + Sync {
+    fn json(&mut self, body: serde_json::Value);
+    fn url_encoded_form(&mut self, body: serde_json::Value);
+    fn timeout(&mut self, timeout: Duration);
+    fn multipart(&mut self, form: reqwest::multipart::Form);
+    fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError>;
+    fn send(
+        self,
+    ) -> CustomResult<
+        Box<
+            (dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>
+                 + 'static),
+        >,
+        ApiClientError,
+    >;
+}
+
+#[cfg(feature = "async_ext")]
+#[async_trait::async_trait]
+pub trait ApiClient: dyn_clone::DynClone
+where
+    Self: Send + Sync,
+{
+    fn request(
+        &self,
+        method: actix_http::Method,
+        url: String,
+    ) -> CustomResult<Box<dyn RequestBuilderInterface>, ApiClientError>;
+
+    fn request_with_certificate(
+        &self,
+        method: actix_http::Method,
+        url: String,
+        certificate: Option<Secret<String>>,
+        certificate_key: Option<Secret<String>>,
+    ) -> CustomResult<Box<dyn RequestBuilderInterface>, ApiClientError>;
+
+    async fn send_request(
+        &self,
+        state: Proxy,
+        request: Request,
+        option_timeout_secs: Option<u64>,
+        forward_to_kafka: bool,
+    ) -> CustomResult<reqwest::Response, ApiClientError>;
+
+    fn add_request_id(&mut self, request_id: RequestId);
+
+    fn get_request_id(&self) -> Option<String>;
+
+    fn add_flow_name(&mut self, flow_name: String);
+}
+
+#[cfg(feature = "async_ext")]
+dyn_clone::clone_trait_object!(ApiClient);

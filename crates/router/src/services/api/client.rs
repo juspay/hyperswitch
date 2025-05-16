@@ -7,13 +7,13 @@ use masking::{ExposeInterface, PeekInterface};
 use once_cell::sync::OnceCell;
 use reqwest::multipart::Form;
 use router_env::tracing_actix_web::RequestId;
-
+use common_utils::request;
+pub use common_utils::request::ApiClient;
 use super::{request::Maskable, Request};
 use crate::{
     configs::settings::Proxy,
     consts::BASE64_ENGINE,
     core::errors::{ApiClientError, CustomResult},
-    routes::SessionState,
 };
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -134,59 +134,6 @@ pub fn create_certificate(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
-pub trait RequestBuilder: Send + Sync {
-    fn json(&mut self, body: serde_json::Value);
-    fn url_encoded_form(&mut self, body: serde_json::Value);
-    fn timeout(&mut self, timeout: Duration);
-    fn multipart(&mut self, form: Form);
-    fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError>;
-    fn send(
-        self,
-    ) -> CustomResult<
-        Box<
-            (dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>
-                 + 'static),
-        >,
-        ApiClientError,
-    >;
-}
-
-#[async_trait::async_trait]
-pub trait ApiClient: dyn_clone::DynClone
-where
-    Self: Send + Sync,
-{
-    fn request(
-        &self,
-        method: Method,
-        url: String,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
-
-    fn request_with_certificate(
-        &self,
-        method: Method,
-        url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
-
-    async fn send_request(
-        &self,
-        state: &SessionState,
-        request: Request,
-        option_timeout_secs: Option<u64>,
-        forward_to_kafka: bool,
-    ) -> CustomResult<reqwest::Response, ApiClientError>;
-
-    fn add_request_id(&mut self, request_id: RequestId);
-
-    fn get_request_id(&self) -> Option<String>;
-
-    fn add_flow_name(&mut self, flow_name: String);
-}
-
-dyn_clone::clone_trait_object!(ApiClient);
-
 #[derive(Clone)]
 pub struct ProxyClient {
     proxy_config: Proxy,
@@ -238,7 +185,7 @@ pub struct RouterRequestBuilder {
     inner: Option<reqwest::RequestBuilder>,
 }
 
-impl RequestBuilder for RouterRequestBuilder {
+impl request::RequestBuilderInterface for RouterRequestBuilder {
     fn json(&mut self, body: serde_json::Value) {
         self.inner = self.inner.take().map(|r| r.json(&body));
     }
@@ -289,7 +236,7 @@ impl ApiClient for ProxyClient {
         &self,
         method: Method,
         url: String,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+    ) -> CustomResult<Box<dyn request::RequestBuilderInterface>, ApiClientError> {
         self.request_with_certificate(method, url, None, None)
     }
 
@@ -299,7 +246,7 @@ impl ApiClient for ProxyClient {
         url: String,
         certificate: Option<masking::Secret<String>>,
         certificate_key: Option<masking::Secret<String>>,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+    ) -> CustomResult<Box<dyn request::RequestBuilderInterface>, ApiClientError> {
         let client_builder = self
             .get_reqwest_client(certificate, certificate_key)
             .change_context(ApiClientError::ClientConstructionFailed)?;
@@ -309,12 +256,12 @@ impl ApiClient for ProxyClient {
     }
     async fn send_request(
         &self,
-        state: &SessionState,
+        proxy: Proxy,
         request: Request,
         option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError> {
-        crate::services::send_request(state, request, option_timeout_secs).await
+        crate::services::send_request(proxy, request, option_timeout_secs).await
     }
 
     fn add_request_id(&mut self, request_id: RequestId) {
@@ -339,7 +286,7 @@ impl ApiClient for MockApiClient {
         &self,
         _method: Method,
         _url: String,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+    ) -> CustomResult<Box<dyn request::RequestBuilderInterface>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
     }
@@ -350,14 +297,14 @@ impl ApiClient for MockApiClient {
         _url: String,
         _certificate: Option<masking::Secret<String>>,
         _certificate_key: Option<masking::Secret<String>>,
-    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+    ) -> CustomResult<Box<dyn request::RequestBuilderInterface>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
     }
 
     async fn send_request(
         &self,
-        _state: &SessionState,
+        _proxy: Proxy,
         _request: Request,
         _option_timeout_secs: Option<u64>,
         _forward_to_kafka: bool,

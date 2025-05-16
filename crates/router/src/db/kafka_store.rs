@@ -21,11 +21,13 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    db::business_profile::ProfileInterface,
     disputes,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
 };
+use hyperswitch_routing::state::RoutingStorageInterface;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::Secret;
@@ -58,7 +60,7 @@ use crate::{
         api_keys::ApiKeyInterface,
         authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
-        business_profile::ProfileInterface,
+        // business_profile::ProfileInterface, // Removed old import
         callback_mapper::CallbackMapperInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
@@ -311,6 +313,7 @@ impl CardsInfoInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ConfigInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -2953,6 +2956,7 @@ impl MerchantKeyStoreInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl ProfileInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
@@ -3073,6 +3077,7 @@ impl ReverseLookupInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl RoutingAlgorithmInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn insert_routing_algorithm(
         &self,
         routing_algorithm: storage::RoutingAlgorithm,
@@ -3265,6 +3270,10 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 
+    fn get_routing_store(&self) -> Box<dyn RoutingStorageInterface> {
+        Box::new(self.clone())
+    }
+
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
     }
@@ -3278,6 +3287,12 @@ impl GlobalStorageInterface for KafkaStore {
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
+
+impl RoutingStorageInterface for KafkaStore {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {

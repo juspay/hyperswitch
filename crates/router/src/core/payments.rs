@@ -58,6 +58,7 @@ use hyperswitch_domain_models::{
     payments::{payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
+use hyperswitch_routing::{core_logic, payment_routing};
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -6149,21 +6150,35 @@ where
         .iter()
         .map(|value| value.to_string())
         .collect::<HashSet<_>>();
-
+    let routing_state = &(state).into();
     let eligible_connector_data_list = connector_choice
-        .get_routable_connectors(&*state.store, business_profile)
+        .get_routable_connectors(routing_state, business_profile)
         .await?
         .filter_network_transaction_id_flow_supported_connectors(
             network_transaction_id_supported_connectors.to_owned(),
         )
         .construct_dsl_and_perform_eligibility_analysis(
-            state,
+            routing_state,
             key_store,
-            payment_data,
+            get_backend_input(payment_data)?,
             business_profile.get_id(),
         )
         .await
         .attach_printable("Failed to fetch eligible connector data")?;
+
+    let eligible_connector_data_list = eligible_connector_data_list
+        .into_iter()
+        .map(|conn| {
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &conn.connector.to_string(),
+                api::GetToken::Connector,
+                conn.merchant_connector_id.clone(),
+            )
+        })
+        .collect::<CustomResult<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
 
     let eligible_connector_data = eligible_connector_data_list
         .first()
@@ -6176,6 +6191,26 @@ where
         card_details_for_network_transaction_id,
         eligible_connector_data.clone(),
     ))
+}
+
+fn get_backend_input<T, F>(payment_data: &T) -> RouterResult<euclid::backend::BackendInput>
+where
+    F: Send + Clone,
+    T: OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    let payments_dsl_input = core_logic::PaymentsDslInput::new(
+        payment_data.get_setup_mandate(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        payment_data.get_recurring_details(),
+        payment_data.get_currency(),
+    );
+
+    payment_routing::make_dsl_input(&payments_dsl_input)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct dsl input")
 }
 
 pub async fn set_eligible_connector_for_nti_in_payment_data<F, D>(

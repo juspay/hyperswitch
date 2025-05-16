@@ -28,7 +28,7 @@ use user_api::dashboard_metadata::SetMetaDataRequest;
 
 #[cfg(feature = "v1")]
 use super::admin;
-use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
+use super::errors::{RouterStorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 #[cfg(feature = "v1")]

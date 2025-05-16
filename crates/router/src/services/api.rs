@@ -406,7 +406,7 @@ pub async fn call_connector_api(
     let url = request.url.clone();
     let response = state
         .api_client
-        .send_request(state, request, None, true)
+        .send_request(state.conf.proxy.clone(), request, None, true)
         .await;
 
     match response.as_ref() {
@@ -433,7 +433,7 @@ pub async fn call_connector_api(
 
 #[instrument(skip_all)]
 pub async fn send_request(
-    state: &SessionState,
+    proxy: common_utils::request::Proxy,
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
@@ -443,7 +443,7 @@ pub async fn send_request(
         url::Url::parse(&request.url).change_context(errors::ApiClientError::UrlParsingFailed)?;
 
     let client = client::create_client(
-        &state.conf.proxy,
+        &proxy,
         request.certificate,
         request.certificate_key,
     )?;

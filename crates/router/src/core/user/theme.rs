@@ -11,7 +11,7 @@ use rdkafka::message::ToBytes;
 use uuid::Uuid;
 
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    core::errors::{RouterStorageErrorExt, UserErrors, UserResponse},
     routes::SessionState,
     utils::user::theme as theme_utils,
 };

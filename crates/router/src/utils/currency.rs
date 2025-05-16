@@ -297,7 +297,7 @@ async fn fetch_forex_rates_from_primary_api(
     let response = state
         .api_client
         .send_request(
-            &state.clone(),
+            state.conf.proxy.clone(),
             forex_request,
             Some(FOREX_API_TIMEOUT),
             false,
@@ -363,7 +363,7 @@ pub async fn fetch_forex_rates_from_fallback_api(
     let response = state
         .api_client
         .send_request(
-            &state.clone(),
+            state.conf.proxy.clone(),
             fallback_forex_request,
             Some(FOREX_API_TIMEOUT),
             false,

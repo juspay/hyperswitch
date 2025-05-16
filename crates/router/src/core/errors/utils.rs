@@ -1,8 +1,9 @@
 use common_utils::errors::CustomResult;
 
 use crate::{core::errors, logger};
+pub use storage_impl::errors::StorageErrorExt;
 
-pub trait StorageErrorExt<T, E> {
+pub trait RouterStorageErrorExt<T, E> {
     #[track_caller]
     fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
 
@@ -10,7 +11,7 @@ pub trait StorageErrorExt<T, E> {
     fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
 }
 
-impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
+impl<T> RouterStorageErrorExt<T, errors::CustomersErrorResponse>
     for error_stack::Result<T, errors::StorageError>
 {
     #[track_caller]
@@ -37,41 +38,6 @@ impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
             } else {
                 err.change_context(errors::CustomersErrorResponse::InternalServerError)
             }
-        })
-    }
-}
-
-impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
-    for error_stack::Result<T, errors::StorageError>
-{
-    #[track_caller]
-    fn to_not_found_response(
-        self,
-        not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
-        self.map_err(|err| {
-            let new_err = match err.current_context() {
-                errors::StorageError::ValueNotFound(_) => not_found_response,
-                errors::StorageError::CustomerRedacted => {
-                    errors::ApiErrorResponse::CustomerRedacted
-                }
-                _ => errors::ApiErrorResponse::InternalServerError,
-            };
-            err.change_context(new_err)
-        })
-    }
-
-    #[track_caller]
-    fn to_duplicate_response(
-        self,
-        duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
-        self.map_err(|err| {
-            let new_err = match err.current_context() {
-                errors::StorageError::DuplicateValue { .. } => duplicate_response,
-                _ => errors::ApiErrorResponse::InternalServerError,
-            };
-            err.change_context(new_err)
         })
     }
 }
@@ -496,7 +462,7 @@ impl RedisErrorExt for error_stack::Report<errors::RedisError> {
 }
 
 #[cfg(feature = "olap")]
-impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors::StorageError> {
+impl<T> RouterStorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors::StorageError> {
     #[track_caller]
     fn to_not_found_response(
         self,

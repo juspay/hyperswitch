@@ -145,7 +145,7 @@ async fn call_decision_service<T: ErasedMaskSerialize + Send + 'static>(
 
     let response = state
         .api_client
-        .send_request(state, request, None, false)
+        .send_request(state.conf.proxy.clone(), request, None, false)
         .await;
 
     match response {

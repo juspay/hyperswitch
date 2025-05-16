@@ -18,7 +18,7 @@ use crate::core::payment_methods::cards::create_encrypted_data;
 use crate::utils::CustomerAddress;
 use crate::{
     core::{
-        errors::{self, StorageErrorExt},
+        errors::{self, RouterStorageErrorExt},
         payment_methods::{cards, network_tokenization},
     },
     db::StorageInterface,

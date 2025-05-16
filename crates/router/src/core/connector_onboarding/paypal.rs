@@ -47,7 +47,7 @@ pub async fn get_action_url_from_paypal(
         return_url,
     ))
     .await?;
-    let referral_response = send_request(&state, referral_request, None)
+    let referral_response = send_request(state.conf.proxy.clone(), referral_request, None)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to send request to paypal referrals")?;
@@ -97,7 +97,7 @@ pub async fn sync_merchant_onboarding_status(
     let merchant_details_request =
         utils::paypal::build_paypal_get_request(merchant_details_url, access_token.token.expose())?;
 
-    let merchant_details_response = send_request(&state, merchant_details_request, None)
+    let merchant_details_response = send_request(state.conf.proxy.clone(), merchant_details_request, None)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to send request to paypal merchant details")?;
@@ -121,7 +121,7 @@ async fn find_paypal_merchant_by_tracking_id(
         merchant_onboarding_status_url(state.clone(), tracking_id),
         access_token.token.peek().to_string(),
     )?;
-    let seller_status_response = send_request(&state, seller_status_request, None)
+    let seller_status_response = send_request(state.conf.proxy.clone(), seller_status_request, None)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to send request to paypal onboarding status")?;

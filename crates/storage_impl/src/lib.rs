@@ -9,11 +9,13 @@ use hyperswitch_domain_models::{
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod business_profile;
 pub mod callback_mapper;
 pub mod config;
 pub mod connection;
 pub mod customers;
 pub mod database;
+pub mod dynamic_routing_stats;
 pub mod errors;
 pub mod kv_router_store;
 pub mod lookup;
@@ -26,6 +28,7 @@ pub mod payments;
 pub mod payouts;
 pub mod redis;
 pub mod refund;
+pub mod routing_algorithm;
 mod reverse_lookup;
 pub mod utils;
 

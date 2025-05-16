@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
+    core::errors::{RouterStorageErrorExt, UserErrors, UserResult},
     routes::SessionState,
     services::authentication::UserFromToken,
 };

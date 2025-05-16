@@ -54,8 +54,10 @@ use hyperswitch_domain_models::payouts::{
 };
 use hyperswitch_domain_models::{
     payment_methods::PaymentMethodInterface,
+    db::business_profile::ProfileInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
+use hyperswitch_routing::state::RoutingStorageInterface;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
@@ -94,7 +96,7 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + blocklist_lookup::BlocklistLookupInterface
-    + configs::ConfigInterface
+    + configs::ConfigInterface<Error = StorageError>
     + capture::CaptureInterface
     + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
@@ -114,7 +116,7 @@ pub trait StorageInterface:
     + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
-    + dynamic_routing_stats::DynamicRoutingStatsInterface
+    + dynamic_routing_stats::DynamicRoutingStatsInterface<Error = StorageError>
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface<Error = StorageError>
     + PayoutsInterface<Error = StorageError>
@@ -126,8 +128,8 @@ pub trait StorageInterface:
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + RequestIdStore
-    + business_profile::ProfileInterface
-    + routing_algorithm::RoutingAlgorithmInterface
+    + ProfileInterface<Error = StorageError>
+    + routing_algorithm::RoutingAlgorithmInterface<Error = StorageError>
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
     + authorization::AuthorizationInterface
@@ -142,6 +144,7 @@ pub trait StorageInterface:
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+    fn get_routing_store(&self) -> Box<dyn RoutingStorageInterface>;
 
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
 }
@@ -168,7 +171,7 @@ pub trait AccountsStorageInterface:
     + dyn_clone::DynClone
     + OrganizationInterface
     + merchant_account::MerchantAccountInterface
-    + business_profile::ProfileInterface
+    + ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + dashboard_metadata::DashboardMetadataInterface
@@ -213,6 +216,10 @@ impl StorageInterface for Store {
         Box::new(self.clone())
     }
 
+    fn get_routing_store(&self) -> Box<dyn RoutingStorageInterface> {
+        Box::new(self.clone())
+    }
+
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
     }
@@ -230,6 +237,9 @@ impl AccountsStorageInterface for Store {}
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+    fn get_routing_store(&self) -> Box<dyn RoutingStorageInterface> {
         Box::new(self.clone())
     }
 

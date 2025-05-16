@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
+pub use common_utils::request::Proxy;
 use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -712,15 +713,6 @@ pub struct Jwekey {
     pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct Proxy {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_hosts: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

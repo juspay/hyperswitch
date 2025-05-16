@@ -14,7 +14,7 @@ use masking::Secret;
 use once_cell::sync::Lazy;
 
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    core::errors::{RouterStorageErrorExt, UserErrors, UserResponse},
     db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{

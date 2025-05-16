@@ -25,7 +25,7 @@ pub use self::{
     sch_errors::*,
     storage_errors::*,
     storage_impl_errors::*,
-    utils::{ConnectorErrorExt, StorageErrorExt},
+    utils::{ConnectorErrorExt, RouterStorageErrorExt, StorageErrorExt},
 };
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;

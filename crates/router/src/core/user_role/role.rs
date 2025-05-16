@@ -7,7 +7,7 @@ use diesel_models::role::{ListRolesByEntityPayload, RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
 
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    core::errors::{RouterStorageErrorExt, UserErrors, UserResponse},
     routes::{app::ReqState, SessionState},
     services::{
         authentication::{blacklist, UserFromToken},

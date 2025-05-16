@@ -25,12 +25,14 @@ payment_methods_v2 = []
 crypto_openssl = ["dep:openssl"]
 
 [dependencies]
+actix-http = "3.6.0"
 async-trait = { version = "0.1.79", optional = true }
 base64 = "0.22.0"
 base64-serde = "0.8.0"
 blake3 = { version = "1.5.1", features = ["serde"] }
 bytes = "1.6.0"
 diesel = "2.2.3"
+dyn-clone = "1.0.17"
 error-stack = "0.4.1"
 futures = { version = "0.3.30", optional = true }
 globset = "0.4.14"

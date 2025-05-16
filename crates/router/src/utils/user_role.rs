@@ -15,7 +15,7 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     db::{
-        errors::StorageErrorExt,
+        errors::RouterStorageErrorExt,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
     routes::SessionState,

@@ -1,5 +1,6 @@
 pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
 pub use redis_interface::errors::RedisError;
+use hyperswitch_domain_models::errors::api_error_response as errors;
 
 use crate::store::errors::DatabaseError;
 pub type StorageResult<T> = error_stack::Result<T, StorageError>;
@@ -88,6 +89,49 @@ impl StorageError {
             Self::DuplicateValue { .. } => true,
             _ => false,
         }
+    }
+}
+
+pub trait StorageErrorExt<T, E> {
+    #[track_caller]
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
+
+    #[track_caller]
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
+}
+
+impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
+    for error_stack::Result<T, StorageError>
+{
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::ApiErrorResponse,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                StorageError::ValueNotFound(_) => not_found_response,
+                StorageError::CustomerRedacted => {
+                    errors::ApiErrorResponse::CustomerRedacted
+                }
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::ApiErrorResponse,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                StorageError::DuplicateValue { .. } => duplicate_response,
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
     }
 }
 

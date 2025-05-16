@@ -1796,6 +1796,7 @@ dependencies = [
 name = "common_utils"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
  "async-trait",
  "base64 0.22.1",
  "base64-serde",
@@ -1803,6 +1804,7 @@ dependencies = [
  "bytes 1.10.1",
  "common_enums",
  "diesel",
+ "dyn-clone",
  "error-stack",
  "fake",
  "futures 0.3.30",
@@ -2821,6 +2823,7 @@ dependencies = [
  "anyhow",
  "rustc_version 0.4.1",
  "serde",
+ "tracing-error",
 ]
 
 [[package]]
@@ -3950,6 +3953,37 @@ dependencies = [
  "thiserror 1.0.63",
  "time",
  "url",
+]
+
+[[package]]
+name = "hyperswitch_routing"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "connector_configs",
+ "dyn-clone",
+ "error-stack",
+ "euclid",
+ "external_services",
+ "futures 0.3.30",
+ "hyperswitch_constraint_graph",
+ "hyperswitch_domain_models",
+ "kgraph_utils",
+ "masking",
+ "rand",
+ "reqwest 0.11.27",
+ "router_env",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "storage_impl",
+ "thiserror 1.0.63",
+ "time",
+ "tokio 1.40.0",
+ "tracing",
 ]
 
 [[package]]
@@ -6499,6 +6533,7 @@ dependencies = [
  "hyperswitch_constraint_graph",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
+ "hyperswitch_routing",
  "infer",
  "iso_currency",
  "isocountry",
@@ -8773,6 +8808,16 @@ checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 dependencies = [
  "once_cell",
  "valuable",
+]
+
+[[package]]
+name = "tracing-error"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1581020d7a273442f5b45074a6a57d5757ad0a47dac0e9f0bd57b81936f3db"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

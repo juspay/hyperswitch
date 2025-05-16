@@ -8,6 +8,7 @@ pub mod card_testing_guard_data;
 pub mod configs;
 pub mod consts;
 pub mod customer;
+pub mod db;
 pub mod disputes;
 pub mod errors;
 pub mod mandates;

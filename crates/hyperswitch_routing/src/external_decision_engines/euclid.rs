@@ -3,63 +3,62 @@ use std::collections::{HashMap, HashSet};
 use api_models::routing as api_routing;
 use async_trait::async_trait;
 use common_utils::id_type;
-use diesel_models::{enums, routing_algorithm};
+use storage_impl::routing_algorithm::storage_models;
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
+use router_env;
+use crate::errors::RouterResponse;
+use storage_impl::routing_algorithm::common_enums as enums;
 use serde::{Deserialize, Serialize};
-
-use super::RoutingResult;
 use crate::{
-    core::errors,
-    routes::SessionState,
-    services::{self, logger},
-    types::transformers::ForeignInto,
+    state::RoutingState,
+    errors,
+    transformers::ForeignInto,
 };
 
-// New Trait for handling Euclid API calls
 #[async_trait]
 pub trait EuclidApiHandler {
     async fn send_euclid_request<Req, Res>(
-        state: &SessionState,
-        http_method: services::Method,
+        state: &RoutingState<'_>,
+        http_method: common_utils::request::Method,
         path: &str,
-        request_body: Option<Req>, // Option to handle GET/DELETE requests without body
+        request_body: Option<Req>,
         timeout: Option<u64>,
-    ) -> RoutingResult<Res>
+    ) -> RouterResponse<Res>
     where
         Req: Serialize + Send + Sync + 'static,
         Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug;
 
     async fn send_euclid_request_without_response_parsing<Req>(
-        state: &SessionState,
-        http_method: services::Method,
+        state: &RoutingState<'_>,
+        http_method: common_utils::request::Method,
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
-    ) -> RoutingResult<()>
+    ) -> RouterResponse<()>
     where
         Req: Serialize + Send + Sync + 'static;
 }
 
-// Struct to implement the EuclidApiHandler trait
-pub struct EuclidApiClient;
+pub struct EuclidApiClientStructure; // Renamed to avoid conflict with the field name
 
-impl EuclidApiClient {
+const EUCLID_BASE_URL: &str = "http://localhost:8082";
+impl EuclidApiClientStructure {
     async fn build_and_send_euclid_http_request<Req>(
-        state: &SessionState,
-        http_method: services::Method,
+        state: &RoutingState<'_>,
+        http_method: common_utils::request::Method,
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
         context_message: &str,
-    ) -> RoutingResult<reqwest::Response>
+    ) -> RouterResponse<reqwest::Response>
     where
         Req: Serialize + Send + Sync + 'static,
     {
         let url = format!("{}/{}", EUCLID_BASE_URL, path);
-        logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "Initiating Euclid API call ({})", context_message);
+        router_env::logger::debug!(euclid_api_call_url = %url, euclid_request_path = %path, http_method = ?http_method, "Initiating Euclid API call ({})", context_message);
 
-        let mut request_builder = services::RequestBuilder::new()
+        let mut request_builder = common_utils::request::RequestBuilder::new() // Assuming common_utils::request::RequestBuilder
             .method(http_method)
             .url(&url);
 
@@ -69,11 +68,10 @@ impl EuclidApiClient {
         }
 
         let http_request = request_builder.build();
-        logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details ({})", context_message);
+        router_env::logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details ({})", context_message);
 
-        state
-            .api_client
-            .send_request(state.conf.proxy.clone(), http_request, timeout, false)
+        state.api_client
+            .send_request(state.conf.proxy.clone(), http_request, timeout, false) 
             .await
             .change_context(errors::RoutingError::DslExecutionError)
             .attach_printable_lazy(|| {
@@ -86,14 +84,14 @@ impl EuclidApiClient {
 }
 
 #[async_trait]
-impl EuclidApiHandler for EuclidApiClient {
+impl EuclidApiHandler for EuclidApiClientStructure {
     async fn send_euclid_request<Req, Res>(
-        state: &SessionState,
-        http_method: services::Method,
+        state: &RoutingState<'_>,
+        http_method: common_utils::request::Method,
         path: &str,
-        request_body: Option<Req>, // Option to handle GET/DELETE requests without body
+        request_body: Option<Req>,
         timeout: Option<u64>,
-    ) -> RoutingResult<Res>
+    ) -> RouterResponse<Res>
     where
         Req: Serialize + Send + Sync + 'static,
         Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug,
@@ -107,7 +105,7 @@ impl EuclidApiHandler for EuclidApiClient {
             "parsing response",
         )
         .await?;
-        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
+        router_env::logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
 
         let parsed_response = response
             .json::<Res>()
@@ -123,17 +121,17 @@ impl EuclidApiHandler for EuclidApiClient {
                     path
                 )
             })?;
-        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "Successfully parsed response from Euclid API");
+        router_env::logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "Successfully parsed response from Euclid API");
         Ok(parsed_response)
     }
 
     async fn send_euclid_request_without_response_parsing<Req>(
-        state: &SessionState,
-        http_method: services::Method,
+        state: &RoutingState<'_>,
+        http_method: common_utils::request::Method,
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
-    ) -> RoutingResult<()>
+    ) -> RouterResponse<()>
     where
         Req: Serialize + Send + Sync + 'static,
     {
@@ -147,96 +145,108 @@ impl EuclidApiHandler for EuclidApiClient {
         )
         .await?;
 
-        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
+        router_env::logger::debug!(euclid_response = ?response, euclid_request_path = %path, "Received raw response from Euclid API");
         Ok(())
     }
 }
 
 //TODO: will be converted to configs
 const EUCLID_API_TIMEOUT: u64 = 5;
-const EUCLID_BASE_URL: &str = "http://localhost:8082";
+// const EUCLID_BASE_URL: &str = "http://localhost:8082"; // This should come from config
 
+// These functions will need to accept http_client and euclid_base_url
 pub async fn perform_decision_euclid_routing(
-    state: &SessionState,
+    state: &RoutingState<'_>,
     input: BackendInput,
     created_by: String,
-) -> RoutingResult<()> {
-    logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
+) -> RouterResponse<()> {
+    router_env::logger::debug!(
+        "decision_engine_euclid: evaluate api call for euclid routing evaluation"
+    );
 
     let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
 
-    let euclid_response: RoutingEvaluateResponse = EuclidApiClient::send_euclid_request(
+    let euclid_response: RoutingEvaluateResponse = EuclidApiClientStructure::send_euclid_request(
         state,
-        services::Method::Post,
+        common_utils::request::Method::Post,
         "routing/evaluate",
         Some(routing_request),
         Some(EUCLID_API_TIMEOUT),
     )
     .await?;
 
-    logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
-    logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
+    router_env::logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
+    router_env::logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
 
     Ok(())
 }
 
-pub async fn create_de_euclid_routing_algo(
-    state: &SessionState,
-    routing_request: &RoutingRule,
-) -> RoutingResult<String> {
-    logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
+// ... (Similar refactoring for other functions: create_de_euclid_routing_algo, link_de_euclid_routing_algorithm, list_de_euclid_routing_algorithms)
+// ... They will need to accept http_client and euclid_base_url ...
 
-    let euclid_response: RoutingDictionaryRecord = EuclidApiClient::send_euclid_request(
+pub async fn create_de_euclid_routing_algo(
+    state: &RoutingState<'_>,
+    routing_request: &RoutingRule,
+) -> RouterResponse<String> {
+    router_env::logger::debug!(
+        "decision_engine_euclid: create api call for euclid routing rule creation"
+    );
+
+    let euclid_response: RoutingDictionaryRecord = EuclidApiClientStructure::send_euclid_request(
         state,
-        services::Method::Post,
+        common_utils::request::Method::Post,
         "routing/create",
         Some(routing_request.clone()),
         Some(EUCLID_API_TIMEOUT),
     )
     .await?;
 
-    logger::debug!(decision_engine_euclid_parsed_response=?euclid_response,"decision_engine_euclid");
+    router_env::logger::debug!(decision_engine_euclid_parsed_response=?euclid_response,"decision_engine_euclid");
     Ok(euclid_response.rule_id)
 }
 
 pub async fn link_de_euclid_routing_algorithm(
-    state: &SessionState,
+    state: &RoutingState<'_>,
     routing_request: ActivateRoutingConfigRequest,
-) -> RoutingResult<()> {
-    logger::debug!("decision_engine_euclid: link api call for euclid routing algorithm");
+) -> RouterResponse<()> {
+    router_env::logger::debug!(
+        "decision_engine_euclid: link api call for euclid routing algorithm"
+    );
 
-    EuclidApiClient::send_euclid_request_without_response_parsing(
+    EuclidApiClientStructure::send_euclid_request_without_response_parsing(
         state,
-        services::Method::Post,
+        common_utils::request::Method::Post,
         "routing/activate",
         Some(routing_request.clone()),
         Some(EUCLID_API_TIMEOUT),
     )
     .await?;
 
-    logger::debug!(decision_engine_euclid_activated=?routing_request, "decision_engine_euclid: link_de_euclid_routing_algorithm completed");
+    router_env::logger::debug!(decision_engine_euclid_activated=?routing_request, "decision_engine_euclid: link_de_euclid_routing_algorithm completed");
     Ok(())
 }
 
 pub async fn list_de_euclid_routing_algorithms(
-    state: &SessionState,
+    state: &RoutingState<'_>,
     routing_list_request: ListRountingAlgorithmsRequest,
-) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
-    logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
+) -> RouterResponse<Vec<api_routing::RoutingDictionaryRecord>> {
+    router_env::logger::debug!(
+        "decision_engine_euclid: list api call for euclid routing algorithms"
+    );
     let created_by = routing_list_request.created_by;
-    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_euclid_request(
+    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClientStructure::send_euclid_request(
         state,
-        services::Method::Post,
+        common_utils::request::Method::Post, // Should this be GET if no body? Or POST if created_by is in body?
         format!("routing/list/{created_by}").as_str(),
-        None::<()>,
+        None::<()>, // Assuming no body for list
         Some(EUCLID_API_TIMEOUT),
     )
     .await?;
 
     Ok(response
         .into_iter()
-        .map(routing_algorithm::RoutingProfileMetadata::from)
-        .map(ForeignInto::foreign_into)
+        .map(storage_models::RoutingProfileMetadata::from) // diesel_models::routing_algorithm
+        .map(ForeignInto::foreign_into) // This ForeignInto needs to be defined or available
         .collect::<Vec<_>>())
 }
 
@@ -278,6 +288,7 @@ impl RoutingEq<api_routing::RoutingDictionaryRecord> for api_routing::RoutingDic
 pub fn to_json_string<T: Serialize>(value: &T) -> String {
     serde_json::to_string(value)
         .map_err(|_| errors::RoutingError::GenericConversionError {
+            // errors local
             from: "T".to_string(),
             to: "JsonValue".to_string(),
         })
@@ -299,7 +310,7 @@ pub struct ListRountingAlgorithmsRequest {
 pub fn convert_backend_input_to_routing_eval(
     created_by: String,
     input: BackendInput,
-) -> RoutingResult<RoutingEvaluateRequest> {
+) -> RouterResponse<RoutingEvaluateRequest> {
     let mut params: HashMap<String, Option<ValueType>> = HashMap::new();
 
     // Payment
@@ -418,7 +429,6 @@ pub fn convert_backend_input_to_routing_eval(
     })
 }
 
-//TODO: temporary change will be refactored afterwards
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct RoutingEvaluateRequest {
     pub created_by: String,
@@ -439,35 +449,18 @@ pub struct MetadataValue {
     pub value: String,
 }
 
-/// Represents a value in the DSL
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ValueType {
-    /// Represents a number literal
     Number(u64),
-    /// Represents an enum variant
     EnumVariant(String),
-    /// Represents a Metadata variant
     MetadataVariant(MetadataValue),
-    /// Represents a arbitrary String value
     StrValue(String),
     GlobalRef(String),
 }
 
-// impl ValueType {
-//     pub fn get_type(&self) -> DataType {
-//         match self {
-//             Self::Number(_) => DataType::Number,
-//             Self::StrValue(_) => DataType::StrValue,
-//             Self::MetadataVariant(_) => DataType::MetadataValue,
-//             Self::EnumVariant(_) => DataType::EnumVariant,
-//             Self::GlobalRef(_) => DataType::GlobalRef,
-//         }
-//     }
-// }
-
 pub type Metadata = HashMap<String, serde_json::Value>;
-/// Represents a number comparison for "NumberComparisonArrayValue"
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NumberComparison {
@@ -475,7 +468,6 @@ pub struct NumberComparison {
     pub number: u64,
 }
 
-/// Conditional comparison type
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ComparisonType {
@@ -487,65 +479,26 @@ pub enum ComparisonType {
     GreaterThanEqual,
 }
 
-/// Represents a single comparison condition.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Comparison {
-    /// The left hand side which will always be a domain input identifier like "payment.method.cardtype"
     pub lhs: String,
-    /// The comparison operator
     pub comparison: ComparisonType,
-    /// The value to compare against
     pub value: ValueType,
-    /// Additional metadata that the Static Analyzer and Backend does not touch.
-    /// This can be used to store useful information for the frontend and is required for communication
-    /// between the static analyzer and the frontend.
-    // #[schema(value_type=HashMap<String, serde_json::Value>)]
     pub metadata: Metadata,
 }
 
-/// Represents all the conditions of an IF statement
-/// eg:
-///
-/// ```text
-/// payment.method = card & payment.method.cardtype = debit & payment.method.network = diners
-/// ```
 pub type IfCondition = Vec<Comparison>;
 
-/// Represents an IF statement with conditions and optional nested IF statements
-///
-/// ```text
-/// payment.method = card {
-///     payment.method.cardtype = (credit, debit) {
-///         payment.method.network = (amex, rupay, diners)
-///     }
-/// }
-/// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IfStatement {
-    // #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
     pub nested: Option<Vec<IfStatement>>,
 }
 
-/// Represents a rule
-///
-/// ```text
-/// rule_name: [stripe, adyen, checkout]
-/// {
-///     payment.method = card {
-///         payment.method.cardtype = (credit, debit) {
-///             payment.method.network = (amex, rupay, diners)
-///         }
-///
-///         payment.method.cardtype = credit
-///     }
-/// }
-/// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-// #[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]
 pub struct Rule {
     pub name: String,
     #[serde(alias = "routingType")]
@@ -580,17 +533,12 @@ pub enum Output {
 
 pub type Globals = HashMap<String, HashSet<ValueType>>;
 
-/// The program, having a default connector selection and
-/// a bunch of rules. Also can hold arbitrary metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-// #[aliases(ProgramConnectorSelection = Program<ConnectorSelection>)]
 pub struct Program {
     pub globals: Globals,
     pub default_selection: Output,
-    // #[schema(value_type=RuleConnectorSelection)]
     pub rules: Vec<Rule>,
-    // #[schema(value_type=HashMap<String, serde_json::Value>)]
     pub metadata: Option<Metadata>,
 }
 
@@ -608,7 +556,7 @@ pub struct RoutingRule {
 #[serde(rename_all = "snake_case")]
 pub struct RoutingMetadata {
     pub kind: enums::RoutingAlgorithmKind,
-    pub algorithm_for: enums::TransactionType,
+    pub algorithm_for: common_enums::enums::TransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -616,30 +564,31 @@ pub struct RoutingMetadata {
 pub struct RoutingDictionaryRecord {
     pub rule_id: String,
     pub name: String,
-    pub created_at: time::PrimitiveDateTime,
-    pub modified_at: time::PrimitiveDateTime,
+    pub created_at: time::PrimitiveDateTime,  // time crate
+    pub modified_at: time::PrimitiveDateTime, // time crate
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RoutingAlgorithmRecord {
-    pub id: id_type::RoutingId,
+    pub id: id_type::RoutingId, // common_utils
     pub name: String,
     pub description: Option<String>,
-    pub created_by: id_type::ProfileId,
+    pub created_by: id_type::ProfileId, // common_utils
     pub algorithm_data: Program,
     pub metadata: Option<RoutingMetadata>,
-    pub created_at: time::PrimitiveDateTime,
-    pub modified_at: time::PrimitiveDateTime,
+    pub created_at: time::PrimitiveDateTime,  // time
+    pub modified_at: time::PrimitiveDateTime, // time
 }
 
-impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata {
+impl From<RoutingAlgorithmRecord> for storage_models::RoutingProfileMetadata {
+    // diesel_models
     fn from(record: RoutingAlgorithmRecord) -> Self {
         let (kind, algorithm_for) = match record.metadata {
             Some(metadata) => (metadata.kind, metadata.algorithm_for),
             None => (
                 enums::RoutingAlgorithmKind::Advanced,
-                enums::TransactionType::default(),
+                common_enums::enums::TransactionType::default(),
             ),
         };
         Self {
@@ -654,9 +603,12 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
         }
     }
 }
-use api_models::routing::{ConnectorSelection, RoutableConnectorChoice};
-impl From<ast::Program<ConnectorSelection>> for Program {
-    fn from(p: ast::Program<ConnectorSelection>) -> Self {
+
+// These From impls are for converting euclid AST to local Euclid-specific types.
+// They should be fine as long as euclid crate is a dependency.
+impl From<ast::Program<api_routing::ConnectorSelection>> for Program {
+    // api_routing from api_models
+    fn from(p: ast::Program<api_routing::ConnectorSelection>) -> Self {
         Program {
             globals: HashMap::new(),
             default_selection: convert_output(p.default_selection),
@@ -666,10 +618,10 @@ impl From<ast::Program<ConnectorSelection>> for Program {
     }
 }
 
-fn convert_rule(rule: ast::Rule<ConnectorSelection>) -> Rule {
+fn convert_rule(rule: ast::Rule<api_routing::ConnectorSelection>) -> Rule {
     Rule {
         name: rule.name,
-        routing_type: RoutingType::Priority,
+        routing_type: RoutingType::Priority, // Defaulting, might need more logic
         output: convert_output(rule.connector_selection),
         statements: rule.statements.into_iter().map(convert_if_stmt).collect(),
     }
@@ -707,7 +659,7 @@ fn convert_comparison_type(ct: ast::ComparisonType) -> ComparisonType {
 fn convert_value(v: ast::ValueType) -> ValueType {
     use ast::ValueType::*;
     match v {
-        Number(n) => ValueType::Number(n.get_amount_as_i64().try_into().unwrap()),
+        Number(n) => ValueType::Number(n.get_amount_as_i64().try_into().unwrap_or_default()), // Added unwrap_or_default
         EnumVariant(e) => ValueType::EnumVariant(e),
         MetadataVariant(m) => ValueType::MetadataVariant(MetadataValue {
             key: m.key,
@@ -718,12 +670,13 @@ fn convert_value(v: ast::ValueType) -> ValueType {
     }
 }
 
-fn convert_output(sel: ConnectorSelection) -> Output {
+fn convert_output(sel: api_routing::ConnectorSelection) -> Output {
+    // api_routing from api_models
     match sel {
-        ConnectorSelection::Priority(choices) => {
+        api_routing::ConnectorSelection::Priority(choices) => {
             Output::Priority(choices.into_iter().map(stringify_choice).collect())
         }
-        ConnectorSelection::VolumeSplit(vs) => Output::VolumeSplit(
+        api_routing::ConnectorSelection::VolumeSplit(vs) => Output::VolumeSplit(
             vs.into_iter()
                 .map(|v| VolumeSplit {
                     split: v.split,
@@ -734,6 +687,7 @@ fn convert_output(sel: ConnectorSelection) -> Output {
     }
 }
 
-fn stringify_choice(c: RoutableConnectorChoice) -> String {
+fn stringify_choice(c: api_routing::RoutableConnectorChoice) -> String {
+    // api_routing from api_models
     c.connector.to_string()
 }

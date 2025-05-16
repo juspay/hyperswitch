@@ -1,7 +1,7 @@
 pub mod refunds_transformers;
 pub mod refunds_validator;
 
-use std::{collections::HashSet, marker::PhantomData, str::FromStr};
+use std::{marker::PhantomData, str::FromStr};
 
 use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
@@ -15,7 +15,8 @@ use common_utils::{
     types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
+pub use hyperswitch_domain_models::{
+    business_profile::{GetProfileId, filter_objects_based_on_profile_id_list, validate_profile_id_from_auth_layer},
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
@@ -1845,144 +1846,5 @@ pub fn get_incremental_authorization_allowed_value(
         Some(false)
     } else {
         incremental_authorization_allowed
-    }
-}
-
-pub(crate) trait GetProfileId {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId>;
-}
-
-impl GetProfileId for MerchantConnectorAccount {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
-    }
-}
-
-impl GetProfileId for storage::PaymentIntent {
-    #[cfg(feature = "v1")]
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.profile_id.as_ref()
-    }
-
-    // TODO: handle this in a better way for v2
-    #[cfg(feature = "v2")]
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
-    }
-}
-
-impl<A> GetProfileId for (storage::PaymentIntent, A) {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.0.get_profile_id()
-    }
-}
-
-impl GetProfileId for diesel_models::Dispute {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.profile_id.as_ref()
-    }
-}
-
-impl GetProfileId for diesel_models::Refund {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.profile_id.as_ref()
-    }
-}
-
-#[cfg(feature = "v1")]
-impl GetProfileId for api_models::routing::RoutingConfigRequest {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.profile_id.as_ref()
-    }
-}
-
-#[cfg(feature = "v2")]
-impl GetProfileId for api_models::routing::RoutingConfigRequest {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
-    }
-}
-
-impl GetProfileId for api_models::routing::RoutingRetrieveLinkQuery {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.profile_id.as_ref()
-    }
-}
-
-impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
-    }
-}
-
-impl GetProfileId for domain::Profile {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(self.get_id())
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl GetProfileId for storage::Payouts {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
-    }
-}
-#[cfg(feature = "payouts")]
-impl<T, F, R> GetProfileId for (storage::Payouts, T, F, R) {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.0.get_profile_id()
-    }
-}
-
-/// Filter Objects based on profile ids
-pub(super) fn filter_objects_based_on_profile_id_list<
-    T: GetProfileId,
-    U: IntoIterator<Item = T> + FromIterator<T>,
->(
-    profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
-    object_list: U,
-) -> U {
-    if let Some(profile_id_list) = profile_id_list_auth_layer {
-        let profile_ids_to_filter: HashSet<_> = profile_id_list.iter().collect();
-        object_list
-            .into_iter()
-            .filter_map(|item| {
-                if item
-                    .get_profile_id()
-                    .is_some_and(|profile_id| profile_ids_to_filter.contains(profile_id))
-                {
-                    Some(item)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    } else {
-        object_list
-    }
-}
-
-pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
-    profile_id_auth_layer: Option<common_utils::id_type::ProfileId>,
-    object: &T,
-) -> RouterResult<()> {
-    match (profile_id_auth_layer, object.get_profile_id()) {
-        (Some(auth_profile_id), Some(object_profile_id)) => {
-            auth_profile_id.eq(object_profile_id).then_some(()).ok_or(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Profile id authentication failed. Please use the correct JWT token"
-                        .to_string(),
-                }
-                .into(),
-            )
-        }
-        (Some(_auth_profile_id), None) => RouterResult::Err(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Couldn't find profile_id in record for authentication".to_string(),
-            }
-            .into(),
-        )
-        .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
-        (None, None) | (None, Some(_)) => Ok(()),
     }
 }
