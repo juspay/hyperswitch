@@ -218,7 +218,7 @@ def terminate_2fa_tool(totp_token: str, skip_two_factor_auth: str = "True") -> D
 
         # Configure API client with Bearer token authentication
         config = Configuration(
-            host="http://localhost:8080", # Using localhost:8080 as required
+            host="http://100.125.179.123:8080", # Using the correct host
             api_key={'Authorization': f'Bearer {totp_token}'}
         )
         api_client = ApiClient(configuration=config)

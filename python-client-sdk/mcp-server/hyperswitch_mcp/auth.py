@@ -25,7 +25,7 @@ def signin(email: str, password: str) -> Dict[str, Any]:
         Logger.info(f"Attempting to sign in user: {email}", {"email_length": len(email)})
         
         # Define API endpoint and request body
-        url = "http://localhost:8080/user/signin"
+        url = "http://100.125.179.123:8080/user/signin"
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json"
@@ -103,7 +103,7 @@ def signout(jwt_token: str) -> Dict[str, Any]:
         Logger.info("Attempting to sign out user")
         
         # Define API endpoint
-        url = "http://localhost:8080/user/signout"
+        url = "http://100.125.179.123:8080/user/signout"
         headers = {
             "Authorization": f"Bearer {jwt_token}",
             "Accept": "application/json"
@@ -200,7 +200,7 @@ def terminate_2fa(totp_token: str, skip_two_factor_auth: bool = True) -> Dict[st
         Logger.info(f"Attempting to terminate 2FA with skip_two_factor_auth={skip_two_factor_auth}")
         
         # Define API endpoint
-        url = f"http://localhost:8080/user/2fa/terminate"
+        url = f"http://100.125.179.123:8080/user/2fa/terminate"
         if skip_two_factor_auth:
             url += "?skip_two_factor_auth=true"
             

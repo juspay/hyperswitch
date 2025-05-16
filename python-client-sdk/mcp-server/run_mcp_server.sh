@@ -20,5 +20,5 @@ export PYTHONPATH="$SCRIPT_DIR/.."
 echo "[run_mcp_server.sh] Set PYTHONPATH to: $PYTHONPATH"
 
 # Run the MCP server using python -m
-echo "[run_mcp_server.sh] Running server: python -m hyperswitch_mcp.server"
-python -m hyperswitch_mcp.server 
+echo "[run_mcp_server.sh] Running server: python3 -m hyperswitch_mcp.server"
+python3 -m hyperswitch_mcp.server 

@@ -17,7 +17,7 @@ from requests.exceptions import RequestException, Timeout
 logger = logging.getLogger(__name__)
 
 # Fixed base URL as per requirements
-BASE_URL = "http://localhost:8080"
+BASE_URL = "http://100.125.179.123:8080"
 
 class BusinessProfile:
     """Represents a business profile in the Hyperswitch platform."""
