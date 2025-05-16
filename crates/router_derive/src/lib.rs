@@ -764,3 +764,65 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
         .unwrap_or_else(|err| err.into_compile_error())
         .into()
 }
+
+/// Derives validation functionality for structs with string-based fields that have
+/// schema attributes specifying constraints like minimum and maximum lengths.
+///
+/// This macro generates a `validate()` method that checks if string based fields
+/// meet the length requirements specified in their schema attributes.
+///
+/// ## Supported Types
+///   - Option<T> or T: where T: String or Url
+///
+/// ## Supported Schema Attributes
+///
+/// - `min_length`: Specifies the minimum allowed character length
+/// - `max_length`: Specifies the maximum allowed character length
+///
+/// ## Example
+///
+/// ```
+/// use utoipa::ToSchema;
+/// use router_derive::ValidateSchema;
+/// use url::Url;
+///
+/// #[derive(Default, ToSchema, ValidateSchema)]
+/// pub struct PaymentRequest {
+///     #[schema(min_length = 10, max_length = 255)]
+///     pub description: String,
+///     
+///     #[schema(example = "https://example.com/return", max_length = 255)]
+///     pub return_url: Option<Url>,
+///     
+///     // Field without constraints
+///     pub amount: u64,
+/// }
+///
+/// let payment = PaymentRequest {
+///     description: "Too short".to_string(),
+///     return_url: Some(Url::parse("https://very-long-domain.com/callback").unwrap()),
+///     amount: 1000,
+/// };
+///
+/// let validation_result = payment.validate();
+/// assert!(validation_result.is_err());
+/// assert_eq!(
+///     validation_result.unwrap_err(),
+///     "description must be at least 10 characters long. Received 9 characters"
+/// );
+/// ```
+///
+/// ## Notes
+/// - For `Option` fields, validation is only performed when the value is `Some`
+/// - Fields without schema attributes or with unsupported types are ignored
+/// - The validation stops on the first error encountered
+/// - The generated `validate()` method returns `Ok(())` if all validations pass, or
+///   `Err(String)` with an error message if any validations fail.
+#[proc_macro_derive(ValidateSchema, attributes(schema))]
+pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::validate_schema_derive(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}

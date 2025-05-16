@@ -19082,7 +19082,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -19172,7 +19173,7 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           },
           "browser_info": {
             "allOf": [
@@ -19481,7 +19482,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -19565,7 +19567,7 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           },
           "browser_info": {
             "allOf": [
@@ -20728,7 +20730,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -20824,7 +20827,7 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           },
           "browser_info": {
             "allOf": [
@@ -21923,7 +21926,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
