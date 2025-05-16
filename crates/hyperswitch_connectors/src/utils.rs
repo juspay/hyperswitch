@@ -1002,10 +1002,20 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
 }
 pub trait ApplePayDecrypt {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(format!(
             "20{}",
