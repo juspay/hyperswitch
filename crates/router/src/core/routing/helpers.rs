@@ -55,7 +55,11 @@ use crate::{
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
-    core::{metrics as core_metrics, routing},
+    core::{
+        metrics as core_metrics,
+        payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        routing,
+    },
     headers, services,
     types::transformers::ForeignInto,
 };
@@ -1978,13 +1982,12 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         }
     };
 
-    let url = format!("{}/{}", &state.conf.open_router.url, "rule/create");
-    call_decision_engine::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
-        url,
         services::Method::Post,
+        "rule/create",
         Some(default_engine_config_request),
-        "decision_engine_dynamic_routing_setup".to_string(),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2049,17 +2052,16 @@ pub async fn update_decision_engine_dynamic_routing_setup(
         }
     };
 
-    let url = format!("{}/{}", &state.conf.open_router.url, "rule/update");
-    call_decision_engine::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
-        url,
         services::Method::Post,
+        "rule/update",
         Some(decision_engine_request),
-        "decision_engine_dynamic_routing_setup_update".to_string(),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to setup decision engine dynamic routing")?;
+    .attach_printable("Unable to update decision engine dynamic routing")?;
 
     Ok(())
 }
@@ -2094,17 +2096,16 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
         },
     };
 
-    let url = format!("{}/{}", &state.conf.open_router.url, "rule/delete");
-    call_decision_engine::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
-        url,
         services::Method::Post,
+        "rule/delete",
         Some(decision_engine_request),
-        "decision_engine_dynamic_routing_setup_delete".to_string(),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to setup decision engine dynamic routing")?;
+    .attach_printable("Unable to disable decision engine dynamic routing")?;
 
     Ok(())
 }
@@ -2172,16 +2173,12 @@ pub async fn create_decision_engine_merchant(
         gateway_success_rate_based_decider_input: None,
     };
 
-    let url = format!(
-        "{}/{}",
-        &state.conf.open_router.url, "merchant-account/create"
-    );
-    call_decision_engine::<_, String>(
-        &state,
-        url,
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+        state,
         services::Method::Post,
+        "merchant-account/create",
         Some(merchant_account_req),
-        "decision_engine_merchant_account_create".to_string(),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2196,22 +2193,17 @@ pub async fn delete_decision_engine_merchant(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<()> {
-    let url = format!(
-        "{}/{}/{}",
-        &state.conf.open_router.url,
-        "merchant-account",
-        profile_id.get_string_repr()
-    );
-    call_decision_engine::<(), String>(
-        &state,
-        url,
+    let path = format!("{}/{}", "merchant-account", profile_id.get_string_repr());
+    routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
+        state,
         services::Method::Delete,
+        &path,
         None,
-        "decision_engine_merchant_account_delete".to_string(),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to create merchant account on decision engine")?;
+    .attach_printable("Failed to delete merchant account on decision engine")?;
 
     Ok(())
 }
