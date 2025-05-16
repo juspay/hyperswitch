@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.14.0-hotfix1
+
+### Features
+
+- **connector:** Revert [paypal, trustpay] add in feature matrix ([#8054](https://github.com/juspay/hyperswitch/pull/8054)) ([`f43d1b3`](https://github.com/juspay/hyperswitch/commit/f43d1b3e89f1dd75a4f7e5ff88dea32dac06a55a))
+
+### Bug Fixes
+
+- **router:** Fixed netcetera flow for backward flow cavv fetching ([#8051](https://github.com/juspay/hyperswitch/pull/8051)) ([`5c141f0`](https://github.com/juspay/hyperswitch/commit/5c141f0c6b49ed7aa1e514c04e323e7d7ca9a108))
+
+**Full Changelog:** [`2025.05.14.0...2025.05.14.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.05.14.0...2025.05.14.0-hotfix1)
+
+
+- - -
+
 ## 2025.05.14.0
 
 ### Features
