@@ -1,6 +1,8 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -84,7 +86,7 @@ where
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            self.common_get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -102,7 +104,7 @@ impl ConnectorCommon for Worldpayxml {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "text/xml"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -115,9 +117,19 @@ impl ConnectorCommon for Worldpayxml {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = worldpayxml::WorldpayxmlAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let basic_auth_value = format!(
+            "Basic {}",
+            consts::BASE64_ENGINE.encode(format!(
+                "{}:{}",
+                auth.api_username.expose().to_string(),
+                auth.api_password.expose().to_string()
+            ))
+        );
+
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            Mask::into_masked(basic_auth_value),
         )])
     }
 
@@ -179,9 +191,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(
@@ -196,9 +208,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
-        let connector_req =
-            worldpayxml::WorldpayxmlPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        let connector_req = worldpayxml::get_worldpay_xml_auth_request(&connector_router_data)?;
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
