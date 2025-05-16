@@ -1,0 +1,18 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with confirm true",
+    "Scenario2-Create payment with confirm false",
+    "Scenario3a-Create payment with Manual capture",
+    "Scenario3b-Create payment with partial capture",
+    "Scenario3c-Create payment with confirm false and manual capture",
+    "Scenario4-Zero auth mandates",
+    "Scenario5-Create a mandate and recurring payment",
+    "Scenario6-Saved card flow",
+    "Scenario8a-Incremental authorization",
+    "Scenario8b-Incremental authorization with partial capture",
+    "Scenario9a-Refund full payment",
+    "Scenario9b-Refund partial payment",
+    "Scenario9c-Refund full incremented payment",
+    "Scenario10-Create 3DS payment"
+  ]
+}

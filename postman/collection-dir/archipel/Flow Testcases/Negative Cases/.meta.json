@@ -1,0 +1,14 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with Invalid card details",
+    "Scenario2-Confirming without payment method",
+    "Scenario3-Create payment with Manual capture but wrong pan",
+    "Scenario4-Capture greater amount",
+    "Scenario5-Capture the succeeded payment",
+    "Scenario6-Create a recurring payment with greater mandate amount",
+    "Scenario7-Create a card payment without card scheme",
+    "Scenario8-Void succeeded payment",
+    "Scenario9-Refund exceeds amount",
+    "Scenario10-Refund for unsuccessful payment"
+  ]
+}

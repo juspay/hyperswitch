@@ -3,6 +3,7 @@ pub mod adyen;
 pub mod adyenplatform;
 pub mod airwallex;
 pub mod amazonpay;
+pub mod archipel;
 pub mod authorizedotnet;
 pub mod bambora;
 pub mod bamboraapac;
@@ -98,7 +99,7 @@ pub mod zen;
 pub mod zsl;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
-    amazonpay::Amazonpay, authorizedotnet::Authorizedotnet, bambora::Bambora,
+    amazonpay::Amazonpay, archipel::Archipel, authorizedotnet::Authorizedotnet, bambora::Bambora,
     bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
     bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
     chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,

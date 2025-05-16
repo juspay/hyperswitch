@@ -1,0 +1,28 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "customers",
+      ":customer_id",
+      "payment_methods"
+    ],
+    "variable": [
+      {
+        "key": "customer_id",
+        "value": "{{customer_id}}",
+        "description": "//Pass the customer id"
+      }
+    ]
+  },
+  "description": "To filter and list the applicable payment methods for a particular Customer ID"
+}

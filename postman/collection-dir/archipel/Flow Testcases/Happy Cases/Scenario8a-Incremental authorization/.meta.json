@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Payments - Incremental Authorization",
+    "Payments - Capture"
+  ],
+  "description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
+}

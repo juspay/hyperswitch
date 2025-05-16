@@ -1,0 +1,10 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "Payments - Retrieve with client secret",
+    "Payments - Retrieve",
+    "Payments - Confirm",
+    "Payments - Retrieve after confirm",
+    "Payments - Retrieve with connector sync"
+  ]
+}
