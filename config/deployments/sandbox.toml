@@ -504,6 +504,14 @@ direct_carrier_billing = {country = "MA, CM, ZA, EG, SN, DZ, TN, ML, GN, GH, LY,
 debit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 credit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 
+[pm_filters.payme]
+credit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
+debit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
+apple_pay = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
+
+[pm_filters.paystack]
+eft = { country = "GH,KE,NG,ZA,CI", currency = "XOF,GHS,KES,USD,NGN,USD,ZAR" }
+
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
