@@ -1998,19 +1998,25 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
 pub async fn update_decision_engine_dynamic_routing_setup(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    request: routing_types::DynamicRoutingConfigs,
+    request: serde_json::Value,
+    dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
         profile_id.get_string_repr()
     );
 
-    let decision_engine_request = match request {
-        routing_types::DynamicRoutingConfigs::SuccessRate(config) => {
+    let decision_engine_request = match dynamic_routing_type {
+        routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            let success_rate_config: routing_types::SuccessBasedRoutingConfig = request
+                .parse_value("SuccessBasedRoutingConfig")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to deserialize SuccessBasedRoutingConfig")?;
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
-                    config.decision_engine_configs.ok_or(
+                    success_rate_config.get_decision_engine_configs().ok_or(
                         errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
                         },
@@ -2018,11 +2024,16 @@ pub async fn update_decision_engine_dynamic_routing_setup(
                 ),
             }
         }
-        routing_types::DynamicRoutingConfigs::Elimination(config) => {
+        routing_types::DynamicRoutingType::EliminationRouting => {
+            let elimination_config: routing_types::EliminationRoutingConfig = request
+                .parse_value("EliminationRoutingConfig")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to deserialize EliminationRoutingConfig")?;
+
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::Elimination(
-                    config.decision_engine_configs.ok_or(
+                    elimination_config.get_decision_engine_configs().ok_or(
                         errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
                         },
@@ -2030,7 +2041,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
                 ),
             }
         }
-        routing_types::DynamicRoutingConfigs::ContractBased(_) => {
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
             return Err((errors::ApiErrorResponse::InvalidRequestData {
                 message: "Contract routing cannot be set as default".to_string(),
             })
@@ -2148,4 +2159,59 @@ where
             Err(errors::ApiErrorResponse::InternalServerError.into())
         }
     }
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn create_decision_engine_merchant(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let merchant_account_req = open_router::MerchantAccount {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        gateway_success_rate_based_decider_input: None,
+    };
+
+    let url = format!(
+        "{}/{}",
+        &state.conf.open_router.url, "merchant-account/create"
+    );
+    call_decision_engine::<_, String>(
+        &state,
+        url,
+        services::Method::Post,
+        Some(merchant_account_req),
+        "decision_engine_merchant_account_create".to_string(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to create merchant account on decision engine")?;
+
+    Ok(())
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn delete_decision_engine_merchant(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let url = format!(
+        "{}/{}/{}",
+        &state.conf.open_router.url,
+        "merchant-account",
+        profile_id.get_string_repr()
+    );
+    call_decision_engine::<(), String>(
+        &state,
+        url,
+        services::Method::Delete,
+        None,
+        "decision_engine_merchant_account_delete".to_string(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to create merchant account on decision engine")?;
+
+    Ok(())
 }

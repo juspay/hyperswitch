@@ -1,7 +1,5 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use api_models::open_router;
 use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
@@ -269,27 +267,11 @@ pub async fn create_merchant_account(
                 .default_profile
                 .as_ref()
                 .async_map(|profile_id| {
-                    let merchant_account_req = open_router::MerchantAccount {
-                        merchant_id: profile_id.get_string_repr().to_string(),
-                        gateway_success_rate_based_decider_input: None,
-                    };
-
-                    let url = format!(
-                        "{}/{}",
-                        &state.conf.open_router.url, "merchant-account/create"
-                    );
-                    routing::helpers::call_decision_engine::<_, String>(
-                        &state,
-                        url,
-                        services::Method::Post,
-                        Some(merchant_account_req),
-                        "decision_engine_merchant_account_create".to_string(),
-                    )
+                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
                 })
                 .await
                 .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create merchant account on decision engine")?;
+                .ok();
         }
     }
 
@@ -1214,24 +1196,11 @@ pub async fn merchant_account_delete(
                 .default_profile
                 .as_ref()
                 .async_map(|profile_id| {
-                    let url = format!(
-                        "{}/{}/{}",
-                        &state.conf.open_router.url,
-                        "merchant-account",
-                        profile_id.get_string_repr()
-                    );
-                    routing::helpers::call_decision_engine::<(), String>(
-                        &state,
-                        url,
-                        services::Method::Delete,
-                        None,
-                        "decision_engine_merchant_account_delete".to_string(),
-                    )
+                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
                 })
                 .await
                 .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to delete merchant account from decision engine")?;
+                .ok();
         }
     }
 

@@ -571,17 +571,11 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.enabled {
-                        let success_rate_config = routing_algorithm
-                            .algorithm_data
-                            .clone()
-                            .parse_value("SuccessBasedRoutingConfig")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("unable to deserialize SuccessBasedRoutingConfig")?;
-
                         update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
-                            routing::DynamicRoutingConfigs::SuccessRate(success_rate_config),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -607,17 +601,11 @@ pub async fn link_routing_config(
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
                     if state.conf.open_router.enabled {
-                        let elimination_config = routing_algorithm
-                            .algorithm_data
-                            .clone()
-                            .parse_value("EliminationRoutingConfig")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("unable to deserialize EliminationRoutingConfig")?;
-
                         update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
-                            routing::DynamicRoutingConfigs::Elimination(elimination_config),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::EliminationRouting,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)

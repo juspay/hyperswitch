@@ -897,13 +897,12 @@ impl EliminationRoutingConfig {
             }),
         }
     }
-}
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-pub enum DynamicRoutingConfigs {
-    SuccessRate(SuccessBasedRoutingConfig),
-    Elimination(EliminationRoutingConfig),
-    ContractBased(ContractBasedRoutingConfig),
+    pub fn get_decision_engine_configs(
+        &self,
+    ) -> Option<open_router::DecisionEngineEliminationData> {
+        self.decision_engine_configs.clone()
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1045,6 +1044,12 @@ impl SuccessBasedRoutingConfig {
                 ]),
             }),
         }
+    }
+
+    pub fn get_decision_engine_configs(
+        &self,
+    ) -> Option<open_router::DecisionEngineSuccessRateData> {
+        self.decision_engine_configs.clone()
     }
 }
 
