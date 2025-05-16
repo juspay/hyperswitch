@@ -1581,10 +1581,14 @@ pub async fn disable_dynamic_routing_algorithm(
 
     // Call to DE here
     if state.conf.open_router.enabled {
-        disable_decision_engine_dynamic_routing_setup(state, business_profile.get_id())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to disable dynamic routing setup in decision engine")?;
+        disable_decision_engine_dynamic_routing_setup(
+            state,
+            business_profile.get_id(),
+            dynamic_routing_type,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to disable dynamic routing setup in decision engine")?;
     }
 
     // redact cache for dynamic routing config
@@ -1978,6 +1982,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         url,
         services::Method::Post,
         Some(default_engine_config_request),
+        "decision_engine_dynamic_routing_setup".to_string(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2037,6 +2042,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
         url,
         services::Method::Post,
         Some(decision_engine_request),
+        "decision_engine_dynamic_routing_setup_update".to_string(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2050,6 +2056,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
 pub async fn disable_decision_engine_dynamic_routing_setup(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
+    dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
@@ -2058,7 +2065,20 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
 
     let decision_engine_request = open_router::FetchRoutingConfig {
         merchant_id: profile_id.get_string_repr().to_string(),
-        algorithm: open_router::AlgorithmType::SuccessRate,
+        algorithm: match dynamic_routing_type {
+            routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+                open_router::AlgorithmType::SuccessRate
+            }
+            routing_types::DynamicRoutingType::EliminationRouting => {
+                open_router::AlgorithmType::Elimination
+            }
+            routing_types::DynamicRoutingType::ContractBasedRouting => {
+                return Err((errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Contract routing is not enabled for decision engine".to_string(),
+                })
+                .into())
+            }
+        },
     };
 
     let url = format!("{}/{}", &state.conf.open_router.url, "rule/delete");
@@ -2067,6 +2087,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
         url,
         services::Method::Post,
         Some(decision_engine_request),
+        "decision_engine_dynamic_routing_setup_delete".to_string(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2081,11 +2102,17 @@ pub async fn call_decision_engine<Req, Res>(
     url: String,
     method: services::Method,
     request_body: Option<Req>,
+    flow_name: String,
 ) -> RouterResult<Res>
 where
     Req: serde::Serialize + serde::de::DeserializeOwned + Debug + Send + Sync + Clone + 'static,
     Res: serde::de::DeserializeOwned + Debug + Send + Sync + Clone,
 {
+    logger::debug!(
+        "performing call with open_router for flow {}, request_body: {:?}",
+        flow_name,
+        request_body
+    );
     let mut request = request::Request::new(method, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
@@ -2097,7 +2124,7 @@ where
         request.set_body(request::RequestContent::Json(Box::new(req.clone())));
     }
 
-    let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
+    let response = services::call_connector_api(state, request, &flow_name)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?; // fix error types
 

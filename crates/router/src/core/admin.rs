@@ -283,6 +283,7 @@ pub async fn create_merchant_account(
                         url,
                         services::Method::Post,
                         Some(merchant_account_req),
+                        "decision_engine_merchant_account_create".to_string(),
                     )
                 })
                 .await
@@ -1224,6 +1225,7 @@ pub async fn merchant_account_delete(
                         url,
                         services::Method::Delete,
                         None,
+                        "decision_engine_merchant_account_delete".to_string(),
                     )
                 })
                 .await
