@@ -79,6 +79,7 @@ pub mod shift4;
 pub mod signifyd;
 pub mod square;
 pub mod stax;
+pub mod stripe;
 pub mod stripebilling;
 pub mod taxjar;
 pub mod threedsecureio;
@@ -116,7 +117,7 @@ pub use self::{
     payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
+    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
     threedsecureio::Threedsecureio, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
