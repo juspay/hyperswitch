@@ -57,6 +57,7 @@ use transformers::{self as xendit, XenditEventType, XenditWebhookEvent};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils,
     utils::{self, PaymentMethodDataType, RefundsRequestData},
 };
 
@@ -478,20 +479,38 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: xendit::XenditResponse =
-            res.response
-                .parse_struct("xendit XenditResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: xendit::XenditResponse = res
+            .response
+            .clone()
+            .parse_struct("xendit XenditResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = match response.clone() {
+            xendit::XenditResponse::Payment(p) => connector_utils::get_sync_integrity_object(
+                self.amount_converter,
+                p.amount,
+                p.currency.clone(),
+            ),
+            xendit::XenditResponse::Webhook(p) => connector_utils::get_sync_integrity_object(
+                self.amount_converter,
+                p.data.amount,
+                p.data.currency.clone(),
+            ),
+        };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+        new_router_data.and_then(|mut router_data| {
+            let integrity_object = response_integrity_object?;
+            router_data.request.integrity_object = Some(integrity_object);
+            Ok(router_data)
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
 
@@ -599,15 +618,26 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("Xendit PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let response_integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(response.amount),
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -695,15 +725,27 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Xendit 
                 .parse_struct("xendit RefundResponse")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -772,19 +814,32 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Xendit {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: xendit::RefundResponse =
-            res.response
-                .parse_struct("xendit RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: xendit::RefundResponse = res
+            .response
+            .clone()
+            .parse_struct("xendit RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        });
+
+        new_router_data
+            .map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
