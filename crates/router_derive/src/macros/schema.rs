@@ -4,10 +4,7 @@ use quote::quote;
 
 use crate::macros::{
     helpers as macro_helpers,
-    schema::helpers::{
-        is_field_valid_for_running_schema_validations, HasSchemaParameters,
-        IsSchemaFieldApplicableForValidation,
-    },
+    schema::helpers::{HasSchemaParameters, IsSchemaFieldApplicableForValidation},
 };
 
 pub fn validate_schema_derive(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -23,12 +20,12 @@ pub fn validate_schema_derive(input: syn::DeriveInput) -> syn::Result<proc_macro
         let field_type = &field.ty;
 
         // Check if field type is valid for validation
-        let  is_field_valid = match is_field_valid_for_running_schema_validations(field_type) {
+        let is_field_valid = match IsSchemaFieldApplicableForValidation::from(field_type) {
             IsSchemaFieldApplicableForValidation::Invalid => return None,
             val => val,
         };
 
-        // Use our schema helpers to extract schema parameters
+        // Parse attribute parameters for 'schema'
         let schema_params = match field.get_schema_parameters() {
             Ok(params) => params,
             Err(_) => return None,
@@ -37,7 +34,7 @@ pub fn validate_schema_derive(input: syn::DeriveInput) -> syn::Result<proc_macro
         let min_length = schema_params.min_length;
         let max_length = schema_params.max_length;
 
-        // Only generate validation code if constraints are present
+        // Skip if no length validation is needed
         if min_length.is_none() && max_length.is_none() {
             return None;
         }

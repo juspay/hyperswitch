@@ -159,34 +159,31 @@ pub enum IsSchemaFieldApplicableForValidation {
     ValidOptional,
 }
 
-// Helper function to check if a field is application for running validation checks
-// List of valid types
-// Option<T> or T
-//    where T: String or Url
-pub fn is_field_valid_for_running_schema_validations(
-    ty: &syn::Type,
-) -> IsSchemaFieldApplicableForValidation {
-    if let syn::Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            let ident = &segment.ident;
-            if ident == "String" || ident == "Url" {
-                return IsSchemaFieldApplicableForValidation::Valid;
-            }
+/// From implementation for checking if the field type is applicable for running schema validations
+impl From<&syn::Type> for IsSchemaFieldApplicableForValidation {
+    fn from(ty: &syn::Type) -> Self {
+        if let syn::Type::Path(type_path) = ty {
+            if let Some(segment) = type_path.path.segments.last() {
+                let ident = &segment.ident;
+                if ident == "String" || ident == "Url" {
+                    return Self::Valid;
+                }
 
-            if ident == "Option" {
-                if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
-                    if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
-                        generic_args.args.first()
-                    {
-                        if let Some(inner_segment) = inner_path.path.segments.last() {
-                            if inner_segment.ident == "String" || inner_segment.ident == "Url" {
-                                return IsSchemaFieldApplicableForValidation::ValidOptional;
+                if ident == "Option" {
+                    if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
+                        if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
+                            generic_args.args.first()
+                        {
+                            if let Some(inner_segment) = inner_path.path.segments.last() {
+                                if inner_segment.ident == "String" || inner_segment.ident == "Url" {
+                                    return Self::ValidOptional;
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        Self::Invalid
     }
-    IsSchemaFieldApplicableForValidation::Invalid
 }
