@@ -45,6 +45,8 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+    pub tokenizations: Arc<Mutex<Vec<store::tokenization::Tokenization>>>,
     pub business_profiles: Arc<Mutex<Vec<store::business_profile::Profile>>>,
     pub reverse_lookups: Arc<Mutex<Vec<store::ReverseLookup>>>,
     pub payment_link: Arc<Mutex<Vec<store::payment_link::PaymentLink>>>,
@@ -92,6 +94,8 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+            #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+            tokenizations: Default::default(),
             business_profiles: Default::default(),
             reverse_lookups: Default::default(),
             payment_link: Default::default(),

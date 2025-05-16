@@ -1345,6 +1345,30 @@ pub async fn retrieve_payment_method_from_vault(
     Ok(stored_pm_resp)
 }
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[instrument(skip_all)]
+pub async fn retrive_value_from_vault(
+    state: &routes::SessionState,
+    request: pm_types::VaultRetrieveRequest,
+) -> CustomResult<serde_json::value::Value, errors::VaultError> {
+    let payload = request
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let stored_resp: serde_json::Value = resp
+        .parse_struct("VaultRetrieveResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+    Ok(stored_resp)
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn delete_payment_method_data_from_vault(

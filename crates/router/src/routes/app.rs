@@ -53,6 +53,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::tokenization as tokenization_routes;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -1401,6 +1403,24 @@ impl PaymentMethodSession {
             );
 
         route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub struct Tokenization;
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+impl Tokenization {
+    pub fn server(state: AppState) -> Scope {
+        let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
+        token_route = token_route.service(
+            web::resource("").route(web::post().to(tokenization_routes::create_token_vault_api)),
+        );
+
+        token_route = token_route.service(web::scope("/{token_id}").service(
+            web::resource("").route(web::get().to(tokenization_routes::get_token_vault_api)),
+        ));
+        token_route
     }
 }
 
