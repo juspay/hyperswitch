@@ -1,4 +1,4 @@
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, pii, types::user::LineageContext};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -24,6 +24,7 @@ pub struct User {
     #[diesel(deserialize_as = OptionalDieselArray<Secret<String>>)]
     pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
+    pub lineage_context: Option<LineageContext>,
 }
 
 #[derive(
@@ -42,6 +43,7 @@ pub struct UserNew {
     pub totp_secret: Option<Encryption>,
     pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
+    pub lineage_context: Option<LineageContext>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -55,6 +57,7 @@ pub struct UserUpdateInternal {
     totp_secret: Option<Encryption>,
     totp_recovery_codes: Option<Vec<Secret<String>>>,
     last_password_modified_at: Option<PrimitiveDateTime>,
+    lineage_context: Option<LineageContext>,
 }
 
 #[derive(Debug)]
@@ -72,6 +75,9 @@ pub enum UserUpdate {
     PasswordUpdate {
         password: Secret<String>,
     },
+    LineageContextUpdate {
+        lineage_context: LineageContext,
+    },
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
@@ -87,6 +93,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_secret: None,
                 totp_recovery_codes: None,
                 last_password_modified_at: None,
+                lineage_context: None,
             },
             UserUpdate::AccountUpdate { name, is_verified } => Self {
                 name,
@@ -97,6 +104,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_secret: None,
                 totp_recovery_codes: None,
                 last_password_modified_at: None,
+                lineage_context: None,
             },
             UserUpdate::TotpUpdate {
                 totp_status,
@@ -111,6 +119,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_secret,
                 totp_recovery_codes,
                 last_password_modified_at: None,
+                lineage_context: None,
             },
             UserUpdate::PasswordUpdate { password } => Self {
                 name: None,
@@ -121,6 +130,18 @@ impl From<UserUpdate> for UserUpdateInternal {
                 totp_status: None,
                 totp_secret: None,
                 totp_recovery_codes: None,
+                lineage_context: None,
+            },
+            UserUpdate::LineageContextUpdate { lineage_context } => Self {
+                name: None,
+                password: None,
+                is_verified: None,
+                last_modified_at,
+                last_password_modified_at: None,
+                totp_status: None,
+                totp_secret: None,
+                totp_recovery_codes: None,
+                lineage_context: Some(lineage_context),
             },
         }
     }

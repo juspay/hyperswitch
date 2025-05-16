@@ -40,7 +40,8 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_request_types::fraud_check::{
-    FraudCheckCheckoutData, FraudCheckTransactionData,
+    FraudCheckCheckoutData, FraudCheckRecordReturnData, FraudCheckSaleData,
+    FraudCheckTransactionData,
 };
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
@@ -1035,6 +1036,7 @@ pub enum CardIssuer {
     DinersClub,
     JCB,
     CarteBlanche,
+    CartesBancaires,
 }
 
 pub trait CardData {
@@ -6343,4 +6345,28 @@ pub fn get_refund_integrity_object<T>(
         currency: currency_enum,
         refund_amount: refund_amount_in_minor_unit,
     })
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckSaleRequest {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckSaleRequest for FraudCheckSaleData {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+}
+
+#[cfg(feature = "frm")]
+pub trait FraudCheckRecordReturnRequest {
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+}
+#[cfg(feature = "frm")]
+impl FraudCheckRecordReturnRequest for FraudCheckRecordReturnData {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
 }

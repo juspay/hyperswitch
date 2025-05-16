@@ -410,6 +410,14 @@ pub(crate) fn into_stripe_next_action(
                 },
             }
         }
+        payments::NextActionData::RedirectInsidePopup { popup_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(popup_url),
+                },
+            }
+        }
         payments::NextActionData::DisplayBankTransferInformation {
             bank_transfer_steps_and_charges_details,
         } => StripeNextAction::DisplayBankTransferInformation {

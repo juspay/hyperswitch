@@ -119,6 +119,7 @@ pub struct PaymentIntent {
     pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -503,6 +504,9 @@ pub struct PaymentIntent {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -668,6 +672,7 @@ impl PaymentIntent {
             force_3ds_challenge_trigger: None,
             processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
+            is_iframe_redirection_enabled: None,
         })
     }
 
@@ -762,6 +767,10 @@ impl PaymentIntent {
                 cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
             })
             .transpose()
+    }
+
+    pub fn get_currency(&self) -> storage_enums::Currency {
+        self.amount_details.currency
     }
 }
 
@@ -911,6 +920,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub revenue_recovery_data: RevenueRecoveryData,
+    pub payment_address: payment_address::PaymentAddress,
 }
 
 #[cfg(feature = "v2")]

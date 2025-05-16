@@ -67,7 +67,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let db = &*state.store;
         let key_manager_state = &state.into();
-
+        helpers::allow_payment_update_enabled_for_client_auth(merchant_id, state, auth_flow)
+            .await?;
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 key_manager_state,
@@ -934,6 +935,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_payment_processor_token_flow: None,
                     tax_details: None,
                     force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                    is_iframe_redirection_enabled: payment_data
+                        .payment_intent
+                        .is_iframe_redirection_enabled,
                 })),
                 key_store,
                 storage_scheme,

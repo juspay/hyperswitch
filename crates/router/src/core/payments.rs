@@ -1737,13 +1737,75 @@ pub async fn record_attempt_core(
             &header_payload,
         )
         .await?;
+    let default_payment_status_data = PaymentStatusData {
+        flow: PhantomData,
+        payment_intent: payment_data.payment_intent.clone(),
+        payment_attempt: Some(payment_data.payment_attempt.clone()),
+        attempts: None,
+        should_sync_with_connector: false,
+        payment_address: payment_data.payment_address.clone(),
+    };
 
-    let (_operation, payment_data) = boxed_operation
+    let payment_status_data = (req.triggered_by == common_enums::TriggeredBy::Internal)
+    .then(|| default_payment_status_data.clone())
+    .async_unwrap_or_else(|| async {
+        match Box::pin(proxy_for_payments_operation_core::<
+            api::PSync,
+            _,
+            _,
+            _,
+            PaymentStatusData<api::PSync>,
+        >(
+            &state,
+            req_state.clone(),
+            merchant_context.clone(),
+            profile.clone(),
+            operations::PaymentGet,
+            api::PaymentsRetrieveRequest {
+                force_sync: true,
+                expand_attempts: false,
+                param: None,
+            },
+            operations::GetTrackerResponse {
+                payment_data: PaymentStatusData {
+                    flow: PhantomData,
+                    payment_intent: payment_data.payment_intent.clone(),
+                    payment_attempt: Some(payment_data.payment_attempt.clone()),
+                    attempts: None,
+                    should_sync_with_connector: true,
+                    payment_address: payment_data.payment_address.clone(),
+                },
+            },
+            CallConnectorAction::Trigger,
+            HeaderPayload::default(),
+        ))
+        .await
+        {
+            Ok((data, _, _, _)) => data,
+            Err(err) => {
+                router_env::logger::error!(error=?err, "proxy_for_payments_operation_core failed for external payment attempt");
+                default_payment_status_data
+            }
+        }
+    })
+    .await;
+
+    let record_payment_data = domain_payments::PaymentAttemptRecordData {
+        flow: PhantomData,
+        payment_intent: payment_status_data.payment_intent,
+        payment_attempt: payment_status_data
+            .payment_attempt
+            .unwrap_or(payment_data.payment_attempt.clone()),
+        revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
+        payment_address: payment_data.payment_address.clone(),
+    };
+
+    let (_operation, final_payment_data) = boxed_operation
         .to_update_tracker()?
         .update_trackers(
             &state,
             req_state,
-            payment_data,
+            record_payment_data,
             None,
             merchant_context.get_merchant_account().storage_scheme,
             None,
@@ -1754,7 +1816,7 @@ pub async fn record_attempt_core(
         .await?;
 
     transformers::GenerateResponse::generate_response(
-        payment_data,
+        final_payment_data,
         &state,
         None,
         None,
@@ -2343,6 +2405,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .clone()
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
+                        api_models::payments::NextActionData::RedirectInsidePopup{popup_url} => Some(popup_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
@@ -2378,9 +2441,27 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             ),
             _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
-        Ok(services::ApplicationResponse::JsonForRedirection(
-            redirection_response,
-        ))
+        if payments_response
+            .is_iframe_redirection_enabled
+            .unwrap_or(false)
+        {
+            // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
+            let html = core_utils::get_html_redirect_response_popup(
+                redirection_response.return_url_with_query_params,
+            )?;
+            Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )))
+        } else {
+            Ok(services::ApplicationResponse::JsonForRedirection(
+                redirection_response,
+            ))
+        }
     }
 }
 
@@ -2468,14 +2549,34 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         payment_id: id_type::PaymentId,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
-        Ok(services::ApplicationResponse::JsonForRedirection(
-            helpers::get_handle_response_url(
-                payment_id,
-                &payment_flow_response.business_profile,
-                &payment_flow_response.payments_response,
-                connector,
-            )?,
-        ))
+        let payments_response = &payment_flow_response.payments_response;
+        let redirect_response = helpers::get_handle_response_url(
+            payment_id.clone(),
+            &payment_flow_response.business_profile,
+            payments_response,
+            connector.clone(),
+        )?;
+        if payments_response
+            .is_iframe_redirection_enabled
+            .unwrap_or(false)
+        {
+            // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
+            let html = core_utils::get_html_redirect_response_popup(
+                redirect_response.return_url_with_query_params,
+            )?;
+            Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )))
+        } else {
+            Ok(services::ApplicationResponse::JsonForRedirection(
+                redirect_response,
+            ))
+        }
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
@@ -3549,16 +3650,6 @@ where
         &mut router_data,
         &call_connector_action,
     );
-
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
@@ -5338,7 +5429,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
-    pub authentication: Option<storage::Authentication>,
+    pub authentication: Option<domain::authentication::AuthenticationStore>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
@@ -6475,7 +6566,7 @@ where
     }
 
     if let Some(routing_algorithm) = request_straight_through {
-        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+        let (connectors, check_eligibility) = routing::perform_straight_through_routing(
             &routing_algorithm,
             payment_data.get_creds_identifier(),
         )
@@ -6483,57 +6574,34 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
+            let new_pd = payment_data.clone();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                payment_data.get_setup_mandate(),
-                payment_data.get_payment_attempt(),
-                payment_data.get_payment_intent(),
-                payment_data.get_payment_method_data(),
-                payment_data.get_address(),
-                payment_data.get_recurring_details(),
-                payment_data.get_currency(),
+                new_pd.get_setup_mandate(),
+                new_pd.get_payment_attempt(),
+                new_pd.get_payment_intent(),
+                new_pd.get_payment_method_data(),
+                new_pd.get_address(),
+                new_pd.get_recurring_details(),
+                new_pd.get_currency(),
             );
 
-            connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state.clone(),
-                merchant_context.get_merchant_key_store(),
-                connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors,
+            return route_connector_v1_for_payments(
+                &state,
+                merchant_context,
                 business_profile,
+                payment_data,
+                transaction_data,
+                routing_data,
+                eligible_connectors,
+                mandate_type,
+                Some(connectors),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+            .await;
         }
-
-        let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id.clone(),
-                )
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-        return decide_multiplex_connector_for_normal_or_recurring_payment(
-            &state,
-            payment_data,
-            routing_data,
-            connector_data,
-            mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
-            business_profile.is_network_tokenization_enabled,
-        )
-        .await;
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+        let (connectors, check_eligibility) = routing::perform_straight_through_routing(
             routing_algorithm,
             payment_data.get_creds_identifier(),
         )
@@ -6541,53 +6609,30 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
+            let new_pd = payment_data.clone();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                payment_data.get_setup_mandate(),
-                payment_data.get_payment_attempt(),
-                payment_data.get_payment_intent(),
-                payment_data.get_payment_method_data(),
-                payment_data.get_address(),
-                payment_data.get_recurring_details(),
-                payment_data.get_currency(),
+                new_pd.get_setup_mandate(),
+                new_pd.get_payment_attempt(),
+                new_pd.get_payment_intent(),
+                new_pd.get_payment_method_data(),
+                new_pd.get_address(),
+                new_pd.get_recurring_details(),
+                new_pd.get_currency(),
             );
 
-            connectors = routing::perform_eligibility_analysis_with_fallback(
+            return route_connector_v1_for_payments(
                 &state,
-                merchant_context.get_merchant_key_store(),
-                connectors,
-                &TransactionData::Payment(transaction_data),
-                eligible_connectors,
+                merchant_context,
                 business_profile,
+                payment_data,
+                transaction_data,
+                routing_data,
+                eligible_connectors,
+                mandate_type,
+                Some(connectors),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed eligibility analysis and fallback")?;
+            .await;
         }
-
-        let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id,
-                )
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-        return decide_multiplex_connector_for_normal_or_recurring_payment(
-            &state,
-            payment_data,
-            routing_data,
-            connector_data,
-            mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
-            business_profile.is_network_tokenization_enabled,
-        )
-        .await;
     }
 
     let new_pd = payment_data.clone();
@@ -6610,6 +6655,7 @@ where
         routing_data,
         eligible_connectors,
         mandate_type,
+        None,
     )
     .await
 }
@@ -7173,6 +7219,7 @@ pub async fn route_connector_v1_for_payments<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    connector_list: Option<Vec<api_models::routing::RoutableConnectorChoice>>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -7190,7 +7237,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let mut connectors = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -7200,10 +7247,20 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // adds straight through connectors to the list of connectors in the active routing algorithm
+    // and perform eligibility analysis on the combined set of connectors
+
+    connectors = connector_list
+        .map(|mut straight_through_connectors| {
+            straight_through_connectors.extend(connectors.clone());
+            straight_through_connectors
+        })
+        .unwrap_or_else(|| connectors);
+
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    let connectors = routing::perform_eligibility_analysis_with_fallback(
+    connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
         connectors,
@@ -7243,7 +7300,7 @@ where
 
         if routing_choice.routing_type.is_dynamic_routing() {
             if state.conf.open_router.enabled {
-                routing::perform_open_routing(
+                routing::perform_dynamic_routing_with_open_router(
                     state,
                     connectors.clone(),
                     business_profile,
@@ -7285,7 +7342,7 @@ where
                             .map(|card_isin| card_isin.to_string()),
                     );
 
-                routing::perform_dynamic_routing(
+                routing::perform_dynamic_routing_with_intelligent_router(
                     state,
                     connectors.clone(),
                     business_profile,
@@ -7385,7 +7442,6 @@ pub async fn route_connector_v1_for_payouts(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
-
     let first_connector_choice = connectors
         .first()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
@@ -7652,6 +7708,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             auth_response,
             authentication.clone(),
             None,
+            merchant_context.get_merchant_key_store(),
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
@@ -7685,6 +7742,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             payment_intent.psd2_sca_exemption_type,
             payment_intent.payment_id,
             payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+            merchant_context.get_merchant_key_store(),
         ))
         .await?
     };
@@ -7975,7 +8033,9 @@ pub trait OperationSessionGetters<F> {
     fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey>;
     fn get_setup_mandate(&self) -> Option<&MandateData>;
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
-    fn get_authentication(&self) -> Option<&storage::Authentication>;
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>;
     fn get_frm_message(&self) -> Option<FraudCheck>;
     fn get_refunds(&self) -> Vec<storage::Refund>;
     fn get_disputes(&self) -> Vec<storage::Dispute>;
@@ -8106,7 +8166,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.poll_config.clone()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         self.authentication.as_ref()
     }
 
@@ -8372,7 +8435,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -8593,7 +8659,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -8815,7 +8884,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
@@ -9037,7 +9109,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_authentication(&self) -> Option<&storage::Authentication> {
+    fn get_authentication(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    {
         todo!()
     }
 
