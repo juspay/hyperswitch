@@ -536,6 +536,8 @@ pub(crate) async fn fetch_raw_secrets(
         platform: conf.platform,
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
+        #[cfg(feature = "v2")]
+        revenue_recovery: conf.revenue_recovery,
         clone_connector_allowlist: conf.clone_connector_allowlist,
     }
 }
