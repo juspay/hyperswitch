@@ -510,9 +510,7 @@ impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 impl UniqueConstraints for diesel_models::tokenization::Tokenization {
     fn unique_constraints(&self) -> Vec<String> {
-        vec![
-            format!("id_{}", self.id.get_string_repr()),
-        ]
+        vec![format!("id_{}", self.id.get_string_repr())]
     }
 
     fn table_name(&self) -> &str {
