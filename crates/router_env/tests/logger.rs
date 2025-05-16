@@ -8,9 +8,9 @@ use router_env::TelemetryGuard;
 use self::test_module::fn_with_colon;
 
 fn logger() -> error_stack::Result<&'static TelemetryGuard, ConfigError> {
-    use once_cell::sync::OnceCell;
+    use std::sync::OnceLock;
 
-    static INSTANCE: OnceCell<TelemetryGuard> = OnceCell::new();
+    static INSTANCE: OnceLock<TelemetryGuard> = OnceLock::new();
     Ok(INSTANCE.get_or_init(|| {
         let config = router_env::Config::new().unwrap();
 

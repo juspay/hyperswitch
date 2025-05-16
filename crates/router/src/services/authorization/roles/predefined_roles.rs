@@ -1,12 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 use common_enums::{EntityType, PermissionGroup, RoleScope};
-use once_cell::sync::Lazy;
 
 use super::RoleInfo;
 use crate::consts;
 
-pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
+pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLock::new(|| {
     let mut roles = HashMap::new();
 
     // Internal Roles
