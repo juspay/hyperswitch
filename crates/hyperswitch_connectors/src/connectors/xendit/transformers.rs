@@ -164,7 +164,7 @@ pub enum PaymentStatus {
     AwaitingCapture,
     Verified,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum XenditResponse {
     Payment(XenditPaymentResponse),
@@ -178,6 +178,8 @@ pub struct XenditPaymentResponse {
     pub payment_method: PaymentMethodInfo,
     pub failure_code: Option<String>,
     pub reference_id: Secret<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
 }
 
 fn map_payment_response_to_attempt_status(
@@ -739,8 +741,10 @@ impl From<RefundStatus> for enums::RefundStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    pub id: String,
+    pub status: RefundStatus,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -777,20 +781,22 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 pub struct XenditMetadata {
     pub for_user_id: String,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct XenditWebhookEvent {
     pub event: XenditEventType,
     pub data: EventDetails,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EventDetails {
     pub id: String,
     pub payment_request_id: Option<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum XenditEventType {
     #[serde(rename = "payment.succeeded")]
     PaymentSucceeded,
