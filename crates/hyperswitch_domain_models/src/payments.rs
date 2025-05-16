@@ -21,8 +21,6 @@ use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
-#[cfg(feature = "v2")]
-use payment_intent::PaymentIntentUpdate;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -33,10 +31,7 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::{
-    ephemeral_key,
-    types::{FeatureMetadata, OrderDetailsWithAmount},
-};
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]

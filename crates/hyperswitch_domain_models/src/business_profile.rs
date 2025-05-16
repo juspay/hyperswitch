@@ -1,5 +1,7 @@
 use common_enums::enums as api_enums;
 use common_types::primitive_wrappers;
+#[cfg(feature = "v1")]
+use common_utils::types::AlwaysRequestExtendedAuthorization;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
