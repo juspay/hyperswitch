@@ -2002,7 +2002,7 @@ pub struct ProfileCreate {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
-    
+
     /// Indicates if pre network tokenization is enabled or not
     pub is_pre_network_tokenization_enabled: Option<bool>,
 }
@@ -2609,7 +2609,7 @@ pub struct ProfileUpdate {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
-    
+
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: Option<bool>,
