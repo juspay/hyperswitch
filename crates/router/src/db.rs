@@ -34,7 +34,6 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
-pub mod tokenization;
 pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
@@ -62,7 +61,7 @@ use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use router_env::logger;
-use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
+use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb, tokenization};
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
