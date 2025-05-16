@@ -465,6 +465,8 @@ pub enum ConnectorType {
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
+    /// External Vault Connector
+    VaultProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -7214,6 +7216,7 @@ pub enum PermissionGroup {
     ReconReportsManage,
     ReconOpsView,
     ReconOpsManage,
+    InternalManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -7226,6 +7229,7 @@ pub enum ParentGroup {
     ReconOps,
     ReconReports,
     Account,
+    Internal,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
@@ -7255,6 +7259,7 @@ pub enum Resource {
     RunRecon,
     ReconConfig,
     RevenueRecovery,
+    InternalConnector,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]

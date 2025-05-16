@@ -93,6 +93,7 @@ mod trustpay;
 mod tsys;
 mod unified_authentication_service;
 mod utils;
+mod vgs;
 mod volt;
 mod wellsfargo;
 // mod wellsfargopayout;

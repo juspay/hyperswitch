@@ -1014,3 +1014,25 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+pub async fn clone_connector(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::CloneConnectorRequest>,
+) -> HttpResponse {
+    let flow = Flow::CloneConnector;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
+        &auth::JWTAuth {
+            permission: Permission::MerchantInternalConnectorWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

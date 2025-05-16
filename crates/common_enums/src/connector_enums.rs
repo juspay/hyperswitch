@@ -141,6 +141,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
+    // Vgs
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -293,6 +294,7 @@ pub enum Connector {
     Trustpay,
     Tsys,
     // UnifiedAuthenticationService,
+    Vgs,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -452,6 +454,7 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
+            | Self::Vgs
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout
@@ -736,6 +739,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Netcetera
             | Connector::Taxjar
             | Connector::Threedsecureio
+            | Connector::Vgs
             | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
         }
     }

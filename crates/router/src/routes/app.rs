@@ -17,6 +17,7 @@ use external_services::{
     grpc_client::{GrpcClients, GrpcHeaders},
 };
 use hyperswitch_interfaces::{
+    crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
@@ -124,6 +125,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -235,6 +237,7 @@ pub struct AppState {
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -396,6 +399,7 @@ impl AppState {
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
             let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
+            let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -418,6 +422,7 @@ impl AppState {
                 encryption_client,
                 grpc_client,
                 theme_storage_client,
+                crm_client,
             }
         })
         .await
@@ -511,6 +516,7 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
+            crm_client: self.crm_client.clone(),
         })
     }
 }
@@ -2200,7 +2206,7 @@ impl User {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/user").app_data(web::Data::new(state));
+        let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
             .service(web::resource("").route(web::get().to(user::get_user_details)))
@@ -2421,6 +2427,12 @@ impl User {
                     web::resource("/delete").route(web::delete().to(user_role::delete_user_role)),
                 ),
         );
+
+        if state.conf().clone_connector_allowlist.is_some() {
+            route = route.service(
+                web::resource("/clone_connector").route(web::post().to(user::clone_connector)),
+            );
+        }
 
         // Role information
         route =

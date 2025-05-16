@@ -128,3 +128,7 @@ ALTER TABLE refund
     DROP COLUMN IF EXISTS internal_reference_id,
     DROP COLUMN IF EXISTS refund_id,
     DROP COLUMN IF EXISTS merchant_connector_id;
+
+-- Run below queries only when V1 is deprecated
+ALTER TABLE routing_algorithm
+    DROP COLUMN IF EXISTS decision_engine_routing_id;

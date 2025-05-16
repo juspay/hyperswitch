@@ -15,6 +15,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
+use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -39,7 +40,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::{
         self,
-        api::{self as service_api, client},
+        api::{self as service_api},
         authentication, pm_auth as payment_initiation_service,
     },
     types::{
@@ -1290,6 +1291,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
         use crate::connector::*;
 
         match self.connector_name {
+            api_enums::Connector::Vgs => {
+                vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Adyenplatform => {
                 adyenplatform::transformers::AdyenplatformAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1928,6 +1933,8 @@ impl ConnectorTypeAndConnectorName<'_> {
         let mut routable_connector =
             api_enums::RoutableConnectors::from_str(&self.connector_name.to_string()).ok();
 
+        let vault_connector =
+            api_enums::convert_vault_connector(self.connector_name.to_string().as_str());
         let pm_auth_connector =
             api_enums::convert_pm_auth_connector(self.connector_name.to_string().as_str());
         let authentication_connector =
@@ -1962,6 +1969,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if billing_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::BillingProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if vault_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::VaultProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
@@ -3913,6 +3927,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
         }))
     }
 
@@ -4056,6 +4071,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: None,
             revenue_recovery_retry_algorithm_data: None,
+            is_iframe_redirection_enabled: None,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self
                 .external_vault_connector_details
@@ -4360,6 +4376,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 force_3ds_challenge: self.force_3ds_challenge, //
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
+                is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             },
         )))
     }
@@ -4494,6 +4511,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
+                is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: self.is_external_vault_enabled,
                 external_vault_connector_details: self
                     .external_vault_connector_details
