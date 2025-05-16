@@ -2,11 +2,12 @@ mod helpers;
 
 use quote::quote;
 
-use crate::macros::helpers as macro_helpers;
-
-use crate::macros::schema::helpers::{
-    is_field_valid_for_running_schema_validations, HasSchemaParameters,
-    IsSchemaFieldApplicableForValidation,
+use crate::macros::{
+    helpers as macro_helpers,
+    schema::helpers::{
+        is_field_valid_for_running_schema_validations, HasSchemaParameters,
+        IsSchemaFieldApplicableForValidation,
+    },
 };
 
 pub fn validate_schema_derive(input: syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
