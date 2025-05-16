@@ -2981,7 +2981,7 @@ pub async fn create_connector(
             .update_revenue_recovery_algorithm_under_profile(
                 store,
                 key_manager_state,
-                &merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_key_store(),
                 common_enums::RevenueRecoveryAlgorithmType::Monitoring,
             )
             .await?;

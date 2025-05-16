@@ -166,7 +166,7 @@ pub async fn recovery_incoming_webhook_flow(
                     handle_monitoring_threshold(
                         &state,
                         &business_profile,
-                        &merchant_context.get_merchant_key_store(),
+                        merchant_context.get_merchant_key_store(),
                     )
                     .await
                 }
