@@ -1433,7 +1433,7 @@ pub fn get_connector_data(
 }
 
 #[cfg(feature = "v1")]
-pub fn find_connector_with_networks(
+pub fn get_connector_with_networks(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
 ) -> Option<(api::ConnectorData, enums::CardNetwork)> {
     connectors.find_map(|connector| {
@@ -1454,7 +1454,7 @@ fn get_connector_data_with_routing_decision(
 )> {
     if business_profile.is_debit_routing_enabled {
         if let Some((output, (data, card_network))) =
-            debit_routing_output.zip(find_connector_with_networks(connectors))
+            debit_routing_output.zip(get_connector_with_networks(connectors))
         {
             let routing_decision =
                 routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(

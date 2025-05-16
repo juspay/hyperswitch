@@ -1648,7 +1648,7 @@ pub async fn perform_open_routing_for_debit_routing(
                 ))?;
             logger::error!("open_router_error_response: {:?}", err_resp);
             Err(errors::RoutingError::OpenRouterError(
-                "Failed to perform success based routing in open router".into(),
+                "Failed to perform debit routing in open router".into(),
             ))
         }
     }?;

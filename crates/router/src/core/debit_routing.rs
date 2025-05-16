@@ -45,73 +45,51 @@ where
 {
     let mut debit_routing_output = None;
 
-    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
-        if let Some(acquirer_country) = business_profile.merchant_business_country {
-            logger::info!("Debit routing is enabled for the profile");
+    if should_execute_debit_routing(state, business_profile, operation, payment_data).await {
+        let debit_routing_config = state.conf.debit_routing_config.clone();
+        let debit_routing_supported_connectors = debit_routing_config.supported_connectors.clone();
 
-            let debit_routing_config = state.conf.debit_routing_config.clone();
-            let debit_routing_supported_connectors =
-                state.conf.debit_routing_config.supported_connectors.clone();
-
-            if should_perform_debit_routing_for_the_flow(
-                operation,
-                payment_data,
-                &debit_routing_config,
-            ) {
-                let is_debit_routable_connector_present_in_profile =
-                    check_for_debit_routing_connector_in_profile(
+        if let Some((call_connector_type, acquirer_country)) = connector
+            .clone()
+            .zip(business_profile.merchant_business_country)
+        {
+            debit_routing_output = match call_connector_type {
+                ConnectorCallType::PreDetermined(connector_data) => {
+                    logger::info!("Performing debit routing for PreDetermined connector");
+                    handle_pre_determined_connector(
                         state,
-                        business_profile.get_id(),
+                        &debit_routing_config,
+                        debit_routing_supported_connectors,
+                        &connector_data,
                         payment_data,
+                        acquirer_country,
                     )
-                    .await;
-
-                if is_debit_routable_connector_present_in_profile {
-                    logger::debug!("Debit routable connector is configured for the profile");
-
-                    if let Some(call_connector_type) = connector.clone() {
-                        debit_routing_output = match call_connector_type {
-                            ConnectorCallType::PreDetermined(connector_data) => {
-                                logger::info!(
-                                    "Performing debit routing for PreDetermined connector"
-                                );
-                                handle_pre_determined_connector(
-                                    state,
-                                    &debit_routing_config,
-                                    debit_routing_supported_connectors,
-                                    &connector_data,
-                                    payment_data,
-                                    acquirer_country,
-                                )
-                                .await
-                            }
-                            ConnectorCallType::Retryable(connector_data) => {
-                                logger::info!("Performing debit routing for Retryable connector");
-                                handle_retryable_connector(
-                                    state,
-                                    &debit_routing_config,
-                                    debit_routing_supported_connectors,
-                                    connector_data,
-                                    payment_data,
-                                    acquirer_country,
-                                )
-                                .await
-                            }
-                            ConnectorCallType::SessionMultiple(_) => {
-                                logger::info!("SessionMultiple connector type is not supported for debit routing");
-                                None
-                            }
-                            #[cfg(feature = "v2")]
-                            ConnectorCallType::Skip => {
-                                logger::info!(
-                                    "Skip connector type is not supported for debit routing"
-                                );
-                                None
-                            }
-                        };
-                    }
+                    .await
                 }
-            }
+                ConnectorCallType::Retryable(connector_data) => {
+                    logger::info!("Performing debit routing for Retryable connector");
+                    handle_retryable_connector(
+                        state,
+                        &debit_routing_config,
+                        debit_routing_supported_connectors,
+                        connector_data,
+                        payment_data,
+                        acquirer_country,
+                    )
+                    .await
+                }
+                ConnectorCallType::SessionMultiple(_) => {
+                    logger::info!(
+                        "SessionMultiple connector type is not supported for debit routing"
+                    );
+                    None
+                }
+                #[cfg(feature = "v2")]
+                ConnectorCallType::Skip => {
+                    logger::info!("Skip connector type is not supported for debit routing");
+                    None
+                }
+            };
         }
     }
 
@@ -125,6 +103,45 @@ where
         logger::info!("Debit routing is not performed, returning static routing output");
         (connector, None)
     }
+}
+
+async fn should_execute_debit_routing<F, D>(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    operation: &BoxedOperation<'_, F, (), D>,
+    payment_data: &D,
+) -> bool
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + Send + Sync,
+{
+    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
+        if business_profile.merchant_business_country.is_some() {
+            logger::info!("Debit routing is enabled for the profile");
+
+            let debit_routing_config = &state.conf.debit_routing_config;
+
+            if should_perform_debit_routing_for_the_flow(
+                operation,
+                payment_data,
+                debit_routing_config,
+            ) {
+                let is_debit_routable_connector_present =
+                    check_for_debit_routing_connector_in_profile(
+                        state,
+                        business_profile.get_id(),
+                        payment_data,
+                    )
+                    .await;
+
+                if is_debit_routable_connector_present {
+                    logger::debug!("Debit routable connector is configured for the profile");
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 pub fn should_perform_debit_routing_for_the_flow<Op: Debug, F: Clone, D>(
@@ -160,7 +177,7 @@ pub fn request_validation(
     });
 
     payment_intent.setup_future_usage != Some(enums::FutureUsage::OffSession)
-        && payment_intent.amount.get_amount_as_i64() > 0
+        && payment_intent.amount.is_greater_than(0)
         && is_currency_supported == Some(true)
         && payment_attempt.authentication_type != Some(enums::AuthenticationType::ThreeDs)
         && payment_attempt.payment_method == Some(enums::PaymentMethod::Card)
