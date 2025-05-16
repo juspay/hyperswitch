@@ -202,7 +202,11 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
             serde_json::Value::String(_)
             | serde_json::Value::Number(_)
             | serde_json::Value::Bool(_) => {
-                write!(f, "\"*** {} ***\"", std::any::type_name::<serde_json::Value>())
+                write!(
+                    f,
+                    "\"*** {} ***\"",
+                    std::any::type_name::<serde_json::Value>()
+                )
             }
             serde_json::Value::Null => write!(f, "null"),
         }
