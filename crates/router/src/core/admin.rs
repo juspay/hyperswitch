@@ -3929,6 +3929,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: self
+                .is_pre_network_tokenization_enabled
+                .unwrap_or_default(),
         }))
     }
 
@@ -4378,6 +4381,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+                is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
             },
         )))
     }
