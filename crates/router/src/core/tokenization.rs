@@ -18,7 +18,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use masking::{Secret, JsonMaskStrategy};
+use masking::{JsonMaskStrategy, Secret};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -149,7 +149,7 @@ pub async fn get_token_vault_core(
         .get("data")
         .cloned()
         .unwrap_or(serde_json::Value::Null);
-    
+
     let response_data = if !query_params.1 {
         // Use the JsonMaskStrategy to mask sensitive values while preserving JSON structure
         apply_json_mask_strategy(data_json)
