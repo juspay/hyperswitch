@@ -23,7 +23,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -2655,7 +2655,9 @@ impl GetPaymentMethodType for WalletData {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
-            Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
+            Self::AmazonPay(_) | Self::AmazonPayRedirect(_) => {
+                api_enums::PaymentMethodType::AmazonPay
+            }
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
@@ -3554,6 +3556,8 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
+    /// The wallet data for Amazon Pay
+    AmazonPay(AmazonPayWalletData),
     /// The wallet data for Amazon Pay redirect
     AmazonPayRedirect(AmazonPayRedirectData),
     /// The wallet data for Momo redirect
@@ -3639,6 +3643,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::KakaoPayRedirect(_)
             | Self::GoPayRedirect(_)
             | Self::GcashRedirect(_)
+            | Self::AmazonPay(_)
             | Self::AmazonPayRedirect(_)
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
@@ -3794,6 +3799,20 @@ pub struct GooglePayWalletData {
     pub tokenization_data: GpayTokenizationData,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPaySessionTokenData {
+    #[serde(rename = "amazon_pay")]
+    pub data: AmazonPayMerchantCredentials,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPayMerchantCredentials {
+    /// Amazon Pay merchant account identifier
+    pub merchant_id: String,
+    /// Amazon Pay store ID
+    pub store_id: String,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRedirectData {}
 
@@ -3905,6 +3924,12 @@ pub struct GpayTokenizationData {
     pub token_type: String,
     /// Token generated for the wallet
     pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AmazonPayWalletData {
+    /// Checkout Session identifier
+    pub checkout_session_id: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -6982,6 +7007,8 @@ pub enum SessionToken {
     Paze(Box<PazeSessionTokenResponse>),
     /// The sessions response structure for ClickToPay
     ClickToPay(Box<ClickToPaySessionResponse>),
+    /// The session response structure for Amazon Pay
+    AmazonPay(Box<AmazonPaySessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
     NoSessionTokenReceived,
 }
@@ -7351,6 +7378,140 @@ pub struct AmountInfo {
 pub struct ApplepayErrorResponse {
     pub status_code: String,
     pub status_message: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct AmazonPaySessionTokenResponse {
+    /// Amazon Pay merchant account identifier
+    pub merchant_id: String,
+    /// Ledger currency provided during registration for the given merchant identifier
+    #[schema(example = "USD", value_type = Currency)]
+    pub ledger_currency: common_enums::Currency,
+    /// Amazon Pay store ID
+    pub store_id: String,
+    /// Payment flow for charging the buyer
+    pub payment_intent: AmazonPayPaymentIntent,
+    /// The total shipping costs
+    #[schema(value_type = String)]
+    pub total_shipping_amount: StringMajorUnit,
+    /// The total tax amount for the order
+    #[schema(value_type = String)]
+    pub total_tax_amount: StringMajorUnit,
+    /// The total amount for items in the cart
+    #[schema(value_type = String)]
+    pub total_base_amount: StringMajorUnit,
+    /// The delivery options available for the provided address
+    pub delivery_options: Vec<AmazonPayDeliveryOptions>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub enum AmazonPayPaymentIntent {
+    /// Create a Charge Permission to authorize and capture funds at a later time
+    Confirm,
+    /// Authorize funds immediately and capture at a later time
+    Authorize,
+    /// Authorize and capture funds immediately
+    AuthorizeWithCapture,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPayDeliveryOptions {
+    /// Delivery Option identifier
+    pub id: String,
+    /// Total delivery cost
+    pub price: AmazonPayDeliveryPrice,
+    /// Shipping method details
+    pub shipping_method: AmazonPayShippingMethod,
+    /// Specifies if this delivery option is the default
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPayDeliveryPrice {
+    /// Transaction amount in MinorUnit
+    pub amount: MinorUnit,
+    #[serde(skip_deserializing)]
+    /// Transaction amount in StringMajorUnit
+    #[schema(value_type = String)]
+    pub display_amount: StringMajorUnit,
+    /// Transaction currency code in ISO 4217 format
+    #[schema(example = "USD", value_type = Currency)]
+    pub currency_code: common_enums::Currency,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmazonPayShippingMethod {
+    /// Name of the shipping method
+    pub shipping_method_name: String,
+    /// Code of the shipping method
+    pub shipping_method_code: String,
+}
+
+impl AmazonPayDeliveryOptions {
+    pub fn parse_delivery_options_request(
+        delivery_options_request: &[serde_json::Value],
+    ) -> Result<Vec<Self>, common_utils::errors::ParsingError> {
+        delivery_options_request
+            .iter()
+            .map(|option| {
+                serde_json::from_value(option.clone()).map_err(|_| {
+                    common_utils::errors::ParsingError::StructParseFailure(
+                        "AmazonPayDeliveryOptions",
+                    )
+                })
+            })
+            .collect()
+    }
+
+    pub fn validate_is_default_count(
+        delivery_options: Vec<Self>,
+    ) -> Result<(), error_stack::Report<ValidationError>> {
+        let is_default_count = delivery_options
+            .iter()
+            .filter(|delivery_option| delivery_option.is_default)
+            .count();
+
+        if is_default_count != 1 {
+            return Err(ValidationError::InvalidValue {
+                message: "Amazon Pay Delivery Option".to_string(),
+            })
+            .attach_printable("Expected one default Amazon Pay Delivery Option");
+        }
+
+        Ok(())
+    }
+
+    pub fn validate_currency(
+        currency_code: common_enums::Currency,
+        amazonpay_supported_currencies: Option<&HashSet<common_enums::Currency>>,
+    ) -> Result<(), ValidationError> {
+        if amazonpay_supported_currencies
+            .map(|supported_currency| !supported_currency.contains(&currency_code))
+            .unwrap_or(true)
+        {
+            return Err(ValidationError::InvalidValue {
+                message: format!("{:?} is not a supported currency.", currency_code),
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn insert_display_amount(
+        delivery_options: &mut Vec<Self>,
+        currency_code: common_enums::Currency,
+    ) -> Result<(), error_stack::Report<common_utils::errors::ParsingError>> {
+        let required_amount_type = common_utils::types::StringMajorUnitForCore;
+        for option in delivery_options {
+            let display_amount = required_amount_type
+                .convert(option.price.amount, currency_code)
+                .change_context(common_utils::errors::ParsingError::I64ToStringConversionFailure)?;
+
+            option.price.display_amount = display_amount;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]

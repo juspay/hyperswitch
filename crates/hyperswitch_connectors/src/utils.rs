@@ -498,6 +498,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -595,6 +596,15 @@ impl<Flow, Request, Response> RouterData
                 .clone()
                 .address
                 .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
         })
     }
 
@@ -5378,6 +5388,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     MomoRedirect,
     KakaoPayRedirect,
@@ -5504,6 +5515,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
                 payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
                 payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
                 payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
                 payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
