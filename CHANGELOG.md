@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.12.0-hotfix3
+
+### Features
+
+- **connector:** Revert [paypal, trustpay] add in feature matrix ([#8046](https://github.com/juspay/hyperswitch/pull/8046)) ([`6394bbd`](https://github.com/juspay/hyperswitch/commit/6394bbdc5a65390f7f69c18dbce7584e06f3f83f))
+
+**Full Changelog:** [`2025.05.12.0-hotfix2...2025.05.12.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.05.12.0-hotfix2...2025.05.12.0-hotfix3)
+
+
+- - -
+
 ## 2025.05.12.0-hotfix2
 
 ### Revert
