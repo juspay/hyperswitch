@@ -100,6 +100,7 @@ pub struct ConnectorAuthentication {
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
     pub unified_authentication_service: Option<HeaderKey>,
+    pub vgs: Option<HeaderKey>,
     pub volt: Option<HeaderKey>,
     pub wellsfargo: Option<HeaderKey>,
     // pub wellsfargopayout: Option<HeaderKey>,
