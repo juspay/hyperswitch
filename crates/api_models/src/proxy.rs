@@ -27,7 +27,9 @@ pub enum TokenType {
 pub struct ProxyResponse {
     /// The response received from the destination
     pub response: Value,
+    /// The status code of the response
     pub status_code: u16,
+    /// The headers of the response
     pub response_headers: Value,
 }
 

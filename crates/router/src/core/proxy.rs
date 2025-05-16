@@ -119,11 +119,9 @@ async fn process_value(
                         }
                     }
 
-                    if tokens_processed {
-                        Ok(Value::String(result))
-                    } else {
-                        Ok(Value::String(s))
-                    }
+                    Ok(tokens_processed
+                        .then(|| Value::String(result))
+                        .unwrap_or(Value::String(s)))
                 } else {
                     if let Ok((_, token_ref)) = parse_token(&s) {
                         extract_field_from_vault_data(vault_data, &token_ref.field)
@@ -185,18 +183,50 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
 pub async fn proxy_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    use api_models::payment_methods::PaymentMethodId;
+    use common_utils::{ext_traits::OptionExt, id_type};
+
     let token = &req.token;
-    //TODO: match on token type, 
+
+    //TODO: match on token type,
     //if token_type is tokenization id then fetch vault id from tokenization table
     //else if token_type is payment method id then fetch vault id from payment method table
-    let vault_id = domain::VaultId::generate(token.clone());
+
+    let db = state.store.as_ref();
+    let vault_id = match req.token_type {
+        proxy_api_models::TokenType::PaymentMethodId => {
+            let pm_id = PaymentMethodId {
+                payment_method_id: token.clone(),
+            };
+            let pm_id =
+                id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
+            db.find_payment_method(
+                &((&state).into()),
+                &key_store,
+                &pm_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
+            .locker_id
+        }
+        proxy_api_models::TokenType::TokenizationId => None, //TODO: Fetch locker id from tokenization table.
+    };
 
     let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
         &state,
         &merchant_account,
-        &vault_id,
+        &vault_id.get_required_value("vault_id").change_context(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "vault id",
+            },
+        )?,
     )
     .await
     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
@@ -228,8 +258,7 @@ pub async fn proxy_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
-            Err(err_res) =>
-            {
+            Err(err_res) => {
                 logger::error!("Response Deserialization Failed: {err_res:?}");
                 Ok(err_res)
             }
@@ -243,9 +272,12 @@ pub async fn proxy_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let status_code = res.status_code;
-    let response_headers = res.headers.as_ref()
+    let response_headers = res
+        .headers
+        .as_ref()
         .map(|h| {
-            let map: std::collections::BTreeMap<_, _> = h.iter()
+            let map: std::collections::BTreeMap<_, _> = h
+                .iter()
                 .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
                 .collect();
             serde_json::to_value(map).unwrap_or_else(|_| serde_json::json!({}))

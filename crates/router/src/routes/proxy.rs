@@ -27,6 +27,7 @@ pub async fn proxy(
             proxy::proxy_core(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 req,
             )
         },
