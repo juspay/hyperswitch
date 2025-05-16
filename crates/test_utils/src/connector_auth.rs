@@ -18,6 +18,7 @@ pub struct ConnectorAuthentication {
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<HeaderKey>,
+    pub archipel: Option<NoKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
@@ -323,6 +324,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NoKey {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AutomationConfigs {

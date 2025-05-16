@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.16.0
+
+### Features
+
+- **connector:**
+  - Add coingate, paystack connector specifications ([#7996](https://github.com/juspay/hyperswitch/pull/7996)) ([`6aeaf04`](https://github.com/juspay/hyperswitch/commit/6aeaf04ee71ef712ab8e9c04b5cc6291f170fb4a))
+  - Revert [paypal, trustpay] add in feature matrix ([#8042](https://github.com/juspay/hyperswitch/pull/8042)) ([`5fd6df7`](https://github.com/juspay/hyperswitch/commit/5fd6df73c9adaa454402c9b79ba37eff9f4c3ffc))
+- **core:** Add Support for redirection inside Iframe ([#7976](https://github.com/juspay/hyperswitch/pull/7976)) ([`831149c`](https://github.com/juspay/hyperswitch/commit/831149c9621617d4dbeafc7e5c33b4e3c310cc24))
+- **router:**
+  - [dummy_connector] add upi collect ([#8014](https://github.com/juspay/hyperswitch/pull/8014)) ([`32df401`](https://github.com/juspay/hyperswitch/commit/32df40124a9d0df5b035fda7f0fb7bca99ed5175))
+  - Add support for Vault in connector_accounts endpoint ([#7814](https://github.com/juspay/hyperswitch/pull/7814)) ([`89b421f`](https://github.com/juspay/hyperswitch/commit/89b421f81cdfd0a0b5c133046f92cfb49ae2dc95))
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] fix CartesBancaires card_type for Cybersource ([#8031](https://github.com/juspay/hyperswitch/pull/8031)) ([`4c9689d`](https://github.com/juspay/hyperswitch/commit/4c9689d4ccbe8b55f701162a5d0455202f964591))
+- **core:** Fix redirection for Worldpay for specific payment IDs ([#8027](https://github.com/juspay/hyperswitch/pull/8027)) ([`a2d6412`](https://github.com/juspay/hyperswitch/commit/a2d641278a81262faf4295310269a677881985c6))
+- **router:** Fixed netcetera flow for backward flow cavv fetching ([#8035](https://github.com/juspay/hyperswitch/pull/8035)) ([`fc91420`](https://github.com/juspay/hyperswitch/commit/fc914203dbc3278d6ae822db8cf585ab332a262e))
+
+### Refactors
+
+- **users:** Change welcome email text and formatting ([#7982](https://github.com/juspay/hyperswitch/pull/7982)) ([`22a9007`](https://github.com/juspay/hyperswitch/commit/22a90078dfaf03b7cda8ccc9faf0f92597f5a331))
+
+### Miscellaneous Tasks
+
+- Move async-bb8-diesel crate to crates.io version ([#8028](https://github.com/juspay/hyperswitch/pull/8028)) ([`9d78c58`](https://github.com/juspay/hyperswitch/commit/9d78c583f6c299ab9f63e551b887d1cb080106b4))
+
+**Full Changelog:** [`2025.05.15.0...2025.05.16.0`](https://github.com/juspay/hyperswitch/compare/2025.05.15.0...2025.05.16.0)
+
+
+- - -
+
 ## 2025.05.15.0
 
 ### Features
