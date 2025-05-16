@@ -1447,19 +1447,19 @@ pub fn get_connector_with_networks(
 fn get_connector_data_with_routing_decision(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
     business_profile: &domain::Profile,
-    debit_routing_output: Option<api_models::open_router::DebitRoutingOutput>,
+    debit_routing_output_optional: Option<api_models::open_router::DebitRoutingOutput>,
 ) -> RouterResult<(
     api::ConnectorData,
     Option<routing_helpers::RoutingDecisionData>,
 )> {
-    if business_profile.is_debit_routing_enabled {
-        if let Some((output, (data, card_network))) =
-            debit_routing_output.zip(get_connector_with_networks(connectors))
-        {
+    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {
+        if let Some((data, card_network)) = get_connector_with_networks(connectors) {
+            let debit_routing_output =
+                debit_routing_output_optional.get_required_value("debit routing output")?;
             let routing_decision =
                 routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(
                     card_network,
-                    output,
+                    debit_routing_output,
                 );
             return Ok((data, Some(routing_decision)));
         }

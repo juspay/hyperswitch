@@ -4613,11 +4613,11 @@ pub async fn get_additional_payment_data(
                 card_data.co_badged_card_data.is_some(),
             ) {
                 (false, false) => {
-                    logger::warn!("Card network is not cobadged");
+                    logger::debug!("Card network is not cobadged");
                     None
                 }
                 _ => {
-                    logger::warn!("Card network is cobadged");
+                    logger::debug!("Card network is cobadged");
                     card_data.card_network.clone()
                 }
             };

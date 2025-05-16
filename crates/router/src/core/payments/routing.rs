@@ -1607,7 +1607,7 @@ pub async fn perform_open_routing_for_debit_routing(
         Some(or_types::RankingAlgorithm::NtwBasedRouting),
     );
 
-    let response: Result<DecidedGateway, or_types::ErrorResponse> =
+    let response: RoutingResult<DecidedGateway> =
         utils::EuclidApiClient::send_euclid_request(
             state,
             services::Method::Post,
@@ -1615,9 +1615,7 @@ pub async fn perform_open_routing_for_debit_routing(
             Some(open_router_req_body),
             None,
         )
-        .await
-        .change_context(errors::RoutingError::OpenRouterCallFailed)
-        .attach_printable("Open router call failed for debit routing")?;
+        .await;
 
     let output = match response {
         Ok(decided_gateway) => {
