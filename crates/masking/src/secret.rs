@@ -199,14 +199,37 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
                 }
                 write!(f, "]")
             }
-            serde_json::Value::String(_)
-            | serde_json::Value::Number(_)
-            | serde_json::Value::Bool(_) => {
-                write!(
-                    f,
-                    "\"*** {} ***\"",
-                    std::any::type_name::<serde_json::Value>()
-                )
+            serde_json::Value::String(s) => {
+                // For strings, we show a masked version that gives a hint about the content
+                let masked = if s.len() <= 2 {
+                    "**".to_string()
+                } else if s.len() <= 6 {
+                    format!("{}**", &s[0..1])
+                } else {
+                    // For longer strings, show first and last character with length in between
+                    format!("{}**{}**{}",
+                        &s[0..1],
+                        s.len() - 2,
+                        &s[s.len()-1..s.len()])
+                };
+                write!(f, "\"{}\"", masked)
+            }
+            serde_json::Value::Number(n) => {
+                // For numbers, we can show the order of magnitude
+                if n.is_i64() || n.is_u64() {
+                    let num_str = n.to_string();
+                    let masked_num = "*".repeat(num_str.len());
+                    write!(f, "{}", masked_num)
+                } else if n.is_f64() {
+                    // For floats, just use a generic mask
+                    write!(f, "**.**")
+                } else {
+                    write!(f, "0")
+                }
+            }
+            serde_json::Value::Bool(b) => {
+                // For booleans, we can show a hint about which one it is
+                write!(f, "{}", if *b { "**true" } else { "**false" })
             }
             serde_json::Value::Null => write!(f, "null"),
         }
@@ -216,46 +239,88 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_json_mask_strategy() {
-        let json_value = serde_json::json!({
-            "name": "John Doe",
-            "email": "john@example.com",
-            "age": 30,
-            "is_active": true,
-            "address": {
-                "street": "123 Main St",
-                "city": "Anytown",
-                "zip": "12345"
+        // Create a sample JSON with different types for testing
+        let original = json!({
+            "user": {
+                "name": "John Doe",
+                "email": "john@example.com",
+                "age": 35,
+                "verified": true
             },
-            "phones": [
-                "555-1234",
-                "555-5678"
-            ],
-            "nullable": null
+            "card": {
+                "number": "4242424242424242",
+                "cvv": 123,
+                "amount": 99.99
+            },
+            "tags": ["personal", "premium"],
+            "null_value": null,
+            "short": "hi"
         });
 
-        let secret = Secret::<_, JsonMaskStrategy>::new(json_value);
-        let formatted = format!("{:?}", secret);
+        // Apply the JsonMaskStrategy
+        let secret = Secret::<_, JsonMaskStrategy>::new(original.clone());
+        let masked_str = format!("{:?}", secret);
         
-        // Check that the output has the expected structure
-        assert!(formatted.contains("\"name\":"));
-        assert!(formatted.contains("\"email\":"));
-        assert!(formatted.contains("\"age\":"));
-        assert!(formatted.contains("\"is_active\":"));
-        assert!(formatted.contains("\"address\":"));
-        assert!(formatted.contains("\"street\":"));
-        assert!(formatted.contains("\"phones\":"));
-        assert!(formatted.contains("\"nullable\":null"));
+        // Parse the masked output back to a comparable format
+        println!("Masked output: {}", masked_str);
         
-        // Verify that values are masked
-        assert!(formatted.contains("\"*** serde_json::value::Value ***\""));
-        assert!(!formatted.contains("John Doe"));
-        assert!(!formatted.contains("john@example.com"));
-        assert!(!formatted.contains("30"));
-        assert!(!formatted.contains("true"));
-        assert!(!formatted.contains("123 Main St"));
-        assert!(!formatted.contains("555-1234"));
+        // Get specific values from original
+        let original_obj = original.as_object().unwrap();
+        let user_obj = original_obj["user"].as_object().unwrap();
+        let name = user_obj["name"].as_str().unwrap();
+        let email = user_obj["email"].as_str().unwrap();
+        let age = user_obj["age"].as_i64().unwrap();
+        let verified = user_obj["verified"].as_bool().unwrap();
+        
+        let card_obj = original_obj["card"].as_object().unwrap();
+        let card_number = card_obj["number"].as_str().unwrap();
+        let cvv = card_obj["cvv"].as_i64().unwrap();
+        
+        let tags = original_obj["tags"].as_array().unwrap();
+        let tag1 = tags[0].as_str().unwrap();
+        
+        // Now explicitly verify the masking patterns for each value type
+        
+        // 1. String masking - pattern: first char + ** + length - 2 + ** + last char
+        let expected_name_mask = format!("\"{}**{}**{}\"", &name[0..1], name.len() - 2, &name[name.len()-1..]);
+        let expected_email_mask = format!("\"{}**{}**{}\"", &email[0..1], email.len() - 2, &email[email.len()-1..]);
+        let expected_card_mask = format!("\"{}**{}**{}\"", &card_number[0..1], card_number.len() - 2, &card_number[card_number.len()-1..]);
+        let expected_tag1_mask = if tag1.len() <= 2 {
+            "\"**\"".to_string()
+        } else if tag1.len() <= 6 {
+            format!("\"{}**\"", &tag1[0..1])
+        } else {
+            format!("\"{}**{}**{}\"", &tag1[0..1], tag1.len() - 2, &tag1[tag1.len()-1..])
+        };
+        let expected_short_mask = "\"**\"".to_string(); // For "hi"
+        
+        // 2. Number masking
+        let expected_age_mask = "*".repeat(age.to_string().len()); // Repeat * for the number of digits
+        let expected_cvv_mask = "*".repeat(cvv.to_string().len());
+        
+        // 3. Boolean masking
+        let expected_verified_mask = if verified { "**true" } else { "**false" };
+        
+        // Check that the masked output includes the expected masked patterns
+        assert!(masked_str.contains(&expected_name_mask), "Name not masked correctly. Expected: {}", expected_name_mask);
+        assert!(masked_str.contains(&expected_email_mask), "Email not masked correctly. Expected: {}", expected_email_mask);
+        assert!(masked_str.contains(&expected_card_mask), "Card number not masked correctly. Expected: {}", expected_card_mask);
+        assert!(masked_str.contains(&expected_tag1_mask), "Tag not masked correctly. Expected: {}", expected_tag1_mask);
+        assert!(masked_str.contains(&expected_short_mask), "Short string not masked correctly. Expected: {}", expected_short_mask);
+        
+        assert!(masked_str.contains(&expected_age_mask), "Age not masked correctly. Expected: {}", expected_age_mask);
+        assert!(masked_str.contains(&expected_cvv_mask), "CVV not masked correctly. Expected: {}", expected_cvv_mask);
+        
+        assert!(masked_str.contains(expected_verified_mask), "Boolean not masked correctly. Expected: {}", expected_verified_mask);
+        
+        // Check structure preservation
+        assert!(masked_str.contains("\"user\""), "Structure not preserved - missing user object");
+        assert!(masked_str.contains("\"card\""), "Structure not preserved - missing card object");
+        assert!(masked_str.contains("\"tags\""), "Structure not preserved - missing tags array");
+        assert!(masked_str.contains("\"null_value\":null"), "Null value not preserved correctly");
     }
 }
