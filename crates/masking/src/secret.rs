@@ -208,3 +208,50 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_json_mask_strategy() {
+        let json_value = serde_json::json!({
+            "name": "John Doe",
+            "email": "john@example.com",
+            "age": 30,
+            "is_active": true,
+            "address": {
+                "street": "123 Main St",
+                "city": "Anytown",
+                "zip": "12345"
+            },
+            "phones": [
+                "555-1234",
+                "555-5678"
+            ],
+            "nullable": null
+        });
+
+        let secret = Secret::<_, JsonMaskStrategy>::new(json_value);
+        let formatted = format!("{:?}", secret);
+        
+        // Check that the output has the expected structure
+        assert!(formatted.contains("\"name\":"));
+        assert!(formatted.contains("\"email\":"));
+        assert!(formatted.contains("\"age\":"));
+        assert!(formatted.contains("\"is_active\":"));
+        assert!(formatted.contains("\"address\":"));
+        assert!(formatted.contains("\"street\":"));
+        assert!(formatted.contains("\"phones\":"));
+        assert!(formatted.contains("\"nullable\":null"));
+        
+        // Verify that values are masked
+        assert!(formatted.contains("\"*** serde_json::value::Value ***\""));
+        assert!(!formatted.contains("John Doe"));
+        assert!(!formatted.contains("john@example.com"));
+        assert!(!formatted.contains("30"));
+        assert!(!formatted.contains("true"));
+        assert!(!formatted.contains("123 Main St"));
+        assert!(!formatted.contains("555-1234"));
+    }
+}
