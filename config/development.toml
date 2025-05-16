@@ -556,12 +556,12 @@ google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN" }
-debit = { currency = "USD,GBP,EUR,PLN" }
-apple_pay = { currency = "USD,GBP,EUR,PLN" }
-google_pay = { currency = "USD,GBP,EUR,PLN" }
-samsung_pay = { currency = "USD,GBP,EUR" }
-paze = { currency = "USD" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK" }
+apple_pay = { currency = "USD,GBP,EUR,PLN,SEK" }
+google_pay = { currency = "USD,GBP,EUR,PLN,SEK" }
+samsung_pay = { currency = "USD,GBP,EUR,SEK" }
+paze = { currency = "USD,SEK" }
 
 
 [pm_filters.globepay]
