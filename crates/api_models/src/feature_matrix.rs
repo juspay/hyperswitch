@@ -10,7 +10,7 @@ pub struct FeatureMatrixRequest {
     pub connectors: Option<Vec<common_enums::connector_enums::Connector>>,
 }
 
-#[derive(Debug, Clone, ToSchema, Serialize)]
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
 pub struct CardSpecificFeatures {
     /// Indicates whether three_ds card payments are supported
     #[schema(value_type = FeatureStatus)]
@@ -23,14 +23,14 @@ pub struct CardSpecificFeatures {
     pub supported_card_networks: Vec<common_enums::CardNetwork>,
 }
 
-#[derive(Debug, Clone, ToSchema, Serialize)]
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PaymentMethodSpecificFeatures {
     /// Card specific features
     Card(CardSpecificFeatures),
 }
 
-#[derive(Debug, ToSchema, Serialize)]
+#[derive(Debug, ToSchema, Serialize, Deserialize)]
 pub struct SupportedPaymentMethod {
     /// The payment method supported by the connector
     #[schema(value_type = PaymentMethod)]
@@ -60,7 +60,7 @@ pub struct SupportedPaymentMethod {
     pub supported_currencies: Option<HashSet<common_enums::Currency>>,
 }
 
-#[derive(Debug, ToSchema, Serialize)]
+#[derive(Debug, ToSchema, Serialize, Deserialize)]
 pub struct ConnectorFeatureMatrixResponse {
     /// The name of the connector
     pub name: String,
@@ -78,7 +78,7 @@ pub struct ConnectorFeatureMatrixResponse {
     pub supported_webhook_flows: Option<Vec<common_enums::EventClass>>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct FeatureMatrixListResponse {
     /// The number of connectors included in the response
     pub connector_count: usize,
