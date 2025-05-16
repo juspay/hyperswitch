@@ -238,7 +238,7 @@ mod tests {
 
         let secret = Secret::<_, JsonMaskStrategy>::new(json_value);
         let formatted = format!("{:?}", secret);
-        
+
         // Check that the output has the expected structure
         assert!(formatted.contains("\"name\":"));
         assert!(formatted.contains("\"email\":"));
@@ -248,7 +248,7 @@ mod tests {
         assert!(formatted.contains("\"street\":"));
         assert!(formatted.contains("\"phones\":"));
         assert!(formatted.contains("\"nullable\":null"));
-        
+
         // Verify that values are masked
         assert!(formatted.contains("\"*** serde_json::value::Value ***\""));
         assert!(!formatted.contains("John Doe"));
