@@ -1,15 +1,11 @@
 mod transformers;
 pub mod utils;
-use crate::core::payments::routing::utils::EuclidApiHandler;
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::headers;
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -60,8 +56,10 @@ use crate::core::admin;
 use crate::core::payouts;
 #[cfg(feature = "v1")]
 use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::headers;
 use crate::{
-    core::{errors, errors as oss_errors, routing},
+    core::{errors, errors as oss_errors, payments::routing::utils::EuclidApiHandler, routing},
     logger, services,
     types::{
         api::{self, routing as routing_types},
