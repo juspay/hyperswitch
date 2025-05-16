@@ -1947,7 +1947,7 @@ pub async fn vault_payment_method(
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    let is_external_vault_enabled = profile.get_is_external_vault_enabled();
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
 
     if is_external_vault_enabled {
         let external_vault_source: id_type::MerchantConnectorAccountId = profile

@@ -1073,7 +1073,7 @@ impl Profile {
     }
 
     #[cfg(feature = "v2")]
-    pub fn get_is_external_vault_enabled(&self) -> bool {
+    pub fn is_external_vault_enabled(&self) -> bool {
         self.is_external_vault_enabled.unwrap_or(false)
     }
 }

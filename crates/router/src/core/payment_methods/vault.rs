@@ -1427,7 +1427,7 @@ pub async fn retrieve_payment_method_from_vault(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    let is_external_vault_enabled = profile.get_is_external_vault_enabled();
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
 
     if is_external_vault_enabled {
         let external_vault_source = pm.external_vault_source.as_ref();
@@ -1558,7 +1558,7 @@ pub async fn delete_payment_method_data_from_vault(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
-    let is_external_vault_enabled = profile.get_is_external_vault_enabled();
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
 
     let vault_id = pm
         .locker_id
