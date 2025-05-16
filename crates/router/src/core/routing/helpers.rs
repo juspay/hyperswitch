@@ -1781,6 +1781,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
+                decision_engine_routing_id: None,
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
@@ -1800,6 +1801,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
+                decision_engine_routing_id: None,
             }
         }
 

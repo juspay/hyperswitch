@@ -272,7 +272,9 @@ impl RoutableConnectorChoiceWithStatus {
     }
 }
 
-#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize, strum::Display, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -487,6 +489,7 @@ pub struct RoutingDictionaryRecord {
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: Option<TransactionType>,
+    pub decision_engine_routing_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

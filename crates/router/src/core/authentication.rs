@@ -151,11 +151,14 @@ pub async fn perform_post_authentication(
         false,
         key_store.key.get_inner(),
     )
-    .await?;
+    .await
+    .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+    .attach_printable("cavv not present after authentication flow")
+    .ok();
 
     let authentication_store =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: Some(tokenized_data.value1),
+            cavv: tokenized_data.map(|data| data.value1),
             authentication: authentication_update,
         };
 
