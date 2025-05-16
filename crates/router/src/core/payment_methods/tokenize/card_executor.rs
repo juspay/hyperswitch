@@ -132,6 +132,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                 .map_or(card_req.card_issuing_country.clone(), |card_info| {
                     card_info.card_issuing_country.clone()
                 }),
+            co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
             state: std::marker::PhantomData,

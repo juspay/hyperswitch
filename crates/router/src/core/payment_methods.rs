@@ -780,6 +780,11 @@ pub(crate) async fn get_payment_method_create_request(
         Some(pm_data) => match payment_method {
             Some(payment_method) => match pm_data {
                 domain::PaymentMethodData::Card(card) => {
+                    let card_network = get_card_network_with_us_local_debit_network_override(
+                        card.card_network.clone(),
+                        card.co_badged_card_data.as_ref(),
+                    );
+
                     let card_detail = payment_methods::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
@@ -787,7 +792,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
-                        card_network: card.card_network.clone(),
+                        card_network: card_network.clone(),
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
                     };
@@ -803,8 +808,8 @@ pub(crate) async fn get_payment_method_create_request(
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: customer_id.clone(),
-                        card_network: card
-                            .card_network
+                        card_network: card_network
+                            .clone()
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
@@ -849,6 +854,32 @@ pub(crate) async fn get_payment_method_create_request(
             field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
+    }
+}
+
+/// Determines the appropriate card network to to be stored.
+///
+/// If the provided card network is a US local network, this function attempts to
+/// override it with the first global network from the co-badged card data, if available.
+/// Otherwise, it returns the original card network as-is.
+///
+fn get_card_network_with_us_local_debit_network_override(
+    card_network: Option<common_enums::CardNetwork>,
+    co_badged_card_data: Option<&payment_methods::CoBadgedCardData>,
+) -> Option<common_enums::CardNetwork> {
+    if let Some(true) = card_network
+        .as_ref()
+        .map(|network| network.is_us_local_network())
+    {
+        services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
+        co_badged_card_data.and_then(|data| {
+            data.co_badged_card_networks
+                .iter()
+                .find(|network| network.is_global_network())
+                .cloned()
+        })
+    } else {
+        card_network
     }
 }
 

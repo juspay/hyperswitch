@@ -191,7 +191,7 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-       Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -234,7 +234,7 @@ export const connectorDetails = {
         body: {
           status: "partially_captured",
           amount: 9000,
-          amount_received:6500,
+          amount_received: 6500,
           amount_capturable: 0,
         },
       },
@@ -260,7 +260,7 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-       Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -274,7 +274,7 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-       Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -401,7 +401,7 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-       Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {

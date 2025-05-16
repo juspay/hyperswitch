@@ -365,7 +365,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             Some(merchant_connector_id),
         )?;
 
-        Ok(ConnectorCallType::PreDetermined(connector_data))
+        Ok(ConnectorCallType::PreDetermined(connector_data.into()))
     }
 }
 
