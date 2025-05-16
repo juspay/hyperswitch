@@ -1605,15 +1605,14 @@ pub async fn perform_open_routing_for_debit_routing(
         Some(or_types::RankingAlgorithm::NtwBasedRouting),
     );
 
-    let response: RoutingResult<DecidedGateway> =
-        utils::EuclidApiClient::send_euclid_request(
-            state,
-            services::Method::Post,
-            "decide-gateway",
-            Some(open_router_req_body),
-            None,
-        )
-        .await;
+    let response: RoutingResult<DecidedGateway> = utils::EuclidApiClient::send_euclid_request(
+        state,
+        services::Method::Post,
+        "decide-gateway",
+        Some(open_router_req_body),
+        None,
+    )
+    .await;
 
     let output = match response {
         Ok(decided_gateway) => {
