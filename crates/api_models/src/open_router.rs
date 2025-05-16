@@ -9,6 +9,7 @@ pub use euclid::{
     },
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::enums::{Currency, PaymentMethod};
 
@@ -126,7 +127,7 @@ pub enum DecisionEngineConfigVariant {
     Elimination(DecisionEngineEliminationData),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineSuccessRateData {
     pub default_latency_threshold: Option<f64>,
@@ -167,7 +168,7 @@ impl DecisionEngineSuccessRateData {
         }
     }
 }
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineSRSubLevelInputConfig {
     pub payment_method_type: Option<String>,
@@ -211,7 +212,7 @@ impl DecisionEngineSRSubLevelInputConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineGatewayWiseExtraScore {
     pub gateway_name: String,
@@ -225,7 +226,7 @@ impl DecisionEngineGatewayWiseExtraScore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DecisionEngineEliminationData {
     pub threshold: f64,

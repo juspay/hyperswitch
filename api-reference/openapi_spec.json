@@ -11607,6 +11607,123 @@
           }
         }
       },
+      "DecisionEngineEliminationData": {
+        "type": "object",
+        "required": [
+          "threshold"
+        ],
+        "properties": {
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineGatewayWiseExtraScore": {
+        "type": "object",
+        "required": [
+          "gatewayName",
+          "gatewaySigmaFactor"
+        ],
+        "properties": {
+          "gatewayName": {
+            "type": "string"
+          },
+          "gatewaySigmaFactor": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineSRSubLevelInputConfig": {
+        "type": "object",
+        "properties": {
+          "paymentMethodType": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "latencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "bucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "hedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "upperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "gatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "DecisionEngineSuccessRateData": {
+        "type": "object",
+        "properties": {
+          "defaultLatencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultBucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "defaultHedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultLowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultUpperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultGatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          },
+          "subLevelInputConfig": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineSRSubLevelInputConfig"
+            },
+            "nullable": true
+          }
+        }
+      },
       "DecoupledAuthenticationType": {
         "type": "string",
         "enum": [
@@ -26919,6 +27036,9 @@
       },
       "SuccessBasedRoutingConfig": {
         "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
         "properties": {
           "params": {
             "type": "array",
@@ -26934,6 +27054,9 @@
               }
             ],
             "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineSuccessRateData"
           }
         }
       },

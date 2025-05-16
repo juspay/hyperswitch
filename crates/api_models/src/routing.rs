@@ -834,6 +834,7 @@ pub struct ToggleDynamicRoutingPath {
 pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
+    #[schema(value_type = DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
 }
 
@@ -906,6 +907,7 @@ pub enum DynamicRoutingConfigs {
 pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<SuccessBasedRoutingConfigBody>,
+    #[schema(value_type = DecisionEngineSuccessRateData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineSuccessRateData>,
 }
 
