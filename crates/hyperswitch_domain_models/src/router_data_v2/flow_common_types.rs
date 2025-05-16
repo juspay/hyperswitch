@@ -162,4 +162,5 @@ pub struct BillingConnectorInvoiceSyncFlowData;
 #[derive(Debug, Clone)]
 pub struct VaultConnectorFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::CustomerId,
 }

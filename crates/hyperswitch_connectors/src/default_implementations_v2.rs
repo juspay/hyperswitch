@@ -3171,6 +3171,7 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
+    connectors::Archipel,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,

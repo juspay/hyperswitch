@@ -1441,7 +1441,10 @@ pub async fn retrieve_payment_method_from_vault(
             "",
             external_vault_source,
         )
-        .await?;
+        .await
+        .attach_printable(
+            "failed to fetch merchant connector account for external vault retrieve",
+        )?;
 
         retrieve_payment_method_from_vault_external(
             state,
@@ -1578,7 +1581,8 @@ pub async fn delete_payment_method_data_from_vault(
             "",
             external_vault_source,
         )
-        .await?;
+        .await
+        .attach_printable("failed to fetch merchant connector account for external vault delete")?;
 
         delete_payment_method_data_from_vault_external(
             state,

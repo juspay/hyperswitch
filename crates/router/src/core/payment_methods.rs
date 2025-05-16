@@ -1957,8 +1957,6 @@ pub async fn vault_payment_method(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("mca_id not present for external vault")?;
 
-        let db = &*state.store;
-
         let merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
             state,
             merchant_context.get_merchant_account().get_id(),
@@ -1968,7 +1966,8 @@ pub async fn vault_payment_method(
             "",
             Some(&external_vault_source),
         )
-        .await?;
+        .await
+        .attach_printable("failed to fetch merchant connector account for external vault insert")?;
 
         vault_payment_method_external(
             state,
