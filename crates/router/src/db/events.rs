@@ -38,6 +38,14 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError>;
+
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
         state: &KeyManagerState,
@@ -155,6 +163,31 @@ impl EventInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[instrument(skip_all)]
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::find_by_merchant_id_idempotent_event_id(
+            &conn,
+            merchant_id,
+            idempotent_event_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))?
+        .convert(
+            state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -455,6 +488,40 @@ impl EventInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No event available with merchant_id = {merchant_id:?} and event_id  = {event_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        locked_events
+            .iter()
+            .find(|event| {
+                event.merchant_id == Some(merchant_id.to_owned()) && event.idempotent_event_id == Some(idempotent_event_id.to_string())
+            })
+            .cloned()
+            .async_map(|event| async {
+                event
+                    .convert(
+                        state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No event available with merchant_id = {merchant_id:?} and idempotent_event_id  = {idempotent_event_id}"
                 ))
                 .into(),
             )
