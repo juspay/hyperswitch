@@ -27,8 +27,15 @@ use crate::{
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
-    core::payment_methods::transformers as pm_transforms, headers, services, settings,
-    types::payment_methods as pm_types, utils::ConnectorResponseExt,
+    core::{
+        errors::ConnectorErrorExt,
+        payment_methods::transformers as pm_transforms,
+        payments::{self as payments_core, helpers as payment_helpers},
+        utils as core_utils,
+    },
+    headers, services, settings,
+    types::{self, payment_methods as pm_types},
+    utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -1286,7 +1293,7 @@ pub async fn add_payment_method_to_vault(
     merchant_context: &domain::MerchantContext,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
-) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
+) -> CustomResult<pm_types::AddVaultResponseInternal, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
         entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: existing_vault_id
@@ -1303,7 +1310,7 @@ pub async fn add_payment_method_to_vault(
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
 
-    let stored_pm_resp: pm_types::AddVaultResponse = resp
+    let stored_pm_resp: pm_types::AddVaultResponseInternal = resp
         .parse_struct("AddVaultResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into AddVaultResponse")?;
@@ -1313,7 +1320,7 @@ pub async fn add_payment_method_to_vault(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn retrieve_payment_method_from_vault(
+pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     pm: &domain::PaymentMethod,
@@ -1347,7 +1354,117 @@ pub async fn retrieve_payment_method_from_vault(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
-pub async fn delete_payment_method_data_from_vault(
+pub async fn retrieve_payment_method_from_vault_external(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    pm: &domain::PaymentMethod,
+    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let connector_vault_id = pm
+        .locker_id
+        .clone()
+        .map(|id| id.get_string_repr().to_owned());
+
+    let mut router_data = core_utils::construct_vault_router_data(
+        state,
+        merchant_account,
+        &merchant_connector_account,
+        None,
+        connector_vault_id,
+    )
+    .await?;
+
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .unwrap_or_default(); // always get the connector name from this call
+
+    let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api::GetToken::Connector,
+        merchant_connector_account.get_mca_id(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector data")?;
+
+    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+        api::ExternalVaultRetrieveFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data_resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments_core::CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_vault_failed_response()?;
+
+    match router_data_resp.response {
+        Ok(response) => match response {
+            types::VaultResponseData::ExternalVaultRetrieveResponse { vault_data } => {
+                Ok(pm_types::VaultRetrieveResponse { data: vault_data })
+            }
+            types::VaultResponseData::ExternalVaultInsertResponse { .. }
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
+                Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid Vault Response"))
+            }
+        },
+        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method")),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_from_vault(
+    state: &routes::SessionState,
+    merchant_context: &domain::MerchantContext,
+    profile: &domain::Profile,
+    pm: &domain::PaymentMethod,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
+
+    match is_external_vault_enabled {
+        true => {
+            let external_vault_source = pm.external_vault_source.as_ref();
+
+            let merchant_connector_account =
+                payments_core::helpers::get_merchant_connector_account(
+                    state,
+                    merchant_context.get_merchant_account().get_id(),
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    profile.get_id(),
+                    "",
+                    external_vault_source,
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault retrieve",
+                )?;
+
+            retrieve_payment_method_from_vault_external(
+                state,
+                merchant_context.get_merchant_account(),
+                pm,
+                merchant_connector_account,
+            )
+            .await
+        }
+        false => retrieve_payment_method_from_vault_internal(state, merchant_context, pm)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault"),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
@@ -1371,6 +1488,121 @@ pub async fn delete_payment_method_data_from_vault(
         .attach_printable("Failed to parse data into VaultDeleteResponse")?;
 
     Ok(stored_pm_resp)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn delete_payment_method_data_from_vault_external(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    vault_id: domain::VaultId,
+) -> RouterResult<pm_types::VaultDeleteResponse> {
+    let connector_vault_id = vault_id.get_string_repr().to_owned();
+
+    let mut router_data = core_utils::construct_vault_router_data(
+        state,
+        merchant_account,
+        &merchant_connector_account,
+        None,
+        Some(connector_vault_id),
+    )
+    .await?;
+
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .unwrap_or_default(); // always get the connector name from this call
+
+    let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api::GetToken::Connector,
+        merchant_connector_account.get_mca_id(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector data")?;
+
+    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+        api::ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data_resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments_core::CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_vault_failed_response()?;
+
+    match router_data_resp.response {
+        Ok(response) => match response {
+            types::VaultResponseData::ExternalVaultDeleteResponse { connector_vault_id } => {
+                Ok(pm_types::VaultDeleteResponse {
+                    vault_id: domain::VaultId::generate(connector_vault_id),
+                    entity_id: merchant_account.get_id().to_owned(),
+                })
+            }
+            types::VaultResponseData::ExternalVaultInsertResponse { .. }
+            | types::VaultResponseData::ExternalVaultRetrieveResponse { .. } => {
+                Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid Vault Response"))
+            }
+        },
+        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to delete payment method")),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn delete_payment_method_data_from_vault(
+    state: &routes::SessionState,
+    merchant_context: &domain::MerchantContext,
+    profile: &domain::Profile,
+    pm: &domain::PaymentMethod,
+) -> RouterResult<pm_types::VaultDeleteResponse> {
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
+
+    let vault_id = pm
+        .locker_id
+        .clone()
+        .get_required_value("locker_id")
+        .attach_printable("Missing locker_id in PaymentMethod")?;
+
+    match is_external_vault_enabled {
+        true => {
+            let external_vault_source = pm.external_vault_source.as_ref();
+
+            let merchant_connector_account =
+                payments_core::helpers::get_merchant_connector_account(
+                    state,
+                    merchant_context.get_merchant_account().get_id(),
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    profile.get_id(),
+                    "",
+                    external_vault_source,
+                )
+                .await
+                .attach_printable(
+                    "failed to fetch merchant connector account for external vault delete",
+                )?;
+
+            delete_payment_method_data_from_vault_external(
+                state,
+                merchant_context.get_merchant_account(),
+                merchant_connector_account,
+                vault_id.clone(),
+            )
+            .await
+        }
+        false => delete_payment_method_data_from_vault_internal(state, merchant_context, vault_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to delete payment method from vault"),
+    }
 }
 
 // ********************************************** PROCESS TRACKER **********************************************

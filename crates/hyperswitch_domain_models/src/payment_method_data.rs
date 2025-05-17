@@ -1911,7 +1911,6 @@ pub struct CardDetailsPaymentMethod {
     pub saved_to_locker: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
         Self {

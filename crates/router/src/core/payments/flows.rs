@@ -848,3 +848,42 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVault for connector::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVaultInsert for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::ExternalVaultInsertFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVaultRetrieve for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::ExternalVaultRetrieveFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalVaultDelete for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}

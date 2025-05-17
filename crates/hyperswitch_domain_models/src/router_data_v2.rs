@@ -9,7 +9,8 @@ pub use flow_common_types::FrmFlowData;
 pub use flow_common_types::PayoutFlowData;
 pub use flow_common_types::{
     AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-    MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData, WebhookSourceVerifyData,
+    MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData, VaultConnectorFlowData,
+    WebhookSourceVerifyData,
 };
 
 use crate::router_data::{ConnectorAuthType, ErrorResponse};
