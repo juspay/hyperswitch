@@ -1646,9 +1646,6 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Vgs => Err(report!(errors::ConnectorError::NotImplemented(
-                "VGS is not implemented".to_string(),
-            ))),
             api_enums::Connector::Volt => {
                 volt::transformers::VoltAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1947,8 +1944,6 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
         let billing_connector =
             api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
-        let vault_connector =
-            api_enums::convert_vault_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
