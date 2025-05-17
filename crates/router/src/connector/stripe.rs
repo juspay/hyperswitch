@@ -8,13 +8,14 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
+use hyperswitch_connectors::utils as connector_utils;
 use hyperswitch_domain_models::router_request_types::SplitRefundsRequest;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
 use self::transformers as stripe;
-use super::utils::{self as connector_utils, PaymentMethodDataType, RefundsRequestData};
+use super::utils::{self as old_connector_utils, PaymentMethodDataType, RefundsRequestData};
 #[cfg(feature = "payouts")]
 use super::utils::{PayoutsData, RouterData};
 use crate::{
@@ -147,9 +148,12 @@ impl ConnectorValidation for Stripe {
             enums::CaptureMethod::SequentialAutomatic
             | enums::CaptureMethod::Automatic
             | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
+                Err(old_connector_utils::construct_not_supported_error_report(
+                    capture_method,
+                    self.id(),
+                ))
+            }
         }
     }
 
@@ -170,7 +174,12 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::Ideal,
             PaymentMethodDataType::BancontactCard,
         ]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+        old_connector_utils::is_mandate_supported(
+            pm_data,
+            pm_type,
+            mandate_supported_pmd,
+            self.id(),
+        )
     }
 }
 
@@ -520,7 +529,7 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = old_connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
@@ -866,7 +875,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = old_connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -1420,7 +1429,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = connector_utils::convert_amount(
+        let refund_amount = old_connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
