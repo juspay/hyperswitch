@@ -262,6 +262,19 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::SetupFutureUsage(sfu) => EuclidValue::SetupFutureUsage(sfu),
         dir::DirValue::OpenBankingType(ob) => EuclidValue::PaymentMethodType(ob.into()),
         dir::DirValue::MobilePaymentType(mp) => EuclidValue::PaymentMethodType(mp.into()),
+        dir::DirValue::IssuerName(str_value) => EuclidValue::IssuerName(str_value),
+        dir::DirValue::IssuerCountry(country) => EuclidValue::IssuerCountry(country),
+        dir::DirValue::CustomerDevicePlatform(customer_device_platform) => {
+            EuclidValue::CustomerDevicePlatform(customer_device_platform)
+        }
+        dir::DirValue::CustomerDeviceType(customer_device_type) => {
+            EuclidValue::CustomerDeviceType(customer_device_type)
+        }
+        dir::DirValue::CustomerDeviceDisplaySize(customer_device_display_size) => {
+            EuclidValue::CustomerDeviceDisplaySize(customer_device_display_size)
+        }
+        dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
+        dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
     })
 }
 

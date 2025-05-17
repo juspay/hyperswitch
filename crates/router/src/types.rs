@@ -115,10 +115,7 @@ pub use hyperswitch_interfaces::types::{
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
-use crate::{
-    connector::utils::missing_field_err,
-    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
-};
+use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::{
@@ -250,16 +247,6 @@ pub type PayoutActionData = Vec<(
 pub trait PayoutIndividualDetailsExt {
     type Error;
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
-}
-
-#[cfg(feature = "payouts")]
-impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
-        self.external_account_account_holder_type
-            .clone()
-            .ok_or_else(missing_field_err("external_account_account_holder_type"))
-    }
 }
 
 pub trait Capturable {
