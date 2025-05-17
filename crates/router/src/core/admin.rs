@@ -1550,6 +1550,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Nordea => {
+            //     nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Novalnet => {
                 novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
                 Ok(())

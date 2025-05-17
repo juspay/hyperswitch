@@ -72,6 +72,7 @@ pub struct Connectors {
     pub nmi: ConnectorParams,
     pub nomupay: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
+    pub nordea: ConnectorParams,
     pub novalnet: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
