@@ -579,7 +579,7 @@ paths:
   /euclid.EuclidService/Evaluate:
     post:
       operationId: EvaluateRule
-      summary: Evaludate an existing routing Rule
+      summary: Evaluate an existing routing Rule
       description: Evaluates a given routing rule
       tags:
         - Static Routing

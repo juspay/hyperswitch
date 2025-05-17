@@ -76,10 +76,10 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             is_authenticated: false, // This is not relevant in this flow so keeping it as false
             locale: None,
             supported_card_brands: None,
-            encypted_payload: payment_data
+            encrypted_payload: payment_data
                 .service_details
                 .as_ref()
-                .and_then(|details| details.encypted_payload.clone()),
+                .and_then(|details| details.encrypted_payload.clone()),
         });
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),

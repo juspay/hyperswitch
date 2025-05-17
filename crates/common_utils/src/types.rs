@@ -1359,7 +1359,7 @@ where
 }
 
 impl_enum_str!(
-    tag_delimeter = ":",
+    tag_delimiter = ":",
     /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
     /// trigger (Api, Jwt) of the record.
     #[derive(Eq, PartialEq, Debug, Clone)]
