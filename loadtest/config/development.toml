@@ -142,6 +142,7 @@ nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
+nordea.base_url = "https://api.nordeaopenbanking.com"
 noon.key_mode = "Test"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
@@ -252,6 +253,7 @@ cards = [
     "nexixpay",
     "nmi",
     "noon",
+    "nordea",
     "novalnet",
     "nuvei",
     "opayo",
