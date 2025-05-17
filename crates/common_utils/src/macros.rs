@@ -463,9 +463,9 @@ macro_rules! type_name {
 ///     * **Invalid:** `VariantA(i32)` (tuple variant)
 ///     * **Invalid:** `VariantA` or `VariantA {}` (no field)
 ///     * **Invalid:** `VariantA { value: i32, other: bool }` (multiple fields)
-/// 4.  **Tag Delimiter:** The macro invocation must specify a `tag_delimeter` literal,
+/// 4.  **Tag Delimiter:** The macro invocation must specify a `tag_delimiter` literal,
 ///     which is the character used to separate the variant name from the field data in
-///     the string representation (e.g., `tag_delimeter = ":",`).
+///     the string representation (e.g., `tag_delimiter = ":",`).
 /// 5.  **Field Type Requirements:** The type of the single field in each variant (`$field_ty`)
 ///     must implement:
 ///     * `core::str::FromStr`: To parse the field's data from the string part.
@@ -484,7 +484,7 @@ macro_rules! type_name {
 /// When `serde` features are enabled and the necessary traits are derived or implemented,
 /// this macro implements `Serialize` and `Deserialize` for the enum:
 ///
-/// **Serialization:** An enum value like `MyEnum::VariantA { value: 123 }` (with `tag_delimeter = ":",`)
+/// **Serialization:** An enum value like `MyEnum::VariantA { value: 123 }` (with `tag_delimiter = ":",`)
 ///     will be serialized into the string `"VariantA:123"`. If serializing to JSON, this results
 ///     in a JSON string: `"\"VariantA:123\""`.
 /// **Deserialization:** The macro expects a string matching the format `"VariantName<delimiter>FieldValue"`.
@@ -503,7 +503,7 @@ macro_rules! type_name {
 /// use std::str::FromStr;
 ///
 /// crate::impl_enum_str!(
-///     tag_delimeter = ":",
+///     tag_delimiter = ":",
 ///     #[derive(Debug, PartialEq, Clone)] // Add other derives as needed
 ///     pub enum Setting {
 ///         Timeout { duration_ms: u32 },
@@ -554,7 +554,7 @@ macro_rules! type_name {
 #[macro_export]
 macro_rules! impl_enum_str {
     (
-        tag_delimeter = $tag_delim:literal,
+        tag_delimiter = $tag_delim:literal,
         $(#[$enum_attr:meta])*
         pub enum $enum_name:ident {
             $(
@@ -701,7 +701,7 @@ mod tests {
     use crate::impl_enum_str;
 
     impl_enum_str!(
-        tag_delimeter = ":",
+        tag_delimiter = ":",
         #[derive(Debug, PartialEq, Clone)]
         pub enum TestEnum {
             VariantA { value: i32 },

@@ -25,7 +25,7 @@
       "capture_method": "automatic",
       "capture_on": "{{$isoTimestamp}}",
       "customer_id": "{{customer_id}}",
-      "description": "[Archipel Connector][Variation Cases][Scenario6] - Create recurring payment greather than mandate amount",
+      "description": "[Archipel Connector][Variation Cases][Scenario6] - Create recurring payment greater than mandate amount",
       "authentication_type": "no_three_ds",
       "mandate_id": "{{mandate_id}}",
       "off_session": true,

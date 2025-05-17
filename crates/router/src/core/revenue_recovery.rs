@@ -160,7 +160,7 @@ pub async fn perform_execute_payment(
         types::Decision::ReviewForFailedPayment(triggered_by) => {
             match triggered_by {
                 enums::TriggeredBy::Internal => {
-                    // requeue the current taks to update the fields for rescheduling a payment
+                    // requeue the current tasks to update the fields for rescheduling a payment
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                         status: enums::ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(

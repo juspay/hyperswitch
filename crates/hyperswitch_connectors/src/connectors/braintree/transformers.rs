@@ -2038,7 +2038,7 @@ pub struct DisputeEvidence {
 pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, errors::ConnectorError> {
     match code {
         "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
-        "PRE_ARBITATION" => Ok(enums::DisputeStage::PreArbitration),
+        "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
         "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
     }
