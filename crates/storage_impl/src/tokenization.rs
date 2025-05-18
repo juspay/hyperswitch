@@ -31,18 +31,12 @@ use super::MockDb;
 use crate::{
     connection, diesel_error_to_data_error, errors,
     kv_router_store::{
-        FilterResourceParams, FindResourceBy, InsertResourceParams,
-        UpdateResourceParams,
+        FilterResourceParams, FindResourceBy, InsertResourceParams, UpdateResourceParams,
     },
     redis::kv_store::{Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write}, 
+    utils::{pg_connection_read, pg_connection_write},
 };
-
-use crate::{
-    DatabaseStore,
-    kv_router_store::KVRouterStore,
-    RouterStore,
-};
+use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 pub trait TokenizationInterface {}
