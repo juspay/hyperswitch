@@ -27,8 +27,10 @@ pub enum TokenizationFlag {
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GenericTokenizationRequest {
+    // Customer ID for which the tokenization is requested
     #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
     pub customer_id: GlobalCustomerId,
+    // Request for tokenization which contains the data to be tokenized
     #[schema(value_type = Object,example = json!({ "city": "NY", "unit": "245" }))]
     pub token_request: masking::Secret<serde_json::Value>,
 }
@@ -36,5 +38,6 @@ pub struct GenericTokenizationRequest {
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct TokenizationQueryParameters {
+    // Parameter to view tokenization data or not
     pub reveal: Option<bool>,
 }
