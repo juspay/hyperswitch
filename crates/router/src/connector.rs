@@ -4,8 +4,8 @@ pub mod utils;
 
 pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
-    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, authorizedotnet,
-    authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
+    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel,
+    authorizedotnet, authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
     bamboraapac::Bamboraapac, bankofamerica, bankofamerica::Bankofamerica, billwerk,
     billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap, bluesnap::Bluesnap, boku, boku::Boku,
     braintree, braintree::Braintree, cashtocode, cashtocode::Cashtocode, chargebee,
@@ -34,9 +34,9 @@ pub use hyperswitch_connectors::connectors::{
     stripebilling::Stripebilling, taxjar, taxjar::Taxjar, threedsecureio,
     threedsecureio::Threedsecureio, thunes, thunes::Thunes, trustpay, trustpay::Trustpay, tsys,
     tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise, wise::Wise,
-    worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayxml,
+    unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
+    wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
+    wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayxml,
     worldpayxml::Worldpayxml, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
