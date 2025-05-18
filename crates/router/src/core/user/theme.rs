@@ -3,7 +3,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
     types::user::ThemeLineage,
 };
-use diesel_models::user::theme::ThemeNew;
+use diesel_models::user::theme::{ThemeNew, ThemeUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
@@ -91,17 +91,13 @@ pub async fn upload_file_to_theme_storage(
 ) -> UserResponse<()> {
     let db_theme = state
         .store
-        .find_theme_by_lineage(request.lineage)
+        .find_theme_by_theme_id(theme_id)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
 
-    if theme_id != db_theme.theme_id {
-        return Err(UserErrors::ThemeNotFound.into());
-    }
-
     theme_utils::upload_file_to_theme_bucket(
         &state,
-        &theme_utils::get_specific_file_key(&theme_id, &request.asset_name),
+        &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
         request.asset_data.expose(),
     )
     .await?;
@@ -175,25 +171,33 @@ pub async fn update_theme(
     theme_id: String,
     request: theme_api::UpdateThemeRequest,
 ) -> UserResponse<theme_api::GetThemeResponse> {
-    let db_theme = state
-        .store
-        .find_theme_by_lineage(request.lineage)
-        .await
-        .to_not_found_response(UserErrors::ThemeNotFound)?;
+    let db_theme = match request.email_config {
+        Some(email_config) => {
+            let theme_update = ThemeUpdate::EmailConfig { email_config };
+            state
+                .store
+                .update_theme_by_theme_id(theme_id.clone(), theme_update)
+                .await
+                .to_not_found_response(UserErrors::ThemeNotFound)?
+        }
+        None => state
+            .store
+            .find_theme_by_theme_id(theme_id)
+            .await
+            .to_not_found_response(UserErrors::ThemeNotFound)?,
+    };
 
-    if theme_id != db_theme.theme_id {
-        return Err(UserErrors::ThemeNotFound.into());
+    if let Some(theme_data) = request.theme_data {
+        theme_utils::upload_file_to_theme_bucket(
+            &state,
+            &theme_utils::get_theme_file_key(&db_theme.theme_id),
+            theme_data
+                .encode_to_vec()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to parse ThemeData")?,
+        )
+        .await?;
     }
-
-    theme_utils::upload_file_to_theme_bucket(
-        &state,
-        &theme_utils::get_theme_file_key(&db_theme.theme_id),
-        request
-            .theme_data
-            .encode_to_vec()
-            .change_context(UserErrors::InternalServerError)?,
-    )
-    .await?;
 
     let file = theme_utils::retrieve_file_from_theme_bucket(
         &state,

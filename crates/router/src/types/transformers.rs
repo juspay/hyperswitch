@@ -214,6 +214,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
             // api_enums::Connector::Amazonpay => Self::Amazonpay,
+            api_enums::Connector::Archipel => Self::Archipel,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bamboraapac => Self::Bamboraapac,
@@ -325,6 +326,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             // api_enums::Connector::UnifiedAuthenticationService => {
             //     Self::UnifiedAuthenticationService
             // }
+            // api_enums::Connector::Vgs => Self::Vgs,
             api_enums::Connector::Volt => Self::Volt,
             api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             // api_enums::Connector::Wellsfargopayout => Self::Wellsfargopayout,
@@ -363,6 +365,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Taxjar => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Taxjar is not a routable connector".to_string(),
+                })?
+            }
+            api_enums::Connector::Vgs => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Vgs is not a routable connector".to_string(),
                 })?
             }
         })
