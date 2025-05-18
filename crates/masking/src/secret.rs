@@ -268,22 +268,37 @@ mod tests {
         // Apply the JsonMaskStrategy
         let secret = Secret::<_, JsonMaskStrategy>::new(original.clone());
         let masked_str = format!("{:?}", secret);
-        
+
         // Get specific values from original
         let original_obj = original.as_object().expect("Original should be an object");
-        let user_obj = original_obj["user"].as_object().expect("User should be an object");
+        let user_obj = original_obj["user"]
+            .as_object()
+            .expect("User should be an object");
         let name = user_obj["name"].as_str().expect("Name should be a string");
-        let email = user_obj["email"].as_str().expect("Email should be a string");
+        let email = user_obj["email"]
+            .as_str()
+            .expect("Email should be a string");
         let age = user_obj["age"].as_i64().expect("Age should be a number");
-        let verified = user_obj["verified"].as_bool().expect("Verified should be a boolean");
-        
-        let card_obj = original_obj["card"].as_object().expect("Card should be an object");
-        let card_number = card_obj["number"].as_str().expect("Card number should be a string");
+        let verified = user_obj["verified"]
+            .as_bool()
+            .expect("Verified should be a boolean");
+
+        let card_obj = original_obj["card"]
+            .as_object()
+            .expect("Card should be an object");
+        let card_number = card_obj["number"]
+            .as_str()
+            .expect("Card number should be a string");
         let cvv = card_obj["cvv"].as_i64().expect("CVV should be a number");
-        
-        let tags = original_obj["tags"].as_array().expect("Tags should be an array");
-        let tag1 = tags.first().and_then(|v| v.as_str()).expect("First tag should be a string");
-        
+
+        let tags = original_obj["tags"]
+            .as_array()
+            .expect("Tags should be an array");
+        let tag1 = tags
+            .first()
+            .and_then(|v| v.as_str())
+            .expect("First tag should be a string");
+
         // Now explicitly verify the masking patterns for each value type
 
         // 1. String masking - pattern: first char + ** + length - 2 + ** + last char
