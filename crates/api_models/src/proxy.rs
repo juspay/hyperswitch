@@ -1,6 +1,17 @@
+use std::collections::HashMap;
+use common_utils::request::{ Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Headers(HashMap<String, String>);
+
+impl Headers {
+    pub fn as_map(&self) -> &HashMap<String, String> {
+        &self.0
+    }
+}
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyRequest {
@@ -8,13 +19,15 @@ pub struct ProxyRequest {
     pub req_body: Value,
     /// The destination URL where the request needs to be forwarded
     #[schema(example = "https://api.example.com/endpoint")]
-    pub destination_url: String,
+    pub destination_url: url::Url,
     /// The headers that need to be forwarded
-    pub headers: Value,
+    pub headers: Headers,
+    /// The method that needs to be used for the request
+    pub method: Method,
     /// The vault token that is used to fetch sensitive data from the vault
     pub token: String,
     /// The type of token that is used to fetch sensitive data from the vault
-    pub token_type: TokenType
+    pub token_type: TokenType,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

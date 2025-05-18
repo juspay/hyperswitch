@@ -95,5 +95,5 @@ pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
 pub use crate::analytics::routes::{self as analytics, Analytics};
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
  pub use self::app::Proxy;
