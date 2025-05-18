@@ -2747,8 +2747,8 @@ pub async fn payment_methods_session_confirm(
         Some(tokenization_data) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
-                &merchant_context.get_merchant_account(),
-                &merchant_context.get_merchant_key_store(),
+                &merchant_context.get_merchant_account().clone(),
+                &merchant_context.get_merchant_key_store().clone(),
                 api_models::tokenization::GenericTokenizationRequest {
                     customer_id: customer_id.clone(),
                     token_request: tokenization_data,

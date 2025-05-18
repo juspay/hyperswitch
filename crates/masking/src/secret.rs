@@ -242,6 +242,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    #[allow(clippy::expect_used)]
     fn test_json_mask_strategy() {
         // Create a sample JSON with different types for testing
         let original = json!({
@@ -265,23 +266,20 @@ mod tests {
         let secret = Secret::<_, JsonMaskStrategy>::new(original.clone());
         let masked_str = format!("{:?}", secret);
         
-        // Parse the masked output back to a comparable format
-        println!("Masked output: {}", masked_str);
-        
         // Get specific values from original
-        let original_obj = original.as_object().unwrap();
-        let user_obj = original_obj["user"].as_object().unwrap();
-        let name = user_obj["name"].as_str().unwrap();
-        let email = user_obj["email"].as_str().unwrap();
-        let age = user_obj["age"].as_i64().unwrap();
-        let verified = user_obj["verified"].as_bool().unwrap();
+        let original_obj = original.as_object().expect("Original should be an object");
+        let user_obj = original_obj["user"].as_object().expect("User should be an object");
+        let name = user_obj["name"].as_str().expect("Name should be a string");
+        let email = user_obj["email"].as_str().expect("Email should be a string");
+        let age = user_obj["age"].as_i64().expect("Age should be a number");
+        let verified = user_obj["verified"].as_bool().expect("Verified should be a boolean");
         
-        let card_obj = original_obj["card"].as_object().unwrap();
-        let card_number = card_obj["number"].as_str().unwrap();
-        let cvv = card_obj["cvv"].as_i64().unwrap();
+        let card_obj = original_obj["card"].as_object().expect("Card should be an object");
+        let card_number = card_obj["number"].as_str().expect("Card number should be a string");
+        let cvv = card_obj["cvv"].as_i64().expect("CVV should be a number");
         
-        let tags = original_obj["tags"].as_array().unwrap();
-        let tag1 = tags[0].as_str().unwrap();
+        let tags = original_obj["tags"].as_array().expect("Tags should be an array");
+        let tag1 = tags.first().and_then(|v| v.as_str()).expect("First tag should be a string");
         
         // Now explicitly verify the masking patterns for each value type
         

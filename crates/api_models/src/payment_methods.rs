@@ -2850,7 +2850,7 @@ pub struct PaymentMethodSessionRequest {
 
     /// The json to be used for tokeniation
     #[schema(value_type = Option<serde_json::Value>)]
-    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
