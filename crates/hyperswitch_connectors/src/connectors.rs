@@ -82,6 +82,7 @@ pub mod stripebilling;
 pub mod taxjar;
 pub mod threedsecureio;
 pub mod thunes;
+pub mod tokenio;
 pub mod trustpay;
 pub mod tsys;
 pub mod unified_authentication_service;
@@ -115,8 +116,8 @@ pub use self::{
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
     square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
-    threedsecureio::Threedsecureio, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
-    unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
+    threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio, trustpay::Trustpay,
+    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zsl::Zsl,
 };

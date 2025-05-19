@@ -95,6 +95,7 @@ pub struct ConnectorAuthentication {
     pub taxjar: Option<HeaderKey>,
     pub threedsecureio: Option<HeaderKey>,
     pub thunes: Option<HeaderKey>,
+    pub tokenio: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
