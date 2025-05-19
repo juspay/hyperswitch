@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::{id_type, types::MinorUnit};
+use common_utils::{errors, id_type, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -10,7 +10,10 @@ pub use euclid::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::enums::{Currency, PaymentMethod};
+use crate::{
+    enums::{Currency, PaymentMethod},
+    payment_methods,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,6 +30,7 @@ pub struct OpenRouterDecideGatewayRequest {
 pub enum RankingAlgorithm {
     SrBasedRouting,
     PlBasedRouting,
+    NtwBasedRouting,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,7 +42,7 @@ pub struct PaymentInfo {
     // customerId: Option<ETCu::CustomerId>,
     // preferredGateway: Option<ETG::Gateway>,
     pub payment_type: String,
-    // metadata: Option<String>,
+    pub metadata: Option<String>,
     // internalMetadata: Option<String>,
     // isEmi: Option<bool>,
     // emiBank: Option<String>,
@@ -48,7 +52,7 @@ pub struct PaymentInfo {
     // paymentSource: Option<String>,
     // authType: Option<ETCa::txn_card_info::AuthType>,
     // cardIssuerBankName: Option<String>,
-    // cardIsin: Option<String>,
+    pub card_isin: Option<String>,
     // cardType: Option<ETCa::card_type::CardType>,
     // cardSwitchProvider: Option<Secret<String>>,
 }
@@ -56,6 +60,63 @@ pub struct PaymentInfo {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct DecidedGateway {
     pub gateway_priority_map: Option<HashMap<String, f64>>,
+    pub debit_routing_output: Option<DebitRoutingOutput>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct DebitRoutingOutput {
+    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
+    pub issuer_country: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+    pub card_type: common_enums::CardType,
+}
+
+impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
+    fn from(output: &DebitRoutingOutput) -> Self {
+        Self {
+            co_badged_card_networks: output.co_badged_card_networks.clone(),
+            issuer_country_code: output.issuer_country,
+            is_regulated: output.is_regulated,
+            regulated_name: output.regulated_name.clone(),
+        }
+    }
+}
+
+impl TryFrom<(payment_methods::CoBadgedCardData, String)> for DebitRoutingRequestData {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(
+        (output, card_type): (payment_methods::CoBadgedCardData, String),
+    ) -> Result<Self, Self::Error> {
+        let parsed_card_type = card_type.parse::<common_enums::CardType>().map_err(|_| {
+            error_stack::Report::new(errors::ParsingError::EnumParseFailure("CardType"))
+        })?;
+
+        Ok(Self {
+            co_badged_card_networks: output.co_badged_card_networks,
+            issuer_country: output.issuer_country_code,
+            is_regulated: output.is_regulated,
+            regulated_name: output.regulated_name,
+            card_type: parsed_card_type,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoBadgedCardRequest {
+    pub merchant_category_code: common_enums::MerchantCategoryCode,
+    pub acquirer_country: common_enums::CountryAlpha2,
+    pub co_badged_card_data: Option<DebitRoutingRequestData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DebitRoutingRequestData {
+    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
+    pub issuer_country: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+    pub card_type: common_enums::CardType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

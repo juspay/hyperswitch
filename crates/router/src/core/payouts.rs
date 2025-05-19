@@ -82,8 +82,8 @@ pub struct PayoutData {
 
 // ********************************************** CORE FLOWS **********************************************
 pub fn get_next_connector(
-    connectors: &mut IntoIter<api::ConnectorData>,
-) -> RouterResult<api::ConnectorData> {
+    connectors: &mut IntoIter<api::ConnectorRoutingData>,
+) -> RouterResult<api::ConnectorRoutingData> {
     connectors
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -170,11 +170,11 @@ pub async fn make_connector_decision(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     match connector_call_type {
-        api::ConnectorCallType::PreDetermined(connector_data) => {
+        api::ConnectorCallType::PreDetermined(routing_data) => {
             Box::pin(call_connector_payout(
                 state,
                 merchant_context,
-                &connector_data,
+                &routing_data.connector_data,
                 payout_data,
             ))
             .await?;
@@ -191,7 +191,7 @@ pub async fn make_connector_decision(
                 if config_bool && payout_data.should_call_gsm() {
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
-                        connector_data,
+                        routing_data.connector_data,
                         payout_data,
                         merchant_context,
                     ))
@@ -201,10 +201,10 @@ pub async fn make_connector_decision(
 
             Ok(())
         }
-        api::ConnectorCallType::Retryable(connectors) => {
-            let mut connectors = connectors.into_iter();
+        api::ConnectorCallType::Retryable(routing_data) => {
+            let mut routing_data = routing_data.into_iter();
 
-            let connector_data = get_next_connector(&mut connectors)?;
+            let connector_data = get_next_connector(&mut routing_data)?.connector_data;
 
             Box::pin(call_connector_payout(
                 state,
@@ -226,7 +226,7 @@ pub async fn make_connector_decision(
                 if config_multiple_connector_bool && payout_data.should_call_gsm() {
                     Box::pin(retry::do_gsm_multiple_connector_actions(
                         state,
-                        connectors,
+                        routing_data,
                         connector_data.clone(),
                         payout_data,
                         merchant_context,
@@ -1799,10 +1799,15 @@ pub async fn complete_payout_retrieve(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     match connector_call_type {
-        api::ConnectorCallType::PreDetermined(connector_data) => {
-            create_payout_retrieve(state, merchant_context, &connector_data, payout_data)
-                .await
-                .attach_printable("Payout retrieval failed for given Payout request")?;
+        api::ConnectorCallType::PreDetermined(routing_data) => {
+            create_payout_retrieve(
+                state,
+                merchant_context,
+                &routing_data.connector_data,
+                payout_data,
+            )
+            .await
+            .attach_printable("Payout retrieval failed for given Payout request")?;
         }
         api::ConnectorCallType::Retryable(_) | api::ConnectorCallType::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)

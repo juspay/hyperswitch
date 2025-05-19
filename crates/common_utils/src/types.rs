@@ -402,6 +402,11 @@ impl MinorUnit {
         Self(value)
     }
 
+    /// checks if the amount is greater than the given value
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.get_amount_as_i64() > value
+    }
+
     /// Convert the amount to its major denomination based on Currency and return String
     /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
     /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
