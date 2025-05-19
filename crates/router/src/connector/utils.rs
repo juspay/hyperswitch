@@ -745,7 +745,6 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.capture_method.to_owned()
     }
 }
-
 pub trait SplitPaymentData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest>;
 }

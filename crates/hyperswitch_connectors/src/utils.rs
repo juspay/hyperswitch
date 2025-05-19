@@ -1003,10 +1003,20 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
 }
 pub trait ApplePayDecrypt {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(format!(
             "20{}",
@@ -2505,13 +2515,13 @@ macro_rules! get_formatted_date_time {
 #[macro_export]
 macro_rules! unimplemented_payment_method {
     ($payment_method:expr, $connector:expr) => {
-        errors::ConnectorError::NotImplemented(format!(
+        hyperswitch_interfaces::errors::ConnectorError::NotImplemented(format!(
             "{} through {}",
             $payment_method, $connector
         ))
     };
     ($payment_method:expr, $flow:expr, $connector:expr) => {
-        errors::ConnectorError::NotImplemented(format!(
+        hyperswitch_interfaces::errors::ConnectorError::NotImplemented(format!(
             "{} {} through {}",
             $payment_method, $flow, $connector
         ))
@@ -6385,5 +6395,39 @@ pub trait FraudCheckRecordReturnRequest {
 impl FraudCheckRecordReturnRequest for FraudCheckRecordReturnData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub trait SplitPaymentData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest>;
+}
+
+impl SplitPaymentData for PaymentsCaptureData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for PaymentsAuthorizeData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for PaymentsSyncData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for PaymentsCancelData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for SetupMandateRequestData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
     }
 }
