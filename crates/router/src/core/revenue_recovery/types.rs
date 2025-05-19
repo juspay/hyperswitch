@@ -698,8 +698,9 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: &payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
+        let next_retry_count = pt.retry_count + 1;
         let schedule_time = revenue_recovery_payment_data
-            .get_schedule_time_based_on_retry_type(db, merchant_id, pt.retry_count + 1)
+            .get_schedule_time_based_on_retry_type(db, merchant_id, next_retry_count)
             .await;
 
         match schedule_time {
