@@ -3,7 +3,7 @@
 function find_prev_connector() {
     self=scripts/add_connector.sh
     # Comment below line to stop undoing changes when the script is triggered, make sure you undo this change before pushing
-    git checkout $self
+    # git checkout $self
     cp $self $self.tmp
     # Add new connector to existing list and sort it
     connectors=(aci adyen adyenplatform airwallex amazonpay applepay authorizedotnet bambora bamboraapac bankofamerica billwerk bitpay bluesnap boku braintree cashtocode chargebee checkout coinbase cryptopay ctp_visa cybersource datatrans deutschebank digitalvirgo dlocal dotpay dummyconnector ebanx elavon facilitapay fiserv fiservemea fiuu forte getnet globalpay globepay gocardless gpayments helcim hipay iatapay inespay itaubank jpmorgan juspaythreedsserver klarna mifinity mollie moneris multisafepay netcetera nexinets nexixpay nomupay noon novalnet nuvei opayo opennode paybox payeezy payme payone paypal paystack payu placetopay plaid powertranz prophetpay rapyd razorpay recurly redsys shift4 square stax stripe stripebilling taxjar threedsecureio thunes trustpay tsys unified_authentication_service volt wellsfargo wellsfargopayout wise worldline worldpay xendit zsl "$1")
@@ -54,30 +54,28 @@ previous_connector_camelcase="$(tr '[:lower:]' '[:upper:]' <<< ${previous_connec
 sed -i'' -e "s|pub mod $previous_connector;|pub mod $previous_connector;\npub mod ${payment_gateway};|" $conn.rs
 sed -i'' -e "s/};/ ${payment_gateway}::${payment_gateway_camelcase},\n};/" $conn.rs
 sed -i'' -e "/pub use hyperswitch_connectors::connectors::{/ s/{/{\n    ${payment_gateway}, ${payment_gateway}::${payment_gateway_camelcase},/" $src/connector.rs
-sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tenums::Connector::${payment_gateway_camelcase} => Ok(ConnectorEnum::Old(\Box::new(\connector::${payment_gateway_camelcase}))),|" $src/types/api.rs
+sed -i '' -e "/\/\/ PRAGMA: api/{N;s/\(.*\)\n/\1\n\t\t\t enums::Connector::${payment_gateway_camelcase} => {Ok(ConnectorEnum::Old(Box::new(connector::${payment_gateway_camelcase}::new())))}\n/;}" $src/types/api.rs
 sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tRoutableConnectors::${payment_gateway_camelcase} => euclid_enums::Connector::${payment_gateway_camelcase},|" crates/api_models/src/routing.rs
 sed -i'' -e "s/pub $previous_connector: \(.*\)/pub $previous_connector: \1\n\tpub ${payment_gateway}: ConnectorParams,/" crates/hyperswitch_interfaces/src/configs.rs
 sed -i'' -e "s|$previous_connector.base_url \(.*\)|$previous_connector.base_url \1\n${payment_gateway}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml config/deployments/integration_test.toml config/deployments/production.toml config/deployments/sandbox.toml
 sed  -r -i'' -e "s/\"$previous_connector\",/\"$previous_connector\",\n    \"${payment_gateway}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
-sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/api_models/src/connector_enums.rs
-sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n\t\t\t| Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/connector_enums.rs
+sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/connector_enums.rs
+sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n\t\t\t| Self::${payment_gateway_camelcase}\n/;}" crates/common_enums/src/connector_enums.rs
 sed -i '' -e "s/\(match connector_name {\)/\1\n\t\tapi_enums::Connector::${payment_gateway_camelcase} => {${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(val)?;Ok(())}/" $src/core/admin.rs
 sed -i'' -e "s/\(pub enum RoutableConnectors {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/connector_enums.rs
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/euclid/src/enums.rs
-sed -i'' -e "s|$previous_connector_camelcase \(.*\)|$previous_connector_camelcase \1\n\t\t\tapi_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},|" $src/types/transformers.rs
+sed -i '' -e "/\/\/ PRAGMA: transformers/{N;s/\(.*\)\n/\1\n\t\t\t api_enums::Connector::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},\n/;}" $src/types/transformers.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payment_gateway_camelcase},/" crates/hyperswitch_connectors/src/default_implementations.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payment_gateway_camelcase},/" crates/hyperswitch_connectors/src/default_implementations_v2.rs
-sed -i'' -e "s/^default_imp_for_connector_request_id!(/default_imp_for_connector_request_id!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
-sed -i'' -e "s/^default_imp_for_fraud_check!(/default_imp_for_fraud_check!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
-sed -i'' -e "s/^default_imp_for_connector_authentication!(/default_imp_for_connector_authentication!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
 sed -i'' -e "/pub struct ConnectorConfig {/ s/{/{\n    pub ${payment_gateway}: Option<ConnectorTomlConfig>,/" crates/connector_configs/src/connector.rs
+sed -i '' -e "/\/\/ PRAGMA: connector/{N;s/\(.*\)\n/\1\n\t\t\t Connector::${payment_gateway_camelcase} => Ok(connector_data.${payment_gateway}),\n/;}" crates/connector_configs/src/connector.rs
+sed -i '' -e "/\/\/ PRAGMA: config/{N;s/\(.*\)\n/\1\n\t\t\t pub ${payment_gateway}: ConnectorParams,\n/;}" crates/hyperswitch_domain_models/src/configs.rs
 sed -i'' -e "/mod utils;/ s/mod utils;/mod ${payment_gateway};\nmod utils;/" crates/router/tests/connectors/main.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_payouts!(/default_imp_for_new_connector_integration_payouts!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_frm!(/default_imp_for_new_connector_integration_frm!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_connector_authentication!(/default_imp_for_new_connector_integration_connector_authentication!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
-sed -i'' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/common_enums/src/connector_enums.rs
-sed -i'' -e "/match self {/ s/match self {/match self {\n            | Self::${payment_gateway_camelcase}/" crates/common_enums/src/connector_enums.rs
 sed -i'' -e "/match routable_connector {/ s/match routable_connector {/match routable_connector {\n            RoutableConnectors::${payment_gateway_camelcase} => Self::${payment_gateway_camelcase},/" crates/common_enums/src/connector_enums.rs
+sed -i '' -e "/\/\/ PRAGMA: connector_enums/{N;s/\(.*\)\n/\1\n\t\t\t Connector::${payment_gateway_camelcase} => Ok(Self::${payment_gateway_camelcase}),\n/;}" crates/common_enums/src/connector_enums.rs
 sed -i'' -e "/match self.connector_name {/a\\
             api_enums::Connector::${payment_gateway_camelcase} => {\\
                 ${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(self.auth_type)?;\\
