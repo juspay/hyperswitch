@@ -1,6 +1,10 @@
 use std::fmt::Debug;
 
-use common_utils::{errors::ParsingError, ext_traits::ValueExt, pii};
+use common_utils::{
+    errors::{ParsingError, ValidationError},
+    ext_traits::ValueExt,
+    pii,
+};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -907,8 +911,15 @@ impl EliminationRoutingConfig {
 
     pub fn get_decision_engine_configs(
         &self,
-    ) -> Option<open_router::DecisionEngineEliminationData> {
-        self.decision_engine_configs.clone()
+    ) -> Result<open_router::DecisionEngineEliminationData, error_stack::Report<ValidationError>>
+    {
+        self.decision_engine_configs
+            .clone()
+            .ok_or(error_stack::Report::new(
+                ValidationError::MissingRequiredField {
+                    field_name: "decision_engine_configs".to_string(),
+                },
+            ))
     }
 }
 
@@ -1055,8 +1066,15 @@ impl SuccessBasedRoutingConfig {
 
     pub fn get_decision_engine_configs(
         &self,
-    ) -> Option<open_router::DecisionEngineSuccessRateData> {
-        self.decision_engine_configs.clone()
+    ) -> Result<open_router::DecisionEngineSuccessRateData, error_stack::Report<ValidationError>>
+    {
+        self.decision_engine_configs
+            .clone()
+            .ok_or(error_stack::Report::new(
+                ValidationError::MissingRequiredField {
+                    field_name: "decision_engine_configs".to_string(),
+                },
+            ))
     }
 }
 

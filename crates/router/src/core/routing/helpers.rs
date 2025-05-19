@@ -11,12 +11,9 @@ use std::sync::Arc;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::open_router;
 use api_models::routing as routing_types;
-use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use common_utils::{
-    ext_traits::{BytesExt, ValueExt},
-    request,
-};
+use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
@@ -60,7 +57,7 @@ use crate::{
         payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
         routing,
     },
-    headers, services,
+    services,
     types::transformers::ForeignInto,
 };
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -69,6 +66,12 @@ pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Elimination based dynamic routing algorithm";
 pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Contract based dynamic routing algorithm";
+
+pub const DECISION_ENGINE_RULE_CREATE_ENDPOINT: &str = "rule/create";
+pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/udpate";
+pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
+pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
+pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -1953,10 +1956,11 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
                     default_success_based_routing_config
-                        .decision_engine_configs
-                        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                        .get_decision_engine_configs()
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
-                        })?,
+                        })
+                        .attach_printable("Decision engine config not found")?,
                 ),
             }
         }
@@ -1967,10 +1971,11 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::Elimination(
                     default_elimination_based_routing_config
-                        .decision_engine_configs
-                        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                        .get_decision_engine_configs()
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
-                        })?,
+                        })
+                        .attach_printable("Decision engine config not found")?,
                 ),
             }
         }
@@ -1985,7 +1990,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
-        "rule/create",
+        DECISION_ENGINE_RULE_CREATE_ENDPOINT,
         Some(default_engine_config_request),
         None,
     )
@@ -2019,11 +2024,12 @@ pub async fn update_decision_engine_dynamic_routing_setup(
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::SuccessRate(
-                    success_rate_config.get_decision_engine_configs().ok_or(
-                        errors::ApiErrorResponse::GenericNotFoundError {
+                    success_rate_config
+                        .get_decision_engine_configs()
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
-                        },
-                    )?,
+                        })
+                        .attach_printable("Decision engine config not found")?,
                 ),
             }
         }
@@ -2036,11 +2042,12 @@ pub async fn update_decision_engine_dynamic_routing_setup(
             open_router::DecisionEngineConfigSetupRequest {
                 merchant_id: profile_id.get_string_repr().to_string(),
                 config: open_router::DecisionEngineConfigVariant::Elimination(
-                    elimination_config.get_decision_engine_configs().ok_or(
-                        errors::ApiErrorResponse::GenericNotFoundError {
+                    elimination_config
+                        .get_decision_engine_configs()
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                             message: "Decision engine config not found".to_string(),
-                        },
-                    )?,
+                        })
+                        .attach_printable("Decision engine config not found")?,
                 ),
             }
         }
@@ -2055,7 +2062,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
-        "rule/update",
+        DECISION_ENGINE_RULE_UPDATE_ENDPOINT,
         Some(decision_engine_request),
         None,
     )
@@ -2099,7 +2106,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
-        "rule/delete",
+        DECISION_ENGINE_RULE_DELETE_ENDPOINT,
         Some(decision_engine_request),
         None,
     )
@@ -2108,58 +2115,6 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     .attach_printable("Unable to disable decision engine dynamic routing")?;
 
     Ok(())
-}
-
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-pub async fn call_decision_engine<Req, Res>(
-    state: &SessionState,
-    url: String,
-    method: services::Method,
-    request_body: Option<Req>,
-    flow_name: String,
-) -> RouterResult<Res>
-where
-    Req: serde::Serialize + serde::de::DeserializeOwned + Debug + Send + Sync + Clone + 'static,
-    Res: serde::de::DeserializeOwned + Debug + Send + Sync + Clone,
-{
-    logger::debug!(
-        "performing call with open_router for flow {}, request_body: {:?}",
-        flow_name,
-        request_body
-    );
-    let mut request = request::Request::new(method, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        state.tenant.tenant_id.get_string_repr().to_owned().into(),
-    );
-
-    if let Some(req) = request_body {
-        request.set_body(request::RequestContent::Json(Box::new(req.clone())));
-    }
-
-    let response = services::call_connector_api(state, request, &flow_name)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?; // fix error types
-
-    match response {
-        Ok(resp) => {
-            let response: Res = resp
-                .response
-                .parse_struct("String")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            Ok(response)
-        }
-        Err(err) => {
-            let err_resp: open_router::ErrorResponse =
-                err.response
-                    .parse_struct("ErrorResponse")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            logger::error!("open_router_error_response: {:?}", err_resp);
-            Err(errors::ApiErrorResponse::InternalServerError.into())
-        }
-    }
 }
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -2176,7 +2131,7 @@ pub async fn create_decision_engine_merchant(
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
-        "merchant-account/create",
+        DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT,
         Some(merchant_account_req),
         None,
     )
@@ -2193,7 +2148,11 @@ pub async fn delete_decision_engine_merchant(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<()> {
-    let path = format!("{}/{}", "merchant-account", profile_id.get_string_repr());
+    let path = format!(
+        "{}/{}",
+        DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
+        profile_id.get_string_repr()
+    );
     routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
         state,
         services::Method::Delete,
