@@ -1,7 +1,7 @@
 use common_enums::enums;
 use common_utils::pii;
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData, WalletData},
+    payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
@@ -557,109 +557,32 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
     fn try_from(
         item: &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.connector_mandate_id() {
-            Some(connector_mandate_id) => Self::try_from((item, connector_mandate_id)),
-            None => match item.router_data.request.payment_method_data.clone() {
-                PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
-                PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                    WalletData::AliPayQr(_)
-                    | WalletData::AliPayRedirect(_)
-                    | WalletData::AliPayHkRedirect(_)
-                    | WalletData::AmazonPayRedirect(_)
-                    | WalletData::MomoRedirect(_)
-                    | WalletData::KakaoPayRedirect(_)
-                    | WalletData::GoPayRedirect(_)
-                    | WalletData::GcashRedirect(_)
-                    | WalletData::ApplePayRedirect(_)
-                    | WalletData::ApplePayThirdPartySdk(_)
-                    | WalletData::DanaRedirect {}
-                    | WalletData::GooglePayRedirect(_)
-                    | WalletData::GooglePayThirdPartySdk(_)
-                    | WalletData::MbWayRedirect(_)
-                    | WalletData::MobilePayRedirect(_)
-                    | WalletData::PaypalRedirect(_)
-                    | WalletData::PaypalSdk(_)
-                    | WalletData::ApplePay(_)
-                    | WalletData::GooglePay(_)
-                    | WalletData::SamsungPay(_)
-                    | WalletData::Paze(_)
-                    | WalletData::TwintRedirect {}
-                    | WalletData::VippsRedirect {}
-                    | WalletData::TouchNGoRedirect(_)
-                    | WalletData::WeChatPayRedirect(_)
-                    | WalletData::WeChatPayQr(_)
-                    | WalletData::CashappQr(_)
-                    | WalletData::SwishQr(_)
-                    | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("Barclaycard"),
-                    )
-                    .into()),
-                },
-                PaymentMethodData::MandatePayment
-                | PaymentMethodData::CardRedirect(_)
-                | PaymentMethodData::PayLater(_)
-                | PaymentMethodData::BankRedirect(_)
-                | PaymentMethodData::BankDebit(_)
-                | PaymentMethodData::BankTransfer(_)
-                | PaymentMethodData::Crypto(_)
-                | PaymentMethodData::Reward
-                | PaymentMethodData::RealTimePayment(_)
-                | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::Upi(_)
-                | PaymentMethodData::Voucher(_)
-                | PaymentMethodData::GiftCard(_)
-                | PaymentMethodData::OpenBanking(_)
-                | PaymentMethodData::CardToken(_)
-                | PaymentMethodData::NetworkToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("Barclaycard"),
-                    )
-                    .into())
-                }
-            },
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Barclaycard"),
+                )
+                .into())
+            }
         }
-    }
-}
-
-impl TryFrom<(&BarclaycardRouterData<&PaymentsAuthorizeRouterData>, String)>
-    for BarclaycardPaymentsRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (item, connector_mandate_id): (
-            &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
-            String,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let processing_information = ProcessingInformation::try_from((item, None, None))?;
-        let payment_instrument = BarclaycardPaymentInstrument {
-            id: connector_mandate_id.into(),
-        };
-        let bill_to =
-            item.router_data.request.get_email().ok().and_then(|email| {
-                build_bill_to(item.router_data.get_optional_billing(), email).ok()
-            });
-        let order_information = OrderInformationWithBill::from((item, bill_to));
-        let payment_information =
-            PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
-                payment_instrument,
-            }));
-        let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .map(convert_metadata_to_merchant_defined_info);
-        Ok(Self {
-            processing_information,
-            payment_information,
-            order_information,
-            client_reference_information,
-            merchant_defined_information,
-            consumer_authentication_information: None,
-        })
     }
 }
 
@@ -731,13 +654,6 @@ fn map_barclaycard_attempt_status(
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BarclaycardPaymentsResponse {
-    ClientReferenceInformation(Box<BarclaycardClientReferenceResponse>),
-    ErrorInformation(Box<BarclaycardErrorInformationResponse>),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BarclaycardSetupMandatesResponse {
     ClientReferenceInformation(Box<BarclaycardClientReferenceResponse>),
     ErrorInformation(Box<BarclaycardErrorInformationResponse>),
 }
