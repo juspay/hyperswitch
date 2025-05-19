@@ -116,6 +116,7 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -223,6 +224,7 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -331,6 +333,7 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -439,6 +442,7 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -547,6 +551,7 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -658,6 +663,7 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -747,6 +753,7 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -855,6 +862,7 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -964,6 +972,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1053,6 +1062,7 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Amazonpay,
@@ -1150,6 +1160,7 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1259,6 +1270,7 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1369,6 +1381,7 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1479,6 +1492,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1589,6 +1603,7 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -1697,6 +1712,7 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -1805,6 +1821,7 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -1922,6 +1939,7 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -2023,6 +2041,7 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -2127,6 +2146,7 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -2235,6 +2255,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2345,6 +2366,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -2454,6 +2476,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -2559,6 +2582,7 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
@@ -2668,6 +2692,7 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2778,6 +2803,7 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2888,6 +2914,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2999,6 +3026,7 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3110,6 +3138,7 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3221,6 +3250,7 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3332,6 +3362,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3443,6 +3474,7 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3551,6 +3583,7 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3657,6 +3690,7 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3764,6 +3798,7 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3872,6 +3907,7 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3972,6 +4008,7 @@ macro_rules! default_imp_for_connector_request_id {
     };
 }
 default_imp_for_connector_request_id!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4074,6 +4111,7 @@ macro_rules! default_imp_for_fraud_check {
 }
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4207,6 +4245,7 @@ macro_rules! default_imp_for_connector_authentication {
 }
 
 default_imp_for_connector_authentication!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4313,6 +4352,7 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 default_imp_for_uas_authentication!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4413,6 +4453,7 @@ macro_rules! default_imp_for_revenue_recovery {
 }
 
 default_imp_for_revenue_recovery! {
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4524,6 +4565,7 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4634,6 +4676,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4743,6 +4786,7 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
+    connectors::Dotpay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,

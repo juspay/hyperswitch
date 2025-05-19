@@ -160,6 +160,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub dotpay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -373,6 +374,7 @@ impl ConnectorConfig {
             Connector::Deutschebank => Ok(connector_data.deutschebank),
             Connector::Digitalvirgo => Ok(connector_data.digitalvirgo),
             Connector::Dlocal => Ok(connector_data.dlocal),
+            Connector::Dotpay => Ok(connector_data.dotpay),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
