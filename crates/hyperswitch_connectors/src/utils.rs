@@ -1002,7 +1002,9 @@ impl<Flow, Request, Response> RouterData
 
     fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error> {
         self.get_optional_shipping_full_name()
-            .ok_or_else(missing_field_err("shipping.address.first_name or shipping.address.last_name"))
+            .ok_or_else(missing_field_err(
+                "shipping.address.first_name or shipping.address.last_name",
+            ))
     }
 
     fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error> {
