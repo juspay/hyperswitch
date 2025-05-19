@@ -1,17 +1,20 @@
-use crate::{
-    core::errors::{self, RouterResult},
-    routes::SessionState,
-    types::domain,
-};
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
 use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{errors::api_error_response::NotImplementedMessage, payment_methods};
+use hyperswitch_domain_models::{
+    errors::api_error_response::NotImplementedMessage, payment_methods,
+};
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, multispace0},
     sequence::{delimited, preceded, terminated},
     IResult,
+};
+
+use crate::{
+    core::errors::{self, RouterResult},
+    routes::SessionState,
+    types::domain,
 };
 
 pub struct ProxyRequestWrapper(pub proxy_api_models::ProxyRequest);
@@ -37,12 +40,7 @@ impl ProxyRequestWrapper {
 
                 state
                     .store
-                    .find_payment_method(
-                        &((state).into()),
-                        key_store,
-                        &pm_id,
-                        storage_scheme,
-                    )
+                    .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
                     .locker_id

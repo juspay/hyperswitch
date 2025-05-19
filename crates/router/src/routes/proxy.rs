@@ -1,5 +1,6 @@
 use actix_web::{web, Responder};
 use router_env::{instrument, tracing, Flow};
+
 use crate::{
     self as app,
     core::{api_locking, proxy},
@@ -26,7 +27,7 @@ pub async fn proxy(
             ));
             proxy::proxy_core(state, merchant_context, req)
         },
-        &auth::V2ApiKeyAuth{
+        &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
             is_platform_allowed: false,
         },

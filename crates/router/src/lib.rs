@@ -233,7 +233,7 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
-        
+
     #[cfg(all(feature = "recon", feature = "v1"))]
     {
         server_app = server_app.service(routes::Recon::server(state.clone()));

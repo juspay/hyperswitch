@@ -32,6 +32,8 @@ pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod proxy;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
@@ -44,8 +46,6 @@ pub mod verifications;
 pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub mod proxy;
 
 pub trait ValidateFieldAndGet<Request> {
     fn validate_field_and_get(

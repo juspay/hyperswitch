@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use common_utils::request::{ Method};
+
+use common_utils::request::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
@@ -33,7 +34,7 @@ pub struct ProxyRequest {
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub enum TokenType {
     TokenizationId,
-    PaymentMethodId
+    PaymentMethodId,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

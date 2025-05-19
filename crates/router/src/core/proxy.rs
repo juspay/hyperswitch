@@ -155,7 +155,11 @@ pub async fn proxy_core(
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let vault_id = utils::ProxyRequestWrapper(req.clone())
-        .get_vault_id(&state, &merchant_context.get_merchant_key_store(), merchant_context.get_merchant_account().storage_scheme)
+        .get_vault_id(
+            &state,
+            &merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
         .await?;
 
     let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(

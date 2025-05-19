@@ -62,8 +62,8 @@ pub mod webhooks;
 
 pub mod unified_authentication_service;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod proxy;
 pub mod relay;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub mod proxy;
