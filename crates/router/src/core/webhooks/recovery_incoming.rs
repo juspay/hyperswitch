@@ -229,7 +229,9 @@ async fn handle_monitoring_threshold(
         .ok_or(report!(
             errors::RevenueRecoveryError::RetryAlgorithmTypeNotFound
         ))?;
-    if revenue_recovery_retry_algorithm.calculate_monitorig_threshold(monitoring_threshold_config) {
+    if revenue_recovery_retry_algorithm
+        .has_exceeded_monitoring_threshold(monitoring_threshold_config)
+    {
         let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
         profile_wrapper
             .update_revenue_recovery_algorithm_under_profile(
