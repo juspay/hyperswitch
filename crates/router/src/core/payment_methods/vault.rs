@@ -1423,6 +1423,7 @@ pub async fn retrieve_payment_method_from_vault_external(
     )
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn get_vault_response_for_retrieve_payment_method_data<F>(
     router_data: VaultRouterData<F>,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
@@ -1572,6 +1573,7 @@ pub async fn delete_payment_method_data_from_vault_external(
     )
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn get_vault_response_for_delete_payment_method_data<F>(
     router_data: VaultRouterData<F>,
     merchant_id: id_type::MerchantId,

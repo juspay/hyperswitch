@@ -1956,6 +1956,7 @@ pub async fn vault_payment_method_external(
     get_vault_response_for_insert_payment_method_data(router_data_resp)
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn get_vault_response_for_insert_payment_method_data<F>(
     router_data: VaultRouterData<F>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
