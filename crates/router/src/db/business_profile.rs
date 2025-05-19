@@ -566,9 +566,8 @@ async fn publish_and_redact_business_profile_cache(
     store: &dyn super::StorageInterface,
     profile: &storage::Profile,
 ) -> CustomResult<(), errors::StorageError> {
-    let cache_key = CacheKind::Accounts(
-        generate_profile_cache_key(profile.get_id().get_string_repr()).into()
-    );
+    let cache_key =
+        CacheKind::Accounts(generate_profile_cache_key(profile.get_id().get_string_repr()).into());
     let profile_name_key = CacheKind::Accounts(
         generate_profile_cache_key(&format!(
             "{}_{}",
