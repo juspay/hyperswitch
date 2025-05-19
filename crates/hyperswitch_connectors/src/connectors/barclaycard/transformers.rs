@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
         ResponseId,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
@@ -99,7 +99,6 @@ pub struct BarclaycardPaymentsRequest {
 pub struct ProcessingInformation {
     action_list: Option<Vec<BarclaycardActionsList>>,
     action_token_types: Option<Vec<BarclaycardActionsTokenType>>,
-    authorization_options: Option<BarclaycardAuthorizationOptions>,
     commerce_indicator: String,
     capture: Option<bool>,
     capture_options: Option<CaptureOptions>,
@@ -117,36 +116,6 @@ pub enum BarclaycardActionsList {
 pub enum BarclaycardActionsTokenType {
     PaymentInstrument,
     Customer,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BarclaycardAuthorizationOptions {
-    initiator: Option<BarclaycardPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BarclaycardPaymentInitiator {
-    #[serde(rename = "type")]
-    initiator_type: Option<BarclaycardPaymentInitiatorTypes>,
-    credential_stored_on_file: Option<bool>,
-    stored_credential_used: Option<bool>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum BarclaycardPaymentInitiatorTypes {
-    Customer,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MerchantInitiatedTransaction {
-    reason: Option<String>,
-    //Required for recurring mandates payment
-    original_authorized_amount: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -189,13 +158,6 @@ pub struct CardPaymentInformation {
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(Box<CardPaymentInformation>),
-    MandatePayment(Box<MandatePaymentInformation>),
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MandatePaymentInformation {
-    payment_instrument: BarclaycardPaymentInstrument,
 }
 
 #[derive(Debug, Serialize)]
@@ -357,8 +319,7 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (action_list, action_token_types, authorization_options) = (None, None, None);
-
+        let (action_list, action_token_types) = (None, None);
         let commerce_indicator = get_commerce_indicator(network);
 
         Ok(Self {
@@ -369,7 +330,6 @@ impl
             payment_solution: solution.map(String::from),
             action_list,
             action_token_types,
-            authorization_options,
             capture_options: None,
             commerce_indicator,
         })
@@ -760,30 +720,7 @@ pub struct ProcessingInformationResponse {
     payment_solution: Option<String>,
     commerce_indicator: Option<String>,
     commerce_indicator_label: Option<String>,
-    authorization_options: Option<AuthorizationOptions>,
     ecommerce_indicator: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthorizationOptions {
-    auth_type: Option<String>,
-    initiator: Option<Initiator>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Initiator {
-    merchant_initiated_transaction: Option<MerchantInitiatedTransactionResponse>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MerchantInitiatedTransactionResponse {
-    agreement_id: Option<String>,
-    previous_transaction_id: Option<String>,
-    original_authorized_amount: Option<String>,
-    reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -913,37 +850,22 @@ fn get_payment_response(
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
         Some(error) => Err(Box::new(error)),
-        None => {
-            let mandate_reference =
+        None => Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(info_response.id.clone()),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
                 info_response
-                    .token_information
+                    .client_reference_information
+                    .code
                     .clone()
-                    .map(|token_info| MandateReference {
-                        connector_mandate_id: token_info
-                            .payment_instrument
-                            .map(|payment_instrument| payment_instrument.id.expose()),
-                        payment_method_id: None,
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: None,
-                    });
-
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(info_response.id.clone()),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(mandate_reference),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(
-                    info_response
-                        .client_reference_information
-                        .code
-                        .clone()
-                        .unwrap_or(info_response.id.clone()),
-                ),
-                incremental_authorization_allowed: None,
-                charges: None,
-            })
-        }
+                    .unwrap_or(info_response.id.clone()),
+            ),
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
     }
 }
 
