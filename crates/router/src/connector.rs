@@ -1,12 +1,11 @@
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
-pub mod stripe;
 pub mod utils;
 
 pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
-    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, authorizedotnet,
-    authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
+    airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel,
+    authorizedotnet, authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
     bamboraapac::Bamboraapac, bankofamerica, bankofamerica::Bankofamerica, billwerk,
     billwerk::Billwerk, bitpay, bitpay::Bitpay, bluesnap, bluesnap::Bluesnap, boku, boku::Boku,
     braintree, braintree::Braintree, cashtocode, cashtocode::Cashtocode, chargebee,
@@ -31,15 +30,15 @@ pub use hyperswitch_connectors::connectors::{
     plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd,
     rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly, recurly::Recurly, redsys, redsys::Redsys,
     riskified, riskified::Riskified, shift4, shift4::Shift4, signifyd, signifyd::Signifyd, square,
-    square::Square, stax, stax::Stax, stripebilling, stripebilling::Stripebilling, taxjar,
-    taxjar::Taxjar, threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes,
-    trustpay, trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, volt, volt::Volt, wellsfargo,
-    wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise, wise::Wise,
-    worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayxml,
+    square::Square, stax, stax::Stax, stripe, stripe::Stripe, stripebilling,
+    stripebilling::Stripebilling, taxjar, taxjar::Taxjar, threedsecureio,
+    threedsecureio::Threedsecureio, thunes, thunes::Thunes, trustpay, trustpay::Trustpay, tsys,
+    tsys::Tsys, unified_authentication_service,
+    unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
+    wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
+    wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayxml,
     worldpayxml::Worldpayxml, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
-pub use self::stripe::Stripe;

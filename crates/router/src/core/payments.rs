@@ -96,7 +96,6 @@ use crate::core::routing::helpers as routing_helpers;
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
-    connector::utils::missing_field_err,
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -2405,6 +2404,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .clone()
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
+                        api_models::payments::NextActionData::RedirectInsidePopup{popup_url} => Some(popup_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
@@ -2440,9 +2440,27 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             ),
             _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
-        Ok(services::ApplicationResponse::JsonForRedirection(
-            redirection_response,
-        ))
+        if payments_response
+            .is_iframe_redirection_enabled
+            .unwrap_or(false)
+        {
+            // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
+            let html = core_utils::get_html_redirect_response_popup(
+                redirection_response.return_url_with_query_params,
+            )?;
+            Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )))
+        } else {
+            Ok(services::ApplicationResponse::JsonForRedirection(
+                redirection_response,
+            ))
+        }
     }
 }
 
@@ -2530,14 +2548,34 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         payment_id: id_type::PaymentId,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
-        Ok(services::ApplicationResponse::JsonForRedirection(
-            helpers::get_handle_response_url(
-                payment_id,
-                &payment_flow_response.business_profile,
-                &payment_flow_response.payments_response,
-                connector,
-            )?,
-        ))
+        let payments_response = &payment_flow_response.payments_response;
+        let redirect_response = helpers::get_handle_response_url(
+            payment_id.clone(),
+            &payment_flow_response.business_profile,
+            payments_response,
+            connector.clone(),
+        )?;
+        if payments_response
+            .is_iframe_redirection_enabled
+            .unwrap_or(false)
+        {
+            // html script to check if inside iframe, then send post message to parent for redirection else redirect self to return_url
+            let html = core_utils::get_html_redirect_response_popup(
+                redirect_response.return_url_with_query_params,
+            )?;
+            Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )))
+        } else {
+            Ok(services::ApplicationResponse::JsonForRedirection(
+                redirect_response,
+            ))
+        }
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
@@ -5462,22 +5500,6 @@ pub struct IncrementalAuthorizationDetails {
     pub total_amount: MinorUnit,
     pub reason: Option<String>,
     pub authorization_id: Option<String>,
-}
-
-pub trait CustomerDetailsExt {
-    type Error;
-    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error>;
-    fn get_email(&self) -> Result<pii::Email, Self::Error>;
-}
-
-impl CustomerDetailsExt for CustomerDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn get_name(&self) -> Result<Secret<String, masking::WithType>, Self::Error> {
-        self.name.clone().ok_or_else(missing_field_err("name"))
-    }
-    fn get_email(&self) -> Result<pii::Email, Self::Error> {
-        self.email.clone().ok_or_else(missing_field_err("email"))
-    }
 }
 
 pub async fn get_payment_link_response_from_id(
