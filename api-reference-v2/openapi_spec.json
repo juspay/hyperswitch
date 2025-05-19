@@ -7334,7 +7334,11 @@
           "UnionPay",
           "Interac",
           "RuPay",
-          "Maestro"
+          "Maestro",
+          "Star",
+          "Pulse",
+          "Accel",
+          "Nyce"
         ]
       },
       "CardNetworkTokenizeRequest": {
