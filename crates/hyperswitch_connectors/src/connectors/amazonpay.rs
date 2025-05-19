@@ -217,7 +217,7 @@ where
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let http_method = self.get_http_method();
 
-        let canonical_uri: String = 
+        let canonical_uri: String =
             self.get_url(req, connectors)?
                 .replacen(AMAZON_PAY_API_BASE_URL, "", 1);
 
@@ -241,10 +241,7 @@ where
                 HEADER_HOST.to_string(),
                 AMAZON_PAY_HOST.to_string().into_masked(),
             ),
-            (
-                HEADER_REGION.to_string(),
-                "na".to_string().into_masked(),
-            ),
+            (HEADER_REGION.to_string(), "na".to_string().into_masked()),
         ];
 
         if http_method == Method::Post
