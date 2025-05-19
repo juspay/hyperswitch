@@ -14,6 +14,8 @@ api_secret = "Secondary key"
 api_key="Private Key"
 key1="Public Key"
 
+[archipel]
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"

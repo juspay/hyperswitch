@@ -110,6 +110,10 @@ pub enum UserErrors {
     MissingEmailConfig,
     #[error("Invalid Auth Method Operation: {0}")]
     InvalidAuthMethodOperationWithMessage(String),
+    #[error("Invalid Clone Connector Operation: {0}")]
+    InvalidCloneConnectorOperation(String),
+    #[error("Error cloning connector: {0}")]
+    ErrorCloningConnector(String),
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -285,6 +289,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidAuthMethodOperationWithMessage(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 57, self.get_error_message(), None))
             }
+            Self::InvalidCloneConnectorOperation(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 58, self.get_error_message(), None))
+            }
+            Self::ErrorCloningConnector(_) => AER::InternalServerError(ApiError::new(
+                sub_code,
+                59,
+                self.get_error_message(),
+                None,
+            )),
         }
     }
 }
@@ -354,6 +367,12 @@ impl UserErrors {
             Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
             Self::InvalidAuthMethodOperationWithMessage(operation) => {
                 format!("Invalid Auth Method Operation: {}", operation)
+            }
+            Self::InvalidCloneConnectorOperation(operation) => {
+                format!("Invalid Clone Connector Operation: {}", operation)
+            }
+            Self::ErrorCloningConnector(error_message) => {
+                format!("Error cloning connector: {}", error_message)
             }
         }
     }

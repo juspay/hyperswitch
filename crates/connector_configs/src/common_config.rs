@@ -108,6 +108,8 @@ pub struct ApiModelMetaData {
     pub card_brands: Option<Vec<String>>,
     pub merchant_category_code: Option<String>,
     pub merchant_configuration_id: Option<String>,
+    pub tenant_id: Option<String>,
+    pub platform_url: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

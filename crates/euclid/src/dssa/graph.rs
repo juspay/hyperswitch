@@ -71,6 +71,17 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::RealTimePaymentType(rtpt) => rtpt.to_string(),
             Self::OpenBankingType(ob) => ob.to_string(),
             Self::MobilePaymentType(mpt) => mpt.to_string(),
+            Self::IssuerName(issuer_name) => issuer_name.value.clone(),
+            Self::IssuerCountry(issuer_country) => issuer_country.to_string(),
+            Self::CustomerDevicePlatform(customer_device_platform) => {
+                customer_device_platform.to_string()
+            }
+            Self::CustomerDeviceType(customer_device_type) => customer_device_type.to_string(),
+            Self::CustomerDeviceDisplaySize(customer_device_display_size) => {
+                customer_device_display_size.to_string()
+            }
+            Self::AcquirerCountry(acquirer_country) => acquirer_country.to_string(),
+            Self::AcquirerFraudRate(acquirer_fraud_rate) => acquirer_fraud_rate.number.to_string(),
         }
     }
 }

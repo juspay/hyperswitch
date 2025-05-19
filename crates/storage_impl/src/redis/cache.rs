@@ -1,4 +1,9 @@
-use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
+use std::{
+    any::Any,
+    borrow::Cow,
+    fmt::Debug,
+    sync::{Arc, LazyLock},
+};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -7,7 +12,6 @@ use common_utils::{
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
-use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
 use router_env::{
     logger,
@@ -33,19 +37,19 @@ const CACHE_TTI: u64 = 10 * 60;
 const MAX_CAPACITY: u64 = 30;
 
 /// Config Cache with time_to_live as 30 mins and time_to_idle as 10 mins.
-pub static CONFIG_CACHE: Lazy<Cache> =
-    Lazy::new(|| Cache::new("CONFIG_CACHE", CACHE_TTL, CACHE_TTI, None));
+pub static CONFIG_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("CONFIG_CACHE", CACHE_TTL, CACHE_TTI, None));
 
 /// Accounts cache with time_to_live as 30 mins and size limit
-pub static ACCOUNTS_CACHE: Lazy<Cache> =
-    Lazy::new(|| Cache::new("ACCOUNTS_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+pub static ACCOUNTS_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("ACCOUNTS_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
 /// Routing Cache
-pub static ROUTING_CACHE: Lazy<Cache> =
-    Lazy::new(|| Cache::new("ROUTING_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+pub static ROUTING_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("ROUTING_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
 /// 3DS Decision Manager Cache
-pub static DECISION_MANAGER_CACHE: Lazy<Cache> = Lazy::new(|| {
+pub static DECISION_MANAGER_CACHE: LazyLock<Cache> = LazyLock::new(|| {
     Cache::new(
         "DECISION_MANAGER_CACHE",
         CACHE_TTL,
@@ -55,15 +59,15 @@ pub static DECISION_MANAGER_CACHE: Lazy<Cache> = Lazy::new(|| {
 });
 
 /// Surcharge Cache
-pub static SURCHARGE_CACHE: Lazy<Cache> =
-    Lazy::new(|| Cache::new("SURCHARGE_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+pub static SURCHARGE_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("SURCHARGE_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
 /// CGraph Cache
-pub static CGRAPH_CACHE: Lazy<Cache> =
-    Lazy::new(|| Cache::new("CGRAPH_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+pub static CGRAPH_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("CGRAPH_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
 /// PM Filter CGraph Cache
-pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
+pub static PM_FILTERS_CGRAPH_CACHE: LazyLock<Cache> = LazyLock::new(|| {
     Cache::new(
         "PM_FILTERS_CGRAPH_CACHE",
         CACHE_TTL,
@@ -73,7 +77,7 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
 });
 
 /// Success based Dynamic Algorithm Cache
-pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: LazyLock<Cache> = LazyLock::new(|| {
     Cache::new(
         "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
@@ -83,7 +87,7 @@ pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
 });
 
 /// Elimination based Dynamic Algorithm Cache
-pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: LazyLock<Cache> = LazyLock::new(|| {
     Cache::new(
         "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
@@ -93,7 +97,7 @@ pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(||
 });
 
 /// Contract Routing based Dynamic Algorithm Cache
-pub static CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+pub static CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE: LazyLock<Cache> = LazyLock::new(|| {
     Cache::new(
         "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
