@@ -214,6 +214,11 @@ pub async fn get_parent_info_for_role(
         role_info.get_entity_type(),
         role_info.get_permission_groups().to_vec(),
     )
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable(format!(
+        "No group descriptions found for role_id: {}",
+        role.role_id
+    ))?
     .into_iter()
     .map(|(parent_group, description)| role_api::ParentGroupInfo {
         name: parent_group.clone(),

@@ -58,7 +58,7 @@ impl TryFrom<storage::Authentication> for AuthenticationResponse {
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct PostAuthenticationResponse {
     pub trans_status: String,
-    pub authentication_value: Option<String>,
+    pub authentication_value: Option<masking::Secret<String>>,
     pub eci: Option<String>,
 }
 

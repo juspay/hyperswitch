@@ -282,6 +282,13 @@ pub struct AuthenticationConnectorDetails {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct ExternalVaultConnectorDetails {
+    /// Merchant Connector id to be stored for vault connector
+    #[schema(value_type = Option<String>)]
+    pub vault_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
 
@@ -1992,6 +1999,9 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2124,6 +2134,15 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2423,6 +2442,15 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2571,6 +2599,9 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2697,6 +2728,12 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

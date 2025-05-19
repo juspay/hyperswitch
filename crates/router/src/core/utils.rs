@@ -1730,6 +1730,38 @@ pub fn get_external_authentication_request_poll_id(
 ) -> String {
     payment_id.get_external_authentication_request_poll_id()
 }
+pub fn get_html_redirect_response_popup(
+    return_url_with_query_params: String,
+) -> RouterResult<String> {
+    Ok(html! {
+        head {
+            title { "Redirect Form" }
+            (PreEscaped(format!(r#"
+                    <script>
+                        let return_url = "{return_url_with_query_params}";
+                        try {{
+                            // if inside iframe, send post message to parent for redirection
+                            if (window.self !== window.parent) {{
+                                window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                            // if parent, redirect self to return_url
+                            }} else {{
+                                window.location.href = return_url
+                            }}
+                        }}
+                        catch(err) {{
+                            // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                            window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                            setTimeout(function() {{
+                                window.location.href = return_url
+                            }}, 10000);
+                            console.log(err.message)
+                        }}
+                    </script>
+                    "#)))
+        }
+    }
+    .into_string())
+}
 
 #[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_authentication(

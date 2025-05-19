@@ -8,7 +8,6 @@ pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
-pub mod cards_info;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
@@ -53,6 +52,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    cards_info::CardsInfoInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
@@ -120,7 +120,7 @@ pub trait StorageInterface:
     + PayoutsInterface<Error = StorageError>
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
-    + cards_info::CardsInfoInterface
+    + CardsInfoInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
@@ -142,7 +142,7 @@ pub trait StorageInterface:
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
-
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
 }
 
@@ -212,6 +212,9 @@ impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
     }
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
+        Box::new(self.clone())
+    }
 
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
@@ -230,6 +233,9 @@ impl AccountsStorageInterface for Store {}
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
 
