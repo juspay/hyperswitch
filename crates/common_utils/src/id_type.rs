@@ -15,6 +15,7 @@ mod refunds;
 mod relay;
 mod routing;
 mod tenant;
+mod three_ds_decision_rule;
 
 use std::{borrow::Cow, fmt::Debug};
 
@@ -49,6 +50,7 @@ pub use self::{
     relay::RelayId,
     routing::RoutingId,
     tenant::TenantId,
+    three_ds_decision_rule::ThreeDSDecisionRuleId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
 
