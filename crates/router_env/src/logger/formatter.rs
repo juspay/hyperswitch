@@ -4,10 +4,10 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     io::Write,
+    sync::LazyLock,
 };
 
 use config::ConfigError;
-use once_cell::sync::Lazy;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::{ser::Formatter, Value};
 // use time::format_description::well_known::Rfc3339;
@@ -54,7 +54,7 @@ const GLOBAL_ID: &str = "global_id";
 const SESSION_ID: &str = "session_id";
 
 /// Set of predefined implicit keys.
-pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
+pub static IMPLICIT_KEYS: LazyLock<rustc_hash::FxHashSet<&str>> = LazyLock::new(|| {
     let mut set = rustc_hash::FxHashSet::default();
 
     set.insert(HOSTNAME);
@@ -76,7 +76,7 @@ pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
 
 /// Extra implicit keys. Keys that are not purely implicit but need to be logged alongside
 /// other implicit keys in the log json.
-pub static EXTRA_IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
+pub static EXTRA_IMPLICIT_KEYS: LazyLock<rustc_hash::FxHashSet<&str>> = LazyLock::new(|| {
     let mut set = rustc_hash::FxHashSet::default();
 
     set.insert(MESSAGE);

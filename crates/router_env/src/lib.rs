@@ -17,7 +17,6 @@ pub mod vergen;
 // pub use literally;
 #[doc(inline)]
 pub use logger::*;
-pub use once_cell;
 pub use opentelemetry;
 pub use tracing;
 #[cfg(feature = "actix_web")]
