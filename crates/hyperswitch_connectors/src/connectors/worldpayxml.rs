@@ -289,21 +289,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         Ok(self.base_url(connectors).to_owned())
     }
 
-    // fn get_request_body(
-    //     &self,
-    //     req: &PaymentsSyncRouterData,
-    //     _connectors: &Connectors,
-    // ) -> CustomResult<RequestContent, errors::ConnectorError> {
-    //     let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
-    //     let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-    //         &connector_req_object,
-    //         worldpayxml::worldpayxml_constants::XML_VERSION,
-    //         Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-    //         None,
-    //         worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
-    //     )?;
-    //     Ok(RequestContent::RawBytes(connector_req))
-    // }
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
+    }
 
     fn build_request(
         &self,
@@ -323,23 +323,23 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         ))
     }
 
-    // fn handle_response(
-    //     &self,
-    //     data: &PaymentsSyncRouterData,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    //     res: Response,
-    // ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-    //     router_env::logger::info!(connector_response=?res.response);
-    //     let response: worldpayxml::PaymentService =
-    //         utils::deserialize_xml_to_struct(&res.response)?;
-    //     event_builder.map(|i| i.set_response_body(&response));
-    //     router_env::logger::info!(connector_response=?response);
-    //     RouterData::try_from(ResponseRouterData {
-    //         response,
-    //         data: data.clone(),
-    //         http_code: res.status_code,
-    //     })
-    // }
+    fn handle_response(
+        &self,
+        data: &PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        router_env::logger::info!(connector_response=?res.response);
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 
     fn get_error_response(
         &self,
@@ -366,33 +366,33 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors).to_owned())
     }
 
-    // fn get_request_body(
-    //     &self,
-    //     req: &PaymentsCaptureRouterData,
-    //     _connectors: &Connectors,
-    // ) -> CustomResult<RequestContent, errors::ConnectorError> {
-    //     let amount = utils::convert_amount(
-    //         self.amount_converter,
-    //         req.request.minor_amount_to_capture,
-    //         req.request.currency,
-    //     )?;
+    fn get_request_body(
+        &self,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
 
-    //     let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
-    //     let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
-    //     let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-    //         &connector_req_object,
-    //         worldpayxml::worldpayxml_constants::XML_VERSION,
-    //         Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-    //         None,
-    //         worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
-    //     )?;
-    //     Ok(RequestContent::RawBytes(connector_req))
-    // }
+        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
+        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
+    }
 
     fn build_request(
         &self,
