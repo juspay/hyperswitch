@@ -202,6 +202,7 @@ pub struct DashboardRequestPayload {
 #[serde(tag = "type", content = "options")]
 pub enum InputType {
     Text,
+    Number,
     Toggle,
     Radio(Vec<String>),
     Select(Vec<String>),

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments;
+use api_models::payments::{self, AdditionalPaymentData};
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
@@ -145,6 +145,60 @@ pub enum FPXTxnChannel {
     FpxBimb,
     FpxOcbc,
 }
+#[derive(Debug, Clone, Serialize)]
+pub enum BankCode {
+    PHBMMYKL,
+    AGOBMYK1,
+    MFBBMYKL,
+    ARBKMYKL,
+    BKCHMYKL,
+    BIMBMYKL,
+    BMMBMYKL,
+    BKRMMYK1,
+    BSNAMYK1,
+    CIBBMYKL,
+    HLBBMYKL,
+    HBMBMYKL,
+    KFHOMYKL,
+    MBBEMYKL,
+    PBBEMYKL,
+    RHBBMYKL,
+    SCBLMYKX,
+    UOVBMYKL,
+    OCBCMYKL,
+}
+
+impl TryFrom<BankNames> for BankCode {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(bank: BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            BankNames::AffinBank => Ok(Self::PHBMMYKL),
+            BankNames::AgroBank => Ok(Self::AGOBMYK1),
+            BankNames::AllianceBank => Ok(Self::MFBBMYKL),
+            BankNames::AmBank => Ok(Self::ARBKMYKL),
+            BankNames::BankOfChina => Ok(Self::BKCHMYKL),
+            BankNames::BankIslam => Ok(Self::BIMBMYKL),
+            BankNames::BankMuamalat => Ok(Self::BMMBMYKL),
+            BankNames::BankRakyat => Ok(Self::BKRMMYK1),
+            BankNames::BankSimpananNasional => Ok(Self::BSNAMYK1),
+            BankNames::CimbBank => Ok(Self::CIBBMYKL),
+            BankNames::HongLeongBank => Ok(Self::HLBBMYKL),
+            BankNames::HsbcBank => Ok(Self::HBMBMYKL),
+            BankNames::KuwaitFinanceHouse => Ok(Self::KFHOMYKL),
+            BankNames::Maybank => Ok(Self::MBBEMYKL),
+            BankNames::PublicBank => Ok(Self::PBBEMYKL),
+            BankNames::RhbBank => Ok(Self::RHBBMYKL),
+            BankNames::StandardCharteredBank => Ok(Self::SCBLMYKX),
+            BankNames::UobBank => Ok(Self::UOVBMYKL),
+            BankNames::OcbcBank => Ok(Self::OCBCMYKL),
+            bank => Err(errors::ConnectorError::NotSupported {
+                message: format!("Invalid BankName for FPX Refund: {:?}", bank),
+                connector: "Fiuu",
+            })?,
+        }
+    }
+}
+
 impl TryFrom<BankNames> for FPXTxnChannel {
     type Error = Report<errors::ConnectorError>;
     fn try_from(bank_names: BankNames) -> Result<Self, Self::Error> {
@@ -828,8 +882,9 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -891,17 +946,18 @@ impl<F>
                             code: non_threeds_data
                                 .error_code
                                 .clone()
-                                .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
+                                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                             message: non_threeds_data
                                 .error_desc
                                 .clone()
-                                .unwrap_or_else(|| "NO_ERROR_MESSAGE".to_string()),
+                                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(data.txn_id),
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -939,17 +995,18 @@ impl<F>
                                 code: recurring_response
                                     .reason
                                     .clone()
-                                    .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
+                                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                                 message: recurring_response
                                     .reason
                                     .clone()
-                                    .unwrap_or_else(|| "NO_ERROR_MESSAGE".to_string()),
+                                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                                 reason: recurring_response.reason.clone(),
                                 status_code: item.http_code,
                                 attempt_status: None,
                                 connector_transaction_id: recurring_response.tran_id.clone(),
-                                issuer_error_code: None,
-                                issuer_error_message: None,
+                                network_advice_code: None,
+                                network_decline_code: None,
+                                network_error_message: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1016,6 +1073,8 @@ pub struct FiuuRefundRequest {
     pub signature: Secret<String>,
     #[serde(rename = "notify_url")]
     pub notify_url: Option<Url>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_code: Option<BankCode>,
 }
 #[derive(Debug, Serialize, Display)]
 pub enum RefundType {
@@ -1048,6 +1107,28 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
                 Url::parse(&item.router_data.request.get_webhook_url()?)
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ),
+            bank_code: item
+                .router_data
+                .request
+                .additional_payment_method_data
+                .as_ref()
+                .and_then(|data| {
+                    if let AdditionalPaymentData::BankRedirect { bank_name, .. } = data {
+                        bank_name.and_then(|name| {
+                            BankCode::try_from(name)
+                                .map_err(|e| {
+                                    router_env::logger::error!(
+                                        "Error converting bank name to BankCode: {:?}",
+                                        e
+                                    );
+                                    e
+                                })
+                                .ok()
+                        })
+                    } else {
+                        None
+                    }
+                }),
         })
     }
 }
@@ -1083,8 +1164,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1109,8 +1191,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.refund_id.to_string()),
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         }),
                         ..item.data
                     })
@@ -1250,8 +1333,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: response.error_desc,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     None
@@ -1317,8 +1401,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: response.error_desc.clone(),
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     None
@@ -1473,23 +1558,22 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         }?;
         let capture_message_status = capture_status_codes();
         let error_response = if status == enums::AttemptStatus::Failure {
+            let optional_message = capture_message_status
+                .get(status_code.as_str())
+                .copied()
+                .map(String::from);
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: status_code.to_owned(),
-                message: capture_message_status
-                    .get(status_code.as_str())
-                    .unwrap_or(&"NO_ERROR_MESSAGE")
-                    .to_string(),
-                reason: Some(
-                    capture_message_status
-                        .get(status_code.as_str())
-                        .unwrap_or(&"NO_ERROR_REASON")
-                        .to_string(),
-                ),
+                message: optional_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: optional_message,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -1588,23 +1672,23 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
         }?;
         let void_message_status = void_status_codes();
         let error_response = if status == enums::AttemptStatus::VoidFailed {
+            let optional_message = void_message_status
+                .get(status_code.as_str())
+                .copied()
+                .map(String::from);
+
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: status_code.to_owned(),
-                message: void_message_status
-                    .get(status_code.as_str())
-                    .unwrap_or(&"NO_ERROR_MESSAGE")
-                    .to_string(),
-                reason: Some(
-                    void_message_status
-                        .get(status_code.as_str())
-                        .unwrap_or(&"NO_ERROR_REASON")
-                        .to_string(),
-                ),
+                message: optional_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: optional_message,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -1700,8 +1784,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),

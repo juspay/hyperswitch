@@ -321,7 +321,7 @@ fn get_card_request_data(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone().map(From::from));
+        .and_then(|address| address.last_name.clone());
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -374,7 +374,7 @@ fn get_debtor_info(
         .get_billing()?
         .address
         .as_ref()
-        .and_then(|address| address.last_name.clone().map(From::from));
+        .and_then(|address| address.last_name.clone());
     Ok(match pm {
         TrustpayPaymentMethod::Blik => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),
@@ -400,7 +400,7 @@ fn get_bank_transfer_debtor_info(
     Ok(match pm {
         TrustpayBankTransferPaymentMethod::SepaCreditTransfer
         | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
-            name: get_full_name(params.billing_first_name, billing_last_name.map(From::from)),
+            name: get_full_name(params.billing_first_name, billing_last_name),
             email: item.request.get_email()?,
         }),
     })
@@ -824,8 +824,9 @@ fn handle_cards_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.instance_id.clone()),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -896,8 +897,9 @@ fn handle_bank_redirects_error_response(
         status_code,
         attempt_status: Some(status),
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     });
     let payment_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -950,8 +952,9 @@ fn handle_bank_redirects_sync_response(
                     .payment_request_id
                     .clone(),
             ),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1006,8 +1009,9 @@ pub fn handle_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: payment_information.references.payment_request_id.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1117,8 +1121,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -1590,8 +1595,9 @@ fn handle_cards_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1625,8 +1631,9 @@ fn handle_webhooks_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.references.payment_request_id.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1655,8 +1662,9 @@ fn handle_bank_redirects_refund_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1693,8 +1701,9 @@ fn handle_bank_redirects_refund_sync_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -1718,8 +1727,9 @@ fn handle_bank_redirects_refund_sync_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = RefundsResponseData {

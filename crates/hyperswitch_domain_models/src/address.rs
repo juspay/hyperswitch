@@ -1,4 +1,4 @@
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Address {
@@ -48,8 +48,8 @@ pub struct AddressDetails {
     pub line3: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub first_name: Option<common_utils::types::NameType>,
-    pub last_name: Option<common_utils::types::NameType>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
 }
 
 impl AddressDetails {
@@ -57,10 +57,10 @@ impl AddressDetails {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
                 "{} {}",
-                String::from(first_name),
-                String::from(last_name)
+                first_name.peek(),
+                last_name.peek()
             ))),
-            (Some(name), None) | (None, Some(name)) => Some(Secret::from(name)),
+            (Some(name), None) | (None, Some(name)) => Some(name.to_owned()),
             _ => None,
         }
     }
@@ -71,7 +71,7 @@ impl AddressDetails {
             let (first_name, last_name) = if self
                 .first_name
                 .as_ref()
-                .is_some_and(|first_name| !first_name.trim().is_empty())
+                .is_some_and(|first_name| !first_name.peek().trim().is_empty())
             {
                 (self.first_name.clone(), self.last_name.clone())
             } else {

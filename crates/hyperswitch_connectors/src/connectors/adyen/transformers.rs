@@ -10,7 +10,7 @@ use common_enums::enums as storage_enums;
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
     errors::{CustomResult, ParsingError},
-    ext_traits::Encode,
+    ext_traits::{Encode, ValueExt},
     pii::Email,
     request::Method,
     types::MinorUnit,
@@ -142,6 +142,7 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
 }
@@ -1221,6 +1222,7 @@ pub struct AdyenMandate {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     stored_payment_method_id: Secret<String>,
+    holder_name: Option<Secret<String>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -1937,8 +1939,8 @@ fn get_shopper_name(
 ) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
-        first_name: billing.and_then(|a| a.first_name.clone().map(From::from)),
-        last_name: billing.and_then(|a| a.last_name.clone().map(From::from)),
+        first_name: billing.and_then(|a| a.first_name.clone()),
+        last_name: billing.and_then(|a| a.last_name.clone()),
     })
 }
 
@@ -2007,13 +2009,21 @@ impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMet
                 account_number,
                 sort_code,
                 ..
-            } => Ok(AdyenPaymentMethod::BacsDirectDebit(Box::new(
-                BacsDirectDebitData {
-                    bank_account_number: account_number.clone(),
-                    bank_location_id: sort_code.clone(),
-                    holder_name: item.get_billing_full_name()?,
-                },
-            ))),
+            } => {
+                let testing_data = item
+                    .request
+                    .get_connector_testing_data()
+                    .map(AdyenTestingData::try_from)
+                    .transpose()?;
+                let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
+                Ok(AdyenPaymentMethod::BacsDirectDebit(Box::new(
+                    BacsDirectDebitData {
+                        bank_account_number: account_number.clone(),
+                        bank_location_id: sort_code.clone(),
+                        holder_name: test_holder_name.unwrap_or(item.get_billing_full_name()?),
+                    },
+                )))
+            }
 
             BankDebitData::BecsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2232,7 +2242,6 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
                         holder_name: paze_decrypted_data
                             .billing_address
                             .name
-                            .map(From::from)
                             .or(item.get_optional_billing_full_name()),
                         brand: Some(paze_decrypted_data.payment_card_network.clone())
                             .and_then(get_adyen_card_network),
@@ -2396,30 +2405,38 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
                 card_exp_month,
                 card_exp_year,
                 ..
-            } => Ok(AdyenPaymentMethod::BancontactCard(Box::new(AdyenCard {
-                brand: Some(CardBrand::Bcmc),
-                number: card_number
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "bancontact_card.card_number",
-                    })?
-                    .clone(),
-                expiry_month: card_exp_month
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "bancontact_card.card_exp_month",
-                    })?
-                    .clone(),
-                expiry_year: card_exp_year
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "bancontact_card.card_exp_year",
-                    })?
-                    .clone(),
-                holder_name: Some(item.get_billing_full_name()?),
-                cvc: None,
-                network_payment_reference: None,
-            }))),
+            } => {
+                let testing_data = item
+                    .request
+                    .get_connector_testing_data()
+                    .map(AdyenTestingData::try_from)
+                    .transpose()?;
+                let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
+                Ok(AdyenPaymentMethod::BancontactCard(Box::new(AdyenCard {
+                    brand: Some(CardBrand::Bcmc),
+                    number: card_number
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_number",
+                        })?
+                        .clone(),
+                    expiry_month: card_exp_month
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_exp_month",
+                        })?
+                        .clone(),
+                    expiry_year: card_exp_year
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_exp_year",
+                        })?
+                        .clone(),
+                    holder_name: test_holder_name.or(Some(item.get_billing_full_name()?)),
+                    cvc: None,
+                    network_payment_reference: None,
+                })))
+            }
             BankRedirectData::Bizum { .. } => Ok(AdyenPaymentMethod::Bizum),
             BankRedirectData::Blik { blik_code } => {
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
@@ -2684,6 +2701,13 @@ impl
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method_type = item.router_data.request.payment_method_type;
+        let testing_data = item
+            .router_data
+            .request
+            .get_connector_testing_data()
+            .map(AdyenTestingData::try_from)
+            .transpose()?;
+        let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
@@ -2696,6 +2720,7 @@ impl
                             .get_connector_mandate_id()
                             .ok_or_else(missing_field_err("mandate_id"))?,
                     ),
+                    holder_name: test_holder_name,
                 };
                 Ok::<PaymentMethod<'_>, Self::Error>(PaymentMethod::AdyenMandatePaymentMethod(
                     Box::new(adyen_mandate),
@@ -2727,7 +2752,7 @@ impl
                                 .get_expiry_year_4_digit()
                                 .clone(),
                             cvc: None,
-                            holder_name: card_holder_name,
+                            holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand),
                             network_payment_reference: Some(Secret::new(network_mandate_id)),
                         };
@@ -2768,7 +2793,7 @@ impl
                             number: token_data.get_network_token(),
                             expiry_month: token_data.get_network_token_expiry_month(),
                             expiry_year: token_data.get_expiry_year_4_digit(),
-                            holder_name: card_holder_name,
+                            holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand), // FIXME: Remove hardcoding
                             network_payment_reference: Some(Secret::new(
                                 network_mandate_id.network_transaction_id,
@@ -2879,7 +2904,15 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
-        let card_holder_name = item.router_data.get_optional_billing_full_name();
+        let testing_data = item
+            .router_data
+            .request
+            .get_connector_testing_data()
+            .map(AdyenTestingData::try_from)
+            .transpose()?;
+        let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
+        let card_holder_name =
+            test_holder_name.or(item.router_data.get_optional_billing_full_name());
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((card_data, card_holder_name))?,
         ));
@@ -3745,14 +3778,19 @@ pub fn get_adyen_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.psp_reference.clone()),
-            issuer_error_code: response
+            network_advice_code: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.extract_network_advice_code()),
+            network_decline_code: response
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_code_raw.clone()),
-            issuer_error_message: response
-                .additional_data
-                .as_ref()
-                .and_then(|data| data.refusal_reason_raw.clone()),
+            network_error_message: response.additional_data.as_ref().and_then(|data| {
+                data.refusal_reason_raw
+                    .clone()
+                    .or(data.merchant_advice_code.clone())
+            }),
         })
     } else {
         None
@@ -3825,8 +3863,9 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
-            issuer_error_code: response.refusal_code_raw.clone(),
-            issuer_error_message: response.refusal_reason_raw.clone(),
+            network_advice_code: None,
+            network_decline_code: response.refusal_code_raw.clone(),
+            network_error_message: response.refusal_reason_raw.clone(),
         })
     } else {
         None
@@ -3892,11 +3931,12 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: response
+            network_advice_code: None,
+            network_decline_code: response
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_code_raw.clone()),
-            issuer_error_message: response
+            network_error_message: response
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_reason_raw.clone()),
@@ -3976,8 +4016,9 @@ pub fn get_present_to_shopper_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -4043,8 +4084,9 @@ pub fn get_qr_code_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None
@@ -4102,11 +4144,15 @@ pub fn get_redirection_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: response.psp_reference.clone(),
-        issuer_error_code: response
+        network_advice_code: response
+            .additional_data
+            .as_ref()
+            .and_then(|data| data.extract_network_advice_code()),
+        network_decline_code: response
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_code_raw.clone()),
-        issuer_error_message: response
+        network_error_message: response
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_reason_raw.clone()),
@@ -5141,7 +5187,6 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
                 holder_name: card
                     .card_holder_name
                     .clone()
-                    .map(From::from)
                     .get_required_value("card_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data.card.holder_name",
@@ -5493,6 +5538,24 @@ pub struct DefenseDocuments {
     defense_document_type_code: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AdyenTestingData {
+    holder_name: Option<Secret<String>>,
+}
+
+impl TryFrom<common_utils::pii::SecretSerdeValue> for AdyenTestingData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(testing_data: common_utils::pii::SecretSerdeValue) -> Result<Self, Self::Error> {
+        let testing_data = testing_data
+            .expose()
+            .parse_value::<Self>("AdyenTestingData")
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "connector_metadata.adyen.testing",
+            })?;
+        Ok(testing_data)
+    }
+}
+
 impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
@@ -5628,8 +5691,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5668,8 +5732,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5710,8 +5775,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..data.clone()
             })
@@ -5767,7 +5833,15 @@ impl
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
-        let card_holder_name = item.router_data.get_optional_billing_full_name();
+        let testing_data = item
+            .router_data
+            .request
+            .get_connector_testing_data()
+            .map(AdyenTestingData::try_from)
+            .transpose()?;
+        let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
+        let card_holder_name =
+            test_holder_name.or(item.router_data.get_optional_billing_full_name());
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((token_data, card_holder_name))?,
         ));
@@ -5829,6 +5903,20 @@ impl
             store,
             splits,
             device_fingerprint,
+        })
+    }
+}
+
+impl AdditionalData {
+    // Split merchant advice code into at most 2 parts and get the first part and trim spaces,
+    // Return the first part as a String.
+    pub fn extract_network_advice_code(&self) -> Option<String> {
+        self.merchant_advice_code.as_ref().and_then(|code| {
+            let mut parts = code.splitn(2, ':');
+            let first_part = parts.next()?.trim();
+            // Ensure there is a second part (meaning ':' was present).
+            parts.next()?;
+            Some(first_part.to_string())
         })
     }
 }

@@ -12,6 +12,9 @@ mod business_profile {
     };
 }
 
+pub mod merchant_context {
+    pub use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
+}
 mod customers {
     pub use hyperswitch_domain_models::customer::*;
 }
@@ -61,6 +64,7 @@ pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
 pub use merchant_connector_account::*;
+pub use merchant_context::*;
 pub use merchant_key_store::*;
 pub use network_tokenization::*;
 pub use payment_method_data::*;

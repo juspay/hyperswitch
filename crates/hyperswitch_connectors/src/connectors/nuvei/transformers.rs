@@ -844,7 +844,9 @@ where
                 (
                     Some(BillingAddress {
                         first_name: Some(first_name.clone()),
-                        last_name: Some(address.get_last_name().ok().unwrap_or(first_name)),
+                        last_name: Some(
+                            address.get_last_name().ok().unwrap_or(&first_name).clone(),
+                        ),
                         email: item.request.get_email_required()?,
                         country: item.get_billing_country()?,
                     }),
@@ -1081,7 +1083,7 @@ where
             let first_name = address.get_first_name()?.clone();
             Some(BillingAddress {
                 first_name: Some(first_name.clone()),
-                last_name: Some(address.get_last_name().ok().unwrap_or(first_name)),
+                last_name: Some(address.get_last_name().ok().unwrap_or(&first_name).clone()),
                 email: item.request.get_email_required()?,
                 country: item.get_billing_country()?,
             })
@@ -1818,8 +1820,9 @@ fn get_error_response<T>(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }))
 }
 

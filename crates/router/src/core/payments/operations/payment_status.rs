@@ -117,11 +117,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
-        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -130,8 +129,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -210,24 +208,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRetrieveRequest,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
-        get_tracker_for_sync(
+        Box::pin(get_tracker_for_sync(
             payment_id,
-            merchant_account,
-            key_store,
+            &merchant_context.clone(),
             state,
             request,
             self,
-            merchant_account.storage_scheme,
-            platform_merchant_account,
-        )
+            merchant_context.get_merchant_account().storage_scheme,
+        ))
         .await
     }
 }
@@ -239,8 +233,7 @@ async fn get_tracker_for_sync<
     Op: Operation<F, api::PaymentsRetrieveRequest, Data = PaymentData<F>> + 'a + Send + Sync,
 >(
     _payment_id: &api::PaymentIdType,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
     _state: &SessionState,
     _request: &api::PaymentsRetrieveRequest,
     _operation: Op,
@@ -261,13 +254,11 @@ async fn get_tracker_for_sync<
     Op: Operation<F, api::PaymentsRetrieveRequest, Data = PaymentData<F>> + 'a + Send + Sync,
 >(
     payment_id: &api::PaymentIdType,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     state: &SessionState,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
-    platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
@@ -275,10 +266,9 @@ async fn get_tracker_for_sync<
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
         payment_id,
-        merchant_account.get_id(),
-        key_store,
+        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_merchant_key_store(),
         storage_scheme,
-        platform_merchant_account,
     )
     .await?;
 
@@ -292,29 +282,29 @@ async fn get_tracker_for_sync<
     let shipping_address = helpers::get_address_by_id(
         state,
         payment_intent.shipping_address_id.clone(),
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &payment_intent.payment_id.clone(),
-        merchant_account.get_id(),
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_merchant_account().storage_scheme,
     )
     .await?;
     let billing_address = helpers::get_address_by_id(
         state,
         payment_intent.billing_address_id.clone(),
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &payment_intent.payment_id.clone(),
-        merchant_account.get_id(),
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_merchant_account().storage_scheme,
     )
     .await?;
 
     let payment_method_billing = helpers::get_address_by_id(
         state,
         payment_attempt.payment_method_billing_address_id.clone(),
-        key_store,
+        merchant_context.get_merchant_key_store(),
         &payment_intent.payment_id.clone(),
-        merchant_account.get_id(),
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_merchant_account().storage_scheme,
     )
     .await?;
 
@@ -324,11 +314,11 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id(merchant_context.get_merchant_account().get_id(), &payment_id, storage_scheme)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id:?}",merchant_account.get_id())
+                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id:?}",merchant_context.get_merchant_account().get_id())
                 })?)
         },
         _ => None,
@@ -345,7 +335,7 @@ async fn get_tracker_for_sync<
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving capture list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
+                    format!("Error while retrieving capture list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_context.get_merchant_account().get_id())
                 })?;
         Some(payment_types::MultipleCaptureData::new_for_sync(
             captures,
@@ -358,7 +348,7 @@ async fn get_tracker_for_sync<
     let refunds = db
         .find_refund_by_payment_id_merchant_id(
             &payment_id,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             storage_scheme,
         )
         .await
@@ -367,36 +357,39 @@ async fn get_tracker_for_sync<
             format!(
                 "Failed while getting refund list for, payment_id: {:?}, merchant_id: {:?}",
                 &payment_id,
-                merchant_account.get_id()
+                merchant_context.get_merchant_account().get_id()
             )
         })?;
 
     let authorizations = db
-        .find_all_authorizations_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id)
+        .find_all_authorizations_by_merchant_id_payment_id(
+            merchant_context.get_merchant_account().get_id(),
+            &payment_id,
+        )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting authorizations list for, payment_id: {:?}, merchant_id: {:?}",
                 &payment_id,
-                merchant_account.get_id()
+                merchant_context.get_merchant_account().get_id()
             )
         })?;
 
     let disputes = db
-        .find_disputes_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id)
+        .find_disputes_by_merchant_id_payment_id(merchant_context.get_merchant_account().get_id(), &payment_id)
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
+            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_context.get_merchant_account().get_id())
         })?;
 
     let frm_response = if cfg!(feature = "frm") {
-        db.find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_account.get_id().clone())
+        db.find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_context.get_merchant_account().get_id().clone())
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable_lazy(|| {
-                format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
+                format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_context.get_merchant_account().get_id())
             })
             .ok()
     } else {
@@ -413,8 +406,12 @@ async fn get_tracker_for_sync<
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_account.get_id(), mcd)
-                .await
+            helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_context.get_merchant_account().get_id(),
+                mcd,
+            )
+            .await
         })
         .await
         .transpose()?;
@@ -427,7 +424,11 @@ async fn get_tracker_for_sync<
         .attach_printable("'profile_id' not set in payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -438,7 +439,7 @@ async fn get_tracker_for_sync<
             match db
                 .find_payment_method(
                     &(state.into()),
-                    key_store,
+                    merchant_context.get_merchant_key_store(),
                     payment_method_id,
                     storage_scheme,
                 )
@@ -557,24 +558,27 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
     fn validate_request<'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<(
         PaymentStatusOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
-                expected_format: "merchant_id from merchant account".to_string(),
-            })?;
+        helpers::validate_merchant_id(
+            merchant_context.get_merchant_account().get_id(),
+            request_merchant_id,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "merchant_id".to_string(),
+            expected_format: "merchant_id from merchant account".to_string(),
+        })?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_account.get_id().to_owned(),
+                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
                 payment_id: request.resource_id.clone(),
-                storage_scheme: merchant_account.storage_scheme,
+                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -587,7 +591,6 @@ pub async fn get_payment_intent_payment_attempt(
     merchant_id: &common_utils::id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-    _platform_merchant_account: Option<&domain::MerchantAccount>,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
     let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;

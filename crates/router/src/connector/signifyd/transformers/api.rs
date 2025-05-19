@@ -562,7 +562,7 @@ impl From<core_types::Product> for Product {
 impl From<core_types::Destination> for Destination {
     fn from(destination: core_types::Destination) -> Self {
         Self {
-            full_name: destination.full_name.into(),
+            full_name: destination.full_name,
             organization: destination.organization,
             email: destination.email,
             address: Address::from(destination.address),

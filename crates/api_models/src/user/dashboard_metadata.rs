@@ -1,4 +1,4 @@
-use common_enums::CountryAlpha2;
+use common_enums::{CountryAlpha2, MerchantProductType};
 use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
@@ -103,6 +103,8 @@ pub struct ProdIntent {
     pub poc_contact: Option<String>,
     pub comments: Option<String>,
     pub is_completed: bool,
+    #[serde(default)]
+    pub product_type: MerchantProductType,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

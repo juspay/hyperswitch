@@ -769,7 +769,7 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(
+        self.get_resource::<PaymentMethod, _>(
             state,
             key_store,
             payment_methods,
@@ -788,7 +788,7 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(
+        self.get_resource::<PaymentMethod, _>(
             state,
             key_store,
             payment_methods,
@@ -810,7 +810,7 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(
+        self.get_resource::<PaymentMethod, _>(
             state,
             key_store,
             payment_methods,
@@ -885,7 +885,7 @@ impl PaymentMethodInterface for MockDb {
         _limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resources(
+        self.get_resources(
             state,
             key_store,
             payment_methods,
@@ -922,7 +922,7 @@ impl PaymentMethodInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resources(
+        self.get_resources(
             state,
             key_store,
             payment_methods,
@@ -952,7 +952,7 @@ impl PaymentMethodInterface for MockDb {
             pm.customer_id == *customer_id && pm.merchant_id == *merchant_id && pm.status == status
         };
         let error_message = "cannot find payment method".to_string();
-        self.find_resources(state, key_store, payment_methods, find_pm_by, error_message)
+        self.get_resources(state, key_store, payment_methods, find_pm_by, error_message)
             .await
     }
 
@@ -1050,7 +1050,7 @@ impl PaymentMethodInterface for MockDb {
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
-        self.find_resource::<PaymentMethod, _>(
+        self.get_resource::<PaymentMethod, _>(
             state,
             key_store,
             payment_methods,

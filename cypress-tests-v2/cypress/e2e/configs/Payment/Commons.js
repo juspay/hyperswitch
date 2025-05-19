@@ -54,10 +54,10 @@ const multiUseMandateData = {
 
 export const payment_methods_enabled = [
   {
-    payment_method: "bank_debit",
-    payment_method_types: [
+    payment_method_type: "bank_debit",
+    payment_method_subtypes: [
       {
-        payment_method_type: "ach",
+        payment_method_subtype: "ach",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -68,7 +68,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "bacs",
+        payment_method_subtype: "bacs",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -79,7 +79,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "becs",
+        payment_method_subtype: "becs",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -90,7 +90,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "sepa",
+        payment_method_subtype: "sepa",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -103,10 +103,10 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "bank_redirect",
-    payment_method_types: [
+    payment_method_type: "bank_redirect",
+    payment_method_subtypes: [
       {
-        payment_method_type: "blik",
+        payment_method_subtype: "blik",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -117,7 +117,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "eps",
+        payment_method_subtype: "eps",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -128,7 +128,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "ideal",
+        payment_method_subtype: "ideal",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -139,7 +139,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "giropay",
+        payment_method_subtype: "giropay",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -150,7 +150,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "local_bank_redirect",
+        payment_method_subtype: "local_bank_redirect",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -161,7 +161,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "przelewy24",
+        payment_method_subtype: "przelewy24",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -172,7 +172,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "sofort",
+        payment_method_subtype: "sofort",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -185,10 +185,10 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "bank_transfer",
-    payment_method_types: [
+    payment_method_type: "bank_transfer",
+    payment_method_subtypes: [
       {
-        payment_method_type: "ach",
+        payment_method_subtype: "ach",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
@@ -199,7 +199,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "bacs",
+        payment_method_subtype: "bacs",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
@@ -210,14 +210,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "pix",
+        payment_method_subtype: "pix",
         minimum_amount: -1,
         maximum_amount: 68607706,
         recurring_enabled: false,
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "sepa",
+        payment_method_subtype: "sepa",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
@@ -230,10 +230,10 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "card",
-    payment_method_types: [
+    payment_method_type: "card",
+    payment_method_subtypes: [
       {
-        payment_method_type: "credit",
+        payment_method_subtype: "credit",
         card_networks: [
           "AmericanExpress",
           "Discover",
@@ -251,7 +251,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "debit",
+        payment_method_subtype: "debit",
         card_networks: [
           "AmericanExpress",
           "Discover",
@@ -271,10 +271,10 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "card_redirect",
-    payment_method_types: [
+    payment_method_type: "card_redirect",
+    payment_method_subtypes: [
       {
-        payment_method_type: "card_redirect",
+        payment_method_subtype: "card_redirect",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
@@ -287,10 +287,10 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "real_time_payment",
-    payment_method_types: [
+    payment_method_type: "real_time_payment",
+    payment_method_subtypes: [
       {
-        payment_method_type: "duit_now",
+        payment_method_subtype: "duit_now",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
@@ -298,7 +298,7 @@ export const payment_methods_enabled = [
         payment_experience: "redirect_to_url",
       },
       {
-        payment_method_type: "fps",
+        payment_method_subtype: "fps",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
@@ -306,7 +306,7 @@ export const payment_methods_enabled = [
         payment_experience: "redirect_to_url",
       },
       {
-        payment_method_type: "prompt_pay",
+        payment_method_subtype: "prompt_pay",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
@@ -314,7 +314,7 @@ export const payment_methods_enabled = [
         payment_experience: "redirect_to_url",
       },
       {
-        payment_method_type: "viet_qr",
+        payment_method_subtype: "viet_qr",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
@@ -324,10 +324,10 @@ export const payment_methods_enabled = [
     ],
   },
   {
-    payment_method: "upi",
-    payment_method_types: [
+    payment_method_type: "upi",
+    payment_method_subtypes: [
       {
-        payment_method_type: "upi_collect",
+        payment_method_subtype: "upi_collect",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
@@ -335,7 +335,7 @@ export const payment_methods_enabled = [
         payment_experience: "redirect_to_url",
       },
       {
-        payment_method_type: "upi_intent",
+        payment_method_subtype: "upi_intent",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,

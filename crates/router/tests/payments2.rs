@@ -42,6 +42,8 @@ fn connector_list() {
 #[ignore]
 #[actix_rt::test]
 async fn payments_create_core() {
+    use db::domain::merchant_context;
+    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -79,6 +81,10 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
+    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
@@ -103,18 +109,14 @@ async fn payments_create_core() {
                 card_number: "4242424242424242".to_string().try_into().unwrap(),
                 card_exp_month: "10".to_string().into(),
                 card_exp_year: "35".to_string().into(),
-                card_holder_name: Some(common_utils::types::NameType::get_unchecked(
-                    "Arun Raj".to_string(),
-                )),
+                card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
                 card_cvc: "123".to_string().into(),
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,
-                nick_name: Some(common_utils::types::NameType::get_unchecked(
-                    "nick_name".to_string(),
-                )),
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             })),
             billing: None,
         }),
@@ -219,6 +221,8 @@ async fn payments_create_core() {
         connector_mandate_id: None,
         shipping_cost: None,
         card_discovery: None,
+        force_3ds_challenge: None,
+        force_3ds_challenge_trigger: None,
         issuer_error_code: None,
         issuer_error_message: None,
     };
@@ -235,16 +239,14 @@ async fn payments_create_core() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_account,
+        merchant_context,
         None,
-        key_store,
         payments::PaymentCreate,
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
     ))
     .await
     .unwrap();
@@ -325,6 +327,7 @@ async fn payments_create_core() {
 async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
+    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -364,6 +367,11 @@ async fn payments_create_core_adyen_no_redirect() {
         .await
         .unwrap();
 
+    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
+
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
         merchant_id: Some(merchant_id.clone()),
@@ -383,18 +391,14 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
                 card_exp_month: "03".to_string().into(),
                 card_exp_year: "2030".to_string().into(),
-                card_holder_name: Some(common_utils::types::NameType::get_unchecked(
-                    "JohnDoe".to_string(),
-                )),
+                card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
                 card_cvc: "737".to_string().into(),
                 bank_code: None,
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
-                nick_name: Some(common_utils::types::NameType::get_unchecked(
-                    "nick_name".to_string(),
-                )),
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             })),
             billing: None,
         }),
@@ -501,6 +505,8 @@ async fn payments_create_core_adyen_no_redirect() {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
             issuer_error_code: None,
             issuer_error_message: None,
         },
@@ -516,16 +522,14 @@ async fn payments_create_core_adyen_no_redirect() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_account,
+        merchant_context,
         None,
-        key_store,
         payments::PaymentCreate,
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
     ))
     .await
     .unwrap();

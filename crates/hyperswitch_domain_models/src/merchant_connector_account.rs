@@ -124,6 +124,13 @@ pub struct MerchantConnectorAccount {
 
 #[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
+    pub fn get_retry_threshold(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.billing_connector_retry_threshold)
+    }
+
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
@@ -170,6 +177,20 @@ impl MerchantConnectorAccount {
                     .mca_reference
                     .billing_to_recovery
                     .get(&account_reference_id)
+                    .cloned()
+            })
+        })
+    }
+    pub fn get_account_reference_id_using_payment_merchant_connector_account_id(
+        &self,
+        payment_merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Option<String> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
+            metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                recovery
+                    .mca_reference
+                    .recovery_to_billing
+                    .get(&payment_merchant_connector_account_id)
                     .cloned()
             })
         })
@@ -356,7 +377,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 connector_account_details: self.connector_account_details.into(),
                 test_mode: self.test_mode,
                 disabled: self.disabled,
-                merchant_connector_id: self.merchant_connector_id,
+                merchant_connector_id: self.merchant_connector_id.clone(),
+                id: Some(self.merchant_connector_id),
                 payment_methods_enabled: self.payment_methods_enabled,
                 connector_type: self.connector_type,
                 metadata: self.metadata,
@@ -452,7 +474,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_account_details: Some(self.connector_account_details.into()),
             test_mode: self.test_mode,
             disabled: self.disabled,
-            merchant_connector_id: self.merchant_connector_id,
+            merchant_connector_id: self.merchant_connector_id.clone(),
+            id: Some(self.merchant_connector_id),
             payment_methods_enabled: self.payment_methods_enabled,
             connector_type: Some(self.connector_type),
             metadata: self.metadata,

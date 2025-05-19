@@ -63,7 +63,7 @@ impl Vaultable for domain::Card {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            nickname: self.nick_name.clone(),
+            nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
             card_last_four: None,
             card_token: None,
             card_holder_name: self.card_holder_name.clone(),
@@ -119,7 +119,7 @@ impl Vaultable for domain::Card {
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
-            nick_name: value1.nickname,
+            nick_name: value1.nickname.map(masking::Secret::new),
             card_holder_name: value1.card_holder_name,
         };
 
@@ -463,7 +463,7 @@ impl Vaultable for api::CardPayout {
             card_number: self.card_number.peek().clone(),
             exp_year: self.expiry_year.peek().clone(),
             exp_month: self.expiry_month.peek().clone(),
-            name_on_card: self.card_holder_name.clone(),
+            name_on_card: self.card_holder_name.clone().map(|n| n.peek().to_string()),
             nickname: None,
             card_last_four: None,
             card_token: None,
@@ -514,7 +514,7 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card,
+            card_holder_name: value1.name_on_card.map(masking::Secret::new),
         };
 
         let supp_data = SupplementaryVaultData {
@@ -1283,12 +1283,12 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: existing_vault_id
             .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
@@ -1315,11 +1315,11 @@ pub async fn add_payment_method_to_vault(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     vault_id: &domain::VaultId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id: vault_id.to_owned(),
     }
     .encode_to_vec()
@@ -1343,11 +1343,11 @@ pub async fn retrieve_payment_method_from_vault(
 #[instrument(skip_all)]
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
         vault_id,
     }
     .encode_to_vec()

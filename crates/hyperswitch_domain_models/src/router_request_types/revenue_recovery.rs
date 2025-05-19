@@ -15,3 +15,8 @@ pub struct RevenueRecoveryRecordBackRequest {
     pub attempt_status: common_enums::AttemptStatus,
     pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
 }
+
+#[derive(Debug, Clone)]
+pub struct BillingConnectorInvoiceSyncRequest {
+    pub billing_connector_invoice_id: String,
+}

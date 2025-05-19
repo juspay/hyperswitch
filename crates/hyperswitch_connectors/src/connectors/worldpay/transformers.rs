@@ -86,34 +86,24 @@ fn fetch_payment_instrument(
             },
             cvc: card.card_cvc,
             card_holder_name: billing_address.and_then(|address| address.get_optional_full_name()),
-            billing_address: if let Some(address) =
-                billing_address.and_then(|addr| addr.address.clone())
-            {
-                Some(BillingAddress {
-                    address1: address.line1.get_required_value("line1").change_context(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "line1",
-                        },
-                    )?,
-                    address2: address.line2,
-                    address3: address.line3,
-                    city: address.city.get_required_value("city").change_context(
-                        errors::ConnectorError::MissingRequiredField { field_name: "city" },
-                    )?,
-                    state: address.state,
-                    postal_code: address.zip.get_required_value("zip").change_context(
-                        errors::ConnectorError::MissingRequiredField { field_name: "zip" },
-                    )?,
-                    country_code: address
-                        .country
-                        .get_required_value("country_code")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "country_code",
-                        })?,
-                })
-            } else {
-                None
-            },
+            billing_address: billing_address
+                .and_then(|addr| addr.address.clone())
+                .and_then(|address| {
+                    match (address.line1, address.city, address.zip, address.country) {
+                        (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
+                            Some(BillingAddress {
+                                address1,
+                                address2: address.line2,
+                                address3: address.line3,
+                                city,
+                                state: address.state,
+                                postal_code,
+                                country_code,
+                            })
+                        }
+                        _ => None,
+                    }
+                }),
         })),
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
             Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
@@ -264,7 +254,7 @@ impl WorldpayPaymentsRequestData
     for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
 {
     fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        self.request.get_router_return_url()
+        self.request.get_complete_authorize_url()
     }
 
     fn get_auth_type(&self) -> &enums::AuthenticationType {
@@ -681,6 +671,7 @@ impl<F, T>
     ForeignTryFrom<(
         ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
         Option<String>,
+        i64,
     )> for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -688,9 +679,10 @@ impl<F, T>
         item: (
             ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
             Option<String>,
+            i64,
         ),
     ) -> Result<Self, Self::Error> {
-        let (router_data, optional_correlation_id) = item;
+        let (router_data, optional_correlation_id, amount) = item;
         let (description, redirection_data, mandate_reference, network_txn_id, error) = router_data
             .response
             .other_fields
@@ -748,7 +740,13 @@ impl<F, T>
                     None,
                     None,
                     None,
-                    Some((res.refusal_code.clone(), res.refusal_description.clone())),
+                    Some((
+                        res.refusal_code.clone(),
+                        res.refusal_description.clone(),
+                        res.advice
+                            .as_ref()
+                            .and_then(|advice_code| advice_code.code.clone()),
+                    )),
                 ),
                 WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None, None),
             })
@@ -764,7 +762,11 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = enums::AttemptStatus::from(worldpay_status.clone());
+        let status = if amount == 0 && worldpay_status == PaymentOutcome::Authorized {
+            enums::AttemptStatus::Charged
+        } else {
+            enums::AttemptStatus::from(worldpay_status.clone())
+        };
         let response = match (optional_error_message, error) {
             (None, None) => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::foreign_try_from((
@@ -786,18 +788,22 @@ impl<F, T>
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
-            (_, Some((code, message))) => Err(ErrorResponse {
-                code,
+            (_, Some((code, message, advice_code))) => Err(ErrorResponse {
+                code: code.clone(),
                 message: message.clone(),
-                reason: Some(message),
+                reason: Some(message.clone()),
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: advice_code,
+                // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
+                // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
+                network_decline_code: Some(code),
+                network_error_message: Some(message),
             }),
         };
         Ok(Self {

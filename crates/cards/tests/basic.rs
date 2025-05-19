@@ -85,11 +85,11 @@ fn test_card_expiration() {
     assert!(invalid_card_exp.is_err());
 
     let serialized = serde_json::to_string(&card_exp).unwrap();
-    let expected_string = format!(r#"{{"month":{},"year":{}}}"#, curr_month, curr_year);
+    let expected_string = format!(r#"{{"month":{},"year":{}}}"#, 3, curr_year);
     assert_eq!(serialized, expected_string);
 
     let derialized = serde_json::from_str::<CardExpiration>(&serialized).unwrap();
-    assert_eq!(*derialized.get_month().peek(), curr_month);
+    assert_eq!(*derialized.get_month().peek(), 3);
     assert_eq!(*derialized.get_year().peek(), curr_year);
 
     let invalid_serialized_string = r#"{"month":13,"year":123}"#;

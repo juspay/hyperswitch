@@ -19,14 +19,14 @@ use crate::{
 pub async fn create_access_token<F: Clone + 'static>(
     state: &SessionState,
     connector_data: &api_types::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     router_data: &mut types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<()> {
     let connector_access_token = add_access_token_for_payout(
         state,
         connector_data,
-        merchant_account,
+        merchant_context,
         router_data,
         payout_type,
     )
@@ -50,7 +50,7 @@ pub async fn create_access_token<F: Clone + 'static>(
 pub async fn add_access_token_for_payout<F: Clone + 'static>(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     router_data: &types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
@@ -60,7 +60,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
         .connector_name
         .supports_access_token_for_payout(payout_type)
     {
-        let merchant_id = merchant_account.get_id();
+        let merchant_id = merchant_context.get_merchant_account().get_id();
         let store = &*state.store;
         let old_access_token = store
             .get_access_token(merchant_id, connector.connector.id())
@@ -96,7 +96,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                 refresh_connector_auth(
                     state,
                     connector,
-                    merchant_account,
+                    merchant_context,
                     &refresh_token_router_data,
                 )
                 .await?
@@ -136,7 +136,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
 pub async fn refresh_connector_auth(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
@@ -172,8 +172,9 @@ pub async fn refresh_connector_auth(
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 };
 
                 Ok(Err(error_response))
