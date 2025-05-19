@@ -1,23 +1,16 @@
-use std::io::Cursor;
-
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData, PaymentsCaptureRouterData},
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
-use quick_xml::{
-    events::{BytesDecl, BytesText, Event},
-    se::Serializer,
-    Writer,
-};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
@@ -44,26 +37,218 @@ pub mod worldpayxml_constants {
     pub const WORLDPAYXML_VERSION: &str = "1.4";
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
-    pub const WORLDPAYXML_DOC_TYPE: &str =
-        r#"paymentService PUBLIC "-//Worldpay//DTD Worldpay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd""#;
+    pub const WORLDPAYXML_DOC_TYPE: &str = r#"paymentService PUBLIC "-//Worldpay//DTD Worldpay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd""#;
 }
 
-#[derive(Serialize)]
+// #[derive(Debug, Serialize, Deserialize)]
+// #[serde(rename = "paymentService")]
+// pub struct PaymentService {
+//     #[serde(rename = "@version")]
+//     version: String,
+//     #[serde(rename = "@merchantCode")]
+//     merchant_code: Secret<String>,
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     submit: Option<Submit>,
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     reply: Option<Reply>,
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     inquiry: Option<Inquiry>,
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     modify: Option<Modify>,
+// }
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "paymentService")]
-pub struct PaymentService {
-    #[serde(rename = "@version")]
-    version: String,
-    #[serde(rename = "@merchantCode")]
-    merchant_code: Secret<String>,
-    submit: Submit,
+#[serde(untagged)]
+pub enum PaymentService {
+   AuthorizationRequest(AuthRequest)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthRequest{
+#[serde(rename = "@version")]
+version: String,
+#[serde(rename = "@merchantCode")]
+merchant_code: Secret<String>,
+#[serde(skip_serializing_if = "Option::is_none")]
+submit: Option<Submit>,
+}
+
+//  pub struct PaymentService {
+//         #[serde(rename = "@version")]
+//         version: String,
+//         #[serde(rename = "@merchantCode")]
+//         merchant_code: Secret<String>,
+//         #[serde(skip_serializing_if = "Option::is_none")]
+//         submit: Option<Submit>,
+//         #[serde(skip_serializing_if = "Option::is_none")]
+//         reply: Option<Reply>,
+//         #[serde(skip_serializing_if = "Option::is_none")]
+//         inquiry: Option<Inquiry>,
+//         #[serde(skip_serializing_if = "Option::is_none")]
+//         modify: Option<Modify>,
+//     }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Modify {
+    order_modification: OrderModification,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OrderModification {
+    #[serde(rename = "@orderCode")]
+    order_code: String,
+    capture: Option<CaptureRequest>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CaptureRequest {
+    amount: WorldpayXmlAmount,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Inquiry {
+    order_inquiry: OrderInquiry,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OrderInquiry {
+    #[serde(rename = "@orderCode")]
+    order_code: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct Submit {
     order: Order,
 }
 
-#[derive(Serialize)]
+// #[derive(Debug, Deserialize, Serialize)]
+// #[serde(rename_all = "camelCase")]
+// enum Reply {
+//     OrderStatus(OrderStatus),
+// }
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Reply {
+    order_status: Option<OrderStatus>,
+    error: Option<WorldpayXmlErrorResponse>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WorldpayXmlErrorResponse {
+    #[serde(rename = "@code")]
+    pub code: String,
+    #[serde(rename = "$value")]
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OrderStatus {
+    #[serde(rename = "@orderCode")]
+    order_code: String,
+    payment: Option<Payment>,
+    error: Option<WorldpayXmlErrorResponse>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Payment {
+    payment_method: String,
+    amount: WorldpayXmlAmount,
+    last_event: LastEvent,
+    #[serde(rename = "AuthorisationId")]
+    authorisation_id: Option<AuthorisationId>,
+    scheme_response: Option<SchemeResponse>,
+    payment_method_detail: Option<PaymentMethodDetail>,
+    #[serde(rename = "CVCResultCode")]
+    cvc_result_code: Option<ResultCode>,
+    #[serde(rename = "AVSResultCode")]
+    avs_result_code: Option<ResultCode>,
+    #[serde(rename = "AAVAddressResultCode")]
+    aav_address_result_code: Option<ResultCode>,
+    #[serde(rename = "AAVPostcodeResultCode")]
+    aav_postcode_result_code: Option<ResultCode>,
+    #[serde(rename = "AAVCardholderNameResultCode")]
+    aav_cardholder_name_result_code: Option<ResultCode>,
+    #[serde(rename = "AAVTelephoneResultCode")]
+    aav_telephone_result_code: Option<ResultCode>,
+    #[serde(rename = "AAVEmailResultCode")]
+    aav_email_result_code: Option<ResultCode>,
+    issuer_country_code: Option<String>,
+    issuer_name: Option<String>,
+    balance: Option<Balance>,
+    card_holder_name: Option<String>,
+    #[serde(rename = "ISO8583ReturnCode")]
+    return_code: Option<ReturnCode>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ReturnCode {
+    #[serde(rename = "@description")]
+    description: String,
+    #[serde(rename = "@code")]
+    code: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResultCode {
+    #[serde(rename = "@description")]
+    description: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Balance {
+    #[serde(rename = "@accountType")]
+    account_type: String,
+    amount: WorldpayXmlAmount,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodDetail {
+    card: CardResponse,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardResponse {
+    #[serde(rename = "@number")]
+    number: Option<String>,
+    #[serde(rename = "@type")]
+    card_type: String,
+    expiry_date: Option<ExpiryDate>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuthorisationId {
+    #[serde(rename = "@id")]
+    id: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LastEvent {
+    Authorised,
+    Refused,
+    Cancelled,
+    Captured,
+    Settled,
+    SentForAuthorisation,
+    SentForSettlement,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemeResponse {
+    transaction_identifier: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Order {
     #[serde(rename = "@orderCode")]
@@ -83,7 +268,7 @@ pub enum AutoCapture {
     ON,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct WorldpayXmlAmount {
     #[serde(rename = "@currencyCode")]
     currency_code: api_models::enums::Currency,
@@ -93,13 +278,13 @@ struct WorldpayXmlAmount {
     value: StringMinorUnit,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct PaymentDetails {
     #[serde(rename = "CARD-SSL")]
     card_ssl: CardSSL,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CardSSL {
     card_number: cards::CardNumber,
@@ -108,27 +293,18 @@ struct CardSSL {
     cvc: Secret<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename = "expiryDate")]
 struct ExpiryDate {
     date: Date,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct Date {
     #[serde(rename = "@month")]
     month: Secret<String>,
     #[serde(rename = "@year")]
     year: Secret<String>,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct WorldpayxmlCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
 }
 
 impl TryFrom<&Card> for PaymentDetails {
@@ -186,7 +362,7 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
             value: authorize_data.amount.to_owned(),
         };
         let payment_details = PaymentDetails::try_from(card_data)?;
-        let submit = Submit {
+        let submit = Some(Submit {
             order: Order {
                 order_code,
                 capture_delay,
@@ -194,12 +370,15 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
                 amount,
                 payment_details,
             },
-        };
+        });
 
         Ok(Self {
             version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
             merchant_code: auth.merchant_code.clone(),
             submit,
+            reply: None,
+            inquiry: None,
+            modify: None,
         })
     }
 }
@@ -210,47 +389,48 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
         item: &WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                PaymentService::try_from((item, &req_card))
-            }
+            PaymentMethodData::Card(req_card) => PaymentService::try_from((item, &req_card)),
             _ => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
             ))?,
         }
-            
     }
 }
 
-pub fn get_worldpay_xml_auth_request(
-    item: &T,
-) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
-    let mut xml_bytes = Vec::new();
-    let mut writer = Writer::new(Cursor::new(&mut xml_bytes));
-    writer.write_event(Event::Decl(BytesDecl::new(worldpayxml_constants::XML_VERSION, Some(worldpayxml_constants::XML_ENCODING), None)))
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to write XML declaration for Worldpay request")?;
-    writer.write_event(Event::DocType(BytesText::from_escaped(
-        worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
-    ))).unwrap();
+// impl TryFrom<&WorldpayxmlRouterData<&PaymentsCaptureRouterData>> for PaymentService {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         item: &WorldpayxmlRouterData<&PaymentsCaptureRouterData>,
+//     ) -> Result<Self, Self::Error> {
+//         let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
+//             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-            let xml_body = quick_xml::se::to_string(&trial).unwrap();
-            writer
-                .write_event(Event::Text(BytesText::from_escaped(xml_body)))
-                .unwrap();
+//         let modify = Some( Modify{
+//             order_modification: OrderModification {
+//                 order_code: item.router_data.request.connector_transaction_id.clone(),
+//                 capture: Some(CaptureRequest {
+//                     amount: WorldpayXmlAmount {
+//                         currency_code: item.router_data.request.currency.to_owned(),
+//                         exponent: item.router_data.request.currency.number_of_digits_after_decimal_point().to_string(),
+//                         value: item.amount.to_owned(),
+//                     },
+//                 }),
+//             },
+//         });
+        
+//         Ok(Self {
+//             version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
+//             merchant_code: auth.merchant_code.clone(),
+//             submit: None,
+//             reply: None,
+//             inquiry: None,
+//             modify: None,
+//         })
+//     }
+// }
 
-            let tt = String::from_utf8(xml_bytes.clone())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-            logger::debug!("sssss {:?}", tt);
-            logger::debug!("sssssssssssss {:?}", xml_bytes);
-            Ok(xml_bytes)
-        }
-        _ => Ok(xml_bytes),
-    }
-}
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct WorldpayxmlAuthType {
     pub(super) api_username: Secret<String>,
     pub(super) api_password: Secret<String>,
@@ -285,43 +465,172 @@ pub enum WorldpayxmlPaymentStatus {
     Processing,
 }
 
-impl From<WorldpayxmlPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: WorldpayxmlPaymentStatus) -> Self {
-        match item {
-            WorldpayxmlPaymentStatus::Succeeded => Self::Charged,
-            WorldpayxmlPaymentStatus::Failed => Self::Failure,
-            WorldpayxmlPaymentStatus::Processing => Self::Authorizing,
+fn get_attempt_status(is_auto_capture: bool, last_event: LastEvent) -> common_enums::AttemptStatus {
+    match last_event {
+        LastEvent::Authorised => {
+            if is_auto_capture {
+                common_enums::AttemptStatus::Pending
+            } else {
+                common_enums::AttemptStatus::Authorized
+            }
+        }
+        LastEvent::Refused => common_enums::AttemptStatus::Failure,
+        LastEvent::Cancelled => common_enums::AttemptStatus::Voided,
+        LastEvent::Captured | LastEvent::Settled => common_enums::AttemptStatus::Charged,
+        LastEvent::SentForAuthorisation | LastEvent::SentForSettlement => {
+            common_enums::AttemptStatus::Pending
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WorldpayxmlPaymentsResponse {
-    status: WorldpayxmlPaymentStatus,
-    id: String,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, WorldpayxmlPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, PaymentService, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
+where
+    T: connector_utils::CaptureData,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, WorldpayxmlPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, PaymentService, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let is_auto_capture = item.data.request.is_auto_capture();
+        let reply = item
+            .response
+            .reply
+            .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from("Missing reply data".to_string()),
+            ))?;
+
+        validate_auth_reply(&reply)?;
+
+        if reply.error.is_some() {
+            let error = reply
+                .error
+                .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                    bytes::Bytes::from("Missing reply.error".to_string()),
+                ))?;
+            let error_message = error.message.clone();
+            let response = Err(ErrorResponse {
+                code: error.code,
+                message: error.message.clone(),
+                reason: Some(error.message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }
+            .into());
+
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response,
+                ..item.data
+            })
+        } else {
+            let order_status =
+                reply
+                    .order_status
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from("Missing  order_status.data".to_string()),
+                    ))?;
+
+            validate_auth_order_status(&order_status)?;
+
+            if order_status.payment.is_some() {
+                let payment_data =
+                    order_status
+                        .payment
+                        .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                            bytes::Bytes::from("Missing order_status.payment".to_string()),
+                        ))?;
+
+                let status = get_attempt_status(is_auto_capture, payment_data.last_event);
+                let response = if connector_utils::is_payment_failure(status) {
+                    let error_code = payment_data
+                        .return_code
+                        .as_ref()
+                        .map(|code| code.code.clone());
+                    let error_message = payment_data
+                        .return_code
+                        .as_ref()
+                        .map(|code| code.description.clone());
+                    Err(ErrorResponse {
+                        code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        reason: None,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(order_status.order_code.clone()),
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            order_status.order_code.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(order_status.order_code.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                };
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            } else {
+                // Handles API failures that do not impact the payment data.                
+                Ok(Self {
+                    status: item.data.status,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            order_status.order_code.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(order_status.order_code.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl TryFrom<&PaymentsSyncRouterData> for PaymentService {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let auth = WorldpayxmlAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let order_code = item
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+        let inquiry = Some(Inquiry {
+            order_inquiry: OrderInquiry { order_code },
+        });
+
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            ..item.data
+            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
+            merchant_code: auth.merchant_code.clone(),
+            submit: None,
+            reply: None,
+            inquiry,
+            modify: None,
         })
     }
 }
@@ -342,8 +651,6 @@ impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for WorldpayxmlRe
         })
     }
 }
-
-// Type definition for Refund Response
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
@@ -409,4 +716,36 @@ pub struct WorldpayxmlErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+fn validate_auth_reply(reply: &Reply) -> Result<(), errors::ConnectorError> {
+    if (reply.error.is_some() && reply.order_status.is_some())
+        || (reply.error.is_none() && reply.order_status.is_none())
+    {
+        return Err(
+            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                "Either reply.error_data or reply.order_data must be present in the response"
+                    .to_string(),
+            ))
+            .into(),
+        );
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_auth_order_status(order_status: &OrderStatus) -> Result<(), errors::ConnectorError> {
+    if (order_status.payment.is_some() && order_status.error.is_some())
+        || (order_status.payment.is_none() && order_status.error.is_none())
+    {
+        return Err(
+            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                "Either order_status.payment or order_status.error must be present in the reponse"
+                    .to_string(),
+            ))
+            .into(),
+        );
+    } else {
+        Ok(())
+    }
 }

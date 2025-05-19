@@ -66,10 +66,14 @@ use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
+use quick_xml::{
+    events::{BytesDecl, BytesText, Event},
+    Writer,
+};
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
@@ -6315,5 +6319,81 @@ pub trait FraudCheckRecordReturnRequest {
 impl FraudCheckRecordReturnRequest for FraudCheckRecordReturnData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub struct XmlSerializer;
+impl XmlSerializer {
+    pub fn serialize_to_xml_bytes<T: Serialize>(
+        item: &T,
+        xml_version: &str,
+        xml_encoding: Option<&str>,
+        xml_standalone: Option<&str>,
+        xml_doc_type: &str,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+        let mut xml_bytes = Vec::new();
+        let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
+
+        writer
+            .write_event(Event::Decl(BytesDecl::new(
+                xml_version,
+                xml_encoding,
+                xml_standalone,
+            )))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write XML declaration")?;
+
+        writer
+            .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write the XML declaration")?;
+
+        let xml_body = quick_xml::se::to_string(&item)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
+
+        writer
+            .write_event(Event::Text(BytesText::from_escaped(xml_body)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
+
+        Ok(xml_bytes)
+    }
+}
+
+pub trait CaptureData {
+    fn is_auto_capture(&self) -> bool;
+}
+
+impl CaptureData for PaymentsAuthorizeData {
+    fn is_auto_capture(&self) -> bool {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => true,
+            Some(_) => false,
+        }
+    }
+}
+
+impl CaptureData for PaymentsSyncData {
+    fn is_auto_capture(&self) -> bool {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => true,
+            Some(_) => false,
+        }
+    }
+}
+
+impl CaptureData for PaymentsCaptureData {
+    fn is_auto_capture(&self) -> bool {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => true,
+            Some(_) => false,
+        }
     }
 }
