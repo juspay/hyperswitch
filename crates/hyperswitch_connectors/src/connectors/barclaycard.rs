@@ -884,6 +884,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Barclayca
         self.common_get_content_type()
     }
 
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
     fn get_url(
         &self,
         req: &RefundSyncRouterData,
