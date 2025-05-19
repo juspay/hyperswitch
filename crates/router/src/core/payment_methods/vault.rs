@@ -8,6 +8,12 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_flow_types::{ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow},
+    types::VaultRouterData,
+};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
@@ -33,7 +39,9 @@ use crate::{
         payments::{self as payments_core, helpers as payment_helpers},
         utils as core_utils,
     },
-    headers, services, settings,
+    headers,
+    services::{self, connector_integration_interface::RouterDataConversion},
+    settings,
     types::{self, payment_methods as pm_types},
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
@@ -1365,7 +1373,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         .clone()
         .map(|id| id.get_string_repr().to_owned());
 
-    let mut router_data = core_utils::construct_vault_router_data(
+    let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account,
         &merchant_connector_account,
@@ -1373,6 +1381,12 @@ pub async fn retrieve_payment_method_from_vault_external(
         connector_vault_id,
     )
     .await?;
+
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the external vault retrieve api call",
+        )?;
 
     let connector_name = merchant_connector_account
         .get_connector_name()
@@ -1388,7 +1402,7 @@ pub async fn retrieve_payment_method_from_vault_external(
     .attach_printable("Failed to get the connector data")?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        api::ExternalVaultRetrieveFlow,
+        ExternalVaultRetrieveFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1396,14 +1410,22 @@ pub async fn retrieve_payment_method_from_vault_external(
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
-        &router_data,
+        &old_router_data,
         payments_core::CallConnectorAction::Trigger,
         None,
     )
     .await
     .to_vault_failed_response()?;
 
-    match router_data_resp.response {
+    get_vault_response_for_retrieve_payment_method_data::<ExternalVaultRetrieveFlow>(
+        router_data_resp,
+    )
+}
+
+pub fn get_vault_response_for_retrieve_payment_method_data<F>(
+    router_data: VaultRouterData<F>,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    match router_data.response {
         Ok(response) => match response {
             types::VaultResponseData::ExternalVaultRetrieveResponse { vault_data } => {
                 Ok(pm_types::VaultRetrieveResponse { data: vault_data })
@@ -1499,7 +1521,7 @@ pub async fn delete_payment_method_data_from_vault_external(
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let connector_vault_id = vault_id.get_string_repr().to_owned();
 
-    let mut router_data = core_utils::construct_vault_router_data(
+    let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account,
         &merchant_connector_account,
@@ -1507,6 +1529,12 @@ pub async fn delete_payment_method_data_from_vault_external(
         Some(connector_vault_id),
     )
     .await?;
+
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the external vault delete api call",
+        )?;
 
     let connector_name = merchant_connector_account
         .get_connector_name()
@@ -1522,7 +1550,7 @@ pub async fn delete_payment_method_data_from_vault_external(
     .attach_printable("Failed to get the connector data")?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        api::ExternalVaultDeleteFlow,
+        ExternalVaultDeleteFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1530,19 +1558,29 @@ pub async fn delete_payment_method_data_from_vault_external(
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
-        &router_data,
+        &old_router_data,
         payments_core::CallConnectorAction::Trigger,
         None,
     )
     .await
     .to_vault_failed_response()?;
 
-    match router_data_resp.response {
+    get_vault_response_for_delete_payment_method_data::<ExternalVaultDeleteFlow>(
+        router_data_resp,
+        merchant_account.get_id().to_owned(),
+    )
+}
+
+pub fn get_vault_response_for_delete_payment_method_data<F>(
+    router_data: VaultRouterData<F>,
+    merchant_id: id_type::MerchantId,
+) -> RouterResult<pm_types::VaultDeleteResponse> {
+    match router_data.response {
         Ok(response) => match response {
             types::VaultResponseData::ExternalVaultDeleteResponse { connector_vault_id } => {
                 Ok(pm_types::VaultDeleteResponse {
-                    vault_id: domain::VaultId::generate(connector_vault_id),
-                    entity_id: merchant_account.get_id().to_owned(),
+                    vault_id: domain::VaultId::generate(connector_vault_id), // converted to VaultId type
+                    entity_id: merchant_id,
                 })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
@@ -1552,7 +1590,7 @@ pub async fn delete_payment_method_data_from_vault_external(
             }
         },
         Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to delete payment method")),
+            .attach_printable("Failed to retrieve payment method")),
     }
 }
 

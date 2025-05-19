@@ -20,8 +20,6 @@ pub mod payouts;
 pub mod poll;
 pub mod refunds;
 pub mod routing;
-pub mod vault;
-pub mod vault_v2;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 #[cfg(feature = "olap")]
@@ -78,7 +76,7 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*, vault::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
     webhooks::*,
 };
 use super::transformers::ForeignTryFrom;

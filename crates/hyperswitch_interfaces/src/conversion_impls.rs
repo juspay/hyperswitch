@@ -891,11 +891,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for VaultCon
     {
         let resource_common_data = Self {
             merchant_id: old_router_data.merchant_id.clone(),
-            customer_id: old_router_data.customer_id.clone().ok_or(
-                ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
-                },
-            )?,
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,

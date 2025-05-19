@@ -144,3 +144,10 @@ pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
 >;
 
 pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;
+
+pub type VaultRouterDataV2<F> = RouterDataV2<
+    F,
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    VaultRequestData,
+    VaultResponseData,
+>;

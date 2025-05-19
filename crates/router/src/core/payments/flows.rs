@@ -17,12 +17,20 @@ use async_trait::async_trait;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_domain_models::router_flow_types::{
+    ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+};
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::PaymentsCaptureData,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_interfaces::api::vault::{
+    ExternalVault, ExternalVaultDelete, ExternalVaultInsert, ExternalVaultRetrieve,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
@@ -850,14 +858,14 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ExternalVault for connector::DummyConnector<T> {}
+impl<const T: u8> ExternalVault for connector::DummyConnector<T> {}
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ExternalVaultInsert for connector::DummyConnector<T> {}
+impl<const T: u8> ExternalVaultInsert for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::ExternalVaultInsertFlow,
+        ExternalVaultInsertFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>
@@ -865,11 +873,11 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ExternalVaultRetrieve for connector::DummyConnector<T> {}
+impl<const T: u8> ExternalVaultRetrieve for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::ExternalVaultRetrieveFlow,
+        ExternalVaultRetrieveFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>
@@ -877,11 +885,11 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::ExternalVaultDelete for connector::DummyConnector<T> {}
+impl<const T: u8> ExternalVaultDelete for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::ExternalVaultDeleteFlow,
+        ExternalVaultDeleteFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>

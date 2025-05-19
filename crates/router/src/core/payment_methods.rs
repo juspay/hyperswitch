@@ -49,7 +49,11 @@ use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::{payment_method_data, payment_methods as domain_payment_methods};
+use hyperswitch_domain_models::{
+    payment_method_data, payment_methods as domain_payment_methods,
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
+};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use masking::ExposeOptionInterface;
 use masking::{PeekInterface, Secret};
@@ -72,7 +76,7 @@ use crate::{
     db::errors::ConnectorErrorExt,
     headers, logger,
     routes::{self, payment_methods as pm_routes},
-    services::encryption,
+    services::{connector_integration_interface::RouterDataConversion, encryption},
     types::{
         self,
         api::{self, payment_methods::PaymentMethodCreateExt},
@@ -1874,7 +1878,7 @@ pub async fn vault_payment_method_external(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    let mut router_data = core_utils::construct_vault_router_data(
+    let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account,
         &merchant_connector_account,
@@ -1882,6 +1886,12 @@ pub async fn vault_payment_method_external(
         None,
     )
     .await?;
+
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the external vault insert api call",
+        )?;
 
     let connector_name = merchant_connector_account
         .get_connector_name()
@@ -1897,7 +1907,7 @@ pub async fn vault_payment_method_external(
     .attach_printable("Failed to get the connector data")?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        api::ExternalVaultInsertFlow,
+        ExternalVaultInsertFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1905,14 +1915,20 @@ pub async fn vault_payment_method_external(
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
-        &router_data,
+        &old_router_data,
         payments_core::CallConnectorAction::Trigger,
         None,
     )
     .await
     .to_vault_failed_response()?;
 
-    match router_data_resp.response {
+    get_vault_response_for_insert_payment_method_data(router_data_resp)
+}
+
+pub fn get_vault_response_for_insert_payment_method_data<F>(
+    router_data: VaultRouterData<F>,
+) -> RouterResult<pm_types::AddVaultResponse> {
+    match router_data.response {
         Ok(response) => match response {
             types::VaultResponseData::ExternalVaultInsertResponse {
                 connector_vault_id,
