@@ -36,7 +36,7 @@ authorizedotnet.base_url = "https://api.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://www.bambora.co.nz/interface/api/dts.asmx"
 bankofamerica.base_url = "https://api.merchant-services.bankofamerica.com/"
-barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/pts/v2/"
+barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://bitpay.com"
@@ -392,6 +392,10 @@ debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
+
+[pm_filters.barclaycard]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
 
 [pm_filters.cybersource]
 credit = { currency = "USD,GBP,EUR,PLN" }

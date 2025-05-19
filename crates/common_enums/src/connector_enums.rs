@@ -65,7 +65,7 @@ pub enum RoutableConnectors {
     Archipel,
     Authorizedotnet,
     Bankofamerica,
-    // Barclaycard,
+    Barclaycard,
     Billwerk,
     Bitpay,
     Bambora,
@@ -218,7 +218,7 @@ pub enum Connector {
     Bambora,
     Bamboraapac,
     Bankofamerica,
-    // Barclaycard,
+    Barclaycard,
     Billwerk,
     Bitpay,
     Bluesnap,
@@ -391,7 +391,7 @@ impl Connector {
             | Self::Bambora
             | Self::Bamboraapac
             | Self::Bankofamerica
-            // | Self::Barclaycard
+            | Self::Barclaycard
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
@@ -543,7 +543,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Archipel => Self::Archipel,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
-            // RoutableConnectors::Barclaycard => Self::Barclaycard,
+            RoutableConnectors::Barclaycard => Self::Barclaycard,
             RoutableConnectors::Billwerk => Self::Billwerk,
             RoutableConnectors::Bitpay => Self::Bitpay,
             RoutableConnectors::Bambora => Self::Bambora,
@@ -656,7 +656,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Archipel => Ok(Self::Archipel),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
-            // Connector::Barclaycard => Ok(Self::Barclaycard),
+            Connector::Barclaycard => Ok(Self::Barclaycard),
             Connector::Billwerk => Ok(Self::Billwerk),
             Connector::Bitpay => Ok(Self::Bitpay),
             Connector::Bambora => Ok(Self::Bambora),
