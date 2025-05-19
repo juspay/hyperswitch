@@ -186,12 +186,6 @@ pub struct CardPaymentInformation {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePayTokenizedCard {
-    transaction_type: TransactionType,
-}
-
-#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentInformation {
     Cards(Box<CardPaymentInformation>),
@@ -213,24 +207,6 @@ pub struct Card {
     security_code: Secret<String>,
     #[serde(rename = "type")]
     card_type: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TokenizedCard {
-    number: Secret<String>,
-    expiration_month: Secret<String>,
-    expiration_year: Secret<String>,
-    cryptogram: Secret<String>,
-    transaction_type: TransactionType,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FluidData {
-    value: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
