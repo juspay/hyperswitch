@@ -1291,6 +1291,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
         use crate::connector::*;
 
         match self.connector_name {
+            api_enums::Connector::Vgs => {
+                vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Adyenplatform => {
                 adyenplatform::transformers::AdyenplatformAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1321,6 +1325,11 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Airwallex => {
                 airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Archipel => {
+                archipel::transformers::ArchipelAuthType::try_from(self.auth_type)?;
+                archipel::transformers::ArchipelConfigData::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Authorizedotnet => {
@@ -1925,6 +1934,8 @@ impl ConnectorTypeAndConnectorName<'_> {
         let mut routable_connector =
             api_enums::RoutableConnectors::from_str(&self.connector_name.to_string()).ok();
 
+        let vault_connector =
+            api_enums::convert_vault_connector(self.connector_name.to_string().as_str());
         let pm_auth_connector =
             api_enums::convert_pm_auth_connector(self.connector_name.to_string().as_str());
         let authentication_connector =
@@ -1959,6 +1970,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if billing_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::BillingProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if vault_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::VaultProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
