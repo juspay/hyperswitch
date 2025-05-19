@@ -4,6 +4,7 @@ use crate::{
     self as app,
     core::{api_locking, proxy},
     services::{api, authentication as auth},
+    types::domain,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::Proxy))]
@@ -20,9 +21,15 @@ pub async fn proxy(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            proxy::proxy_core(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            proxy::proxy_core(state, merchant_context, req)
         },
-        &auth::V2ApiKeyAuth,
+        &auth::V2ApiKeyAuth{
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
