@@ -2,6 +2,7 @@ pub use diesel_models::types::OrderDetailsWithAmount;
 
 use crate::{
     router_data::{AccessToken, RouterData},
+    router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
@@ -118,4 +119,25 @@ pub type BillingConnectorInvoiceSyncRouterData = RouterData<
     BillingConnectorInvoiceSync,
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
+>;
+
+pub type BillingConnectorInvoiceSyncRouterDataV2 = RouterDataV2<
+    BillingConnectorInvoiceSync,
+    router_data_v2::flow_common_types::BillingConnectorInvoiceSyncFlowData,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+pub type BillingConnectorPaymentsSyncRouterDataV2 = RouterDataV2<
+    BillingConnectorPaymentsSync,
+    router_data_v2::flow_common_types::BillingConnectorPaymentsSyncFlowData,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
+>;
+
+pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
+    RecoveryRecordBack,
+    router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
 >;

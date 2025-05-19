@@ -428,6 +428,7 @@ pub async fn payments_retrieve(
         client_secret: json_payload.client_secret.clone(),
         expand_attempts: json_payload.expand_attempts,
         expand_captures: json_payload.expand_captures,
+        all_keys_required: json_payload.all_keys_required,
         ..Default::default()
     };
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
@@ -1903,10 +1904,11 @@ where
             merchant_context,
             profile_id,
             operation,
-            req,
+            req.clone(),
             auth_flow,
             payments::CallConnectorAction::Trigger,
             header_payload,
+            req.all_keys_required,
         )
         .await
     } else {
@@ -2812,6 +2814,7 @@ pub async fn proxy_confirm_intent(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                None,
             ))
         },
         &auth::V2ApiKeyAuth {

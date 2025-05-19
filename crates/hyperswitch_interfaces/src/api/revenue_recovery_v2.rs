@@ -20,6 +20,7 @@ use hyperswitch_domain_models::{
 
 use crate::connector_integration_v2::ConnectorIntegrationV2;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 /// trait RevenueRecoveryV2
 pub trait RevenueRecoveryV2:
     BillingConnectorPaymentsSyncIntegrationV2
@@ -27,6 +28,10 @@ pub trait RevenueRecoveryV2:
     + BillingConnectorInvoiceSyncIntegrationV2
 {
 }
+
+#[cfg(not(all(feature = "v2", feature = "revenue_recovery")))]
+/// trait RevenueRecoveryV2
+pub trait RevenueRecoveryV2 {}
 
 /// trait BillingConnectorPaymentsSyncIntegrationV2
 pub trait BillingConnectorPaymentsSyncIntegrationV2:

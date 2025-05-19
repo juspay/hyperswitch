@@ -1,9 +1,4 @@
 pub mod cards;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 #[cfg(all(
@@ -50,11 +45,13 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
     feature = "customer_v2"
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use hyperswitch_domain_models::payment_method_data;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::{payment_method_data, payment_methods as domain_payment_methods};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use masking::ExposeOptionInterface;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -783,6 +780,11 @@ pub(crate) async fn get_payment_method_create_request(
         Some(pm_data) => match payment_method {
             Some(payment_method) => match pm_data {
                 domain::PaymentMethodData::Card(card) => {
+                    let card_network = get_card_network_with_us_local_debit_network_override(
+                        card.card_network.clone(),
+                        card.co_badged_card_data.as_ref(),
+                    );
+
                     let card_detail = payment_methods::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
@@ -790,7 +792,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
-                        card_network: card.card_network.clone(),
+                        card_network: card_network.clone(),
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
                     };
@@ -806,8 +808,8 @@ pub(crate) async fn get_payment_method_create_request(
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: customer_id.clone(),
-                        card_network: card
-                            .card_network
+                        card_network: card_network
+                            .clone()
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
@@ -852,6 +854,32 @@ pub(crate) async fn get_payment_method_create_request(
             field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
+    }
+}
+
+/// Determines the appropriate card network to to be stored.
+///
+/// If the provided card network is a US local network, this function attempts to
+/// override it with the first global network from the co-badged card data, if available.
+/// Otherwise, it returns the original card network as-is.
+///
+fn get_card_network_with_us_local_debit_network_override(
+    card_network: Option<common_enums::CardNetwork>,
+    co_badged_card_data: Option<&payment_methods::CoBadgedCardData>,
+) -> Option<common_enums::CardNetwork> {
+    if let Some(true) = card_network
+        .as_ref()
+        .map(|network| network.is_us_local_network())
+    {
+        services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
+        co_badged_card_data.and_then(|data| {
+            data.co_badged_card_networks
+                .iter()
+                .find(|network| network.is_global_network())
+                .cloned()
+        })
+    } else {
+        card_network
     }
 }
 
@@ -1361,6 +1389,102 @@ pub async fn list_saved_payment_methods_for_customer(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
     ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn get_token_data_for_payment_method(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
+    request: payment_methods::GetTokenDataRequest,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResponse<api::TokenDataResponse> {
+    let key_manager_state = &(&state).into();
+
+    let db = &*state.store;
+
+    let payment_method = db
+        .find_payment_method(
+            key_manager_state,
+            &key_store,
+            &payment_method_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let token_data_response =
+        generate_token_data_response(&state, request, profile, &payment_method).await?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        token_data_response,
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn generate_token_data_response(
+    state: &SessionState,
+    request: payment_methods::GetTokenDataRequest,
+    profile: domain::Profile,
+    payment_method: &domain_payment_methods::PaymentMethod,
+) -> RouterResult<api::TokenDataResponse> {
+    let token_details = match request.token_type {
+        common_enums::TokenDataType::NetworkToken => {
+            let is_network_tokenization_enabled = profile.is_network_tokenization_enabled;
+            if !is_network_tokenization_enabled {
+                return Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Network tokenization is not enabled for this profile".to_string(),
+                }
+                .into());
+            }
+            let network_token_requestor_ref_id = payment_method
+                .network_token_requestor_reference_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "NetworkTokenRequestorReferenceId is not present".to_string(),
+                })?;
+
+            let network_token = network_tokenization::get_token_from_tokenization_service(
+                state,
+                network_token_requestor_ref_id,
+                payment_method,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to fetch network token data from tokenization service")?;
+
+            api::TokenDetailsResponse::NetworkTokenDetails(api::NetworkTokenDetailsResponse {
+                network_token: network_token.network_token,
+                network_token_exp_month: network_token.network_token_exp_month,
+                network_token_exp_year: network_token.network_token_exp_year,
+                cryptogram: network_token.cryptogram,
+                card_issuer: network_token.card_issuer,
+                card_network: network_token.card_network,
+                card_type: network_token.card_type,
+                card_issuing_country: network_token.card_issuing_country,
+                bank_code: network_token.bank_code,
+                card_holder_name: network_token.card_holder_name,
+                nick_name: network_token.nick_name,
+                eci: network_token.eci,
+            })
+        }
+        common_enums::TokenDataType::SingleUseToken
+        | common_enums::TokenDataType::MultiUseToken => {
+            return Err(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token type not supported".to_string(),
+            }
+            .into());
+        }
+    };
+
+    Ok(api::TokenDataResponse {
+        payment_method_id: payment_method.id.clone(),
+        token_type: request.token_type,
+        token_details,
+    })
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -2514,6 +2638,7 @@ fn construct_zero_auth_payments_request(
         customer_acceptance: None,
         browser_info: None,
         force_3ds_challenge: None,
+        is_iframe_redirection_enabled: None,
     })
 }
 
@@ -2828,6 +2953,7 @@ async fn create_single_use_tokenization_flow(
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
+            whole_connector_response: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

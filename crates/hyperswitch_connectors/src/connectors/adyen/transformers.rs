@@ -1257,6 +1257,7 @@ pub enum CardBrand {
     Visa,
     MC,
     Amex,
+    Accel,
     Argencard,
     Bcmc,
     Bijcard,
@@ -1281,13 +1282,16 @@ pub enum CardBrand {
     Mir,
     Naranja,
     Oasis,
+    Pulse,
     Rupay,
     Shopping,
+    Star,
     Solo,
     Troy,
     Uatp,
     Visaalphabankbonus,
     Visadankort,
+    Nyce,
     Warehouse,
 }
 
@@ -1483,15 +1487,7 @@ pub enum PaymentType {
     #[serde(rename = "econtext_seven_eleven")]
     SevenEleven,
     #[serde(rename = "econtext_stores")]
-    Lawson,
-    #[serde(rename = "econtext_stores")]
-    MiniStop,
-    #[serde(rename = "econtext_stores")]
-    FamilyMart,
-    #[serde(rename = "econtext_stores")]
-    Seicomart,
-    #[serde(rename = "econtext_stores")]
-    PayEasy,
+    JapaneseConvenienceStores,
     Pix,
 }
 
@@ -2099,6 +2095,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
         common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
         common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
+        common_enums::CardNetwork::Star => Some(CardBrand::Star),
+        common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
+        common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
+        common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
         common_enums::CardNetwork::Interac => None,
     }
 }
@@ -2172,6 +2172,7 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::DinersClub => Ok(Self::Diners),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
+            utils::CardIssuer::CartesBancaires => Ok(Self::Cartebancaire),
         }
     }
 }
@@ -4303,11 +4304,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::MandiriVa
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
-        | PaymentType::Lawson
-        | PaymentType::MiniStop
-        | PaymentType::FamilyMart
-        | PaymentType::Seicomart
-        | PaymentType::PayEasy
+        | PaymentType::JapaneseConvenienceStores
         | PaymentType::Pix => Ok(None),
     }
 }
@@ -4326,11 +4323,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Indomaret
         | PaymentType::BoletoBancario
         | PaymentType::Oxxo
-        | PaymentType::Lawson
-        | PaymentType::MiniStop
-        | PaymentType::FamilyMart
-        | PaymentType::Seicomart
-        | PaymentType::PayEasy => {
+        | PaymentType::JapaneseConvenienceStores => {
             let voucher_data = VoucherNextStepData {
                 expires_at,
                 reference,

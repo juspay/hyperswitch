@@ -125,6 +125,7 @@ pub async fn payment_intents_retrieve(
         client_secret: query_payload.client_secret.clone(),
         expand_attempts: None,
         expand_captures: None,
+        all_keys_required: None,
     };
 
     let api_auth = auth::ApiKeyAuth {

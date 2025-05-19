@@ -30,19 +30,18 @@ impl
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsUpdateMetadataRouterData> {
-        Box::pin(transformers::construct_payment_router_data::<
-            api::UpdateMetadata,
-            types::PaymentsUpdateMetadataData,
-        >(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_context,
-            customer,
-            merchant_connector_account,
-            merchant_recipient_data,
-            header_payload,
-        ))
+        Box::pin(
+            transformers::construct_payment_router_data_for_update_metadata(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_context,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
         .await
     }
 
@@ -87,6 +86,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::UpdateMetadata,
@@ -100,6 +100,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
             &self,
             call_connector_action,
             connector_request,
+            all_keys_required,
         )
         .await
         .to_payment_failed_response()?;

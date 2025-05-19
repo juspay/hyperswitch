@@ -113,6 +113,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
+            | Flow::GetPaymentMethodTokenData
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
@@ -248,6 +249,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SwitchOrg
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
+            | Flow::CreatePlatformAccount
             | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
@@ -288,7 +290,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UploadFileToThemeStorage
             | Flow::CreateTheme
             | Flow::UpdateTheme
-            | Flow::DeleteTheme => Self::User,
+            | Flow::DeleteTheme
+            | Flow::CloneConnector => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel

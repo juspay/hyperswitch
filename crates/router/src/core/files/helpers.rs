@@ -157,6 +157,7 @@ pub async fn retrieve_file_from_connector(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -339,6 +340,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     connector_integration,
                     &router_data,
                     payments::CallConnectorAction::Trigger,
+                    None,
                     None,
                 )
                 .await

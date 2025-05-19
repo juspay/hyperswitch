@@ -42,11 +42,12 @@ Single API to access the payments ecosystem and its features
 
 1. [Introduction](#introduction)
 2. [Try Hyperswitch](#try-hyperswitch)
-3. [Architectural Overview](#architectural-overview) 
-4. [Support, Feature requests & Bugs](#support-feature-requests)  
-5. [Our Vision](#our-vision)  
-6. [Versioning](#versioning)  
-7. [Copyright and License](#copyright-and-license)
+3. [Architectural Overview](#architectural-overview)
+4. [Community & Contributions](#community-and-contributions)
+5. [Feature requests & Bugs](#feature-requests)  
+6. [Our Vision](#our-vision)  
+7. [Versioning](#versioning)  
+8. [Copyright and License](#copyright-and-license)
 
 <a href="#introduction">
   <h2 id="introduction">Introduction</h2>
@@ -69,15 +70,27 @@ Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
 ### 1. Local Setup
 
-You can run Hyperswitch on your system using Docker compose after cloning this repository. 
-We recommend using Docker Desktop (Or Orbstack) for Windows and Mac OS. On Linux, you can install Docker Engine directly.
+#### One-Click Setup (Recommended)
+
+You can run Hyperswitch on your system with a single command using our one-click setup script:
+
 ```shell
 git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
 cd hyperswitch
-docker compose up -d
-# This script verifies the setup and provides links to the individual components.
-scripts/docker_output.sh
+scripts/setup.sh
 ```
+
+The above script will:
+- Check for prerequisites (Docker Compose/Podman)
+- Set up necessary configurations
+- Let you select a deployment profile:
+  - **Standard**: Recommended - App server + Control Center + Web SDK.
+  - **Full**: Standard + Monitoring + Scheduler.
+  - **Standalone App Server**: Core services only (Hyperswitch server, PostgreSQL, Redis)
+- Start the selected services
+- Check service health
+- Provide access information
+
 The next step is to [configure a connector][configure-a-connector] with the Hyperswitch Control Center and [try a payment][try-a-payment].
 
 Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
@@ -129,11 +142,17 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 [configure-a-connector]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor
 [try-a-payment]: https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment
 
-<a href="support-feature-requests">
-  <h2 id="support-feature-requests">Support, Feature requests & Bugs</h2>
+<a href="community-and-contributions">
+  <h2 id="community-and-contributions">Community & Contributions</h2>
 </a>
 
-For any support, join the conversation in [Slack](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw)
+If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw).
+
+We welcome contributors from around the world to help build Hyperswitch. To get started, please read our [contribution guidelines](contributing-guidelines).
+
+<a href="feature-requests">
+  <h2 id="feature-requests">Feature requests & Bugs</h2>
+</a>
 
 For new product features, enhancements, roadmap discussions, or to share queries and ideas, visit our [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions)
 
