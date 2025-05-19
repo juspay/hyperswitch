@@ -19,7 +19,12 @@ use crate::{
 };
 
 #[cfg(feature = "accounts_cache")]
-const CACHE_KEY_PREFIX: &'static str = "BUSINESS_PROFILE";
+const CACHE_KEY_PREFIX: &'static str = "PROFILE";
+
+#[cfg(feature = "accounts_cache")]
+fn generate_profile_cache_key(key_suffix: &str) -> String {
+    format!("{}_{}", CACHE_KEY_PREFIX, key_suffix)
+}
 
 #[async_trait::async_trait]
 pub trait ProfileInterface
@@ -135,7 +140,7 @@ impl ProfileInterface for Store {
         {
             cache::get_or_populate_in_memory(
                 self,
-                profile_id.get_string_repr(),
+                &generate_profile_cache_key(profile_id.get_string_repr()),
                 fetch_func,
                 &ACCOUNTS_CACHE,
             )
@@ -157,10 +162,36 @@ impl ProfileInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
-        storage::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+        let fetch_func = || async {
+            let conn = connection::pg_accounts_connection_read(self).await?;
+            storage::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(
+                    key_manager_state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // Use profile_id directly for caching since it's unique
+            cache::get_or_populate_in_memory(
+                self,
+                &generate_profile_cache_key(profile_id.get_string_repr()),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?
             .convert(
                 key_manager_state,
                 merchant_key_store.key.get_inner(),
@@ -168,6 +199,7 @@ impl ProfileInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+        }
     }
 
     #[instrument(skip_all)]
@@ -189,12 +221,11 @@ impl ProfileInterface for Store {
         {
             cache::get_or_populate_in_memory(
                 self,
-                &format!(
-                    "{}_{}_{}",
-                    CACHE_KEY_PREFIX,
+                &generate_profile_cache_key(&format!(
+                    "{}_{}",
                     profile_name,
                     merchant_id.get_string_repr()
-                ),
+                )),
                 fetch_func,
                 &ACCOUNTS_CACHE,
             )
@@ -535,14 +566,15 @@ async fn publish_and_redact_business_profile_cache(
     store: &dyn super::StorageInterface,
     profile: &storage::Profile,
 ) -> CustomResult<(), errors::StorageError> {
-    let cache_key = CacheKind::Accounts(profile.get_id().get_string_repr().into());
+    let cache_key = CacheKind::Accounts(
+        generate_profile_cache_key(profile.get_id().get_string_repr()).into()
+    );
     let profile_name_key = CacheKind::Accounts(
-        format!(
-            "{}_{}_{}",
-            CACHE_KEY_PREFIX,
+        generate_profile_cache_key(&format!(
+            "{}_{}",
             profile.profile_name,
             profile.merchant_id.get_string_repr()
-        )
+        ))
         .into(),
     );
 
