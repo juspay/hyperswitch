@@ -120,6 +120,7 @@ fabric.properties
 
 ### dotenv ###
 .env
+.service-ports.env
 
 ### Linux ###
 *~
@@ -144,7 +145,6 @@ fabric.properties
 
 # Icon must end with two \r
 Icon
-
 
 # Thumbnails
 ._*
