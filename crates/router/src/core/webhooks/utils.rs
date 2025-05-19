@@ -162,6 +162,13 @@ pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
 }
 
+pub fn increment_webhook_outgoing_count(merchant_id: &common_utils::id_type::MerchantId) {
+    metrics::WEBHOOK_OUTGOING_COUNT.add(
+        1,
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
+    )
+}
+
 pub fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
     metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
         1,
@@ -178,6 +185,8 @@ pub fn increment_webhook_outgoing_not_received_count(
     );
 }
 
+/// Checks if outgoing webhooks are disabled in application configuration
+/// or if webhook URL could not be obtained or empty
 pub fn is_outgoing_webhook_disabled(
     state: &SessionState,
     webhook_url_result: &Result<String, Report<errors::WebhooksFlowError>>,

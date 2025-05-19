@@ -20,7 +20,7 @@ pub mod api_logs;
 pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
-pub mod outgoing_webhook_logs;
+pub mod outgoing_webhook_events;
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {

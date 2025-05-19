@@ -29,7 +29,7 @@ use crate::{
         metrics,
     },
     db::StorageInterface,
-    events::outgoing_webhook_logs::{
+    events::outgoing_webhook_events::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
     },
     logger,
