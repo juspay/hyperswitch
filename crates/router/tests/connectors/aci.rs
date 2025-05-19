@@ -133,6 +133,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     }
 }
 
@@ -205,6 +206,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     }
 }
 
@@ -246,6 +248,7 @@ async fn payments_create_success() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -312,6 +315,7 @@ async fn payments_create_failure() {
             &request,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .is_err();
@@ -358,6 +362,7 @@ async fn refund_for_successful_payments() {
         &request,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .unwrap();
@@ -382,6 +387,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &refund_request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -432,6 +438,7 @@ async fn refunds_create_failure() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

@@ -1205,6 +1205,7 @@ pub async fn create_recipient(
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .to_payout_failed_response()?;
@@ -1432,6 +1433,7 @@ pub async fn check_payout_eligibility(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payout_failed_response()?;
@@ -1647,6 +1649,7 @@ pub async fn create_payout(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payout_failed_response()?;
@@ -1775,6 +1778,7 @@ async fn complete_payout_quote_steps_if_required<F>(
             &quote_router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .to_payout_failed_response()?;
@@ -1866,6 +1870,7 @@ pub async fn create_payout_retrieve(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -2026,6 +2031,7 @@ pub async fn create_recipient_disburse_account(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -2216,6 +2222,7 @@ pub async fn cancel_payout(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payout_failed_response()?;
@@ -2352,6 +2359,7 @@ pub async fn fulfill_payout(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
