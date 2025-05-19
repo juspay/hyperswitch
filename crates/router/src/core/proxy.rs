@@ -94,7 +94,7 @@ async fn execute_proxy_request(
         .method(req.method)
         .attach_default_headers()
         .headers(headers)
-        .url(&req.destination_url.as_str())
+        .url(req.destination_url.as_str())
         .set_body(request::RequestContent::Json(Box::new(processed_body)))
         .build();
 
@@ -104,12 +104,12 @@ async fn execute_proxy_request(
         .attach_printable("Faile to call the destination");
 
     response
-        .and_then(|inner| match inner {
+        .map(|inner| match inner {
             Err(err_res) => {
                 logger::error!("Error while receiving response: {err_res:?}");
-                Ok(err_res)
+                err_res
             }
-            Ok(res) => Ok(res),
+            Ok(res) => res,
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while receiving response")
@@ -157,7 +157,7 @@ pub async fn proxy_core(
     let vault_id = utils::ProxyRequestWrapper(req.clone())
         .get_vault_id(
             &state,
-            &merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
