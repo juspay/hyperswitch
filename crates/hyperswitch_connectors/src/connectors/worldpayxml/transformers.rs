@@ -101,6 +101,22 @@ struct Submit {
 struct Reply {
     order_status: Option<OrderStatus>,
     error: Option<WorldpayXmlErrorResponse>,
+    ok: Option<OkResponse>
+}
+
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OkResponse {
+    capture_received: CaptureReceived,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptureReceived {
+    #[serde(rename = "@orderCode")]
+    order_code: String,
+    amount: WorldpayXmlAmount,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -120,7 +136,7 @@ pub struct OrderStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Payment {
     payment_method: String,
     amount: WorldpayXmlAmount,
@@ -145,7 +161,7 @@ pub struct Payment {
     aav_email_result_code: Option<ResultCode>,
     issuer_country_code: Option<String>,
     issuer_name: Option<String>,
-    balance: Option<Balance>,
+    balance: Option<Vec<Balance>>,
     card_holder_name: Option<String>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
@@ -203,7 +219,6 @@ pub enum LastEvent {
     Captured,
     Settled,
     SentForAuthorisation,
-    SentForSettlement,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -427,10 +442,10 @@ pub enum WorldpayxmlPaymentStatus {
     Processing,
 }
 
-fn get_attempt_status(is_auto_capture: bool, last_event: LastEvent) -> common_enums::AttemptStatus {
+fn get_attempt_status(is_auto_capture: bool, last_event: LastEvent, previous_status: Option<&common_enums::AttemptStatus>) -> common_enums::AttemptStatus {
     match last_event {
         LastEvent::Authorised => {
-            if is_auto_capture {
+            if is_auto_capture || (previous_status == Some(&common_enums::AttemptStatus::CaptureInitiated) && !is_auto_capture) {
                 common_enums::AttemptStatus::Pending
             } else {
                 common_enums::AttemptStatus::Authorized
@@ -438,8 +453,9 @@ fn get_attempt_status(is_auto_capture: bool, last_event: LastEvent) -> common_en
         }
         LastEvent::Refused => common_enums::AttemptStatus::Failure,
         LastEvent::Cancelled => common_enums::AttemptStatus::Voided,
-        LastEvent::Captured | LastEvent::Settled => common_enums::AttemptStatus::Charged,
-        LastEvent::SentForAuthorisation | LastEvent::SentForSettlement => {
+        LastEvent::Captured 
+        | LastEvent::Settled  => common_enums::AttemptStatus::Charged,
+        LastEvent::SentForAuthorisation  => {
             common_enums::AttemptStatus::Pending
         }
     }
@@ -466,7 +482,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
             validate_auth_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status(is_auto_capture, payment_data.last_event);
+                let status = get_attempt_status(is_auto_capture, payment_data.last_event, Some(&item.data.status));
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -578,7 +594,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
             validate_auth_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status(is_auto_capture, payment_data.last_event);
+                let status = get_attempt_status(is_auto_capture, payment_data.last_event, Some(&item.data.status));
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -635,6 +651,68 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
                         }),
                         ..item.data
                     })
+        }
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsCaptureData, PaymentsResponseData>>
+    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, PaymentService, PaymentsCaptureData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let reply = item
+            .response
+            .reply
+            .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from("Missing reply data".to_string()),
+            ))?;
+
+
+        if let Some(ok_data) = reply.ok {
+                Ok(Self {
+                    // Capture status will be updated via Psync
+                    status: common_enums::AttemptStatus::CaptureInitiated,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            ok_data.capture_received.order_code.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(ok_data.capture_received.order_code.clone()),
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+        } else {
+            let error = reply
+                .error
+                .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                    bytes::Bytes::from(
+                        "Either reply.ok or reply.error must be present in the response"
+                            .to_string(),
+                    ),
+                ))?;
+
+            Ok(Self {
+                status: common_enums::AttemptStatus::CaptureFailed,
+                response: Err(ErrorResponse {
+                    code: error.code,
+                    message: error.message.clone(),
+                    reason: Some(error.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.data
+            })
         }
     }
 }
