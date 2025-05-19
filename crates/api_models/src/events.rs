@@ -22,7 +22,7 @@ use common_utils::{
 };
 
 use crate::customers::CustomerListRequest;
-#[cfg(feature = "v2")]
+#[cfg(feature = "tokenization_v2")]
 use crate::tokenization;
 #[allow(unused_imports)]
 use crate::{
@@ -230,8 +230,8 @@ impl ApiEventMetric for PaymentMethodSessionResponse {
         })
     }
 }
-#[cfg(feature = "v2")]
+#[cfg(feature = "tokenization_v2")]
 impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
 
-#[cfg(feature = "v2")]
+#[cfg(feature = "tokenization_v2")]
 impl ApiEventMetric for tokenization::GenericTokenizationResponse {}

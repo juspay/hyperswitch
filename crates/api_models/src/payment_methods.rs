@@ -2848,7 +2848,7 @@ pub struct PaymentMethodSessionRequest {
     #[schema(example = 900, default = 900)]
     pub expires_in: Option<u32>,
 
-    /// The json to be used for tokeniation
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
@@ -2868,7 +2868,7 @@ pub struct PaymentMethodsSessionUpdateRequest {
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
-    /// The json to be used for tokeniation
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
 }
@@ -2935,7 +2935,7 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
-    /// The json to be used for tokeniation
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
     pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
 
