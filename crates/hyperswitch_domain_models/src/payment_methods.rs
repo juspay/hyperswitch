@@ -12,7 +12,11 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use router_env::logger;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v2")]
@@ -20,13 +24,11 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{
-    address::Address, payment_method_data as domain_payment_method_data,
-    type_encryption::OptionalEncryptableJsonType,
-};
+use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
 use crate::{
     mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
+    payment_method_data as domain_payment_method_data,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 
@@ -131,6 +133,25 @@ impl PaymentMethod {
     ))]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payment_methods_data(
+        &self,
+    ) -> Option<domain_payment_method_data::PaymentMethodsData> {
+        self.payment_method_data
+            .clone()
+            .map(|value| value.into_inner().expose())
+            .and_then(|value| {
+                serde_json::from_value::<domain_payment_method_data::PaymentMethodsData>(value)
+                    .map_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Failed to parse payment method data in payment method info"
+                        );
+                    })
+                    .ok()
+            })
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
