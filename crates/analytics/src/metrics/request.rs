@@ -1,7 +1,7 @@
 #[inline]
 pub async fn record_operation_time<F, R, T>(
     future: F,
-    metric: &once_cell::sync::Lazy<router_env::opentelemetry::metrics::Histogram<f64>>,
+    metric: &router_env::opentelemetry::metrics::Histogram<f64>,
     metric_name: &T,
     source: &crate::AnalyticsProvider,
 ) -> R

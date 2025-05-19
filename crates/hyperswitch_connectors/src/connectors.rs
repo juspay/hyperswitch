@@ -3,6 +3,7 @@ pub mod adyen;
 pub mod adyenplatform;
 pub mod airwallex;
 pub mod amazonpay;
+pub mod archipel;
 pub mod authorizedotnet;
 pub mod bambora;
 pub mod bamboraapac;
@@ -78,6 +79,7 @@ pub mod shift4;
 pub mod signifyd;
 pub mod square;
 pub mod stax;
+pub mod stripe;
 pub mod stripebilling;
 pub mod taxjar;
 pub mod threedsecureio;
@@ -98,7 +100,7 @@ pub mod zen;
 pub mod zsl;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
-    amazonpay::Amazonpay, authorizedotnet::Authorizedotnet, bambora::Bambora,
+    amazonpay::Amazonpay, archipel::Archipel, authorizedotnet::Authorizedotnet, bambora::Bambora,
     bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, billwerk::Billwerk, bitpay::Bitpay,
     bluesnap::Bluesnap, boku::Boku, braintree::Braintree, cashtocode::Cashtocode,
     chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase, coingate::Coingate,
@@ -115,7 +117,7 @@ pub use self::{
     payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    square::Square, stax::Stax, stripebilling::Stripebilling, taxjar::Taxjar,
+    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
     threedsecureio::Threedsecureio, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
