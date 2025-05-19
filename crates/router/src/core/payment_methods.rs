@@ -2073,7 +2073,8 @@ pub async fn update_payment_method_core(
         .clone()
         .ok_or(errors::VaultError::MissingRequiredField {
             field_name: "locker_id",
-        }).change_context(errors::ApiErrorResponse::InternalServerError)
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
 
     let pmd: domain::PaymentMethodVaultingData =

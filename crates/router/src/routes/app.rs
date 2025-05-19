@@ -47,6 +47,8 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use super::proxy;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -61,8 +63,6 @@ use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
     relay, user, user_role,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use super::proxy;
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -672,11 +672,11 @@ impl Relay {
 pub struct Proxy;
 
 #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
-impl Proxy{
+impl Proxy {
     pub fn server(state: AppState) -> Scope {
         web::scope("/proxy")
-           .app_data(web::Data::new(state))
-           .service(web::resource("").route(web::post().to(proxy::proxy)))
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
 }
 
