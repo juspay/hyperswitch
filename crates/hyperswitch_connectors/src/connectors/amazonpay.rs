@@ -48,7 +48,6 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
-// pem and ring imports for signing are removed as this functionality is now in common_utils
 use sha2::{Digest, Sha256};
 use transformers as amazonpay;
 
@@ -57,6 +56,17 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, PaymentsSyncRequestData},
 };
+
+const SIGNING_ALGO: &str = "AMZN-PAY-RSASSA-PSS-V2";
+const HEADER_ACCEPT: &str = "accept";
+const HEADER_CONTENT_TYPE: &str = "content-type";
+const HEADER_DATE: &str = "x-amz-pay-date";
+const HEADER_HOST: &str = "x-amz-pay-host";
+const HEADER_IDEMPOTENCY_KEY: &str = "x-amz-pay-idempotency-key";
+const HEADER_REGION: &str = "x-amz-pay-region";
+const FINALIZE_SEGMENT: &str = "finalize";
+const AMAZON_PAY_API_BASE_URL: &str = "https://pay-api.amazon.com";
+const AMAZON_PAY_HOST: &str = "pay-api.amazon.com";
 
 #[derive(Clone)]
 pub struct Amazonpay {
@@ -94,16 +104,21 @@ impl Amazonpay {
             private_key,
         } = auth;
 
-        let mut signed_headers = "accept;content-type;x-amz-pay-date;x-amz-pay-host;".to_string();
+        let mut signed_headers = format!(
+            "{};{};{};{};",
+            HEADER_ACCEPT, HEADER_CONTENT_TYPE, HEADER_DATE, HEADER_HOST
+        );
         if *http_method == Method::Post
-            && Self::get_last_segment(canonical_uri) != *"finalize".to_string()
+            && Self::get_last_segment(canonical_uri) != *FINALIZE_SEGMENT.to_string()
         {
-            signed_headers.push_str("x-amz-pay-idempotency-key;");
+            signed_headers.push_str(HEADER_IDEMPOTENCY_KEY);
+            signed_headers.push(';');
         }
-        signed_headers.push_str("x-amz-pay-region");
+        signed_headers.push_str(HEADER_REGION);
 
         format!(
-            "AMZN-PAY-RSASSA-PSS-V2 PublicKeyId={}, SignedHeaders={}, Signature={}",
+            "{} PublicKeyId={}, SignedHeaders={}, Signature={}",
+            SIGNING_ALGO,
             public_key.expose().clone(),
             signed_headers,
             Self::create_signature(
@@ -146,8 +161,11 @@ impl Amazonpay {
 
         canonical_request.push_str(&("\n".to_owned() + signed_headers + "\n" + hashed_payload));
 
-        let string_to_sign = "AMZN-PAY-RSASSA-PSS-V2\n".to_string()
-            + &hex::encode(Sha256::digest(canonical_request.as_bytes()));
+        let string_to_sign = format!(
+            "{}\n{}",
+            SIGNING_ALGO,
+            hex::encode(Sha256::digest(canonical_request.as_bytes()))
+        );
 
         Self::sign(private_key, &string_to_sign)
             .map_err(|e| format!("Failed to create signature: {}", e))
@@ -199,9 +217,9 @@ where
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let http_method = self.get_http_method();
 
-        let canonical_uri: String =
+        let canonical_uri: String = 
             self.get_url(req, connectors)?
-                .replacen("https://pay-api.amazon.com", "", 1);
+                .replacen(AMAZON_PAY_API_BASE_URL, "", 1);
 
         let mut header = vec![
             (
@@ -213,27 +231,27 @@ where
                 "application/json".to_string().into(),
             ),
             (
-                "x-amz-pay-date".to_string(),
+                HEADER_DATE.to_string(),
                 Utc::now()
                     .format("%Y-%m-%dT%H:%M:%SZ")
                     .to_string()
                     .into_masked(),
             ),
             (
-                "x-amz-pay-host".to_string(),
-                "pay-api.amazon.com".to_string().into_masked(),
+                HEADER_HOST.to_string(),
+                AMAZON_PAY_HOST.to_string().into_masked(),
             ),
             (
-                "x-amz-pay-region".to_string(),
+                HEADER_REGION.to_string(),
                 "na".to_string().into_masked(),
             ),
         ];
 
         if http_method == Method::Post
-            && Self::get_last_segment(&canonical_uri) != *"finalize".to_string()
+            && Self::get_last_segment(&canonical_uri) != *FINALIZE_SEGMENT.to_string()
         {
             header.push((
-                "x-amz-pay-idempotency-key".to_string(),
+                HEADER_IDEMPOTENCY_KEY.to_string(),
                 req.connector_request_reference_id.clone().into_masked(),
             ));
         }
