@@ -5,13 +5,14 @@
 
 use std::fmt::Display;
 
+#[cfg(feature = "keymanager")]
+use crate::types::keymanager;
 use crate::{
     date_time,
     errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
     id_type::{AlphaNumericId, LengthId},
     new_type::MerchantName,
-    types::keymanager,
 };
 
 crate::id_type!(
@@ -89,6 +90,7 @@ impl MerchantId {
     }
 }
 
+#[cfg(feature = "keymanager")]
 impl From<MerchantId> for keymanager::Identifier {
     fn from(value: MerchantId) -> Self {
         Self::Merchant(value)
