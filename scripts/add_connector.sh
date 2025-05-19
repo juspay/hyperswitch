@@ -70,7 +70,7 @@ sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payme
 sed -i'' -e "/pub struct ConnectorConfig {/ s/{/{\n    pub ${payment_gateway}: Option<ConnectorTomlConfig>,/" crates/connector_configs/src/connector.rs
 sed -i '' -e "/\/\/ PRAGMA: connector/{N;s/\(.*\)\n/\1\n\t\t\t Connector::${payment_gateway_camelcase} => Ok(connector_data.${payment_gateway}),\n/;}" crates/connector_configs/src/connector.rs
 sed -i '' -e "/\/\/ PRAGMA: config/{N;s/\(.*\)\n/\1\n\t\t\t pub ${payment_gateway}: ConnectorParams,\n/;}" crates/hyperswitch_domain_models/src/configs.rs
-sed -i'' -e "/mod utils;/ s/mod utils;/mod ${payment_gateway};\nmod utils;/" crates/router/tests/connectors/main.rs
+# sed -i'' -e "/mod utils;/ s/mod utils;/mod ${payment_gateway};\nmod utils;/" crates/router/tests/connectors/main.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_payouts!(/default_imp_for_new_connector_integration_payouts!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_frm!(/default_imp_for_new_connector_integration_frm!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_connector_authentication!(/default_imp_for_new_connector_integration_connector_authentication!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
