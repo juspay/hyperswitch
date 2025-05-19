@@ -50,15 +50,15 @@ pub struct ChargeAmount {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AddressDetails {
-    name: Option<Secret<String>>,
-    address_line_1: Option<Secret<String>>,
+    name: Secret<String>,
+    address_line_1: Secret<String>,
     address_line_2: Option<Secret<String>>,
     address_line_3: Option<Secret<String>>,
-    city: Option<String>,
-    state_or_region: Option<Secret<String>>,
-    postal_code: Option<Secret<String>>,
+    city: String,
+    state_or_region: Secret<String>,
+    postal_code: Secret<String>,
     country_code: Option<common_enums::CountryAlpha2>,
-    phone_number: Option<Secret<String>>,
+    phone_number: Secret<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -85,15 +85,15 @@ impl TryFrom<&AmazonpayRouterData<&PaymentsAuthorizeRouterData>> for AmazonpayFi
             currency_code: item.router_data.request.currency,
         };
         let shipping_address = AddressDetails {
-            name: item.router_data.get_optional_shipping_full_name(),
-            address_line_1: item.router_data.get_optional_shipping_line1(),
+            name: item.router_data.get_required_shipping_full_name()?,
+            address_line_1: item.router_data.get_required_shipping_line1()?,
             address_line_2: item.router_data.get_optional_shipping_line2(),
             address_line_3: item.router_data.get_optional_shipping_line3(),
-            city: item.router_data.get_optional_shipping_city(),
-            state_or_region: item.router_data.get_optional_shipping_state(),
-            postal_code: item.router_data.get_optional_shipping_zip(),
+            city: item.router_data.get_required_shipping_city()?,
+            state_or_region: item.router_data.get_required_shipping_state()?,
+            postal_code: item.router_data.get_required_shipping_zip()?,
             country_code: item.router_data.get_optional_shipping_country(),
-            phone_number: item.router_data.get_optional_shipping_phone_number(),
+            phone_number: item.router_data.get_required_shipping_phone_number()?,
         };
         let payment_intent = get_amazonpay_capture_type(item.router_data.request.capture_method)?;
         Ok(Self {
