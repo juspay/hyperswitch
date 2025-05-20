@@ -234,6 +234,7 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -389,6 +390,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -591,6 +593,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1031,6 +1034,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1128,6 +1132,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1231,6 +1236,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1353,6 +1359,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1453,6 +1460,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1547,6 +1555,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
