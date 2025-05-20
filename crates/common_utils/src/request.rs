@@ -5,7 +5,16 @@ use utoipa::ToSchema;
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString, ToSchema,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
