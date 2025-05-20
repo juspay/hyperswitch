@@ -1923,6 +1923,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             }
                             None => (None, None, None),
                         },
+                        types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => (None, None, None),
                     }
                 }
             }

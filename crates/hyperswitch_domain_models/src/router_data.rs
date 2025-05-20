@@ -629,6 +629,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -841,6 +844,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1071,6 +1077,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1329,6 +1338,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {

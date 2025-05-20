@@ -36,9 +36,9 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
+        InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -68,10 +68,10 @@ pub use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
-        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
-        DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
-        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
+        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
@@ -152,6 +152,9 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
 >;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+
+pub type CreateOrderRouterData =
+    RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
@@ -928,6 +931,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_account_id: None,
             merchant_config_currency: None,
             connector_testing_data: data.request.connector_testing_data.clone(),
+            order_id: None,
         }
     }
 }

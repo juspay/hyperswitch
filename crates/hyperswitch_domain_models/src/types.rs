@@ -7,9 +7,10 @@ use crate::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
         BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, Execute, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, IncrementalAuthorization,
+        PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate,
+        PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -22,9 +23,9 @@ use crate::{
             UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
+        ConnectorCustomerData, CreateOrderRequestData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
@@ -70,6 +71,8 @@ pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, Pa
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
 
+pub type CreateOrderRouterData =
+    RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
 pub type UasPreAuthenticationRouterData =

@@ -1693,6 +1693,7 @@ pub trait PaymentsAuthorizeRequestData {
         &self,
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_order_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1920,6 +1921,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
         self.connector_testing_data.clone()
+    }
+
+    fn get_order_id(&self) -> Result<String, Error> {
+        self.order_id
+            .to_owned()
+            .ok_or_else(missing_field_err("order_id"))
     }
 }
 
@@ -6070,6 +6077,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
+        order_id: None,
     }
 }
 

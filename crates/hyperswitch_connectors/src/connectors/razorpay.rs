@@ -14,14 +14,13 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
-            Void,
+            Authorize, Capture, CreateOrder, PSync, PaymentMethodToken, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        AccessTokenRequestData, CreateOrderRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
@@ -29,7 +28,7 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -42,18 +41,18 @@ use hyperswitch_interfaces::{
     consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PaymentsPreProcessingType, Response},
+    types::{self, CreateOrderType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use lazy_static::lazy_static;
 use masking::{Mask, Maskable, PeekInterface};
 use router_env::logger;
-use transformers::{self as razorpay, RazorpayMetaData};
+use transformers as razorpay;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, handle_json_response_deserialization_failure, to_connector_meta},
+    utils::{convert_amount, handle_json_response_deserialization_failure},
 };
 
 #[derive(Clone)]
@@ -217,14 +216,12 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 {
 }
 
-impl api::PaymentsPreProcessing for Razorpay {}
+impl api::PaymentsCreateOrder for Razorpay {}
 
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Razorpay
-{
+impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData> for Razorpay {
     fn get_headers(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -236,7 +233,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_url(
         &self,
-        _req: &PaymentsPreProcessingRouterData,
+        _req: &CreateOrderRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v1/orders", self.base_url(connectors)))
@@ -244,21 +241,11 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_request_body(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let minor_amount = req.request.minor_amount;
+        let currency = req.request.currency;
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
         let connector_router_data = razorpay::RazorpayRouterData::try_from((amount, req))?;
         let connector_req = razorpay::RazorpayOrderRequest::try_from(&connector_router_data)?;
@@ -267,20 +254,16 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn build_request(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &CreateOrderRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let req = Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .attach_default_headers()
-                .headers(PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .url(&PaymentsPreProcessingType::get_url(self, req, connectors)?)
-                .set_body(PaymentsPreProcessingType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .headers(CreateOrderType::get_headers(self, req, connectors)?)
+                .url(&CreateOrderType::get_url(self, req, connectors)?)
+                .set_body(CreateOrderType::get_request_body(self, req, connectors)?)
                 .build(),
         );
         Ok(req)
@@ -288,10 +271,10 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn handle_response(
         &self,
-        data: &PaymentsPreProcessingRouterData,
+        data: &CreateOrderRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+    ) -> CustomResult<CreateOrderRouterData, errors::ConnectorError> {
         let response: razorpay::RazorpayOrderResponse = res
             .response
             .parse_struct("razorpay RazorpayOrderResponse")
@@ -421,14 +404,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Raz
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let razorpay_metadata: RazorpayMetaData =
-            to_connector_meta(req.request.connector_meta.clone())?;
-
-        let connector_payment_id = razorpay_metadata.order_id;
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}v1/orders/{}",
+            "{}v1/payments/{}",
             self.base_url(connectors),
-            connector_payment_id
+            connector_payment_id,
         ))
     }
 

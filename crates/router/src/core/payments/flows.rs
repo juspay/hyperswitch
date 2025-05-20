@@ -188,6 +188,19 @@ pub trait Feature<F, T> {
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
     }
+
+    async fn add_order_id(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize {
@@ -1434,6 +1447,39 @@ impl<const T: u8>
 }
 
 default_imp_for_post_session_tokens!(
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_create_order {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::PaymentsCreateOrder for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::CreateOrder,
+                types::CreateOrderRequestData,
+                types::PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsCreateOrder for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateOrder,
+        types::CreateOrderRequestData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_create_order!(
     connector::Signifyd,
     connector::Stripe,
     connector::Threedsecureio,

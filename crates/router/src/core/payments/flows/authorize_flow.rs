@@ -412,6 +412,49 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             _ => Ok((None, true)),
         }
     }
+
+    async fn add_order_id(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::CreateOrder,
+            types::CreateOrderRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
+
+        let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+
+        let createorder_router_data =
+            helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+                self.clone(),
+                request_data,
+                response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &createorder_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+
+        match resp.response {
+            Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id }) => {
+                let mut router_data = self;
+                router_data.request.order_id = Some(order_id);
+                Ok(router_data)
+            }
+            _ => Ok(self),
+        }
+    }
 }
 
 pub trait RouterDataAuthorize {

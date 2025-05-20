@@ -11,9 +11,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{
-        PaymentsResponseData, PreprocessingResponseId, RedirectForm, RefundsResponseData,
-    },
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::errors;
@@ -21,9 +19,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-    },
+    types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         get_unimplemented_payment_method_error_message, missing_field_err,
         PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
@@ -65,18 +61,12 @@ pub enum RazorpayNotes {
     EmptyVec(Vec<()>),
 }
 
-impl TryFrom<&RazorpayRouterData<&types::PaymentsPreProcessingRouterData>>
-    for RazorpayOrderRequest
-{
+impl TryFrom<&RazorpayRouterData<&types::CreateOrderRouterData>> for RazorpayOrderRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &RazorpayRouterData<&types::PaymentsPreProcessingRouterData>,
+        item: &RazorpayRouterData<&types::CreateOrderRouterData>,
     ) -> Result<Self, Self::Error> {
-        let currency = item.router_data.request.currency.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            },
-        )?;
+        let currency = item.router_data.request.currency;
         let receipt = uuid::Uuid::new_v4().to_string();
 
         Ok(Self {
@@ -101,22 +91,16 @@ pub struct RazorpayOrderResponse {
     pub id: String,
 }
 
-impl TryFrom<PaymentsPreprocessingResponseRouterData<RazorpayOrderResponse>>
-    for types::PaymentsPreProcessingRouterData
+impl TryFrom<CreateOrderResponseRouterData<RazorpayOrderResponse>>
+    for types::CreateOrderRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<RazorpayOrderResponse>,
+        item: CreateOrderResponseRouterData<RazorpayOrderResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            preprocessing_id: Some(item.response.id.clone()),
-            response: Ok(PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
-                    item.response.id.clone(),
-                ),
-                connector_metadata: None,
-                connector_response_reference_id: Some(item.response.id),
-                session_token: None,
+            response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
+                order_id: item.response.id.clone(),
             }),
             ..item.data
         })
@@ -195,7 +179,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
         };
 
         let contact_number = item.router_data.get_billing_phone_number()?;
-        let order_id = item.router_data.get_preprocessing_id()?;
+        let order_id = router_request.get_order_id()?;
         let email = router_request.get_email()?;
         let ip = router_request.get_ip_address_as_optional();
         let user_agent = router_request.get_optional_user_agent();
@@ -266,9 +250,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
             method: Method::Get,
             form_fields: Default::default(),
         });
-        let connector_metadata = serde_json::json!(RazorpayMetaData {
-            order_id: item.data.get_preprocessing_id()?,
-        });
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -277,7 +258,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
                 ),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
-                connector_metadata: Some(connector_metadata),
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.razorpay_payment_id),
                 incremental_authorization_allowed: None,
@@ -300,15 +281,18 @@ pub struct RazorpaySyncResponse {
 #[derive(strum::Display)]
 pub enum RazorpayStatus {
     Created,
-    Attempted,
-    Paid,
+    Authorized,
+    Captured,
+    Refunded,
+    Failed,
 }
 
 fn get_psync_razorpay_payment_status(razorpay_status: RazorpayStatus) -> enums::AttemptStatus {
     match razorpay_status {
         RazorpayStatus::Created => enums::AttemptStatus::Pending,
-        RazorpayStatus::Attempted => enums::AttemptStatus::Authorized,
-        RazorpayStatus::Paid => enums::AttemptStatus::Charged,
+        RazorpayStatus::Authorized => enums::AttemptStatus::Authorized,
+        RazorpayStatus::Captured | RazorpayStatus::Refunded => enums::AttemptStatus::Charged,
+        RazorpayStatus::Failed => enums::AttemptStatus::Failure,
     }
 }
 
