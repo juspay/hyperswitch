@@ -1006,6 +1006,10 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   payment_method_type = "CartesBancaires"
 [[barclaycard.debit]]
   payment_method_type = "UnionPay"
+[barclaycard.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
 
 [cashtocode]
 [[cashtocode.reward]]

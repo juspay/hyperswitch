@@ -97,25 +97,9 @@ pub struct BarclaycardPaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
-    action_list: Option<Vec<BarclaycardActionsList>>,
-    action_token_types: Option<Vec<BarclaycardActionsTokenType>>,
     commerce_indicator: String,
     capture: Option<bool>,
     capture_options: Option<CaptureOptions>,
-    payment_solution: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BarclaycardActionsList {
-    TokenCreate,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum BarclaycardActionsTokenType {
-    PaymentInstrument,
-    Customer,
 }
 
 #[derive(Debug, Serialize)]
@@ -260,32 +244,6 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
     }
 }
 
-#[derive(Debug, Serialize)]
-pub enum PaymentSolution {
-    ApplePay,
-    GooglePay,
-    SamsungPay,
-}
-
-impl From<PaymentSolution> for String {
-    fn from(solution: PaymentSolution) -> Self {
-        let payment_solution = match solution {
-            PaymentSolution::ApplePay => "001",
-            PaymentSolution::GooglePay => "012",
-            PaymentSolution::SamsungPay => "008",
-        };
-        payment_solution.to_string()
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub enum TransactionType {
-    #[serde(rename = "1")]
-    ApplePay,
-    #[serde(rename = "1")]
-    SamsungPay,
-}
-
 impl
     From<(
         &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
@@ -311,20 +269,17 @@ impl
 impl
     TryFrom<(
         &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
-        Option<PaymentSolution>,
         Option<String>,
     )> for ProcessingInformation
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (item, solution, network): (
+        (item, network): (
             &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
-            Option<PaymentSolution>,
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (action_list, action_token_types) = (None, None);
         let commerce_indicator = get_commerce_indicator(network);
 
         Ok(Self {
@@ -332,9 +287,6 @@ impl
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
-            payment_solution: solution.map(String::from),
-            action_list,
-            action_token_types,
             capture_options: None,
             commerce_indicator,
         })
@@ -497,7 +449,7 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&ccard)?;
-        let processing_information = ProcessingInformation::try_from((item, None, None))?;
+        let processing_information = ProcessingInformation::try_from((item, None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
             .router_data

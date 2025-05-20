@@ -990,6 +990,10 @@ options=["visa","masterCard","amex","discover"]
   payment_method_type = "CartesBancaires"
 [[barclaycard.debit]]
   payment_method_type = "UnionPay"
+[barclaycard.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
 
 [bitpay]
 [[bitpay.crypto]]
