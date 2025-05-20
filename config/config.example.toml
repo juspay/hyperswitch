@@ -442,6 +442,12 @@ braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 
+[debit_routing_config]                                       # Debit Routing configs
+supported_currencies = "USD"                                 # Supported currencies for debit routing
+supported_connectors = "adyen"                               # Supported connectors for debit routing
+
+[debit_routing_config.connector_supported_debit_networks]    # Debit Routing config that contains the supported debit networks for each connector
+adyen = "Star,Pulse,Accel,Nyce"                              # Debit networks supported by adyen connector
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
@@ -627,12 +633,12 @@ google_pay = { currency = "USD" }
 samsung_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN" }
-debit = { currency = "USD,GBP,EUR,PLN" }
-apple_pay = { currency = "USD,GBP,EUR,PLN" }
-google_pay = { currency = "USD,GBP,EUR,PLN" }
-samsung_pay = { currency = "USD,GBP,EUR" }
-paze = { currency = "USD" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK" }
+apple_pay = { currency = "USD,GBP,EUR,PLN,SEK" }
+google_pay = { currency = "USD,GBP,EUR,PLN,SEK" }
+samsung_pay = { currency = "USD,GBP,EUR,SEK" }
+paze = { currency = "USD,SEK" }
 
 [pm_filters.globepay]
 ali_pay = { country = "GB",currency = "GBP" }
