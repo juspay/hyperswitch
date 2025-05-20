@@ -9,9 +9,9 @@ use crate::schema::authentication;
 )]
 #[diesel(table_name = authentication,  primary_key(authentication_id), check_for_backend(diesel::pg::Pg))]
 pub struct Authentication {
-    pub authentication_id: String,
+    pub authentication_id: common_utils::id_type::AuthenticationId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub authentication_connector: String,
+    pub authentication_connector: Option<String>,
     pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub payment_method_id: String,
@@ -43,12 +43,13 @@ pub struct Authentication {
     pub acs_signed_content: Option<String>,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_id: Option<common_utils::id_type::PaymentId>,
-    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
     pub service_details: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub authentication_client_secret: Option<String>,
 }
 
 impl Authentication {
@@ -62,9 +63,9 @@ impl Authentication {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {
-    pub authentication_id: String,
+    pub authentication_id: common_utils::id_type::AuthenticationId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub authentication_connector: String,
+    pub authentication_connector: Option<String>,
     pub connector_authentication_id: Option<String>,
     // pub authentication_data: Option<serde_json::Value>,
     pub payment_method_id: String,
@@ -92,12 +93,13 @@ pub struct AuthenticationNew {
     pub acs_signed_content: Option<String>,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_id: Option<common_utils::id_type::PaymentId>,
-    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
     pub service_details: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub authentication_client_secret: Option<String>,
 }
 
 #[derive(Debug)]

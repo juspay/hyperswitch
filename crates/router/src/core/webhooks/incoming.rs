@@ -1261,11 +1261,11 @@ async fn external_authentication_incoming_webhook_flow(
                         .store
                         .find_authentication_by_merchant_id_authentication_id(
                             merchant_context.get_merchant_account().get_id(),
-                            authentication_id.clone(),
+                            &authentication_id,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                            id: authentication_id,
+                            id: authentication_id.get_string_repr().to_string(),
                         })
                         .attach_printable("Error while fetching authentication record"),
                     webhooks::AuthenticationIdType::ConnectorAuthenticationId(
@@ -1304,7 +1304,11 @@ async fn external_authentication_incoming_webhook_flow(
                     &state,
                     auth_val.expose(),
                     None,
-                    updated_authentication.authentication_id.clone(),
+                    updated_authentication
+                        .authentication_id
+                        .clone()
+                        .get_string_repr()
+                        .to_string(),
                     merchant_context.get_merchant_key_store().key.get_inner(),
                 )
             })

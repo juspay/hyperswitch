@@ -1046,15 +1046,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .encode_to_string_of_json()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while stringifying default poll config")?;
+
+                    // raise error if authentication_connector is not present since it should we be present in the current flow
+                    let authentication_connector = authentication_store
+                        .authentication
+                        .authentication_connector
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "authentication_connector not present in authentication record",
+                        )?;
+
                     let poll_config = state
                         .store
                         .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(
-                                authentication_store
-                                    .authentication
-                                    .authentication_connector
-                                    .clone(),
-                            ),
+                            &types::PollConfig::get_poll_config_key(authentication_connector),
                             Some(default_config_str),
                         )
                         .await
@@ -1149,7 +1155,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             },
                         )?;
                         let authentication_id =
-                            common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
+                            common_utils::id_type::AuthenticationId::generate_authentication_id(consts::AUTHENTICATION_ID_PREFIX);
                         let payment_method = payment_data.payment_attempt.payment_method.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
                                 field_name: "payment_method",
@@ -1220,10 +1226,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         let authentication = uas_utils::create_new_authentication(
                             state,
                             payment_data.payment_attempt.merchant_id.clone(),
-                            connector_mca.connector_name.to_string(),
+                            Some(connector_mca.connector_name.to_string()),
                             business_profile.get_id().clone(),
                             Some(payment_data.payment_intent.get_id().clone()),
-                            click_to_pay_mca_id.to_owned(),
+                            Some(click_to_pay_mca_id.to_owned()),
                             &authentication_id,
                             payment_data.service_details.clone(),
                             authentication_status,
@@ -1342,11 +1348,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .encode_to_string_of_json()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while stringifying default poll config")?;
+
+                    // raise error if authentication_connector is not present since it should we be present in the current flow
+                    let authentication_connector = updated_authentication.authentication_connector
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("authentication_connector not found in updated_authentication")?;
+
                     let poll_config = state
                         .store
                         .find_config_by_key_unwrap_or(
                             &types::PollConfig::get_poll_config_key(
-                                updated_authentication.authentication_connector.clone(),
+                                authentication_connector.clone(),
                             ),
                             Some(default_config_str),
                         )
@@ -1374,11 +1386,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .store
                     .find_authentication_by_merchant_id_authentication_id(
                         &business_profile.merchant_id,
-                        authentication_id.clone(),
+                        &authentication_id,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+                    .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {}", authentication_id.get_string_repr().to_string()))?;
                 let updated_authentication = if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
                     let post_auth_response = uas_utils::types::ExternalAuthentication::post_authentication(
                         state,
@@ -1403,7 +1415,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication
                 };
 
-                let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication_id, false, key_store.key.get_inner()).await?;
+                let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication_id.get_string_repr(), false, key_store.key.get_inner()).await?;
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: Some(tokenized_data.value1),
@@ -1728,12 +1740,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .authentication
                         .is_separate_authn_required(),
                 ),
-                Some(
-                    authentication_store
-                        .authentication
-                        .authentication_connector
-                        .clone(),
-                ),
+                authentication_store
+                    .authentication
+                    .authentication_connector
+                    .clone(),
                 Some(
                     authentication_store
                         .authentication

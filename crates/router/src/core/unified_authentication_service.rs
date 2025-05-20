@@ -96,7 +96,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         payment_data: &PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(payment_data)?;
@@ -282,7 +282,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         payment_data: &PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(payment_data)?;
@@ -481,11 +481,11 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    authentication_connector: String,
+    authentication_connector: Option<String>,
     profile_id: common_utils::id_type::ProfileId,
     payment_id: Option<common_utils::id_type::PaymentId>,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    authentication_id: &str,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    authentication_id: &common_utils::id_type::AuthenticationId,
     service_details: Option<payments::CtpServiceDetails>,
     authentication_status: common_enums::AuthenticationStatus,
     network_token: Option<payment_method_data::NetworkTokenData>,
@@ -498,6 +498,11 @@ pub async fn create_new_authentication(
         .attach_printable(
             "unable to parse service details into json value while inserting to DB",
         )?;
+    let authentication_client_secret = Some(common_utils::generate_id_with_default_len(&format!(
+        "{}_secret",
+        authentication_id.get_string_repr()
+    )));
+
     let new_authorization = AuthenticationNew {
         authentication_id: authentication_id.to_owned(),
         merchant_id,
@@ -536,6 +541,7 @@ pub async fn create_new_authentication(
         acquirer_country_code: None,
         service_details: service_details_value,
         organization_id,
+        authentication_client_secret,
     };
     state
         .store
@@ -544,7 +550,7 @@ pub async fn create_new_authentication(
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authentication_id
+                authentication_id.get_string_repr()
             ),
         })
 }

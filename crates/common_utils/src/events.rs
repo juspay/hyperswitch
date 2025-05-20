@@ -122,6 +122,9 @@ pub enum ApiEventsType {
         payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     },
     ProcessTracker,
+    Authentication {
+        authentication_id: id_type::AuthenticationId,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}

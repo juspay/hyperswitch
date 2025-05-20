@@ -3810,7 +3810,7 @@ impl AuthenticationInterface for KafkaStore {
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        authentication_id: String,
+        authentication_id: &id_type::AuthenticationId,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)

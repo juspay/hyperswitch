@@ -588,6 +588,7 @@ pub enum Flow {
     RevenueRecoveryRetrieve,
     /// Clone Connector flow
     CloneConnector,
+    AuthenticationCreate, // Added new flow
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -2791,13 +2791,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .attach_printable("missing authentication_id in payment_attempt")?;
         let authentication = state
             .store
-            .find_authentication_by_merchant_id_authentication_id(
-                &merchant_id,
-                authentication_id.clone(),
-            )
+            .find_authentication_by_merchant_id_authentication_id(&merchant_id, &authentication_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id,
+                id: authentication_id.get_string_repr().to_string(),
             })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -7599,7 +7596,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
-            payment_attempt
+            &payment_attempt
                 .authentication_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
