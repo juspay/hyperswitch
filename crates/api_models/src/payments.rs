@@ -847,6 +847,7 @@ impl AmountDetailsUpdate {
     Clone,
     ToSchema,
     router_derive::PolymorphicSchema,
+    router_derive::ValidateSchema,
 )]
 #[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest, PaymentsConfirmRequest)]
 #[serde(deny_unknown_fields)]
@@ -963,7 +964,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
-    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 255)]
     pub return_url: Option<Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
@@ -1018,7 +1019,7 @@ pub struct PaymentsRequest {
     pub customer_acceptance: Option<CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
-    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
     #[remove_in(PaymentsUpdateRequest)]
     pub mandate_id: Option<String>,
 

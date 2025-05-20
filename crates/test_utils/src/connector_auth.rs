@@ -23,6 +23,7 @@ pub struct ConnectorAuthentication {
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
     pub bankofamerica: Option<SignatureKey>,
+    pub barclaycard: Option<SignatureKey>,
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
