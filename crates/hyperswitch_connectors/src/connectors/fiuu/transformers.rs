@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::{self, AdditionalPaymentData};
+use api_models::payments;
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
