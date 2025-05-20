@@ -5,6 +5,7 @@ use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
+use time::Duration;
 
 #[cfg(feature = "v1")]
 use crate::schema::business_profile;
@@ -794,6 +795,14 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+impl RevenueRecoveryAlgorithmData {
+    pub fn has_exceeded_monitoring_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
+        let total_threshold_time = self.monitoring_configured_timestamp
+            + Duration::seconds(monitoring_threshold_in_seconds);
+        common_utils::date_time::now() >= total_threshold_time
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

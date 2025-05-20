@@ -334,3 +334,8 @@ api_key = "API Key"
 
 [recurly]
 api_key= "API Key"
+
+[barclaycard]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"
