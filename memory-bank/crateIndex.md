@@ -357,7 +357,7 @@ This document provides an overview of all the crates in the Hyperswitch project,
 **Key Components**:
 - Exchange rate management
 - Conversion logic
-**Links**: [Detailed Documentation - MISSING]
+**Links**: [Detailed Documentation](./thematic/crates/currency_conversion/overview.md) - Reviewed 2025-05-20
 **Dependencies**:
 - common_enums
 - common_types
@@ -423,17 +423,30 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - tokio
 
 ### hyperswitch_interfaces
-**Purpose**: Defines interfaces for external integrations.
+**Purpose**: Serves as a critical abstraction layer for payment connector integrations with standardized interfaces and traits.
 **Key Components**:
-- API definitions
-- Interface traits
-**Links**: [Detailed Documentation - MISSING]
+- Connector Integration Interface (v1 and v2)
+- ConnectorEnum and BoxedConnector abstractions
+- Router data conversion for version compatibility
+- Webhook handling interfaces
+- Authentication and dispute handling interfaces
+- Error handling mechanisms
+**Links**: [Detailed Documentation](./thematic/crates/hyperswitch_interfaces/overview.md)
 **Dependencies**:
 - api_models
 - common_enums
-- common_types
+- common_utils
 - hyperswitch_domain_models
+- masking
+- router_derive
+- router_env
+- error-stack
+- actix-web
+- async-trait
+- dyn-clone
+- reqwest
 - serde
+- serde_json
 
 ## Documentation and Testing Crates
 

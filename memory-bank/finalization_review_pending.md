@@ -25,8 +25,8 @@ This document tracks pending items, suggestions, and points requiring clarificat
 -   **Action (Completeness)**: Cross-reference the crate list with the actual `crates/` directory. Add any missing crates.
 -   **Action (TBD Sections)**: Fill in "TBD" sections for Purpose, Key Components, Links, and Dependencies for crates like `config_importer`, `connector_configs`, `hsdev`, `euclid_macros`, `euclid_wasm`, `hyperswitch_constraint_graph`.
 -   **Action (Detailed Documentation Links)**: For every crate, ensure an `overview.md` exists (or is created) in `memory-bank/thematic/crates/<crate_name>/overview.md` and that `crateIndex.md` links to it. This is a major pending item.
-    -   Specifically note missing links for: `common_types`, `pm_auth`, `currency_conversion`, `events`, `external_services`, `hyperswitch_interfaces`, `openapi`, `test_utils`, `analytics`, `euclid`, `kgraph_utils`.
-    -   ✓ Completed documentation for: `hyperswitch_domain_models` (2025-05-20), `common_enums` (2025-05-20), `router_derive` (2025-05-20), `cards` (2025-05-20), `payment_methods` (2025-05-20)
+    -   Specifically note missing links for: `common_types`, `pm_auth`, `events`, `external_services`, `openapi`, `test_utils`, `analytics`, `euclid`, `kgraph_utils`.
+    -   ✓ Completed documentation for: `hyperswitch_domain_models` (2025-05-20), `common_enums` (2025-05-20), `router_derive` (2025-05-20), `cards` (2025-05-20), `payment_methods` (2025-05-20), `hyperswitch_interfaces` (2025-05-20)
 -   **Stylistic Choice (Dependencies)**: Decide on the level of detail for listing dependencies (exhaustive vs. key internal).
 -   **Suggestion (Mermaid Diagram)**: Review and potentially enhance the dependency graph for clarity and completeness of key relationships.
 

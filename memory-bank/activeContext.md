@@ -37,6 +37,7 @@ Detailed overviews have been created for the following key crates:
 15. **router_derive**: Procedural and attribute macros for code generation (completed 2025-05-20).
 16. **cards**: Specialized types and validation utilities for securely handling payment card information (completed 2025-05-20).
 17. **payment_methods**: Management of various payment methods with security, encryption, and vault integration (completed 2025-05-20).
+18. **currency_conversion**: Currency conversion operations with precision decimal arithmetic and ISO standards support (completed 2025-05-20).
 
 ## Current Development Focus (Hyperswitch Project)
 
