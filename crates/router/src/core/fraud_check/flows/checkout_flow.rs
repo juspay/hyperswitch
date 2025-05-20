@@ -161,6 +161,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
+            whole_connector_response: None,
         };
 
         Ok(router_data)
@@ -214,6 +215,7 @@ pub async fn decide_frm_flow(
         connector_integration,
         router_data,
         call_connector_action,
+        None,
         None,
     )
     .await
