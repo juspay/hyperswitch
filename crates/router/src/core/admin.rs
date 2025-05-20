@@ -1340,6 +1340,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bankofamerica::transformers::BankOfAmericaAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Barclaycard => {
+            //     barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // },
             api_enums::Connector::Billwerk => {
                 billwerk::transformers::BillwerkAuthType::try_from(self.auth_type)?;
                 Ok(())

@@ -174,6 +174,7 @@ pub struct ConnectorConfig {
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bamboraapac: Option<ConnectorTomlConfig>,
     pub bankofamerica: Option<ConnectorTomlConfig>,
+    pub barclaycard: Option<ConnectorTomlConfig>,
     pub billwerk: Option<ConnectorTomlConfig>,
     pub bitpay: Option<ConnectorTomlConfig>,
     pub bluesnap: Option<ConnectorTomlConfig>,
