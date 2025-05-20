@@ -1165,6 +1165,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5142,6 +5145,9 @@ pub struct PaymentsResponse {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Contains whole connector response
+    pub whole_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5559,6 +5565,8 @@ pub struct PaymentsRetrieveRequest {
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 /// Error details for the payment
@@ -6406,6 +6414,8 @@ pub struct PaymentsRetrieveRequest {
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -7390,6 +7400,8 @@ pub struct PaymentRetrieveBody {
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

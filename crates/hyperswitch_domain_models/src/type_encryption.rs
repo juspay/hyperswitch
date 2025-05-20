@@ -1316,7 +1316,7 @@ where
 }
 
 pub(crate) mod metrics {
-    use router_env::{counter_metric, global_meter, histogram_metric_f64, once_cell};
+    use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
     global_meter!(GLOBAL_METER, "ROUTER_API");
 
