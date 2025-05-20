@@ -540,8 +540,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let payment_method_card_details =
-        pm_api::PaymentMethodsData::Card(pm_api::CardDetailsPaymentMethod::from(card.clone()));
+    let payment_method_card_details = pm_api::PaymentMethodsData::Card(
+        pm_api::CardDetailsPaymentMethod::from((card.clone(), None)),
+    );
 
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
         create_encrypted_data(
