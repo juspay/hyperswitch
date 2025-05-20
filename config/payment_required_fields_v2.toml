@@ -6,6 +6,7 @@
 # common = [
 #   { required_field = "payment_method_data.card.card_holder_name", display_name = "Card Holder Name", field_type = "text" },
 # ]
+# NOTE: Please Audit this file before moving any connector to prod
 
 [required_fields.Card.Debit.fields.Aci]
 common = [
@@ -1372,5 +1373,969 @@ common = [
   { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
   { required_field = "payment_method_data.billing.address.country", display_name = "nationality", field_type = "text" }
 ]
+mandate = []
+non_mandate = []
+
+# BankRedirect -> OpenBankingUk
+[required_fields.bank_redirect.open_banking_uk.fields.volt]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" }
+]
+
+[required_fields.bank_redirect.open_banking_uk.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.bank_redirect.open_banking_uk.issuer", display_name = "issuer", field_type = "user_bank" }
+]
+
+# BankRedirect -> Trustly
+[required_fields.bank_redirect.Trustly.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# BankRedirect -> OnlineBankingCzechRepublic
+[required_fields.bank_redirect.online_banking_czech_republic.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.bank_redirect.open_banking_czech_republic.issuer", display_name = "issuer", field_type = "user_bank" }
+]
+
+# BankRedirect -> OnlineBankingFinland
+[required_fields.bank_redirect.online_banking_finland.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# BankRedirect -> OnlineBankingPoland
+[required_fields.bank_redirect.online_banking_poland.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.bank_redirect.online_banking_poland.issuer", display_name = "issuer", field_type = "user_bank" }
+]
+
+# BankRedirect -> OnlineBankingSlovakia
+[required_fields.bank_redirect.online_banking_slovakia.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# BankRedirect -> OnlineBankingFpx
+[required_fields.bank_redirect.online_banking_fpx.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.bank_redirect.online_banking_fpx.bank_name", display_name = "bank_name", field_type = "user_bank" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# BankRedirect -> OnlineBankingThailand
+[required_fields.bank_redirect.online_banking_thailand.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" }
+]
+
+# BankRedirect -> Bizum
+[required_fields.bank_redirect.Bizum.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" }
+]
+
+# BankRedirect -> Przelewy24
+[required_fields.bank_redirect.Przelewy24.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.bank_redirect.przelewy24.issuer", display_name = "issuer", field_type = "user_bank" }
+]
+
+[required_fields.bank_redirect.przelewy24.fields.stripe]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.bank_redirect.p24.bank", display_name = "bank", field_type = "user_bank" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# BankRedirect -> BancontactCard
+[required_fields.bank_redirect.bancontact_card.fields.mollie]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "first_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "last_name", field_type = "user_full_name" }
+]
+
+[required_fields.bank_redirect.bancontact_card.fields.stripe]
+common = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_name", field_type = "user_full_name" }
+]
+mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+non_mandate = []
+
+[required_fields.bank_redirect.bancontact_card.fields.adyen]
+common = [
+  { required_field = "payment_method_data.bank_redirect.bancontact_card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.bank_redirect.bancontact_card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.bank_redirect.bancontact_card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+mandate = []
+non_mandate = []
+
+# BankRedirect -> Giropay
+[required_fields.bank_redirect.giropay.fields.Aci]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.giropay.fields.Adyen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.giropay.fields.Globalpay]
+common = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.giropay.fields.Mollie]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "first_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "last_name", field_type = "user_full_name" }
+]
+
+[required_fields.bank_redirect.giropay.fields.Nuvei]
+common = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.giropay.fields.Paypal]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.giropay.fields.Stripe]
+common = []
+mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_name", field_type = "user_billing_name" }
+]
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+[required_fields.bank_redirect.giropay.fields.Shift4]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.giropay.fields.Trustpay]
+common = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "first_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "last_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+mandate = []
+non_mandate = []
+
+# BankRedirect -> Ideal
+[required_fields.bank_redirect.ideal.fields.Aci]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.bank_redirect.ideal.bank_name", display_name = "bank_name", field_type = "user_bank" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.ideal.fields.Adyen]
+common = [
+  { required_field = "payment_method_data.bank_redirect.ideal.bank_name", display_name = "bank_name", field_type = "user_bank" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.ideal.fields.Globalpay]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.ideal.fields.Mollie]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.ideal.fields.Nexinets]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.ideal.fields.Nuvei]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.ideal.fields.Shift4]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.ideal.fields.Paypal]
+common = []
+mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.ideal.fields.Stripe]
+common = []
+mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "billing_email", field_type = "user_email_address" }
+]
+non_mandate = []
+
+[required_fields.bank_redirect.ideal.fields.Trustpay]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+# BankRedirect -> Sofort
+[required_fields.bank_redirect.sofort.fields.Aci]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.sofort.fields.Adyen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.sofort.fields.Globalpay]
+common = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.sofort.fields.Mollie]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.sofort.fields.Nexinets]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.sofort.fields.Nuvei]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.sofort.fields.Paypal]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_billing_name" }
+]
+
+[required_fields.bank_redirect.sofort.fields.Shift4]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.sofort.fields.Stripe]
+common = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "account_holder_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "account_holder_name", field_type = "user_billing_name" }
+]
+mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+non_mandate = []
+
+[required_fields.bank_redirect.sofort.fields.Trustpay]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+# BankRedirect -> Eps
+[required_fields.bank_redirect.eps.fields.Adyen]
+common = [
+  { required_field = "payment_method_data.bank_redirect.eps.bank_name", display_name = "bank_name", field_type = "user_bank" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.eps.fields.Stripe]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_name", field_type = "user_full_name" }
+]
+
+[required_fields.bank_redirect.eps.fields.Aci]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "bank_account_country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.eps.fields.Globalpay]
+common = [
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.eps.fields.Mollie]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.eps.fields.Paypal]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "bank_account_country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.eps.fields.Trustpay]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.bank_redirect.eps.fields.Shift4]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.eps.fields.Nuvei]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+# BankRedirect -> Blik
+[required_fields.bank_redirect.blik.fields.Adyen]
+common = [
+  { required_field = "payment_method_data.bank_redirect.blik.blik_code", display_name = "blik_code", field_type = "user_blik_code" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.blik.fields.Stripe]
+common = [
+  { required_field = "payment_method_data.bank_redirect.blik.blik_code", display_name = "blik_code", field_type = "user_blik_code" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_redirect.blik.fields.Trustpay]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+# PayLater -> AfterpayClearpay
+[required_fields.pay_later.afterpay_clearpay.fields.Stripe]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "shipping.address.first_name", display_name = "shipping_first_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.last_name", display_name = "shipping_last_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.state", display_name = "state", field_type = "user_shipping_address_state" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" }
+]
+
+[required_fields.pay_later.afterpay_clearpay.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" },
+  { required_field = "shipping.address.line2", display_name = "line2", field_type = "user_shipping_address_line2" }
+]
+
+# PayLater -> Klarna
+[required_fields.pay_later.klarna.fields.Stripe]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" }
+]
+
+[required_fields.pay_later.klarna.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" },
+  { required_field = "shipping.address.line2", display_name = "line2", field_type = "user_shipping_address_line2" },
+  { required_field = "payment_method_data.pay_later.klarna.payment_method_type", display_name = "payment_method_type", field_type = "text" }
+]
+
+[required_fields.pay_later.affirm.fields.Stripe]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.pay_later.affirm.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" },
+  { required_field = "shipping.address.line2", display_name = "line2", field_type = "user_shipping_address_line2" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.pay_later.pay_bright.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" },
+  { required_field = "shipping.address.line2", display_name = "line2", field_type = "user_shipping_address_line2" }
+]
+
+[required_fields.pay_later.walley.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" }
+]
+
+[required_fields.pay_later.alma.fields.Adyen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.crypto.crypto_currency.fields.Cryptopay]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.crypto.pay_currency", display_name = "currency", field_type = "text" },
+  { required_field = "payment_method_data.crypto.network", display_name = "network", field_type = "text" }
+]
+
+[required_fields.voucher.boleto.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.voucher.boleto.social_security_number", display_name = "social_security_number", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "text" }
+]
+
+[required_fields.voucher.boleto.fields.Zen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.voucher.alfamart.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.voucher.indomaret.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.voucher.oxxo.fields.Adyen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.voucher.seven_eleven.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+[required_fields.voucher.lawson.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+[required_fields.voucher.mini_stop.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+[required_fields.voucher.family_mart.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+[required_fields.voucher.seicomart.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+[required_fields.voucher.pay_easy.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+# UPI
+# Payment method type: UpiCollect
+[required_fields.upi.upi_collect.fields.Razorpay]
+common = [
+    { required_field = "payment_method_data.upi.vpa_id", display_name = "vpa_id", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+# BankDebit
+# Payment method type: Ach
+[required_fields.bank_debit.ach.fields.Stripe]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.ach.account_number", display_name = "account_number", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.ach.routing_number", display_name = "routing_number", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_debit.ach.fields.Adyen]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.ach.account_number", display_name = "account_number", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.ach.routing_number", display_name = "routing_number", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+# Payment method type: Sepa
+[required_fields.bank_debit.sepa.fields.Stripe]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.sepa.iban", display_name = "iban", field_type = "text" },
+    { required_field = "email", display_name = "email", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_debit.sepa.fields.Adyen]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.sepa.iban", display_name = "iban", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_debit.sepa.fields.Deutschebank]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "email", display_name = "email", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.sepa.iban", display_name = "iban", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_debit.sepa.fields.Inespay]
+common = [
+    { required_field = "payment_method_data.bank_debit.sepa.iban", display_name = "iban", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+# Payment method type: Bacs
+[required_fields.bank_debit.bacs.fields.Stripe]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.bacs.account_number", display_name = "account_number", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.bacs.sort_code", display_name = "sort_code", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_debit.bacs.fields.Adyen]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.bacs.account_number", display_name = "account_number", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.bacs.sort_code", display_name = "sort_code", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+# Payment method type: Becs
+[required_fields.bank_debit.becs.fields.Stripe]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.becs.account_number", display_name = "account_number", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.becs.bsb_number", display_name = "bsb_number", field_type = "text" },
+    { required_field = "email", display_name = "email", field_type = "text" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_debit.becs.fields.Adyen]
+common = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_address_first_name", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_address_last_name", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.becs.account_number", display_name = "account_number", field_type = "text" },
+    { required_field = "payment_method_data.bank_debit.bacs.sort_code", display_name = "sort_code", field_type = "text" } # Corrected from becs.sort_code as per V1
+]
+mandate = []
+non_mandate = []
+
+# BankTransfer
+# Payment method type: Multibanco
+[required_fields.bank_transfer.multibanco.fields.Stripe]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# Payment method type: LocalBankTransfer
+[required_fields.bank_transfer.local_bank_transfer.fields.Zsl]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+    { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" }
+]
+
+# Payment method type: Ach
+[required_fields.bank_transfer.ach.fields.Stripe]
+common = [
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+mandate = []
+non_mandate = []
+
+# Payment method type: Pix
+[required_fields.bank_transfer.pix.fields.Itaubank]
+common = [
+    { required_field = "payment_method_data.bank_transfer.pix.pix_key", display_name = "pix_key", field_type = "user_pix_key" },
+    { required_field = "payment_method_data.bank_transfer.pix.cnpj", display_name = "cnpj", field_type = "user_cnpj" },
+    { required_field = "payment_method_data.bank_transfer.pix.cpf", display_name = "cpf", field_type = "user_cpf" },
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.bank_transfer.pix.fields.Adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Payment method type: PermataBankTransfer
+[required_fields.bank_transfer.permata_bank_transfer.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+# Payment method type: DanamonVa
+[required_fields.bank_transfer.danamon_va.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+# Payment method type: SepaBankTransfer
+[required_fields.bank_transfer.sepa_bank_transfer.fields.Stripe]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+[required_fields.bank_transfer.sepa_bank_transfer.fields.Trustpay]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+    { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+    { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+    { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# GiftCard
+# Payment method type: PaySafeCard
+[required_fields.gift_card.pay_safe_card.fields.Adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Payment method type: Givex
+[required_fields.gift_card.givex.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.gift_card.givex.number", display_name = "gift_card_number", field_type = "user_card_number" },
+    { required_field = "payment_method_data.gift_card.givex.cvc", display_name = "gift_card_cvc", field_type = "user_card_cvc" }
+]
+
+# CardRedirect (Assuming this section might be missing or problematic, so placing MobilePayment after GiftCard)
+# If CardRedirect exists and is correct, MobilePayment should come after it.
+
+# MobilePayment
+# Payment method type: DirectCarrierBilling
+[required_fields.mobile_payment.direct_carrier_billing.fields.Digitalvirgo]
+common = [
+    { required_field = "payment_method_data.mobile_payment.direct_carrier_billing.msisdn", display_name = "mobile_number", field_type = "user_msisdn" },
+    { required_field = "payment_method_data.mobile_payment.direct_carrier_billing.client_uid", display_name = "client_identifier", field_type = "user_client_identifier" },
+    { required_field = "order_details.0.product_name", display_name = "product_name", field_type = "order_details_product_name" }
+]
+mandate = []
+non_mandate = []
+
+# CardRedirect
+# Payment method type: Benefit
+[required_fields.card_redirect.benefit.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "first_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "last_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# Payment method type: Knet
+[required_fields.card_redirect.knet.fields.Adyen]
+common = []
+mandate = []
+non_mandate = [
+    { required_field = "payment_method_data.billing.address.first_name", display_name = "first_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.address.last_name", display_name = "last_name", field_type = "user_full_name" },
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+# Payment method type: MomoAtm
+[required_fields.card_redirect.momo_atm.fields.Adyen]
+common = []
 mandate = []
 non_mandate = []
