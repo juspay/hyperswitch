@@ -1031,3 +1031,346 @@ non_mandate = [
   { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
   { required_field = "email", display_name = "Email", field_type = "user_email_address" }
 ]
+
+# Wallet -> ApplePay
+[required_fields.wallet.apple_pay.fields.stripe]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.apple_pay.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.apple_pay.fields.bankofamerica]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.apple_pay.fields.cybersource]
+common = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.apple_pay.fields.novalnet]
+common = [
+  { required_field = "payment_method_data.billing.email", display_name = "email_address", field_type = "user_email_address" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.apple_pay.fields.wellsfargo]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "shipping.address.first_name", display_name = "shipping_first_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.last_name", display_name = "shipping_last_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.state", display_name = "state", field_type = "user_shipping_address_state" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+# Wallet -> SamsungPay
+[required_fields.wallet.samsung_pay.fields.cybersource]
+common = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+# Wallet -> GooglePay
+[required_fields.wallet.google_pay.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.bankofamerica]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.bluesnap]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.cybersource]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.noon]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.novalnet]
+common = [
+  { required_field = "payment_method_data.billing.email", display_name = "email_address", field_type = "user_email_address" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.nuvei]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.airwallex]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.authorizedotnet]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.checkout]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.globalpay]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.multisafepay]
+common = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.trustpay]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.google_pay.fields.wellsfargo]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "billing_first_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "billing_last_name", field_type = "user_billing_name" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "shipping.address.first_name", display_name = "shipping_first_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.last_name", display_name = "shipping_last_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.state", display_name = "state", field_type = "user_shipping_address_state" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+# Wallet -> WeChatPay
+[required_fields.wallet.we_chat_pay.fields.stripe]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.we_chat_pay.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> AliPay
+[required_fields.wallet.ali_pay.fields.stripe]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.ali_pay.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> AliPayHk
+[required_fields.wallet.ali_pay_hk.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> AmazonPay
+[required_fields.wallet.amazon_pay.fields.stripe]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Cashapp
+[required_fields.wallet.Cashapp.fields.stripe]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> MbWay
+[required_fields.wallet.mb_way.fields.adyen]
+common = []
+mandate = []
+non_mandate = [
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
+]
+
+# Wallet -> KakaoPay
+[required_fields.wallet.kakao_pay.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Twint
+[required_fields.wallet.twint.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Gcash
+[required_fields.wallet.gcash.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Vipps
+[required_fields.wallet.vipps.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Dana
+[required_fields.wallet.dana.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Momo
+[required_fields.wallet.momo.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Swish
+[required_fields.wallet.swish.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> TouchNGo
+[required_fields.wallet.touch_n_go.fields.adyen]
+common = []
+mandate = []
+non_mandate = []
+
+# Wallet -> Paypal
+[required_fields.wallet.Paypal.fields.paypal]
+common = [
+  { required_field = "shipping.address.first_name", display_name = "shipping_first_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.last_name", display_name = "shipping_last_name", field_type = "user_shipping_name" },
+  { required_field = "shipping.address.city", display_name = "city", field_type = "user_shipping_address_city" },
+  { required_field = "shipping.address.state", display_name = "state", field_type = "user_shipping_address_state" },
+  { required_field = "shipping.address.zip", display_name = "zip", field_type = "user_shipping_address_pincode" },
+  { required_field = "shipping.address.country", display_name = "country", field_type = "text" },
+  { required_field = "shipping.address.line1", display_name = "line1", field_type = "user_shipping_address_line1" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.Paypal.fields.adyen]
+common = [
+  { required_field = "payment_method_data.billing.email", display_name = "email_address", field_type = "user_email_address" }
+]
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.Paypal.fields.braintree]
+common = []
+mandate = []
+non_mandate = []
+
+[required_fields.wallet.Paypal.fields.novalnet]
+common = [
+  { required_field = "payment_method_data.billing.email", display_name = "email_address", field_type = "user_email_address" }
+]
+mandate = []
+non_mandate = []
+
+# Wallet -> Mifinity
+[required_fields.wallet.Mifinity.fields.mifinity]
+common = [
+  { required_field = "payment_method_data.wallet.mifinity.date_of_birth", display_name = "date_of_birth", field_type = "user_date_of_birth" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "first_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "last_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+  { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "nationality", field_type = "text" }
+]
+mandate = []
+non_mandate = []
