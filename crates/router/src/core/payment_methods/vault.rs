@@ -1414,6 +1414,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         &old_router_data,
         payments_core::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_vault_failed_response()?;
@@ -1562,6 +1563,7 @@ pub async fn delete_payment_method_data_from_vault_external(
         connector_integration,
         &old_router_data,
         payments_core::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

@@ -1912,6 +1912,7 @@ pub async fn vault_payment_method_external(
         &old_router_data,
         payments_core::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_vault_failed_response()?;
