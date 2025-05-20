@@ -192,6 +192,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
+        common_utils::request::Method,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
@@ -733,6 +734,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ProcessTrackerStatus,
         api_models::proxy::ProxyRequest,
         api_models::proxy::ProxyResponse,
+        api_models::proxy::TokenType,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)

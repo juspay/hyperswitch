@@ -52,6 +52,7 @@ pub struct OrganizationUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Platform merchant id is unique distiguisher for special merchant in the platform org
+    #[schema(value_type = Option<String>)]
     pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 #[cfg(feature = "v1")]

@@ -13267,6 +13267,16 @@
           }
         }
       },
+      "Method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH"
+        ]
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -14232,11 +14242,8 @@
             "nullable": true
           },
           "platform_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
+            "type": "string",
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org",
             "nullable": true
           }
         },
@@ -20479,7 +20486,6 @@
         "required": [
           "request_body",
           "destination_url",
-          "headers",
           "method",
           "token",
           "token_type"
@@ -20489,10 +20495,14 @@
             "description": "The request body that needs to be forwarded"
           },
           "destination_url": {
-            "$ref": "#/components/schemas/url.Url"
+            "type": "string",
+            "description": "The destination URL where the request needs to be forwarded",
+            "example": "https://api.example.com/endpoint"
           },
           "headers": {
-            "$ref": "#/components/schemas/Headers"
+            "type": "object",
+            "description": "The headers that need to be forwarded",
+            "nullable": true
           },
           "method": {
             "$ref": "#/components/schemas/Method"
@@ -20510,8 +20520,7 @@
         "type": "object",
         "required": [
           "response",
-          "status_code",
-          "response_headers"
+          "status_code"
         ],
         "properties": {
           "response": {
@@ -20524,7 +20533,9 @@
             "minimum": 0
           },
           "response_headers": {
-            "$ref": "#/components/schemas/Headers"
+            "type": "object",
+            "description": "The headers of the response",
+            "nullable": true
           }
         }
       },
@@ -20772,6 +20783,9 @@
           },
           {
             "type": "object",
+            "required": [
+              "refund_id"
+            ],
             "properties": {
               "payment_id": {
                 "type": "string",
@@ -20779,12 +20793,8 @@
                 "nullable": true
               },
               "refund_id": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/common_utils.id_type.GlobalRefundId"
-                  }
-                ],
-                "nullable": true
+                "type": "string",
+                "description": "The identifier for the refund"
               },
               "limit": {
                 "type": "integer",
@@ -23250,6 +23260,13 @@
           {
             "$ref": "#/components/schemas/NetworkTokenDetailsResponse"
           }
+        ]
+      },
+      "TokenType": {
+        "type": "string",
+        "enum": [
+          "tokenization_id",
+          "payment_method_id"
         ]
       },
       "TokenizationType": {
