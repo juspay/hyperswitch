@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::{self, AdditionalPaymentData};
+use api_models::payments;
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
@@ -1073,8 +1073,6 @@ pub struct FiuuRefundRequest {
     pub signature: Secret<String>,
     #[serde(rename = "notify_url")]
     pub notify_url: Option<Url>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_code: Option<BankCode>,
 }
 #[derive(Debug, Serialize, Display)]
 pub enum RefundType {
@@ -1107,28 +1105,6 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
                 Url::parse(&item.router_data.request.get_webhook_url()?)
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ),
-            bank_code: item
-                .router_data
-                .request
-                .additional_payment_method_data
-                .as_ref()
-                .and_then(|data| {
-                    if let AdditionalPaymentData::BankRedirect { bank_name, .. } = data {
-                        bank_name.and_then(|name| {
-                            BankCode::try_from(name)
-                                .map_err(|e| {
-                                    router_env::logger::error!(
-                                        "Error converting bank name to BankCode: {:?}",
-                                        e
-                                    );
-                                    e
-                                })
-                                .ok()
-                        })
-                    } else {
-                        None
-                    }
-                }),
         })
     }
 }
