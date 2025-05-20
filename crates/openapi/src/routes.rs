@@ -20,3 +20,4 @@ pub mod relay;
 pub mod revenue_recovery;
 pub mod routing;
 pub mod webhook_events;
+pub mod proxy;

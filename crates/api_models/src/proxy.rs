@@ -6,7 +6,7 @@ use serde_json::Value;
 use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Headers(HashMap<String, String>);
+pub struct Headers(pub HashMap<String, String>);
 
 impl Headers {
     pub fn as_map(&self) -> &HashMap<String, String> {
@@ -17,7 +17,7 @@ impl Headers {
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyRequest {
     /// The request body that needs to be forwarded
-    pub req_body: Value,
+    pub request_body: Value,
     /// The destination URL where the request needs to be forwarded
     #[schema(example = "https://api.example.com/endpoint")]
     pub destination_url: url::Url,
@@ -44,7 +44,7 @@ pub struct ProxyResponse {
     /// The status code of the response
     pub status_code: u16,
     /// The headers of the response
-    pub response_headers: Value,
+    pub response_headers: Headers,
 }
 
 impl common_utils::events::ApiEventMetric for ProxyRequest {}

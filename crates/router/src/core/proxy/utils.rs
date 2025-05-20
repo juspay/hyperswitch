@@ -4,6 +4,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     errors::api_error_response::NotImplementedMessage, payment_methods,
 };
+use masking::Mask;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, multispace0},
@@ -45,9 +46,8 @@ impl ProxyRequestWrapper {
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
                     .locker_id
                     .get_required_value("vault_id")
-                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "vault id",
-                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Locker id not present in Payment Method Entry")
             }
             proxy_api_models::TokenType::TokenizationId => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
@@ -57,6 +57,23 @@ impl ProxyRequestWrapper {
                 }))
             }
         }
+    }
+
+    pub fn get_headers(&self) -> Vec<(String, masking::Maskable<String>)> {
+        self.0
+            .headers
+            .as_map()
+            .iter()
+            .map(|(key, value)| (key.clone(), value.clone().into_masked()))
+            .collect()
+    }
+
+    pub fn get_destination_url(&self) -> &str {
+        self.0.destination_url.as_str()
+    }
+
+    pub fn get_method(&self) -> common_utils::request::Method {
+        self.0.method
     }
 }
 

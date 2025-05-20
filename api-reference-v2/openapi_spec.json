@@ -3450,6 +3450,88 @@
           }
         ]
       }
+    },
+    "/proxy": {
+      "post": {
+        "tags": [
+          "Proxy"
+        ],
+        "summary": "Proxy",
+        "description": "Create a proxy request",
+        "operationId": "Proxy Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyRequest"
+              },
+              "examples": {
+                "Create a proxy request": {
+                  "value": {
+                    "destination_url": "https://api.example.com/payments",
+                    "headers": {
+                      "Authorization": "Bearer sk_test_example",
+                      "Content-Type": "application/json"
+                    },
+                    "method": "POST",
+                    "request_body": {
+                      "amount": 6540,
+                      "capture": true,
+                      "currency": "USD",
+                      "reference": "ORD-5023-4E89",
+                      "source": {
+                        "billing_address": {
+                          "address_line1": "123 High St.",
+                          "city": "London",
+                          "country": "GB"
+                        },
+                        "expiry_month": "{{$card_exp_month}}",
+                        "expiry_year": "{{$card_exp_year}}",
+                        "number": "{{$card_number}}",
+                        "type": "card"
+                      }
+                    },
+                    "token": "pm_0196ea5a42a67583863d5b1253d62931",
+                    "token_type": "PaymentMethodId"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Proxy request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -7929,6 +8011,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
@@ -13804,7 +13887,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -18098,6 +18182,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18268,6 +18357,11 @@
               }
             ],
             "default": "no_three_ds",
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         }
@@ -20071,6 +20165,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20334,6 +20433,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20367,6 +20471,60 @@
           "metadata": {
             "type": "object",
             "additionalProperties": {}
+          }
+        }
+      },
+      "ProxyRequest": {
+        "type": "object",
+        "required": [
+          "request_body",
+          "destination_url",
+          "headers",
+          "method",
+          "token",
+          "token_type"
+        ],
+        "properties": {
+          "request_body": {
+            "description": "The request body that needs to be forwarded"
+          },
+          "destination_url": {
+            "$ref": "#/components/schemas/url.Url"
+          },
+          "headers": {
+            "$ref": "#/components/schemas/Headers"
+          },
+          "method": {
+            "$ref": "#/components/schemas/Method"
+          },
+          "token": {
+            "type": "string",
+            "description": "The vault token that is used to fetch sensitive data from the vault"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/TokenType"
+          }
+        }
+      },
+      "ProxyResponse": {
+        "type": "object",
+        "required": [
+          "response",
+          "status_code",
+          "response_headers"
+        ],
+        "properties": {
+          "response": {
+            "description": "The response received from the destination"
+          },
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The status code of the response",
+            "minimum": 0
+          },
+          "response_headers": {
+            "$ref": "#/components/schemas/Headers"
           }
         }
       },
@@ -21415,6 +21573,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
           "billwerk",

@@ -2,18 +2,54 @@ use super::errors::{self, RouterResponse, RouterResult};
 use crate::{
     logger,
     routes::SessionState,
-    services::{self, request::Mask},
+    services,
     types::domain,
 };
 pub mod utils;
 use api_models::proxy as proxy_api_models;
 use common_utils::{
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, Encode},
     request::{self, RequestBuilder},
 };
 use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Response;
 use serde_json::Value;
+
+pub async fn proxy_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: proxy_api_models::ProxyRequest,
+) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    let req_wrapper = utils::ProxyRequestWrapper(req.clone());
+    let vault_id = req_wrapper
+        .get_vault_id(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await?;
+
+    let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
+        &state,
+        &merchant_context,
+        &vault_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while fetching data from vault")?;
+
+    let vault_data = vault_response.data.encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize vault data")?;
+
+    let processed_body = process_value(req.request_body.clone(), &vault_data)?;
+
+    let res = execute_proxy_request(&state, &req_wrapper, processed_body).await?;
+
+    let proxy_response = proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(res))?;
+
+    Ok(services::ApplicationResponse::Json(proxy_response))
+}
 
 fn process_value(value: Value, vault_data: &Value) -> RouterResult<Value> {
     match value {
@@ -25,19 +61,12 @@ fn process_value(value: Value, vault_data: &Value) -> RouterResult<Value> {
 
             Ok(Value::Object(new_obj))
         }
-        Value::String(s) => (!utils::contains_token(&s))
-            .then_some(Value::String(s.clone()))
-            .map(Ok)
-            .unwrap_or_else(|| {
+        Value::String(s) => 
                 utils::parse_token(&s)
                     .map(|(_, token_ref)| {
                         extract_field_from_vault_data(vault_data, &token_ref.field)
                     })
-                    .unwrap_or_else(|_| {
-                        Err(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(format!("Invalid token format in string: {}", s))
-                    })
-            }),
+                    .unwrap_or(Ok(Value::String(s.clone()))),
         _ => Ok(value),
     }
 }
@@ -60,48 +89,47 @@ fn find_field_recursively_in_vault_data(
 }
 
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
-    let result = match vault_data {
-        Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name),
-        _ => None,
-    };
-    match result {
-        Some(value) => Ok(value),
-        None => {
+    match vault_data {
+        Value::Object(obj) => {
+            find_field_recursively_in_vault_data(obj, field_name)
+                .ok_or_else(|| {
+                    logger::debug!(
+                        "Field '{}' not found in vault data: {:?}",
+                        field_name,
+                        vault_data
+                    );
+                    errors::ApiErrorResponse::InternalServerError
+                })
+                .attach_printable(format!("Field '{}' not found", field_name))
+        }
+        _ => {
             logger::debug!(
-                "Field '{}' not found in vault data: {:?}",
-                field_name,
+                "Vault data is not an object: {:?}",
                 vault_data
             );
             Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(format!("Field '{}' not found", field_name))
+                .attach_printable("Vault data is not a valid JSON object")
         }
     }
 }
 
 async fn execute_proxy_request(
     state: &SessionState,
-    req: &proxy_api_models::ProxyRequest,
+    req_wrapper: &utils::ProxyRequestWrapper,
     processed_body: Value,
 ) -> RouterResult<Response> {
-    let headers: Vec<(String, masking::Maskable<String>)> = req
-        .headers
-        .as_map()
-        .iter()
-        .map(|(key, value)| (key.clone(), value.clone().into_masked()))
-        .collect();
-
     let request = RequestBuilder::new()
-        .method(req.method)
+        .method(req_wrapper.get_method())
         .attach_default_headers()
-        .headers(headers)
-        .url(req.destination_url.as_str())
+        .headers(req_wrapper.get_headers())
+        .url(req_wrapper.get_destination_url())
         .set_body(request::RequestContent::Json(Box::new(processed_body)))
         .build();
 
     let response = services::call_connector_api(state, request, "proxy")
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Faile to call the destination");
+        .attach_printable("Failed to call the destination");
 
     response
         .map(|inner| match inner {
@@ -137,9 +165,9 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
                     .iter()
                     .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
                     .collect();
-                serde_json::to_value(map).unwrap_or_else(|_| serde_json::json!({}))
+                proxy_api_models::Headers(map)
             })
-            .unwrap_or_else(|| serde_json::json!({}));
+            .unwrap_or_else(|| proxy_api_models::Headers(std::collections::HashMap::new()));
 
         Ok(Self {
             response: response_body,
@@ -149,40 +177,3 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
     }
 }
 
-pub async fn proxy_core(
-    state: SessionState,
-    merchant_context: domain::MerchantContext,
-    req: proxy_api_models::ProxyRequest,
-) -> RouterResponse<proxy_api_models::ProxyResponse> {
-    let vault_id = utils::ProxyRequestWrapper(req.clone())
-        .get_vault_id(
-            &state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await?;
-
-    let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
-        &state,
-        &merchant_context,
-        &vault_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while fetching data from vault")?;
-
-    let vault_data = serde_json::to_value(&vault_response.data)
-        .map_err(|err| {
-            logger::error!("Error serializing data to JSON value: {:?}", err);
-            errors::ApiErrorResponse::InternalServerError
-        })
-        .attach_printable("Failed to serialize vault data")?;
-
-    let processed_body = process_value(req.req_body.clone(), &vault_data)?;
-
-    let res = execute_proxy_request(&state, &req, processed_body).await?;
-
-    let proxy_response = proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(res))?;
-
-    Ok(services::ApplicationResponse::Json(proxy_response))
-}
