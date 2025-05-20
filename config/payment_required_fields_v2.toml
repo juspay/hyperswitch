@@ -27,6 +27,25 @@ common = [
   { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
 ]
 
+[required_fields.Card.Debit.fields.Airwallex]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Debit.fields.Authorizedotnet]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
 [required_fields.Card.Debit.fields.Bambora]
 non_mandate = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
@@ -190,6 +209,35 @@ common = [
   { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
   { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
   { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Debit.fields.Helcim]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Debit.fields.Hipay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Debit.fields.Iatapay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
 ]
 
 [required_fields.Card.Debit.fields.Mollie]
@@ -461,7 +509,27 @@ non_mandate = [
   { required_field = "email", display_name = "Email", field_type = "user_email_address" }
 ]
 
-[required_fields.Card.Debit.fields.Airwallex]
+[required_fields.Card.Credit.fields.Aci]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Adyen]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Airwallex]
 non_mandate = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
   { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
@@ -469,18 +537,7 @@ non_mandate = [
   { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
 ]
 
-[required_fields.Card.Debit.fields.Authorizedotnet]
-common = [
-  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
-  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
-  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
-  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
-  { required_field = "email", display_name = "email", field_type = "user_email_address" },
-  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
-  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
-]
-
-[required_fields.Card.Debit.fields.Helcim]
+[required_fields.Card.Credit.fields.Authorizedotnet]
 common = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
   { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
@@ -488,7 +545,326 @@ common = [
   { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
 ]
 
-[required_fields.Card.Debit.fields.Hipay]
+[required_fields.Card.Credit.fields.Bambora]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" }
+]
+
+[required_fields.Card.Credit.fields.Bankofamerica]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "text" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Billwerk]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Bluesnap]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Boku]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Braintree]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Checkout]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Coinbase]
+non_mandate = [
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Cybersource]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Datatrans]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Dlocal]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Deutschebank]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.state", display_name = "state", field_type = "user_address_state" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Elavon]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" }
+]
+
+[required_fields.Card.Credit.fields.Fiserv]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Fiuu]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+mandate = [
+  { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Forte]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Getnet]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" }
+]
+
+[required_fields.Card.Credit.fields.Globalpay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Helcim]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Hipay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Iatapay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" }
+]
+
+[required_fields.Card.Credit.fields.Mollie]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Moneris]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Multisafepay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.line2", display_name = "line2", field_type = "user_address_line2" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Nexinets]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Nexixpay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Nmi]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+]
+
+[required_fields.Card.Credit.fields.Noon]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Novalnet]
+common = [
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Nuvei]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Paybox]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Payme]
 common = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
   { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
@@ -499,12 +875,159 @@ common = [
   { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
 ]
 
-[required_fields.Card.Debit.fields.Iatapay]
-common = [
+[required_fields.Card.Credit.fields.Paypal]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Payu]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Powertranz]
+non_mandate = [
   { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
   { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
   { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
   { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
   { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
   { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Rapyd]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Redsys]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+]
+
+[required_fields.Card.Credit.fields.Shift4]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Square]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Stax]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
+]
+
+[required_fields.Card.Credit.fields.Stripe]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Trustpay]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Tsys]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" }
+]
+
+[required_fields.Card.Credit.fields.Wellsfargo]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Worldline]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Worldpay]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" },
+  { required_field = "payment_method_data.billing.address.line1", display_name = "line1", field_type = "user_address_line1" },
+  { required_field = "payment_method_data.billing.address.city", display_name = "city", field_type = "user_address_city" },
+  { required_field = "payment_method_data.billing.address.zip", display_name = "zip", field_type = "user_address_pincode" },
+  { required_field = "payment_method_data.billing.address.country", display_name = "country", field_type = "text" }
+]
+
+[required_fields.Card.Credit.fields.Xendit]
+common = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "payment_method_data.card.card_cvc", display_name = "card_cvc", field_type = "user_card_cvc" },
+  { required_field = "email", display_name = "payment_method_data.billing.email", field_type = "user_email_address" },
+  { required_field = "payment_method_data.billing.phone.number", display_name = "phone_number", field_type = "user_phone_number" }
+]
+
+[required_fields.Card.Credit.fields.Zen]
+non_mandate = [
+  { required_field = "payment_method_data.card.card_number", display_name = "card_number", field_type = "user_card_number" },
+  { required_field = "payment_method_data.card.card_exp_month", display_name = "card_exp_month", field_type = "user_card_expiry_month" },
+  { required_field = "payment_method_data.card.card_exp_year", display_name = "card_exp_year", field_type = "user_card_expiry_year" },
+  { required_field = "email", display_name = "Email", field_type = "user_email_address" }
 ]
