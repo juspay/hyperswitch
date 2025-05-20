@@ -5,6 +5,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
+import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
@@ -32,11 +33,13 @@ import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
+import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
+  braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
@@ -64,6 +67,7 @@ const connectorDetails = {
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   xendit: xenditConnectorDetails,
+  archipel: archipelConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -322,7 +326,7 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: ["bankofamerica", "fiuu", "paypal"],
+    CONNECTOR_AGNOSTIC_NTID: ["bankofamerica", "braintree", "fiuu", "paypal"],
     // Add more exclusion lists
   },
 

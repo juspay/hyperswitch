@@ -57,7 +57,10 @@ pub use hyperswitch_domain_models::{
         WebhookSourceVerifyData,
     },
     router_request_types::{
-        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        revenue_recovery::{
+            BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -79,7 +82,8 @@ pub use hyperswitch_domain_models::{
     },
     router_response_types::{
         revenue_recovery::{
-            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+            BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
@@ -111,10 +115,7 @@ pub use hyperswitch_interfaces::types::{
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
-use crate::{
-    connector::utils::missing_field_err,
-    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
-};
+use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::{
@@ -246,16 +247,6 @@ pub type PayoutActionData = Vec<(
 pub trait PayoutIndividualDetailsExt {
     type Error;
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
-}
-
-#[cfg(feature = "payouts")]
-impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
-        self.external_account_account_holder_type
-            .clone()
-            .ok_or_else(missing_field_err("external_account_account_holder_type"))
-    }
 }
 
 pub trait Capturable {
@@ -923,6 +914,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             shipping_cost: data.request.shipping_cost,
             merchant_account_id: None,
             merchant_config_currency: None,
+            connector_testing_data: data.request.connector_testing_data.clone(),
         }
     }
 }
@@ -984,6 +976,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .clone(),
             authentication_id: data.authentication_id.clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+            whole_connector_response: data.whole_connector_response.clone(),
         }
     }
 }
@@ -1051,6 +1044,7 @@ impl<F1, F2>
             psd2_sca_exemption_type: None,
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
+            whole_connector_response: None,
         }
     }
 }

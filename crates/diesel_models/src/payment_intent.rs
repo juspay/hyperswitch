@@ -62,6 +62,7 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub is_iframe_redirection_enabled: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -152,6 +153,7 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -205,6 +207,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -343,6 +347,7 @@ pub struct PaymentIntentNew {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -416,6 +421,7 @@ pub struct PaymentIntentNew {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -540,6 +546,7 @@ pub struct PaymentIntentUpdateFields {
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -573,6 +580,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -616,6 +624,7 @@ pub struct PaymentIntentUpdateInternal {
     pub request_external_three_ds_authentication: Option<bool>,
     pub updated_by: String,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -660,6 +669,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -703,6 +713,7 @@ impl PaymentIntentUpdate {
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_iframe_redirection_enabled,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -749,6 +760,8 @@ impl PaymentIntentUpdate {
                 .or(source.is_payment_processor_token_flow),
             tax_details: tax_details.or(source.tax_details),
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
+            is_iframe_redirection_enabled: is_iframe_redirection_enabled
+                .or(source.is_iframe_redirection_enabled),
             ..source
         }
     }
@@ -799,6 +812,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -839,6 +853,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 tax_details: None,
                 force_3ds_challenge: value.force_3ds_challenge,
+                is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -886,6 +901,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -929,6 +945,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -973,6 +990,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1024,6 +1042,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1067,6 +1086,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1111,6 +1131,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1154,6 +1175,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1197,6 +1219,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1239,6 +1262,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1278,6 +1302,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1319,6 +1344,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1360,6 +1386,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1399,6 +1426,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1443,6 +1471,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details,
                 is_payment_processor_token_flow: None,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             },
         }
     }

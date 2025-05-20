@@ -1,5 +1,6 @@
 // This file is the default. To override, add to connector.js
 import { getCustomExchange } from "./Modifiers";
+import State from "../../../utils/State.js";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
@@ -10,10 +11,51 @@ export const customerAcceptance = {
   },
 };
 
+const globalState = new State({
+  connectorId: Cypress.env("CONNECTOR"),
+  baseUrl: Cypress.env("BASEURL"),
+  adminApiKey: Cypress.env("ADMINAPIKEY"),
+  connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
+});
+
+const connectorName = normalize(globalState.get("connectorId"));
+
+function normalize(input) {
+  const exceptions = {
+    bankofamerica: "Bank of America",
+    cybersource: "Cybersource",
+    paybox: "Paybox",
+    paypal: "Paypal",
+    wellsfargo: "Wellsfargo",
+    fiuu: "Fiuu",
+    noon: "Noon",
+    archipel: "Archipel",
+    // Add more known exceptions here
+  };
+
+  if (typeof input !== "string") {
+    const specName = Cypress.spec.name;
+
+    if (specName.includes("-")) {
+      const parts = specName.split("-");
+
+      if (parts.length > 1 && parts[1].includes(".")) {
+        return parts[1].split(".")[0];
+      }
+    }
+
+    // Fallback
+    return `${specName}`;
+  }
+
+  const lowerCaseInput = input.toLowerCase();
+  return exceptions[lowerCaseInput] || input;
+}
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
-  card_exp_year: "50",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
@@ -21,7 +63,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
-  card_exp_year: "50",
+  card_exp_year: "30",
   card_holder_name: "morino",
   card_cvc: "999",
 };

@@ -1473,6 +1473,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::CardNumber,
                     RequiredField::CardExpMonth,
                     RequiredField::CardExpYear,
+                    RequiredField::BillingUserFirstName,
                 ],
             ),
         ),

@@ -7,6 +7,7 @@ pub mod utils;
 
 use std::fmt::Display;
 
+pub use ::payment_methods::core::errors::VaultError;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
@@ -115,46 +116,6 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
 pub enum HealthCheckOutGoing {
     #[error("Outgoing call failed with error: {message}")]
     OutGoingFailed { message: String },
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum VaultError {
-    #[error("Failed to save card in card vault")]
-    SaveCardFailed,
-    #[error("Failed to fetch card details from card vault")]
-    FetchCardFailed,
-    #[error("Failed to delete card in card vault")]
-    DeleteCardFailed,
-    #[error("Failed to encode card vault request")]
-    RequestEncodingFailed,
-    #[error("Failed to deserialize card vault response")]
-    ResponseDeserializationFailed,
-    #[error("Failed to create payment method")]
-    PaymentMethodCreationFailed,
-    #[error("The given payment method is currently not supported in vault")]
-    PaymentMethodNotSupported,
-    #[error("The given payout method is currently not supported in vault")]
-    PayoutMethodNotSupported,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
-    #[error("The card vault returned an unexpected response: {0:?}")]
-    UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to update in PMD table")]
-    UpdateInPaymentMethodDataTableFailed,
-    #[error("Failed to fetch payment method in vault")]
-    FetchPaymentMethodFailed,
-    #[error("Failed to save payment method in vault")]
-    SavePaymentMethodFailed,
-    #[error("Failed to generate fingerprint")]
-    GenerateFingerprintFailed,
-    #[error("Failed to encrypt vault request")]
-    RequestEncryptionFailed,
-    #[error("Failed to decrypt vault response")]
-    ResponseDecryptionFailed,
-    #[error("Failed to call vault")]
-    VaultAPIError,
-    #[error("Failed while calling locker API")]
-    ApiError,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -419,8 +380,8 @@ pub enum RoutingError {
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
-    #[error("Failed to perform {algo} in open_router")]
-    OpenRouterCallFailed { algo: String },
+    #[error("Failed to perform routing in open_router")]
+    OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
 }
@@ -516,8 +477,12 @@ pub enum RevenueRecoveryError {
     ProcessTrackerResponseError,
     #[error("Billing connector psync call failed")]
     BillingConnectorPaymentsSyncFailed,
+    #[error("Billing connector invoice sync call failed")]
+    BillingConnectorInvoiceSyncFailed,
     #[error("Failed to get the retry count for payment intent")]
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
     BillingThresholdRetryCountFetchFailed,
+    #[error("Failed to create the revenue recovery attempt data")]
+    RevenueRecoveryAttemptDataCreateFailed,
 }

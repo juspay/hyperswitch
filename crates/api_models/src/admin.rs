@@ -14,7 +14,6 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -280,6 +279,13 @@ pub struct AuthenticationConnectorDetails {
     pub three_ds_requestor_url: String,
     /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred.
     pub three_ds_requestor_app_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct ExternalVaultConnectorDetails {
+    /// Merchant Connector id to be stored for vault connector
+    #[schema(value_type = Option<String>)]
+    pub vault_connector_id: id_type::MerchantConnectorAccountId,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1993,6 +1999,12 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2125,6 +2137,15 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2284,6 +2305,10 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2424,6 +2449,15 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2572,6 +2606,13 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2698,6 +2739,12 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2903,6 +2950,8 @@ pub struct PaymentLinkConfigRequest {
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2998,6 +3047,8 @@ pub struct PaymentLinkConfig {
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
     #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

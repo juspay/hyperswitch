@@ -111,6 +111,7 @@ pub async fn construct_relay_refund_router_data<F>(
             merchant_account_id: None,
             merchant_config_currency: None,
             capture_method: None,
+            additional_payment_method_data: None,
         },
 
         response: Err(ErrorResponse::default()),
@@ -142,6 +143,7 @@ pub async fn construct_relay_refund_router_data<F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)

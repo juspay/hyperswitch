@@ -1,6 +1,7 @@
+#[cfg(feature = "v1")]
+use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
     num::NonZeroI64,
 };
 pub mod additional_info;
@@ -9,6 +10,7 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -26,24 +28,25 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
+#[cfg(feature = "v1")]
+use serde::{de, Deserializer};
+use serde::{ser::Serializer, Deserialize, Serialize};
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
-#[cfg(feature = "v1")]
-use crate::ephemeral_key::EphemeralKeyCreateResponse;
 #[cfg(feature = "v2")]
-use crate::mandates::ProcessorPaymentToken;
+use crate::mandates;
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
-    disputes, enums as api_enums,
+    enums as api_enums,
     mandates::RecurringDetails,
-    refunds, ValidateFieldAndGet,
 };
+#[cfg(feature = "v1")]
+use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -1158,6 +1161,12 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4468,6 +4477,7 @@ pub enum NextActionType {
     DisplayBankTransferInformation,
     DisplayWaitScreen,
     CollectOtp,
+    RedirectInsidePopup,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -4477,6 +4487,10 @@ pub enum NextActionData {
     #[cfg(feature = "v1")]
     RedirectToUrl {
         redirect_to_url: String,
+    },
+    #[cfg(feature = "v1")]
+    RedirectInsidePopup {
+        popup_url: String,
     },
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
@@ -5127,6 +5141,12 @@ pub struct PaymentsResponse {
 
     /// Error message received from the issuer in case of failed payments
     pub issuer_error_message: Option<String>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Contains whole connector response
+    pub whole_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5313,7 +5333,7 @@ pub struct ProxyPaymentsRequest {
 
     pub amount: AmountDetails,
 
-    pub recurring_details: ProcessorPaymentToken,
+    pub recurring_details: mandates::ProcessorPaymentToken,
 
     pub shipping: Option<Address>,
 
@@ -5469,6 +5489,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5541,6 +5564,8 @@ pub struct PaymentsRetrieveRequest {
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 /// Error details for the payment
@@ -5569,7 +5594,7 @@ pub struct ErrorDetails {
 
 /// Token information that can be used to initiate transactions by the merchant.
 #[cfg(feature = "v2")]
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConnectorTokenDetails {
     /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
@@ -5585,7 +5610,7 @@ pub struct ConnectorTokenDetails {
 /// For example
 /// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -5683,6 +5708,9 @@ pub struct PaymentsResponse {
     /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6385,6 +6413,8 @@ pub struct PaymentsRetrieveRequest {
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -6729,6 +6759,7 @@ pub struct ConnectorMetadata {
     pub airwallex: Option<AirwallexData>,
     pub noon: Option<NoonData>,
     pub braintree: Option<BraintreeData>,
+    pub adyen: Option<AdyenConnectorMetadata>,
 }
 
 impl ConnectorMetadata {
@@ -6777,6 +6808,18 @@ pub struct BraintreeData {
     /// Information about the merchant_config_currency that merchant wants to specify at connector level.
     #[schema(value_type = String)]
     pub merchant_config_currency: Option<api_enums::Currency>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AdyenConnectorMetadata {
+    pub testing: AdyenTestingData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AdyenTestingData {
+    /// Holder name to be sent to Adyen for a card payment(CIT) or a generic payment(MIT). This value overrides the values for card.card_holder_name and applies during both CIT and MIT payment transactions.
+    #[schema(value_type = String)]
+    pub holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7356,6 +7399,8 @@ pub struct PaymentRetrieveBody {
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -7788,6 +7833,7 @@ mod payment_id_type {
         deserializer.deserialize_any(PaymentIdVisitor)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn deserialize_option<'a, D>(
         deserializer: D,
     ) -> Result<Option<PaymentIdType>, D::Error>
@@ -8068,6 +8114,9 @@ pub struct PaymentLinkDetails {
     pub payment_form_header_text: Option<String>,
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    pub is_setup_mandate_flow: Option<bool>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -8110,6 +8159,8 @@ pub struct PaymentLinkStatusDetails {
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -8215,7 +8266,8 @@ pub struct ClickToPaySessionResponse {
     pub dpa_id: String,
     pub dpa_name: String,
     pub locale: String,
-    pub card_brands: Vec<String>,
+    #[schema(value_type = Vec<CardNetwork>, example = "[Visa, Mastercard]")]
+    pub card_brands: HashSet<api_enums::CardNetwork>,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
     pub merchant_category_code: String,
@@ -8585,8 +8637,8 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> ProcessorPaymentToken {
-        ProcessorPaymentToken {
+    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+        mandates::ProcessorPaymentToken {
             processor_payment_token: self
                 .billing_connector_payment_details
                 .payment_processor_token
@@ -8686,6 +8738,10 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+
+    /// source where the payment was triggered by
+    #[schema(value_type = TriggeredBy, example = "internal" )]
+    pub triggered_by: common_enums::TriggeredBy,
 }
 
 /// Error details for the payment
