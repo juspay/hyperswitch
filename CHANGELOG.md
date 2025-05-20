@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.14.0-hotfix2
+
+### Refactors
+
+- **connector:** [Fiuu] enable refund ORF feature [RedSys] fix the request structure ([#8087](https://github.com/juspay/hyperswitch/pull/8087)) ([`4363f69`](https://github.com/juspay/hyperswitch/commit/4363f69a4356a702f7519b6a7fc290d4f67cc970))
+
+**Full Changelog:** [`2025.05.14.0-hotfix1...2025.05.14.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.05.14.0-hotfix1...2025.05.14.0-hotfix2)
+
+
+- - -
+
 ## 2025.05.14.0-hotfix1
 
 ### Features
