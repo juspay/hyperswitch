@@ -88,6 +88,7 @@ pub struct ConnectorAuthentication {
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
     pub shift4: Option<HeaderKey>,
+    pub spreedly: Option<HeaderKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
