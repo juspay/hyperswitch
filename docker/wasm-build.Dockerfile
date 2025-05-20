@@ -20,7 +20,7 @@ RUN echo env
 RUN cargo install wasm-opt
 RUN cargo install wasm-pack
 RUN wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
-RUN wasm-opt /tmp/wasm/euclid_bg.wasm -o /tmp/wasm/euclid_bg.wasm --enable-bulk-memory -O3
+RUN wasm-opt /tmp/wasm/euclid_bg.wasm -o /tmp/wasm/euclid_bg.wasm --enable-bulk-memory --enable-reference-types --enable-simd --enable-threads --enable-mutable-globals -O3
 FROM scratch
 
 COPY --from=builder /tmp/wasm /tmp
