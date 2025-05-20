@@ -18,7 +18,13 @@ ENV env=$env
 COPY . .
 RUN echo env
 RUN cargo install wasm-pack
-RUN wasm-pack build --target --enable-nontrapping-float-to-int --enable-bulk-memory web --out-dir /tmp/wasm --out-name euclid crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
+# Set RUSTFLAGS before running wasm-pack
+ENV RUSTFLAGS="-C target-feature=+bulk-memory,+nontrapping-fptoint"
+
+# Run wasm-pack build with your desired features
+RUN wasm-pack build --target web \
+    --out-dir /tmp/wasm --out-name euclid \
+    crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
 
 FROM scratch
 
