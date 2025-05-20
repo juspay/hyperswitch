@@ -27,7 +27,13 @@ RUN cargo install wasm-pack
 ENV WASM_OPT=0
 
 # Build without wasm-opt in wasm-pack, we'll run it manually
-RUN wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid --no-wasm-opt crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
+RUN RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build \
+    --target web \
+    --out-dir /tmp/wasm \
+    --out-name euclid \
+    crates/euclid_wasm \
+    -- --features "${VERSION_FEATURE_SET},${FEATURES}"
+
 
 # Optimize the wasm output using wasm-opt with bulk-memory support
 RUN wasm-opt /tmp/wasm/euclid_bg.wasm \
