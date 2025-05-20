@@ -173,7 +173,7 @@ impl From<AuthenticationData> for Archipel3DS {
             three_ds_auth_status: None,
             three_ds_max_supported_version: THREE_DS_MAX_SUPPORTED_VERSION.into(),
             three_ds_version: three_ds_data.message_version,
-            authentication_value: Secret::new(three_ds_data.cavv),
+            authentication_value: three_ds_data.cavv,
             authentication_method: None,
             eci: three_ds_data.eci.map(Secret::new),
         }

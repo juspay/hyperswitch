@@ -477,7 +477,7 @@ pub struct CardThreeDsData {
     ccexp: Secret<String>,
     email: Option<Email>,
     cardholder_auth: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
