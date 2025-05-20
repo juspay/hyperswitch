@@ -191,7 +191,7 @@ where
     let connector = operation
         .to_domain()?
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
-        .await?; 
+        .await?;
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
@@ -6690,7 +6690,7 @@ where
 
     payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
 
-    Ok(decided_connector) 
+    Ok(decided_connector)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -6789,7 +6789,7 @@ pub async fn decide_connector(
 pub async fn decide_connector<F, D>(
     state: SessionState,
     merchant_context: &domain::MerchantContext,
-    business_profile: &domain::Profile, 
+    business_profile: &domain::Profile,
     payment_data: &mut D,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
