@@ -1,10 +1,5 @@
 use super::errors::{self, RouterResponse, RouterResult};
-use crate::{
-    logger,
-    routes::SessionState,
-    services,
-    types::domain,
-};
+use crate::{logger, routes::SessionState, services, types::domain};
 pub mod utils;
 use api_models::proxy as proxy_api_models;
 use common_utils::{
@@ -38,7 +33,9 @@ pub async fn proxy_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error while fetching data from vault")?;
 
-    let vault_data = vault_response.data.encode_to_value()
+    let vault_data = vault_response
+        .data
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize vault data")?;
 
@@ -61,12 +58,9 @@ fn process_value(value: Value, vault_data: &Value) -> RouterResult<Value> {
 
             Ok(Value::Object(new_obj))
         }
-        Value::String(s) => 
-                utils::parse_token(&s)
-                    .map(|(_, token_ref)| {
-                        extract_field_from_vault_data(vault_data, &token_ref.field)
-                    })
-                    .unwrap_or(Ok(Value::String(s.clone()))),
+        Value::String(s) => utils::parse_token(&s)
+            .map(|(_, token_ref)| extract_field_from_vault_data(vault_data, &token_ref.field))
+            .unwrap_or(Ok(Value::String(s.clone()))),
         _ => Ok(value),
     }
 }
@@ -90,23 +84,18 @@ fn find_field_recursively_in_vault_data(
 
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
     match vault_data {
-        Value::Object(obj) => {
-            find_field_recursively_in_vault_data(obj, field_name)
-                .ok_or_else(|| {
-                    logger::debug!(
-                        "Field '{}' not found in vault data: {:?}",
-                        field_name,
-                        vault_data
-                    );
-                    errors::ApiErrorResponse::InternalServerError
-                })
-                .attach_printable(format!("Field '{}' not found", field_name))
-        }
+        Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
+            .ok_or_else(|| {
+                logger::debug!(
+                    "Field '{}' not found in vault data: {:?}",
+                    field_name,
+                    vault_data
+                );
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable(format!("Field '{}' not found", field_name)),
         _ => {
-            logger::debug!(
-                "Vault data is not an object: {:?}",
-                vault_data
-            );
+            logger::debug!("Vault data is not an object: {:?}", vault_data);
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Vault data is not a valid JSON object")
         }
@@ -176,4 +165,3 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
         })
     }
 }
-
