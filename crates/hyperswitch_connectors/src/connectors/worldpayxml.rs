@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_utils::{
     consts,
@@ -8,10 +10,9 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use std::sync::LazyLock;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -22,10 +23,13 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{SupportedPaymentMethodsExt, PaymentMethodDetails, ConnectorInfo, SupportedPaymentMethods, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, PaymentsCancelRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -397,9 +401,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         _req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(
-            self.base_url(connectors).to_owned()
-        )
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -444,10 +446,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            res.response
-                .parse_struct("Redsys RedsysResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayxml::PaymentService = res
+            .response
+            .parse_struct("Redsys RedsysResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -476,9 +478,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         _req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(
-            self.base_url(connectors).to_owned()
-        )
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(
@@ -493,8 +493,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         )?;
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
-        let connector_req =
-            worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        let connector_req = worldpayxml::PaymentService::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
