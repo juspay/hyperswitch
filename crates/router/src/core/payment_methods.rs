@@ -998,16 +998,17 @@ pub async fn create_payment_method_core(
     .await;
 
     let (response, payment_method) = match vaulting_result {
-        Ok(pm_types::AddVaultResponse::AddVaultResponseInternal((
-            vaulting_resp,
+        Ok(pm_types::AddVaultResponse {
+            vault_id,
             fingerprint_id,
-        ))) => {
+            ..
+        }) => {
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
                 merchant_context.get_merchant_key_store(),
-                Some(vaulting_resp.vault_id.get_string_repr().clone()),
-                Some(fingerprint_id),
+                Some(vault_id.get_string_repr().clone()),
+                fingerprint_id,
                 &payment_method,
                 None,
                 network_tokenization_resp,
@@ -1017,44 +1018,6 @@ pub async fn create_payment_method_core(
             )
             .await
             .attach_printable("unable to create payment method data")?;
-
-            let payment_method = db
-                .update_payment_method(
-                    &(state.into()),
-                    merchant_context.get_merchant_key_store(),
-                    payment_method,
-                    pm_update,
-                    merchant_context.get_merchant_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment method in db")?;
-
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
-
-            Ok((resp, payment_method))
-        }
-        Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(ext_vaulting_resp)) => {
-            let external_vault_source = profile
-                .external_vault_connector_details
-                .clone()
-                .map(|details| details.vault_connector_id);
-
-            let pm_update = create_pm_additional_data_update(
-                Some(&payment_method_data),
-                state,
-                merchant_context.get_merchant_key_store(),
-                Some(ext_vaulting_resp.connector_vault_id),
-                Some(ext_vaulting_resp.fingerprint_id),
-                &payment_method,
-                None,
-                network_tokenization_resp,
-                Some(req.payment_method_type),
-                Some(req.payment_method_subtype),
-                external_vault_source,
-            )
-            .await
-            .attach_printable("Unable to create Payment method data")?;
 
             let payment_method = db
                 .update_payment_method(
@@ -1889,16 +1852,16 @@ pub async fn vault_payment_method_internal(
         },
     )?;
 
-    let resp_from_vault =
+    let mut resp_from_vault =
         vault::add_payment_method_to_vault(state, merchant_context, pmd, existing_vault_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in vault")?;
 
-    Ok(pm_types::AddVaultResponse::AddVaultResponseInternal((
-        resp_from_vault,
-        fingerprint_id_from_vault,
-    )))
+    // add fingerprint_id to the response
+    resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);
+
+    Ok(resp_from_vault)
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1965,12 +1928,11 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
             types::VaultResponseData::ExternalVaultInsertResponse {
                 connector_vault_id,
                 fingerprint_id,
-            } => Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(
-                pm_types::AddVaultResponseExternal {
-                    connector_vault_id,
-                    fingerprint_id,
-                },
-            )),
+            } => Ok(pm_types::AddVaultResponse {
+                vault_id: domain::VaultId::generate(connector_vault_id),
+                fingerprint_id: Some(fingerprint_id),
+                entity_id: None,
+            }),
             types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
             | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -2305,23 +2267,13 @@ pub async fn update_payment_method_core(
         None => None,
     };
 
-    let (vault_id, fingerprint_id) = vaulting_response
-        .map(|vaulting_response| match vaulting_response {
-            pm_types::AddVaultResponse::AddVaultResponseInternal((
-                interna_vault_res,
-                fingerprint_id,
-            )) => {
-                let vault_id = interna_vault_res.vault_id.get_string_repr().clone();
-                (vault_id, fingerprint_id)
-            }
-            pm_types::AddVaultResponse::AddVaultResponseExternal(
-                pm_types::AddVaultResponseExternal {
-                    connector_vault_id,
-                    fingerprint_id,
-                },
-            ) => (connector_vault_id, fingerprint_id),
-        })
-        .unzip();
+    let (vault_id, fingerprint_id) = match vaulting_response {
+        Some(vaulting_response) => {
+            let vault_id = vaulting_response.vault_id.get_string_repr().to_owned();
+            (Some(vault_id), vaulting_response.fingerprint_id)
+        }
+        None => (None, None),
+    };
 
     let pm_update = create_pm_additional_data_update(
         vault_request_data.as_ref(),
