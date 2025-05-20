@@ -36,6 +36,7 @@ Each crate documentation aims to cover:
 
 **Additional Progress**: 
 - Documentation has been completed for `hyperswitch_domain_models`, `common_enums`, `common_types`, `router_derive`, `cards`, `payment_methods`, and `currency_conversion` crates (2025-05-20), following the same comprehensive structure as the original 11 crates.
+- Documentation has been added for `events`, `pm_auth`, and `external_services` crates (2025-05-20), covering their purpose, architecture, key components, implementation details, and integration with other crates.
 - Implemented proactive file size management for the `router` crate documentation (2025-05-20), splitting the monolithic overview into a hierarchical structure with dedicated sections for modules, flows, architecture, and configuration. This implementation serves as a template for future documentation organization of complex crates.
 - Work continues on documenting the remaining crates as identified in the finalization review.
 

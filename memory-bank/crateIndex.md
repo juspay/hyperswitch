@@ -341,16 +341,23 @@ This document provides an overview of all the crates in the Hyperswitch project,
 ### pm_auth
 **Purpose**: Handles payment method authentication.
 **Key Components**:
-- 3D Secure
-- Authentication flows
-**Links**: [Detailed Documentation - MISSING]
+- 3D Secure and other authentication protocols
+- Authentication flows for bank accounts and payment methods
+- Token exchange and credential retrieval
+- Connector integrations (e.g., Plaid)
+- Secure handling of payment method details
+**Links**: [Detailed Documentation](./thematic/crates/pm_auth/overview.md)
 **Dependencies**:
 - api_models
 - common_enums
 - common_types
+- common_utils
 - hyperswitch_domain_models
 - masking
+- error-stack
 - serde
+- bytes
+- thiserror
 
 ### currency_conversion
 **Purpose**: Handles currency conversion operations.
@@ -398,19 +405,31 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - Event definitions
 - Event handlers
 - Event publishing
-**Links**: [Detailed Documentation - MISSING]
+- Event context management
+- Actix Web integration
+**Links**: [Detailed Documentation](./thematic/crates/events/overview.md)
 **Dependencies**:
+- masking
+- router_env
+- error-stack
 - serde
+- serde_json
+- thiserror
+- time
 
 ## Integration Crates
 
 ### external_services
 **Purpose**: Handles integration with external services.
 **Key Components**:
-- Email services
-- SMS services
-- Other third-party integrations
-**Links**: [Detailed Documentation - MISSING]
+- Email services (AWS SES, SMTP)
+- File storage operations (AWS S3, local file system)
+- Key management and encryption (AWS KMS, Hashicorp Vault)
+- HTTP client operations and metrics
+- gRPC client functionality
+- CRM integrations (HubSpot)
+- Secrets management
+**Links**: [Detailed Documentation](./thematic/crates/external_services/overview.md)
 **Dependencies**:
 - api_models
 - common_enums
@@ -418,9 +437,13 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - common_utils
 - hyperswitch_domain_models
 - masking
+- router_env
+- error-stack
 - reqwest
 - serde
 - tokio
+- async-trait
+- dyn-clone
 
 ### hyperswitch_interfaces
 **Purpose**: Serves as a critical abstraction layer for payment connector integrations with standardized interfaces and traits.
