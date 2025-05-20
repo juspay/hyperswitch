@@ -84,6 +84,14 @@ merchant_secret="Source verification key"
 [[adyen.debit]]
   payment_method_type = "Visa"
 [[adyen.debit]]
+  payment_method_type = "Nyce"
+[[adyen.debit]]
+  payment_method_type = "Pulse"
+[[adyen.debit]]
+  payment_method_type = "Star"
+[[adyen.debit]]
+  payment_method_type = "Accel"
+[[adyen.debit]]
   payment_method_type = "Interac"
 [[adyen.debit]]
   payment_method_type = "AmericanExpress"

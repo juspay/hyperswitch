@@ -340,6 +340,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_info,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -366,6 +367,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             card_testing_guard_data: None,
             vault_operation: None,
             threeds_method_comp_ind: request.threeds_method_comp_ind.clone(),
+            whole_connector_response: None,
         };
 
         let customer_details = Some(CustomerDetails {
