@@ -90,7 +90,7 @@ pub struct EmvThreedsData {
     browser_accept_header: Option<String>,
     browser_user_agent: Option<String>,
     browser_java_enabled: Option<bool>,
-    browser_java_script_enabled: Option<bool>,
+    browser_javascript_enabled: Option<bool>,
     browser_language: Option<String>,
     browser_color_depth: Option<String>,
     browser_screen_height: Option<String>,
