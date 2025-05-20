@@ -782,6 +782,14 @@ describe("Corner cases", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.retrievePaymentCallTest(globalState, data);
+    });
+
     it("Create new refund", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
