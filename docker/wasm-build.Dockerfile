@@ -3,22 +3,28 @@ FROM rust:latest as builder
 ARG FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
 
-# Install build dependencies and wasm-opt (Binaryen)
-RUN apt-get update \
-    && apt-get install -y clang libssl-dev pkg-config curl \
-    && curl -sL https://github.com/WebAssembly/binaryen/releases/download/version_117/binaryen-version_117-x86_64-linux.tar.gz \
-    | tar -xz \
-    && mv binaryen-version_117/bin/wasm-opt /usr/local/bin/ \
-    && chmod +x /usr/local/bin/wasm-opt
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y curl clang libssl-dev pkg-config tar
 
-ENV CARGO_INCREMENTAL=0 \
-    CARGO_NET_RETRY=10 \
-    RUSTUP_MAX_RETRIES=10 \
-    RUST_BACKTRACE=short
+# Download and extract wasm-opt separately (DO NOT put in PATH yet)
+RUN mkdir -p /opt/binaryen && \
+    curl -L https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz \
+    | tar xz -C /opt/binaryen && \
+    mv /opt/binaryen/binaryen-version_116 /opt/binaryen/binaryen
+
+# Install wasm-pack
+RUN cargo install wasm-pack
 
 COPY . .
 
-RUN cargo install wasm-pack
+ENV CARGO_INCREMENTAL=0
+ENV CARGO_NET_RETRY=10
+ENV RUSTUP_MAX_RETRIES=10
+ENV RUST_BACKTRACE=short
+
+# This prevents wasm-pack / wasm-bindgen from running wasm-opt
+ENV WASM_OPT=0
 
 # Build without wasm-opt in wasm-pack, we'll run it manually
 RUN wasm-pack build \
@@ -34,6 +40,6 @@ RUN wasm-opt /tmp/wasm/euclid_bg.wasm \
     -o /tmp/wasm/euclid_bg.wasm \
     --enable-bulk-memory
 
-# Final minimal image
+# Final stage: ship only artifacts
 FROM scratch
 COPY --from=builder /tmp/wasm /tmp
