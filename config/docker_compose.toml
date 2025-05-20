@@ -1053,6 +1053,10 @@ enabled = true
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
 
+[revenue_recovery]
+monitoring_threshold_in_seconds = 2592000 # threshold for monitoring the retry system
+retry_algorithm_type = "cascading" # type of retry algorithm 
+
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
