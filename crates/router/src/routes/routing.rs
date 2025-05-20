@@ -526,7 +526,6 @@ pub async fn routing_update_default_config(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -537,10 +536,6 @@ pub async fn routing_update_default_config(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::MerchantRoutingWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
