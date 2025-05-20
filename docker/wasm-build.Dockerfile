@@ -3,43 +3,24 @@ FROM rust:latest as builder
 ARG FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y curl clang libssl-dev pkg-config tar
-
-# Download and extract wasm-opt separately (DO NOT put in PATH yet)
-RUN mkdir -p /opt/binaryen && \
-    curl -L https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz \
-    | tar xz -C /opt/binaryen && \
-    mv /opt/binaryen/binaryen-version_116 /opt/binaryen/binaryen
-
-# Install wasm-pack
-
-COPY . .
+RUN apt-get update \
+    && apt-get install -y clang libssl-dev pkg-config
 
 ENV CARGO_INCREMENTAL=0
+# Allow more retries for network requests in cargo (downloading crates) and
+# rustup (installing toolchains). This should help to reduce flaky CI failures
+# from transient network timeouts or other issues.
 ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
-ENV RUST_BACKTRACE=short
-
+# Don't emit giant backtraces in the CI logs.
+ENV RUST_BACKTRACE="short"
+ENV env=$env
+COPY . .
+RUN echo env
 RUN cargo install wasm-pack
-# This prevents wasm-pack / wasm-bindgen from running wasm-opt
-ENV WASM_OPT=0
+RUN RUSTFLAGS="-C target-feature=-bulk-memory" \
+    wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
 
-# Build without wasm-opt in wasm-pack, we'll run it manually
-RUN RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build \
-    --target web \
-    --out-dir /tmp/wasm \
-    --out-name euclid \
-    crates/euclid_wasm \
-    -- --features "${VERSION_FEATURE_SET},${FEATURES}"
-
-
-# Optimize the wasm output using wasm-opt with bulk-memory support
-RUN wasm-opt /tmp/wasm/euclid_bg.wasm \
-    -o /tmp/wasm/euclid_bg.wasm \
-    --enable-bulk-memory
-
-# Final stage: ship only artifacts
 FROM scratch
+
 COPY --from=builder /tmp/wasm /tmp
