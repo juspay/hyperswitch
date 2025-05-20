@@ -747,6 +747,7 @@ async fn record_back_to_billing_connector(
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
