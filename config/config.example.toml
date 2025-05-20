@@ -1035,7 +1035,7 @@ delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id
