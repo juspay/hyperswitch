@@ -14,7 +14,6 @@ RUN mkdir -p /opt/binaryen && \
     mv /opt/binaryen/binaryen-version_116 /opt/binaryen/binaryen
 
 # Install wasm-pack
-RUN cargo install wasm-pack
 
 COPY . .
 
@@ -23,17 +22,12 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 ENV RUST_BACKTRACE=short
 
+RUN cargo install wasm-pack
 # This prevents wasm-pack / wasm-bindgen from running wasm-opt
 ENV WASM_OPT=0
 
 # Build without wasm-opt in wasm-pack, we'll run it manually
-RUN wasm-pack build \
-    --target web \
-    --out-dir /tmp/wasm \
-    --out-name euclid \
-    --no-wasm-opt \
-    crates/euclid_wasm \
-    -- --features ${VERSION_FEATURE_SET},${FEATURES}
+RUN wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid --no-wasm-opt crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
 
 # Optimize the wasm output using wasm-opt with bulk-memory support
 RUN wasm-opt /tmp/wasm/euclid_bg.wasm \
