@@ -9843,6 +9843,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
@@ -15981,6 +15982,24 @@
           },
           {
             "type": "object",
+            "required": [
+              "popup_url",
+              "type"
+            ],
+            "properties": {
+              "popup_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "redirect_inside_popup"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)",
             "required": [
               "bank_transfer_steps_and_charges_details",
@@ -16209,7 +16228,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -16531,11 +16551,8 @@
             "nullable": true
           },
           "platform_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
+            "type": "string",
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org",
             "nullable": true
           }
         },
@@ -19359,6 +19376,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
@@ -19774,6 +19796,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "all_keys_required": {
@@ -20357,6 +20384,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "whole_connector_response": {
@@ -21066,6 +21098,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
@@ -21675,6 +21712,11 @@
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "whole_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
@@ -22223,6 +22265,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "all_keys_required": {
@@ -24264,6 +24311,16 @@
               }
             ],
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
+          "is_pre_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if pre network tokenization is enabled or not",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24299,7 +24356,8 @@
           "is_auto_retries_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "force_3ds_challenge"
+          "force_3ds_challenge",
+          "is_pre_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -24541,6 +24599,12 @@
               }
             ],
             "nullable": true
+          },
+          "is_pre_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if pre network tokenization is enabled or not",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -25686,6 +25750,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
           "billwerk",
