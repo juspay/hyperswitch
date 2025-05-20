@@ -580,7 +580,7 @@ pub async fn link_routing_config(
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
-                            "Failed to update the success rate routing config in DE",
+                            "Failed to update the success rate routing config in Decision Engine",
                         )?;
                     }
                 }
@@ -610,7 +610,7 @@ pub async fn link_routing_config(
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
-                            "Failed to update the success rate routing config in DE",
+                            "Failed to update the elimination routing config in Decision Engine",
                         )?;
                     }
                 }

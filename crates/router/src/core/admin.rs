@@ -271,6 +271,9 @@ pub async fn create_merchant_account(
                 })
                 .await
                 .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
+                })
                 .ok();
         }
     }
@@ -1200,6 +1203,9 @@ pub async fn merchant_account_delete(
                 })
                 .await
                 .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                })
                 .ok();
         }
     }
