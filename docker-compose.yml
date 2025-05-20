@@ -8,24 +8,10 @@ networks:
 
 services:
   ### Dependencies
-  prestart-hook:
-    image: curlimages/curl-base:latest
-    container_name: prestart-hook
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "apk add --no-cache bash && /bin/bash /prestart_hook.sh",
-      ]
-    volumes:
-      - ./scripts/prestart_hook.sh:/prestart_hook.sh
-    networks:
-      - router_net
-
   pg:
     image: postgres:latest
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - router_net
     volumes:
@@ -46,7 +32,7 @@ services:
     networks:
       - router_net
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
       interval: 5s
@@ -86,7 +72,7 @@ services:
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
-      - "8080:8080"
+      - "${HYPERSWITCH_SERVER_PORT:-8080}:8080"
     networks:
       - router_net
     volumes:
@@ -107,23 +93,6 @@ services:
       retries: 3
       start_period: 5s
       timeout: 5s
-
-  poststart-hook:
-    image: curlimages/curl-base:latest
-    container_name: poststart-hook
-    depends_on:
-      hyperswitch-server:
-        condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh",
-      ]
-    volumes:
-      - ./scripts/poststart_hook.sh:/poststart_hook.sh
-    networks:
-      - router_net
 
   hyperswitch-producer:
     image: docker.juspay.io/juspaydotin/hyperswitch-producer:standalone
@@ -191,7 +160,7 @@ services:
     image: docker.juspay.io/juspaydotin/hyperswitch-web:latest
     pull_policy: always
     ports:
-      - "9050:9050"
+      - "${HYPERSWITCH_WEB_PORT:-9050}:9050"
     networks:
       - router_net
     depends_on:
@@ -210,7 +179,7 @@ services:
     image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
     pull_policy: always
     ports:
-      - "9000:9000"
+      - "${HYPERSWITCH_CONTROL_CENTER_PORT:-9000}:9000"
     environment:
       - configPath=/tmp/dashboard-config.toml
     volumes:
@@ -458,7 +427,7 @@ services:
     image: docker.juspay.io/juspaydotin/hyperswitch-react-demo-app:latest
     pull_policy: always
     ports:
-      - "9060:9060"
+      - "${UNIFIED_CHECKOUT_PORT:-9060}:9060"
       - "5252:5252"
     networks:
       - router_net
