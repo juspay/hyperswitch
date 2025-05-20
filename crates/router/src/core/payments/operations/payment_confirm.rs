@@ -1229,12 +1229,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &authentication_id,
                             payment_data.service_details.clone(),
                             authentication_status,
-                            network_token,
+                            network_token.clone(),
                             payment_data.payment_attempt.organization_id.clone(),
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                            cavv: None, // since in case of CTP we will be storing all details in network token under payment_method_data
+                            cavv: network_token.and_then(|token| token.token_cryptogram),
                             authentication
                         };
                         payment_data.authentication = Some(authentication_store);
@@ -1408,7 +1408,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication_id, false, key_store.key.get_inner()).await?;
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: Some(tokenized_data.value1),
+                    cavv: Some(masking::Secret::new(tokenized_data.value1)),
                     authentication: updated_authentication
                 };
 
