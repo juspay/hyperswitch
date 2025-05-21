@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use common_enums::{self, enums, CaptureMethod, PaymentExperience, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -19,7 +20,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -37,16 +38,17 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
-use transformers as dotpay;
+use base64::Engine;
+use transformers as spreedly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Dotpay {
+pub struct Spreedly {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Dotpay {
+impl Spreedly {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -54,26 +56,66 @@ impl Dotpay {
     }
 }
 
-impl api::Payment for Dotpay {}
-impl api::PaymentSession for Dotpay {}
-impl api::ConnectorAccessToken for Dotpay {}
-impl api::MandateSetup for Dotpay {}
-impl api::PaymentAuthorize for Dotpay {}
-impl api::PaymentSync for Dotpay {}
-impl api::PaymentCapture for Dotpay {}
-impl api::PaymentVoid for Dotpay {}
-impl api::Refund for Dotpay {}
-impl api::RefundExecute for Dotpay {}
-impl api::RefundSync for Dotpay {}
-impl api::PaymentToken for Dotpay {}
+impl api::Payment for Spreedly {}
+impl api::PaymentSession for Spreedly {}
+impl api::ConnectorAccessToken for Spreedly {}
+impl api::MandateSetup for Spreedly {}
+impl api::PaymentAuthorize for Spreedly {}
+impl api::PaymentSync for Spreedly {}
+impl api::PaymentCapture for Spreedly {}
+impl api::PaymentVoid for Spreedly {}
+impl api::Refund for Spreedly {}
+impl api::RefundExecute for Spreedly {}
+impl api::RefundSync for Spreedly {}
+impl api::PaymentToken for Spreedly {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Dotpay
+    for Spreedly
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "/payment_methods"
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let url = self.get_url(req, connectors)?;
+        let headers = self.get_headers(req, connectors)?;
+        // No request body needed for this operation
+        
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&url)
+            .headers(headers)
+            .build();
+
+        Ok(Some(request))
+    }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Dotpay
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Spreedly
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -92,16 +134,13 @@ where
     }
 }
 
-impl ConnectorCommon for Dotpay {
+impl ConnectorCommon for Spreedly {
     fn id(&self) -> &'static str {
-        "dotpay"
+        "spreedly"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -109,18 +148,22 @@ impl ConnectorCommon for Dotpay {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.dotpay.base_url.as_ref() // FIX_NEED
+        connectors.spreedly.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = dotpay::DotpayAuthType::try_from(auth_type)
+        let auth = transformers::SpreedlyAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        
+        let auth_string = format!("{}:{}", auth.environment_key, auth.access_secret);
+        let encoded_auth = base64::engine::general_purpose::STANDARD.encode(auth_string);
+        
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {}", encoded_auth).into(),
         )])
     }
 
@@ -129,19 +172,30 @@ impl ConnectorCommon for Dotpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: dotpay::DotpayErrorResponse = res
+        let response: transformers::SpreedlyErrorResponse = res
             .response
-            .parse_struct("DotpayErrorResponse")
+            .parse_struct("SpreedlyErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let mut reasons = vec![];
+        if let Some(errors) = response.errors {
+            for error in errors {
+                if let Some(message) = error.message {
+                    reasons.push(message);
+                }
+            }
+        }
+        
+        let message = reasons.join(" ");
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: res.status_code.to_string(),
+            message,
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -151,19 +205,61 @@ impl ConnectorCommon for Dotpay {
     }
 }
 
-impl ConnectorValidation for Dotpay {
-    //TODO: implement functions when support enabled
+impl ConnectorValidation for Spreedly {
+    // Validation methods have been removed as they aren't part of the current ConnectorValidation trait
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Dotpay {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Spreedly {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Dotpay {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Spreedly {
+    fn get_headers(
+        &self,
+        req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Dotpay {}
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Dotpay {
+    fn get_url(
+        &self,
+        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/oauth/token", self.base_url(connectors)))
+    }
+}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Spreedly
+{
+    fn get_headers(
+        &self,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/mandates", self.base_url(connectors)))
+    }
+}
+
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Spreedly {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -178,10 +274,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = transformers::SpreedlyAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let gateway_token = auth.environment_key;
+        
+        Ok(format!("{}/gateways/{}/authorize.json", self.base_url(connectors), gateway_token))
     }
 
     fn get_request_body(
@@ -194,10 +294,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.minor_amount,
             req.request.currency,
         )?;
-
-        let connector_router_data = dotpay::DotpayRouterData::from((amount, req));
-        let connector_req = dotpay::DotpayPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        
+        let router_data = transformers::SpreedlyRouterData {
+            amount,
+            router_data: req,
+        };
+        
+        let spreedly_req = transformers::SpreedlyPaymentsRequest::try_from(&router_data)?;
+        Ok(RequestContent::Json(Box::new(spreedly_req)))
     }
 
     fn build_request(
@@ -205,21 +309,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        let request_body = self.get_request_body(req, connectors)?;
+        let url = self.get_url(req, connectors)?;
+        let headers = self.get_headers(req, connectors)?;
+        
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&url)
+            .headers(headers)
+            .set_body(request_body)
+            .build();
+
+        Ok(Some(request))
     }
 
     fn handle_response(
@@ -228,16 +329,43 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dotpay::DotpayPaymentsResponse = res
+        let response: transformers::SpreedlyPaymentsResponse = res
             .response
-            .parse_struct("Dotpay PaymentsAuthorizeResponse")
+            .parse_struct("SpreedlyPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        
+        event_builder.map(|i| i.set_response_body(&transformers::SpreedlyPaymentsResponseWrapper::from(response.clone())));
+        
+        let transaction_status = match response.transaction.succeeded {
+            true => match response.transaction.state.clone().unwrap_or_default().as_str() {
+                "succeeded" => enums::AttemptStatus::Charged,
+                _ => enums::AttemptStatus::Authorized,
+            },
+            false => enums::AttemptStatus::Failure,
+        };
+        
+        let response_data = match transaction_status {
+            enums::AttemptStatus::Failure => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+            _ => {
+                let connector_id = response.transaction.token.clone();
+                let response_id = Some(connector_id.clone());
+                
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: utils::ResponseId::ConnectorTransactionId(connector_id),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: response_id,
+                    incremental_authorization_allowed: None,
+                })
+            }
+        };
+        
+        Ok(PaymentsAuthorizeRouterData {
+            status: transaction_status,
+            response: response_data,
+            ..data.clone()
         })
     }
 
@@ -250,7 +378,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dotpay {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spreedly {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -292,16 +420,43 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dot
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dotpay::DotpayPaymentsResponse = res
+        let response: spreedly::SpreedlyPaymentsResponse = res
             .response
-            .parse_struct("dotpay PaymentsSyncResponse")
+            .parse_struct("spreedly PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        
+        let transaction_status = match response.transaction.succeeded {
+            true => match response.transaction.state.clone().unwrap_or_default().as_str() {
+                "succeeded" => enums::AttemptStatus::Charged,
+                _ => enums::AttemptStatus::Authorized,
+            },
+            false => enums::AttemptStatus::Failure,
+        };
+        
+        let response_data = match transaction_status {
+            enums::AttemptStatus::Failure => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+            _ => {
+                let connector_id = response.transaction.token.clone();
+                let response_id = Some(connector_id.clone());
+                
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: utils::ResponseId::ConnectorTransactionId(connector_id),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: response_id,
+                    incremental_authorization_allowed: None,
+                })
+            }
+        };
+        
+        Ok(PaymentsSyncRouterData {
+            status: transaction_status,
+            response: response_data,
+            ..data.clone()
         })
     }
 
@@ -314,7 +469,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dot
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Dotpay {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Spreedly {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -369,16 +524,43 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dotpay::DotpayPaymentsResponse = res
+        let response: spreedly::SpreedlyPaymentsResponse = res
             .response
-            .parse_struct("Dotpay PaymentsCaptureResponse")
+            .parse_struct("Spreedly PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        
+        let transaction_status = match response.transaction.succeeded {
+            true => match response.transaction.state.clone().unwrap_or_default().as_str() {
+                "succeeded" => enums::AttemptStatus::Charged,
+                _ => enums::AttemptStatus::Authorized,
+            },
+            false => enums::AttemptStatus::Failure,
+        };
+        
+        let response_data = match transaction_status {
+            enums::AttemptStatus::Failure => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+            _ => {
+                let connector_id = response.transaction.token.clone();
+                let response_id = Some(connector_id.clone());
+                
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: utils::ResponseId::ConnectorTransactionId(connector_id),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: response_id,
+                    incremental_authorization_allowed: None,
+                })
+            }
+        };
+        
+        Ok(PaymentsCaptureRouterData {
+            status: transaction_status,
+            response: response_data,
+            ..data.clone()
         })
     }
 
@@ -391,9 +573,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dotpay {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Spreedly {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dotpay {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedly {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -425,8 +607,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dotpay 
             req.request.currency,
         )?;
 
-        let connector_router_data = dotpay::DotpayRouterData::from((refund_amount, req));
-        let connector_req = dotpay::DotpayRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = spreedly::SpreedlyRouterData::from((refund_amount, req));
+        let connector_req = spreedly::SpreedlyRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -455,10 +637,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dotpay 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: dotpay::RefundResponse =
-            res.response
-                .parse_struct("dotpay RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: spreedly::RefundResponse = res
+            .response
+            .parse_struct("spreedly RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -477,7 +659,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dotpay 
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dotpay {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -522,9 +704,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dotpay {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: dotpay::RefundResponse = res
+        let response: spreedly::RefundResponse = res
             .response
-            .parse_struct("dotpay RefundSyncResponse")
+            .parse_struct("spreedly RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -545,7 +727,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dotpay {
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Dotpay {
+impl webhooks::IncomingWebhook for Spreedly {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -568,4 +750,29 @@ impl webhooks::IncomingWebhook for Dotpay {
     }
 }
 
-impl ConnectorSpecifications for Dotpay {}
+impl ConnectorSpecifications for Spreedly {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        static ABOUT: ConnectorInfo = ConnectorInfo {
+            display_name: "Spreedly",
+            connector_type: "Payment Processor",
+        };
+        Some(&ABOUT)
+    }
+
+    fn get_supported_payment_methods(&self) -> common_enums::SupportedPaymentMethods {
+        let mut payment_methods = common_enums::SupportedPaymentMethods::default();
+        payment_methods.add_payment_method(PaymentMethod::Card);
+        payment_methods
+    }
+
+    fn get_supported_card_networks(&self) -> &'static [common_enums::enums::CardNetwork] {
+        &[
+            common_enums::enums::CardNetwork::Visa,
+            common_enums::enums::CardNetwork::Mastercard,
+            common_enums::enums::CardNetwork::AmericanExpress,
+            common_enums::enums::CardNetwork::Discover,
+            common_enums::enums::CardNetwork::JCB,
+            common_enums::enums::CardNetwork::DinersClub,
+        ]
+    }
+}

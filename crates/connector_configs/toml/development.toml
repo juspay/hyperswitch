@@ -5938,3 +5938,6 @@ label = "Acquirer Merchant ID"
 placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
+
+[spreedly]
+base_url = "https://core.spreedly.com/v1"

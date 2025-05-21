@@ -335,3 +335,7 @@ api_key= "API Key"
 api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
+
+[spreedly]
+api_key = "ENVIRONMENT_KEY" # Environment Key
+key1 = "ACCESS_SECRET" # Access Secret
