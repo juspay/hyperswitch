@@ -670,6 +670,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        _org_data: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.accounts_store;
