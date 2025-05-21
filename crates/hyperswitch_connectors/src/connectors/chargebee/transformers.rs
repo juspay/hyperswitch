@@ -335,6 +335,9 @@ pub struct ChargebeePaymentMethodDetails {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
+    brand : common_enums::CardNetwork,
+    iin : String,
+    billing_country: common_enums::CountryAlpha2
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -505,6 +508,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             network_error_message: None,
             retry_count,
             invoice_next_billing_time,
+            card_network: payment_method_details.card.brand
         })
     }
 }

@@ -583,6 +583,7 @@ impl RevenueRecoveryAttempt {
             retry_count: revenue_recovery_attempt_data.retry_count,
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
+            card_network: revenue_recovery_attempt_data.card_network
         }
     }
 

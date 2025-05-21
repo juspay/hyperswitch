@@ -8713,6 +8713,9 @@ pub struct PaymentsAttemptRecordRequest {
     /// source where the payment was triggered by
     #[schema(value_type = TriggeredBy, example = "internal" )]
     pub triggered_by: common_enums::TriggeredBy,
+
+    /// card_network
+    pub card_network : common_enums::CardNetwork
 }
 
 /// Error details for the payment

@@ -438,6 +438,8 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     /// The organization id for the payment attempt. This will be derived from payment intent.
     pub organization_id: id_type::OrganizationId,
+    /// Card Network
+    pub card_network : Option<common_enums::CardNetwork>,
     /// Payment method type for the payment attempt
     pub payment_method_type: storage_enums::PaymentMethod,
     /// Foreig key reference of Payment method id in case the payment instrument was stored

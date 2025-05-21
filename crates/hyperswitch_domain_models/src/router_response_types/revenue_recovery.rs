@@ -28,6 +28,8 @@ pub struct BillingConnectorPaymentsSyncResponse {
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// payment method sub type of the payment attempt.
     pub payment_method_sub_type: common_enums::enums::PaymentMethodType,
+    /// card netword network
+    pub card_network: common_enums::CardNetwork
 }
 
 #[derive(Debug, Clone)]

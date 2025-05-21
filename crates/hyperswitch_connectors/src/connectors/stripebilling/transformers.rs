@@ -446,7 +446,7 @@ pub struct StripePaymentMethodDetails {
     #[serde(rename = "type")]
     pub type_of_payment_method: StripebillingPaymentMethod,
     #[serde(rename = "card")]
-    pub card_funding_type: StripeCardFundingTypeDetails,
+    pub card_details: StripeBillingCardDetails,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -456,7 +456,9 @@ pub enum StripebillingPaymentMethod {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripeCardFundingTypeDetails {
+pub struct StripeBillingCardDetails {
+    pub network : common_enums::CardNetwork,
+    pub country : common_enums::CountryAlpha2,
     pub funding: StripebillingFundingTypes,
 }
 
@@ -537,6 +539,7 @@ impl
                     payment_method_type: common_enums::PaymentMethod::from(
                         charge_details.payment_method_details.type_of_payment_method,
                     ),
+                    card_network: charge_details.payment_method_details.card_details.network
                 },
             ),
             ..item.data
