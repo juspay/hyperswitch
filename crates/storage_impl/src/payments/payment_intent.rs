@@ -4,8 +4,8 @@ use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::keymanager::KeyManagerState,
     fallback_reverse_lookup_not_found,
+    types::keymanager::KeyManagerState,
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
@@ -29,7 +29,6 @@ use diesel_models::{
     enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
     reverse_lookup::ReverseLookupNew,
 };
-use crate::lookup::ReverseLookupInterface;
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::{
@@ -52,8 +51,9 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
-    errors::{self,RedisErrorExt, StorageError},
+    errors::{self, RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
+    lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DatabaseStore,
@@ -496,42 +496,41 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .await;
 
         let database_call = || async {
-            let conn: bb8::PooledConnection< '_,
-                async_bb8_diesel::ConnectionManager<diesel::PgConnection>,>
-                = pg_connection_read(self).await?;
-            
+            let conn: bb8::PooledConnection<
+                '_,
+                async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+            > = pg_connection_read(self).await?;
+
             DieselPaymentIntent::find_by_global_id(&conn, id)
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })
+                .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(*er.current_context());
+                    er.change_context(new_err)
+                })
         };
 
-    /*
-        let database_call = 
-    
-            let conn: bb8::PooledConnection<
-            '_,
-            async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
-        > = pg_connection_read(self).await?;
-        let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })?;
+        /*
+           let database_call =
 
-        let merchant_id = diesel_payment_intent.merchant_id.clone();
+               let conn: bb8::PooledConnection<
+               '_,
+               async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+           > = pg_connection_read(self).await?;
+           let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
+               .await
+               .map_err(|er| {
+                   let new_err = diesel_error_to_data_error(*er.current_context());
+                   er.change_context(new_err)
+               })?;
 
-    
-    
-     */
+           let merchant_id = diesel_payment_intent.merchant_id.clone();
+
+
+
+        */
 
         let diesel_payment_intent = match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                database_call().await
-            }
+            MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::GlobalPaymentId { id };
                 let field = format!("pi_{}", id.get_string_repr());
@@ -563,7 +562,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
         }?;
 
-    
         let merchant_id = diesel_payment_intent.merchant_id.clone();
 
         PaymentIntent::convert_back(
@@ -755,7 +753,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     database_call,
                 ))
                 .await?;
-                
+
                 let merchant_id = diesel_payment_intent.merchant_id.clone();
 
                 PaymentIntent::convert_back(
