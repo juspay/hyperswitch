@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use base64::Engine;
 use common_enums::{enums, PaymentAction};
 use common_utils::{
@@ -51,7 +50,7 @@ use transformers as trustpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, ConnectorErrorType, PaymentsPreProcessingRequestData},
+    utils::{self, self as connector_utils, ConnectorErrorType, PaymentsPreProcessingRequestData},
 };
 
 #[derive(Clone)]
@@ -414,6 +413,34 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
             .response
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let trustpay::TrustpayPaymentsResponse::WebhookResponse(ref webhook_response) = response
+        {
+            let amount = StringMajorUnit::f64_to_string_major_unit(webhook_response.amount.amount);
+            let currency = webhook_response.amount.currency;
+
+            let response_integrity_object = connector_utils::get_sync_integrity_object(
+                self.amount_converter,
+                amount,
+                currency.to_string(),
+            )?;
+
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            let new_router_data = RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            });
+
+            return new_router_data
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+        }
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -801,6 +828,32 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        if let trustpay::RefundResponse::WebhookRefund(ref webhook_response) = response {
+            let currency = webhook_response.amount.currency;
+
+            let amount = StringMajorUnit::f64_to_string_major_unit(webhook_response.amount.amount);
+            let response_integrity_object = connector_utils::get_refund_integrity_object(
+                self.amount_converter,
+                amount,
+                currency.to_string(),
+            )?;
+
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            let new_router_data = RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            });
+
+            return new_router_data
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+        }
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 

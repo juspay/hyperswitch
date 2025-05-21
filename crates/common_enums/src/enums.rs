@@ -153,6 +153,7 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
+    IntegrityFailure,
 }
 
 impl AttemptStatus {
@@ -165,7 +166,8 @@ impl AttemptStatus {
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
-            | Self::PartialCharged => true,
+            | Self::PartialCharged
+            | Self::IntegrityFailure => true,
             Self::Started
             | Self::AuthenticationFailed
             | Self::AuthenticationPending
@@ -1595,13 +1597,19 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+    /// There has been a discrepancy between the amount sent in the request and the amount received by the processor
+    Conflicted,
 }
 
 impl IntentStatus {
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
-            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
+            Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            | Self::PartiallyCaptured
+            | Self::Conflicted => true,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1628,6 +1636,7 @@ impl IntentStatus {
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
+            | Self::Conflicted
             => true,
         }
     }
@@ -1743,7 +1752,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => Self::Inactive,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
