@@ -17,6 +17,7 @@ use crate::{
     mandates, payments,
     router_data::{self, RouterData},
     router_flow_types as flows, router_response_types as response_types,
+    vault::PaymentMethodVaultingData,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -641,7 +642,7 @@ impl
 #[derive(Debug, Clone)]
 pub struct AuthenticationData {
     pub eci: Option<String>,
-    pub cavv: String,
+    pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
@@ -956,4 +957,10 @@ pub struct SetupMandateRequestData {
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VaultRequestData {
+    pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
+    pub connector_vault_id: Option<String>,
 }

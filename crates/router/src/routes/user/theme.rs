@@ -1,7 +1,7 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user::theme as theme_api;
-use common_utils::types::theme::ThemeLineage;
+use common_utils::types::user::ThemeLineage;
 use masking::Secret;
 use router_env::Flow;
 
@@ -56,12 +56,10 @@ pub async fn upload_file_to_theme_storage(
     req: HttpRequest,
     path: web::Path<String>,
     MultipartForm(payload): MultipartForm<theme_api::UploadFileAssetData>,
-    query: web::Query<ThemeLineage>,
 ) -> HttpResponse {
     let flow = Flow::UploadFileToThemeStorage;
     let theme_id = path.into_inner();
     let payload = theme_api::UploadFileRequest {
-        lineage: query.into_inner(),
         asset_name: payload.asset_name.into_inner(),
         asset_data: Secret::new(payload.asset_data.data.to_vec()),
     };

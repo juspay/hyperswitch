@@ -360,7 +360,6 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
- "once_cell",
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
@@ -559,15 +558,16 @@ dependencies = [
 
 [[package]]
 name = "async-bb8-diesel"
-version = "0.1.0"
-source = "git+https://github.com/jarnura/async-bb8-diesel?rev=53b4ab901aab7635c8215fd1c2d542c8db443094#53b4ab901aab7635c8215fd1c2d542c8db443094"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebc03a2806f66f36513d65e0a7f34200382230250cadcf8a8397cfbe3f26b795"
 dependencies = [
  "async-trait",
  "bb8",
  "diesel",
+ "futures 0.3.30",
  "thiserror 1.0.63",
  "tokio 1.40.0",
- "tracing",
 ]
 
 [[package]]
@@ -1557,7 +1557,6 @@ dependencies = [
  "common_utils",
  "error-stack",
  "masking",
- "once_cell",
  "regex",
  "router_env",
  "serde",
@@ -2621,7 +2620,6 @@ dependencies = [
  "hyperswitch_interfaces",
  "masking",
  "mime",
- "once_cell",
  "redis_interface",
  "reqwest 0.11.27",
  "router_env",
@@ -2844,7 +2842,6 @@ dependencies = [
  "euclid_macros",
  "hyperswitch_constraint_graph",
  "nom",
- "once_cell",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -2877,7 +2874,6 @@ dependencies = [
  "getrandom",
  "hyperswitch_constraint_graph",
  "kgraph_utils",
- "once_cell",
  "ron-parser",
  "serde",
  "serde-wasm-bindgen 0.6.5",
@@ -2936,6 +2932,7 @@ dependencies = [
  "dyn-clone",
  "error-stack",
  "hex",
+ "http 0.2.12",
  "http-body-util",
  "hyper 0.14.30",
  "hyper-proxy",
@@ -2945,6 +2942,8 @@ dependencies = [
  "masking",
  "once_cell",
  "prost",
+ "quick-xml",
+ "reqwest 0.11.27",
  "router_env",
  "serde",
  "thiserror 1.0.63",
@@ -2953,6 +2952,7 @@ dependencies = [
  "tonic-build",
  "tonic-reflection",
  "tonic-types",
+ "url",
  "vaultrs",
 ]
 
@@ -3854,11 +3854,13 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "iso_currency",
+ "isocountry",
  "josekit 0.8.6",
  "lazy_static",
  "masking",
  "mime",
- "once_cell",
+ "num-traits",
  "qrcode",
  "quick-xml",
  "rand",
@@ -3880,6 +3882,7 @@ dependencies = [
  "unidecode",
  "url",
  "urlencoding",
+ "utoipa",
  "uuid",
 ]
 
@@ -3940,7 +3943,6 @@ dependencies = [
  "hyperswitch_domain_models",
  "masking",
  "mime",
- "once_cell",
  "reqwest 0.11.27",
  "router_derive",
  "router_env",
@@ -5479,16 +5481,28 @@ checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 name = "payment_methods"
 version = "0.1.0"
 dependencies = [
+ "actix-multipart",
+ "actix-web",
  "api_models",
  "async-trait",
+ "bytes 1.10.1",
+ "cards",
+ "common_enums",
+ "common_types",
  "common_utils",
+ "csv",
  "dyn-clone",
+ "error-stack",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
+ "rdkafka",
+ "router_env",
+ "scheduler",
  "serde",
  "serde_json",
  "storage_impl",
+ "thiserror 1.0.63",
 ]
 
 [[package]]
@@ -6500,8 +6514,6 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "infer",
- "iso_currency",
- "isocountry",
  "josekit 0.8.7",
  "jsonwebtoken",
  "kgraph_utils",
@@ -6517,7 +6529,6 @@ dependencies = [
  "openssl",
  "payment_methods",
  "pm_auth",
- "quick-xml",
  "rand",
  "rand_chacha",
  "rdkafka",
@@ -6575,6 +6586,7 @@ dependencies = [
  "serde_json",
  "strum 0.26.3",
  "syn 2.0.100",
+ "url",
  "utoipa",
 ]
 
@@ -6586,7 +6598,6 @@ dependencies = [
  "config",
  "error-stack",
  "gethostname",
- "once_cell",
  "opentelemetry",
  "opentelemetry-aws",
  "opentelemetry-otlp",
@@ -6973,7 +6984,6 @@ dependencies = [
  "futures 0.3.30",
  "hyperswitch_domain_models",
  "num_cpus",
- "once_cell",
  "rand",
  "redis_interface",
  "router_env",
@@ -7802,7 +7812,6 @@ dependencies = [
  "hyperswitch_domain_models",
  "masking",
  "moka",
- "once_cell",
  "redis_interface",
  "router_derive",
  "router_env",
