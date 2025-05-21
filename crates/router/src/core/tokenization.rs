@@ -10,9 +10,9 @@ use common_enums::enums;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
+    errors::CustomResult,
     ext_traits::{BytesExt, Encode, StringExt},
     id_type,
-    errors::CustomResult,
 };
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
@@ -154,4 +154,3 @@ pub async fn get_token_vault_core(
     // Create the response
     Ok(data_json)
 }
-

@@ -70,10 +70,8 @@ use super::{
 use crate::{
     configs::settings,
     core::{
-        
         payment_methods::transformers as pm_transforms, payments as payments_core,
-        tokenization as tokenization_core,
-        utils as core_utils,
+        tokenization as tokenization_core, utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
     headers, logger,

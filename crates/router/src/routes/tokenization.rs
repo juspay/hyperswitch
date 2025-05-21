@@ -72,4 +72,3 @@ pub async fn create_token_vault_api(
     ))
     .await
 }
-

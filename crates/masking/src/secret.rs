@@ -253,7 +253,10 @@ mod tests {
         // Apply the JsonMaskStrategy
         let secret = Secret::<_, JsonMaskStrategy>::new(original.clone());
         let masked_str = format!("{:?}", secret);
-        println!("Original JSON: {}", serde_json::to_string_pretty(&original).unwrap());
+        println!(
+            "Original JSON: {}",
+            serde_json::to_string_pretty(&original).unwrap()
+        );
         println!("Masked JSON: {}", masked_str);
 
         // Get specific values from original
