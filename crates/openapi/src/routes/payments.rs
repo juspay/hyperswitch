@@ -415,7 +415,7 @@ pub fn payments_connector_session() {}
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create Session tokens for a Payment",
+    operation_id = "Create V2 Session tokens for a Payment",
     security(("publishable_key" = []))
 )]
 pub fn payments_connector_session() {}
@@ -587,6 +587,9 @@ pub fn payments_dynamic_tax_calculation() {}
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/post_session_tokens",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
     request_body=PaymentsPostSessionTokensRequest,
     responses(
         (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
@@ -603,6 +606,9 @@ pub fn payments_post_session_tokens() {}
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/update_metadata",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
     request_body=PaymentsUpdateMetadataRequest,
     responses(
         (status = 200, description = "Metadata updated successfully", body = PaymentsUpdateMetadataResponse),
