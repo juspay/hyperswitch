@@ -793,7 +793,7 @@ pub async fn list_merchant_account(
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
     if let Some(auth) = org_data_from_auth {
-        if &auth.organization_id != &req.organization_id {
+        if auth.organization_id != req.organization_id {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Organization ID in request and authentication do not match".to_string(),
             }

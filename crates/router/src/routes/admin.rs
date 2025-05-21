@@ -223,7 +223,7 @@ pub async fn merchant_account_create(
         state,
         &req,
         new_request_payload_with_org_id,
-        |state, _, req, _| create_merchant_account(state, req),
+        |state, _, req, _| create_merchant_account(state, req, None),
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

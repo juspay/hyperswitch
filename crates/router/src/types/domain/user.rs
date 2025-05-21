@@ -577,7 +577,7 @@ impl NewUserMerchant {
             .attach_printable("unable to construct merchant account create request")?;
 
         let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
+            admin::create_merchant_account(state.clone(), merchant_account_create_request, None),
         )
         .await
         .change_context(UserErrors::InternalServerError)
