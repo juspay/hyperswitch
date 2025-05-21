@@ -39,7 +39,8 @@ pub async fn proxy_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize vault data")?;
 
-    let processed_body = interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
+    let processed_body =
+        interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
 
     let res = execute_proxy_request(&state, &req_wrapper, processed_body).await?;
 
@@ -48,7 +49,10 @@ pub async fn proxy_core(
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
-fn interpolate_token_references_with_vault_data(value: Value, vault_data: &Value) -> RouterResult<Value> {
+fn interpolate_token_references_with_vault_data(
+    value: Value,
+    vault_data: &Value,
+) -> RouterResult<Value> {
     match value {
         Value::Object(obj) => {
             let new_obj = obj
@@ -85,14 +89,10 @@ fn find_field_recursively_in_vault_data(
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
     match vault_data {
         Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
-            .ok_or_else(|| {
-                errors::ApiErrorResponse::InternalServerError
-            })
+            .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!("Field '{}' not found", field_name)),
-        _ => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Vault data is not a valid JSON object")
-        }
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Vault data is not a valid JSON object"),
     }
 }
 
