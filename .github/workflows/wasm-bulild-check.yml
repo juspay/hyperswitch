@@ -29,6 +29,12 @@ jobs:
           tool: wasm-pack
           checksum: true
 
+      - name: Install wasm-opt
+        run: |
+          curl -L https://github.com/WebAssembly/binaryen/releases/latest/download/binaryen-version_116-x86_64-linux.tar.gz | tar xz
+          sudo mv binaryen-version_116/bin/wasm-opt /usr/local/bin/
+
       - name: wasm build
         shell: bash
         run: make euclid-wasm
+
