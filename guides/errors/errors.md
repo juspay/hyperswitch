@@ -737,3 +737,378 @@ Carefully review the content being written to files to ensure no extraneous char
 An informational comment, typically provided by the AI tooling system after a file operation (like "IMPORTANT: For any future changes..."), was incorrectly included as part of the file content itself. This is not valid Rust syntax.
 ### Solution:
 Remove these non-code comment lines from the source file.
+
+
+## Common Error: Test Panics with "Connector authentication file path not set: NotPresent"
+
+### Error Message:
+```
+thread '...' panicked at crates/test_utils/src/connector_auth.rs:XXX:YY:
+Connector authentication file path not set: NotPresent
+```
+
+### Root Cause:
+This error occurs during integration testing (`cargo test --package router --test connectors -- <connector_name>`) when the test framework cannot find or access the connector authentication credentials. This is typically due to one of the following:
+1.  The `CONNECTOR_AUTH_FILE_PATH` environment variable is not set before running the tests. This variable should point to a TOML file containing the authentication keys (e.g., `crates/router/tests/connectors/sample_auth.toml` or a local `auth.toml` override).
+2.  The specified authentication file does not exist at the path provided by `CONNECTOR_AUTH_FILE_PATH`.
+3.  The authentication file exists but does not contain the necessary (valid) credentials for the connector under test (e.g., missing `[bambora]` section or placeholder values).
+
+### Solution Pattern:
+1.  **Ensure `CONNECTOR_AUTH_FILE_PATH` is set**: Before running tests, export the environment variable:
+    ```bash
+    export CONNECTOR_AUTH_FILE_PATH="/path/to/your/hyperswitch/crates/router/tests/connectors/sample_auth.toml"
+    # Or point to your local auth.toml if you use an override
+    # export CONNECTOR_AUTH_FILE_PATH="/path/to/your/hyperswitch/crates/router/tests/connectors/auth.toml"
+    ```
+2.  **Verify Auth File**:
+    *   Ensure the file specified by `CONNECTOR_AUTH_FILE_PATH` exists.
+    *   Ensure the file contains a section for the connector being tested (e.g., `[bambora]`) with the correct, non-placeholder API keys and other required authentication parameters (e.g., `api_key = "your_actual_api_key"`, `key1 = "your_actual_merchant_id"`). Refer to `crates/router/tests/connectors/sample_auth.toml` for the expected format for each connector.
+    *   **Security Note**: Do not commit real secret keys to `sample_auth.toml` if it's tracked by Git. Use a local, git-ignored `auth.toml` file for actual secrets and point `CONNECTOR_AUTH_FILE_PATH` to it during local testing.
+
+### Why It Works:
+The test utility `connector_auth.rs` relies on this environment variable to locate and load the necessary credentials to interact with the live connector APIs during integration tests. Without valid credentials, the tests cannot proceed.
+
+## Common Error: Compilation Fails with "cannot find trait `RouterRequest`"
+
+### Error Message:
+```
+error[E0405]: cannot find trait `RouterRequest` in module `...`
+ --> crates/hyperswitch_connectors/src/connectors/your_connector/transformers.rs:XXX:YY
+  |
+XXX |     Req: some::path::RouterRequest,
+  |                      ^^^^^^^^^^^^^ not found in `...`
+```
+
+### Root Cause:
+This error occurs when the `RouterRequest` trait, which is a generic bound for request types in some `TryFrom` implementations (especially for converting `ResponseRouterData<F, ConnectorResponseType, Req, PaymentsResponseData>` back to `RouterData<F, Req, PaymentsResponseData>`), is not correctly pathed. The `RouterRequest` trait is defined in `hyperswitch_interfaces::api`.
+
+### Solution Pattern:
+Ensure the `RouterRequest` trait is correctly referenced in the `where` clause of your `TryFrom` implementation. If `hyperswitch_interfaces::api` is imported as `api`, the correct usage is `Req: api::RouterRequest`.
+
+Example:
+```rust
+use hyperswitch_interfaces::{api, errors}; // Ensure api is in scope
+
+// ... other structs ...
+
+// In a TryFrom implementation, for example:
+impl<F, Req, Resp> TryFrom<ResponseRouterData<F, YourConnectorResponseType, Req, Resp>>
+    for RouterData<F, Req, Resp>
+where
+    Req: api::RouterRequest, // Correct path to RouterRequest
+    // ... other bounds ...
+{
+    // ... implementation ...
+}
+```
+
+### Why It Works:
+The compiler needs the correct path to locate the `RouterRequest` trait definition. Using `api::RouterRequest` (assuming `use hyperswitch_interfaces::api;`) provides this correct path.
+
+## Common Error: Unresolved Imports for RouterData Wrappers or Specific Types
+
+### Error Message:
+```
+error[E0432]: unresolved import `crate::types::ResponseRouterDataCommon`
+  --> crates/hyperswitch_connectors/src/connectors/your_connector/transformers.rs:XXX:YY
+   |
+XXX | use crate::types::ResponseRouterDataCommon;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `ResponseRouterDataCommon` in `types`
+
+error[E0432]: unresolved import `hyperswitch_types::AccessTokenResponseRouterData`
+  --> crates/hyperswitch_connectors/src/connectors/your_connector/transformers.rs:XXX:YY
+   |
+XXX | use hyperswitch_types::AccessTokenResponseRouterData;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `AccessTokenResponseRouterData` in `types` (referring to `hyperswitch_domain_models::types`)
+```
+Or similar errors for `PaymentsAuthorizeRouterData`, `AccessTokenAuthRouterData`, `ConnectorTransactionIdType`, etc.
+
+### Root Cause:
+These errors typically arise from incorrect import paths for types that might be defined in one crate (e.g., `hyperswitch_domain_models`) and re-exported or aliased in another (e.g., `crate::types` which is `hyperswitch_interfaces::types`, or `hyperswitch_types` which is an alias for `hyperswitch_domain_models::types`). The exact location of these types can sometimes be confusing.
+
+Common specific causes:
+1.  `ResponseRouterDataCommon`: This trait is usually found in `hyperswitch_interfaces::types`.
+2.  `AccessTokenResponseRouterData`: This specific router data wrapper is often in `hyperswitch_domain_models::types` (aliased as `hyperswitch_types`).
+3.  `Payments...RouterData` (e.g., `PaymentsAuthorizeRouterData`): These are often type aliases in `hyperswitch_domain_models::types` for `RouterData<Flow, RequestType, ResponseType>`.
+4.  `AccessTokenAuthRouterData`: Similar to above, a type alias in `hyperswitch_domain_models::types`.
+5.  `ConnectorTransactionIdType`: This enum is in `hyperswitch_domain_models::types`.
+6.  `AccessTokenAuthType` (trait): This trait is in `hyperswitch_interfaces::api::payments`.
+
+### Solution Pattern:
+1.  **Verify Re-exports**: Check if `crate::types` (i.e., `hyperswitch_interfaces::types`) re-exports the required type. If it does, `use crate::types::TypeName;` should work.
+2.  **Use Direct Paths**: If re-exports are unclear or not present, use the direct path from the defining crate.
+    *   For `ResponseRouterDataCommon`: `use hyperswitch_interfaces::types::ResponseRouterDataCommon;`
+    *   For `AccessTokenResponseRouterData` and other `...RouterData` wrappers: `use hyperswitch_domain_models::types::AccessTokenResponseRouterData;` (or `use hyperswitch_types::AccessTokenResponseRouterData;` if `hyperswitch_types` is an alias for `hyperswitch_domain_models::types`).
+    *   For `ConnectorTransactionIdType`: `use hyperswitch_domain_models::types::ConnectorTransactionIdType;`
+    *   For `AccessTokenAuthType` trait: `use hyperswitch_interfaces::api::payments::AccessTokenAuthType;`
+3.  **Check Aliases**: Be mindful of aliases like `hyperswitch_types` for `hyperswitch_domain_models::types`.
+4.  **Compiler Suggestions**: Pay close attention to the compiler's "help: a similar name exists in the module" or "help: consider importing one of these items instead" suggestions, as they often point to the correct location.
+
+Example for `AccessTokenResponseRouterData` in `transformers.rs`:
+```rust
+// In transformers.rs
+use hyperswitch_domain_models::types::AccessTokenResponseRouterData; // Or use hyperswitch_types alias
+
+// ... rest of the code
+```
+
+Example for `AccessTokenAuthType` trait in `connector.rs`:
+```rust
+// In connector.rs (e.g., airwallex.rs)
+use hyperswitch_interfaces::api::payments::AccessTokenAuthType as AccessTokenAuthTypeTrait; // Alias if needed
+
+// ...
+// impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for MyConnector {
+//    fn build_request(...) -> {
+//        RequestBuilder::new().url(&AccessTokenAuthTypeTrait::get_url(self, req, connectors)?)
+//    }
+// }
+```
+
+### Why It Works:
+Rust's module system requires precise paths for types and traits. Errors occur if the compiler cannot find the definition at the specified path. Using the correct, fully qualified path or a valid re-export resolves the ambiguity.
+
+## Common Error: E0117 - Orphan Rule Violation for `TryFrom`
+
+### Error Message:
+```
+error[E0117]: only traits defined in the current crate can be implemented for types defined outside of the crate
+  --> crates/hyperswitch_connectors/src/connectors/your_connector/transformers.rs:XXX:Y
+   |
+XXX | impl TryFrom<hyperswitch_domain_models::router_data::RouterData<...>>
+   | ^    ----------------------------------------------------------------- `RouterData` is not defined in the current crate
+   | |
+YYY |     for hyperswitch_domain_models::router_data::RouterData<...>
+   |     ----------------------------------------------------------- `RouterData` is not defined in the current crate
+   |
+   = note: impl doesn't have any local type before any uncovered type parameters
+```
+
+### Root Cause:
+This error occurs when attempting to implement a foreign trait (like `std::convert::TryFrom`) for a foreign type (like `hyperswitch_domain_models::router_data::RouterData`). Rust's orphan rule prevents this to avoid conflicting implementations.
+
+### Solution Pattern:
+Implement the `TryFrom` trait using a local wrapper type, typically `crate::types::ResponseRouterData`, as the input type. `crate::types::ResponseRouterData` is defined within the `hyperswitch_connectors` crate, making it a local type for the implementation.
+
+```rust
+// In your_connector/transformers.rs
+use crate::types::ResponseRouterData; // Local wrapper type
+use hyperswitch_domain_models::router_data::{AccessToken, RouterData as HyperswitchRouterData};
+use hyperswitch_domain_models::router_flow_types::access_token_auth::AccessTokenAuth;
+use hyperswitch_domain_models::router_request_types::AccessTokenRequestData;
+// ... other imports ...
+
+// Example: Converting a connector-specific auth response
+pub struct YourConnectorAuthResponse { /* ... fields ... */ }
+
+impl TryFrom<ResponseRouterData<AccessTokenAuth, YourConnectorAuthResponse, AccessTokenRequestData, AccessToken>>
+    for HyperswitchRouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<AccessTokenAuth, YourConnectorAuthResponse, AccessTokenRequestData, AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        // item.response is YourConnectorAuthResponse
+        // item.data is the original HyperswitchRouterData
+        Ok(Self {
+            response: Ok(AccessToken {
+                token: item.response.token_field, // Access field from YourConnectorAuthResponse
+                expires: item.response.expires_field,
+            }),
+            ..item.data // Spread fields from original RouterData
+        })
+    }
+}
+```
+
+### Why It Works:
+By using `crate::types::ResponseRouterData` as the input type in `TryFrom<crate::types::ResponseRouterData<...>>`, at least one of the types involved in the `impl` (the input type) is local to the current crate (`hyperswitch_connectors`), satisfying the orphan rule.
+
+## Common Error: E0432/E0433 - Unresolved Import for `api_models` or `id_type`
+
+### Error Message:
+```
+error[E0433]: failed to resolve: could not find `api_models` in `hyperswitch_interfaces`
+  --> crates/hyperswitch_connectors/src/connectors/your_connector.rs:XX:Y
+   |
+XX | use hyperswitch_interfaces::api_models::payments::PaymentIdType;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0432]: unresolved import `hyperswitch_domain_models::id_type`
+  --> crates/hyperswitch_connectors/src/connectors/your_connector.rs:XX:Y
+   |
+XX | use hyperswitch_domain_models::id_type;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `id_type` in the root
+```
+
+### Root Cause:
+1.  `api_models` is a separate crate, not a submodule of `hyperswitch_interfaces`.
+2.  `id_type` is a module within `common_utils`, not directly under `hyperswitch_domain_models`.
+
+### Solution Pattern:
+1.  Import `PaymentIdType` (and other types from `api_models`) directly:
+    ```rust
+    use api_models::payments::PaymentIdType;
+    ```
+    Ensure `api_models` is listed as a dependency in the `hyperswitch_connectors/Cargo.toml`.
+2.  Import `id_type` from `common_utils`:
+    ```rust
+    use common_utils::id_type;
+    ```
+
+## Common Error: E0599 - Method Not Found (e.g., `get_amount`, `parse_struct`)
+
+### Error Message:
+```
+error[E0599]: no method named `get_amount` found for struct `PaymentsPreProcessingData`
+error[E0599]: no method named `parse_struct` found for reference `&[u8]`
+```
+
+### Root Cause:
+These methods are often provided by traits that are not in scope.
+*   `get_amount`, `get_currency`, `get_browser_info`, etc., on request data structs are typically from traits defined in `crate::utils` (e.g., `PaymentsAuthorizeRequestData`, `PaymentsPreProcessingRequestData`).
+*   `parse_struct` on byte slices (`&[u8]`) is from the `ByteSliceExt` trait in `common_utils::ext_traits`.
+
+### Solution Pattern:
+Import the necessary traits:
+```rust
+// For request data accessors (in transformers.rs or where request data is handled)
+use crate::utils::{PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData /*, etc. */};
+
+// For parse_struct (usually in connector.rs where responses are parsed)
+use common_utils::ext_traits::ByteSliceExt;
+```
+
+## Common Error: E0599 - No Variant `RequestContent::None`
+
+### Error Message:
+```
+error[E0599]: no variant or associated item named `None` found for enum `RequestContent`
+  --> crates/hyperswitch_connectors/src/connectors/your_connector.rs:XXX:YY
+   |
+XXX |         Ok(RequestContent::None)
+   |                            ^^^^ variant or associated item not found
+```
+
+### Root Cause:
+The variant for an empty request body in `common_utils::request::RequestContent` is `Empty`.
+
+### Solution Pattern:
+Use `RequestContent::Empty`.
+```rust
+use common_utils::request::RequestContent;
+// ...
+Ok(RequestContent::Empty)
+```
+
+## Common Error: E0277 - `Serialize` or `Default` Trait Not Implemented
+
+### Error Message:
+```
+error[E0277]: the trait `Serialize` is not implemented for `YourConnectorResponse`
+error[E0277]: the trait `Default` is not implemented for `YourConnectorStatusEnum`
+```
+
+### Root Cause:
+1.  Connector-specific response structs passed to `event_builder.set_response_body()` require `serde::Serialize`.
+2.  If a struct derives `Default` and contains an enum field, that enum must also derive `Default` or have a `#[default]` variant for `serde` if the enum itself is also deserialized with a default.
+
+### Solution Pattern:
+1.  Add `#[derive(serde::Serialize)]` to your connector-specific response structs.
+    ```rust
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    pub struct YourConnectorAuthResponse { /* ... */ }
+    ```
+2.  Add `#[derive(Default)]` or `#[serde(default)]` with a `#[default]` variant to enums used in structs that derive `Default`.
+    ```rust
+    #[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
+    #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+    pub enum YourConnectorStatus {
+        Succeeded,
+        Failed,
+        #[default] // Important if this enum is part of a struct deriving Default
+        Pending,
+    }
+    ```
+
+## Common Error: E0609/E0560 - Field Access on `Result` or Incorrect Field Name
+
+### Error Message:
+```
+error[E0609]: no field `token` on type `Result<YourConnectorAuthResponse, ErrorResponse>`
+error[E0560]: struct `RouterData<...>` has no field named `data`
+```
+
+### Root Cause:
+1.  Accessing fields on a `Result` type without unwrapping (e.g., `item.response.token` when `item.response` is `Result<_,_>`).
+2.  Trying to spread `..item.data` when `item` is already the `RouterData` struct (which doesn't have a sub-field named `data` for this purpose). This usually happens after incorrectly changing a `TryFrom` signature.
+
+### Solution Pattern:
+1.  Properly handle the `Result` before accessing fields, e.g., using `?`, `match`, or `as_ref().ok()?`:
+    ```rust
+    // If item.response is Result<ActualResponse, ErrorResponse>
+    // let token = item.response.as_ref().ok()?.token_field;
+    // Or if item.response is ActualResponse directly (preferred in TryFrom<crate::types::ResponseRouterData<...>>)
+    // let token = item.response.token_field;
+    ```
+2.  When constructing `RouterData` and copying fields from an existing `RouterData` (e.g., `original_router_data`), use `..original_router_data` if you are in a `TryFrom` that outputs `RouterData` and takes `crate::types::ResponseRouterData` (where `original_router_data` is `item.data`).
+    If constructing `RouterData` manually in `handle_response`, copy fields individually or ensure the source of spread `..` is appropriate.
+
+## Common Error: E0308 - Mismatched Types for `RedirectForm.form_fields`
+
+### Error Message:
+```
+error[E0308]: mismatched types
+  --> .../transformers.rs:XXX:YY
+   |
+XXX|                       form_fields: body.map_or_else(...)
+   |                                    ^^^^^^^^^^^^^^^^^^^^ expected `HashMap<String, String>`, found `Map<String, Value>`
+```
+
+### Root Cause:
+The `form_fields` in `RedirectForm` expects `HashMap<String, String>`, but `serde_json::from_value` on a JSON object often yields `serde_json::Map<String, serde_json::Value>`.
+
+### Solution Pattern:
+Convert the `serde_json::Map<String, serde_json::Value>` to `HashMap<String, String>`, ensuring each `serde_json::Value` is converted to a `String`.
+```rust
+use serde_json::Value;
+use std::collections::HashMap;
+// ...
+// let json_map: serde_json::Map<String, Value> = ...;
+let form_fields: HashMap<String, String> = json_map
+    .into_iter()
+    .filter_map(|(k, v)| {
+        v.as_str().map(|s| (k, s.to_string())) // Simplest: only take string values
+        // More robust: handle numbers, booleans by converting to string
+        // match v {
+        //    Value::String(s) => Some((k, s)),
+        //    Value::Number(n) => Some((k, n.to_string())),
+        //    Value::Bool(b) => Some((k, b.to_string())),
+        //    _ => None, // Or skip, or error
+        // }
+    })
+    .collect();
+```
+The `real-codebase/airwallex/transformers.rs` shows a pattern of directly constructing the HashMap with known string key-value pairs if the structure is fixed.
+
+## Common Error: E0063 - Missing Fields in Struct Initializer
+
+### Error Message:
+```
+error[E0063]: missing fields `connector_mandate_request_reference_id` and `mandate_metadata` in initializer of `MandateReference`
+```
+
+### Root Cause:
+The `MandateReference` struct (or any struct) requires all its non-Option fields to be specified during initialization, or if they are `Option`, they can be `None`.
+
+### Solution Pattern:
+Ensure all required fields are provided. For optional fields that are not available, explicitly set them to `None`.
+```rust
+use hyperswitch_domain_models::router_response_types::MandateReference;
+// ...
+MandateReference {
+    connector_mandate_id: Some("some_id".to_string()),
+    payment_method_id: None,
+    connector_mandate_request_reference_id: None, // Provide if missing
+    mandate_metadata: None,                      // Provide if missing
+}
