@@ -2729,7 +2729,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         >,
         merchant_context: &domain::MerchantContext,
         payment_data: &mut PaymentConfirmData<F>,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -2804,6 +2804,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                 payment_methods::update_payment_method_core(
                     state,
                     merchant_context,
+                    business_profile,
                     payment_method_update_request,
                     &payment_method_id,
                 )
