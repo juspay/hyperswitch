@@ -624,7 +624,7 @@ impl
 #[derive(Debug, Clone)]
 pub struct AuthenticationData {
     pub eci: Option<String>,
-    pub cavv: String,
+    pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
