@@ -3290,6 +3290,7 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Juspaythreedsserver,
     connectors::Klarna,
     connectors::Netcetera,
+    connectors::Nordea,
     connectors::Nomupay,
     connectors::Noon,
     connectors::Novalnet,
