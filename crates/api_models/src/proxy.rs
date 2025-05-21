@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use common_utils::request::Method;
 use serde::{Deserialize, Serialize};
+use reqwest::header::HeaderMap;
 use serde_json::Value;
 use utoipa::ToSchema;
 
@@ -11,6 +12,18 @@ pub struct Headers(pub HashMap<String, String>);
 impl Headers {
     pub fn as_map(&self) -> &HashMap<String, String> {
         &self.0
+    }
+
+    pub fn from_header_map(headers: Option<&HeaderMap>) -> Self {
+        headers
+            .map(|h| {
+                let map = h
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                    .collect();
+                Self(map)
+            })
+            .unwrap_or_else(|| Self(HashMap::new()))
     }
 }
 

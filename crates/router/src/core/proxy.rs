@@ -39,7 +39,7 @@ pub async fn proxy_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize vault data")?;
 
-    let processed_body = process_value(req.request_body.clone(), &vault_data)?;
+    let processed_body = interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
 
     let res = execute_proxy_request(&state, &req_wrapper, processed_body).await?;
 
@@ -48,12 +48,12 @@ pub async fn proxy_core(
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
-fn process_value(value: Value, vault_data: &Value) -> RouterResult<Value> {
+fn interpolate_token_references_with_vault_data(value: Value, vault_data: &Value) -> RouterResult<Value> {
     match value {
         Value::Object(obj) => {
             let new_obj = obj
                 .into_iter()
-                .map(|(key, val)| process_value(val, vault_data).map(|processed| (key, processed)))
+                .map(|(key, val)| interpolate_token_references_with_vault_data(val, vault_data).map(|processed| (key, processed)))
                 .collect::<Result<serde_json::Map<_, _>, error_stack::Report<errors::ApiErrorResponse>>>()?;
 
             Ok(Value::Object(new_obj))
@@ -86,16 +86,10 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
     match vault_data {
         Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
             .ok_or_else(|| {
-                logger::debug!(
-                    "Field '{}' not found in vault data: {:?}",
-                    field_name,
-                    vault_data
-                );
                 errors::ApiErrorResponse::InternalServerError
             })
             .attach_printable(format!("Field '{}' not found", field_name)),
         _ => {
-            logger::debug!("Vault data is not an object: {:?}", vault_data);
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Vault data is not a valid JSON object")
         }
@@ -146,17 +140,7 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
             .attach_printable("Failed to parse the response")?;
 
         let status_code = res.status_code;
-        let response_headers = res
-            .headers
-            .as_ref()
-            .map(|h| {
-                let map: std::collections::HashMap<_, _> = h
-                    .iter()
-                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
-                    .collect();
-                proxy_api_models::Headers(map)
-            })
-            .unwrap_or_else(|| proxy_api_models::Headers(std::collections::HashMap::new()));
+        let response_headers = proxy_api_models::Headers::from_header_map(res.headers.as_ref());
 
         Ok(Self {
             response: response_body,
