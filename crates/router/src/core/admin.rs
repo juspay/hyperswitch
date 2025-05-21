@@ -189,6 +189,7 @@ pub async fn get_organization(
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
+    org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
     use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
@@ -241,7 +242,12 @@ pub async fn create_merchant_account(
     };
 
     let domain_merchant_account = req
-        .create_domain_model_from_request(&state, key_store.clone(), &merchant_id)
+        .create_domain_model_from_request(
+            &state,
+            key_store.clone(),
+            &merchant_id,
+            org_data_from_auth,
+        )
         .await?;
     let key_manager_state = &(&state).into();
     db.insert_merchant_key_store(
@@ -280,6 +286,7 @@ trait MerchantAccountCreateBridge {
         state: &SessionState,
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
@@ -291,6 +298,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
@@ -340,7 +348,23 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         )
         .await?;
 
-        let organization = CreateOrValidateOrganization::new(self.organization_id)
+        let org_id = match (&self.organization_id, &org_data_from_auth) {
+            (Some(req_org_id), Some(auth)) => {
+                if req_org_id != &auth.organization_id {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Mismatched organization_id in request and authenticated context"
+                            .to_string(),
+                    }
+                    .into());
+                }
+                Some(req_org_id.clone())
+            }
+            (None, Some(auth)) => Some(auth.organization_id.clone()),
+            (Some(req_org_id), None) => Some(req_org_id.clone()),
+            (None, None) => None,
+        };
+
+        let organization = CreateOrValidateOrganization::new(org_id)
             .create_or_validate(db)
             .await?;
 
@@ -766,7 +790,16 @@ pub async fn list_merchant_account(
 pub async fn list_merchant_account(
     state: SessionState,
     req: api_models::admin::MerchantAccountListRequest,
+    org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    if let Some(auth) = org_data_from_auth {
+        if &auth.organization_id != &req.organization_id {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Organization ID in request and authentication do not match".to_string(),
+            }
+            .into());
+        }
+    }
     let merchant_accounts = state
         .store
         .list_merchant_accounts_by_organization_id(&(&state).into(), &req.organization_id)
