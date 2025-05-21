@@ -9284,7 +9284,11 @@
           "UnionPay",
           "Interac",
           "RuPay",
-          "Maestro"
+          "Maestro",
+          "Star",
+          "Pulse",
+          "Accel",
+          "Nyce"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -18868,6 +18872,11 @@
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },
@@ -19101,7 +19110,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -19191,7 +19201,7 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           },
           "browser_info": {
             "allOf": [
@@ -19369,9 +19379,9 @@
             ],
             "nullable": true
           },
-          "is_iframe_redirection_enabled": {
+          "all_keys_required": {
             "type": "boolean",
-            "description": "Indicates if the redirection has to open in the iframe",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -19505,7 +19515,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -19589,7 +19600,7 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           },
           "browser_info": {
             "allOf": [
@@ -19786,9 +19797,9 @@
             ],
             "nullable": true
           },
-          "is_iframe_redirection_enabled": {
+          "all_keys_required": {
             "type": "boolean",
-            "description": "Indicates if the redirection has to open in the iframe",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -20369,9 +20380,9 @@
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           },
-          "is_iframe_redirection_enabled": {
-            "type": "boolean",
-            "description": "Indicates if the redirection has to open in the iframe",
+          "whole_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
             "nullable": true
           }
         }
@@ -20762,7 +20773,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -20858,7 +20870,7 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           },
           "browser_info": {
             "allOf": [
@@ -21076,9 +21088,9 @@
             ],
             "nullable": true
           },
-          "is_iframe_redirection_enabled": {
+          "all_keys_required": {
             "type": "boolean",
-            "description": "Indicates if the redirection has to open in the iframe",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         },
@@ -21685,9 +21697,9 @@
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           },
-          "is_iframe_redirection_enabled": {
-            "type": "boolean",
-            "description": "Indicates if the redirection has to open in the iframe",
+          "whole_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
             "nullable": true
           }
         }
@@ -21743,6 +21755,11 @@
           "expand_attempts": {
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -21967,7 +21984,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           },
           "setup_future_usage": {
             "allOf": [
@@ -22230,9 +22248,9 @@
             ],
             "nullable": true
           },
-          "is_iframe_redirection_enabled": {
+          "all_keys_required": {
             "type": "boolean",
-            "description": "Indicates if the redirection has to open in the iframe",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }

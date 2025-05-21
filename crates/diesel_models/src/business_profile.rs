@@ -5,6 +5,7 @@ use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
+use time::Duration;
 
 #[cfg(feature = "v1")]
 use crate::schema::business_profile;
@@ -71,6 +72,7 @@ pub struct Profile {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -125,6 +127,7 @@ pub struct ProfileNew {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -177,6 +180,7 @@ pub struct ProfileUpdateInternal {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -226,6 +230,7 @@ impl ProfileUpdateInternal {
             is_debit_routing_enabled,
             merchant_business_country,
             is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -303,6 +308,8 @@ impl ProfileUpdateInternal {
                 .or(source.merchant_business_country),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled
                 .or(source.is_iframe_redirection_enabled),
+            is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
+                .or(source.is_pre_network_tokenization_enabled),
         }
     }
 }
@@ -788,6 +795,14 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+impl RevenueRecoveryAlgorithmData {
+    pub fn has_exceeded_monitoring_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
+        let total_threshold_time = self.monitoring_configured_timestamp
+            + Duration::seconds(monitoring_threshold_in_seconds);
+        common_utils::date_time::now() >= total_threshold_time
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

@@ -18,10 +18,12 @@ pub struct ConnectorAuthentication {
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<HeaderKey>,
+    pub archipel: Option<NoKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
     pub bankofamerica: Option<SignatureKey>,
+    pub barclaycard: Option<SignatureKey>,
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
@@ -67,6 +69,7 @@ pub struct ConnectorAuthentication {
     pub nexixpay: Option<HeaderKey>,
     pub nomupay: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
+    pub nordea: Option<BodyKey>,
     pub novalnet: Option<HeaderKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
@@ -323,6 +326,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NoKey {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AutomationConfigs {

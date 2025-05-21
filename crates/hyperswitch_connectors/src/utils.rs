@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     marker::PhantomData,
     str::FromStr,
+    sync::LazyLock,
 };
 
 use api_models::payments;
@@ -53,11 +54,12 @@ use hyperswitch_domain_models::{
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
-        AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
-        SetupMandateRequestData,
+        AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -65,7 +67,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
-use once_cell::sync::Lazy;
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
@@ -1002,10 +1003,20 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
 }
 pub trait ApplePayDecrypt {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
     fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(format!(
             "20{}",
@@ -1286,29 +1297,31 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     ))
 }
 
-static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-    // [#379]: Determine card issuer from card BIN number
-    map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
-    map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-    map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-    map.insert(
-        CardIssuer::Maestro,
-        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-    );
-    map.insert(
-        CardIssuer::DinersClub,
-        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
-    );
-    map.insert(
-        CardIssuer::JCB,
-        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
-    );
-    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
-    map
-});
+static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
+    || {
+        let mut map = HashMap::new();
+        // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+        // [#379]: Determine card issuer from card BIN number
+        map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
+        map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
+        map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
+        map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+        map.insert(
+            CardIssuer::Maestro,
+            Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+        );
+        map.insert(
+            CardIssuer::DinersClub,
+            Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+        );
+        map.insert(
+            CardIssuer::JCB,
+            Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+        );
+        map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
+        map
+    },
+);
 
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
@@ -2504,13 +2517,13 @@ macro_rules! get_formatted_date_time {
 #[macro_export]
 macro_rules! unimplemented_payment_method {
     ($payment_method:expr, $connector:expr) => {
-        errors::ConnectorError::NotImplemented(format!(
+        hyperswitch_interfaces::errors::ConnectorError::NotImplemented(format!(
             "{} through {}",
             $payment_method, $connector
         ))
     };
     ($payment_method:expr, $flow:expr, $connector:expr) => {
-        errors::ConnectorError::NotImplemented(format!(
+        hyperswitch_interfaces::errors::ConnectorError::NotImplemented(format!(
             "{} {} through {}",
             $payment_method, $flow, $connector
         ))
@@ -6123,6 +6136,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
         authentication_id: data.authentication_id.clone(),
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+        whole_connector_response: data.whole_connector_response.clone(),
     }
 }
 
@@ -6135,8 +6149,8 @@ pub fn generate_12_digit_number() -> u64 {
 pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let nfkd_value = value.nfkd().collect::<String>();
     let lowercase_value = nfkd_value.to_lowercase();
-    static REGEX: std::sync::LazyLock<Result<Regex, regex::Error>> =
-        std::sync::LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
+    static REGEX: LazyLock<Result<Regex, regex::Error>> =
+        LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
     let regex = REGEX.as_ref().map_err(|e| e.clone())?;
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
@@ -6317,4 +6331,106 @@ impl FraudCheckRecordReturnRequest for FraudCheckRecordReturnData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
+}
+
+pub trait SplitPaymentData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest>;
+}
+
+impl SplitPaymentData for PaymentsCaptureData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for PaymentsAuthorizeData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for PaymentsSyncData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        self.split_payments.clone()
+    }
+}
+
+impl SplitPaymentData for PaymentsCancelData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+impl SplitPaymentData for SetupMandateRequestData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+
+pub fn get_refund_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    refund_amount: T,
+    currency: String,
+) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let refund_amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+
+    Ok(RefundIntegrityObject {
+        currency: currency_enum,
+        refund_amount: refund_amount_in_minor_unit,
+    })
+}
+
+pub fn get_capture_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    capture_amount: Option<T>,
+    currency: String,
+) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let capture_amount_in_minor_unit = capture_amount
+        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
+        .transpose()?;
+
+    Ok(CaptureIntegrityObject {
+        capture_amount: capture_amount_in_minor_unit,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_sync_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: String,
+) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+    Ok(SyncIntegrityObject {
+        amount: Some(amount_in_minor_unit),
+        currency: Some(currency_enum),
+    })
+}
+
+pub fn get_authorise_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: String,
+) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+    Ok(AuthoriseIntegrityObject {
+        amount: amount_in_minor_unit,
+        currency: currency_enum,
+    })
 }

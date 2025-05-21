@@ -92,8 +92,8 @@ use crate::{
 };
 #[derive(Clone)]
 pub enum ConnectorCallType {
-    PreDetermined(ConnectorData),
-    Retryable(Vec<ConnectorData>),
+    PreDetermined(ConnectorRoutingData),
+    Retryable(Vec<ConnectorRoutingData>),
     SessionMultiple(SessionConnectorDatas),
     #[cfg(feature = "v2")]
     Skip,
@@ -120,6 +120,15 @@ pub struct ConnectorData {
     pub connector_name: types::Connector,
     pub get_token: GetToken,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+impl From<ConnectorData> for ConnectorRoutingData {
+    fn from(connector_data: ConnectorData) -> Self {
+        Self {
+            connector_data,
+            network: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -186,11 +195,15 @@ common_utils::create_list_wrapper!(
 );
 
 pub fn convert_connector_data_to_routable_connectors(
-    connectors: &[ConnectorData],
+    connectors: &[ConnectorRoutingData],
 ) -> CustomResult<Vec<RoutableConnectorChoice>, common_utils::errors::ValidationError> {
     connectors
         .iter()
-        .map(|connector_data| RoutableConnectorChoice::foreign_try_from(connector_data.clone()))
+        .map(|connectors_routing_data| {
+            RoutableConnectorChoice::foreign_try_from(
+                connectors_routing_data.connector_data.clone(),
+            )
+        })
         .collect()
 }
 
@@ -303,6 +316,9 @@ impl ConnectorData {
                 // enums::Connector::Amazonpay => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
                 // }
+                enums::Connector::Archipel => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
+                }
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
@@ -313,6 +329,9 @@ impl ConnectorData {
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
+                // enums::Connector::Barclaycard => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard)))
+                // }
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
                 }
@@ -465,6 +484,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nomupay::new())))
                 }
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
+                // enums::Connector::Nordea => Ok(ConnectorEnum::Old(Box::new(connector::Nordea::new()))),
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }

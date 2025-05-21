@@ -310,6 +310,7 @@ impl Action {
                         db,
                         merchant_id,
                         process.clone(),
+                        revenue_recovery_payment_data,
                         &payment_data.payment_attempt,
                     )
                     .await
@@ -354,6 +355,7 @@ impl Action {
                     revenue_recovery_payment_data.profile.get_id().to_owned(),
                     payment_attempt.id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                    revenue_recovery_payment_data.retry_algorithm,
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
@@ -478,13 +480,17 @@ impl Action {
 
     pub async fn payment_sync_call(
         state: &SessionState,
-        pcr_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         global_payment_id: &id_type::GlobalPaymentId,
         process: &storage::ProcessTracker,
         payment_attempt: payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
-        let response =
-            revenue_recovery_core::api::call_psync_api(state, global_payment_id, pcr_data).await;
+        let response = revenue_recovery_core::api::call_psync_api(
+            state,
+            global_payment_id,
+            revenue_recovery_payment_data,
+        )
+        .await;
         let db = &*state.store;
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
@@ -494,8 +500,9 @@ impl Action {
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
                     Self::decide_retry_failure_action(
                         db,
-                        pcr_data.merchant_account.get_id(),
+                        revenue_recovery_payment_data.merchant_account.get_id(),
                         process.clone(),
+                        revenue_recovery_payment_data,
                         &payment_attempt,
                     )
                     .await
@@ -688,10 +695,14 @@ impl Action {
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         pt: storage::ProcessTracker,
+        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: &payment_attempt::PaymentAttempt,
     ) -> RecoveryResult<Self> {
-        let schedule_time =
-            get_schedule_time_to_retry_mit_payments(db, merchant_id, pt.retry_count + 1).await;
+        let next_retry_count = pt.retry_count + 1;
+        let schedule_time = revenue_recovery_payment_data
+            .get_schedule_time_based_on_retry_type(db, merchant_id, next_retry_count)
+            .await;
+
         match schedule_time {
             Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
 
@@ -735,6 +746,7 @@ async fn record_back_to_billing_connector(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

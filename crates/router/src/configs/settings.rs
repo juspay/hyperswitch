@@ -43,6 +43,8 @@ use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery;
 use crate::{
     configs,
     core::errors::{ApplicationError, ApplicationResult},
@@ -51,7 +53,6 @@ use crate::{
     routes::app,
     AppState,
 };
-
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
 
 #[derive(clap::Parser, Default)]
@@ -115,6 +116,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
@@ -153,7 +155,19 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    #[cfg(feature = "v2")]
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
