@@ -644,7 +644,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
-            is_debit_routing_enabled,
+            is_debit_routing_enabled: is_debit_routing_enabled
+                .unwrap_or(source.is_debit_routing_enabled),
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
             revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type
