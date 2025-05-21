@@ -996,7 +996,6 @@ pub async fn routing_retrieve_linked_config(
                     transaction_type,
                 )
             },
-            #[cfg(not(feature = "release"))]
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
                     is_connected_allowed: false,
@@ -1007,10 +1006,6 @@ pub async fn routing_retrieve_linked_config(
                 },
                 req.headers(),
             ),
-            #[cfg(feature = "release")]
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
-            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
