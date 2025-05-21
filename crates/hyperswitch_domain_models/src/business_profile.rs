@@ -1814,6 +1814,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
+            three_ds_decision_rule_algorithm: None,
         })
     }
 
