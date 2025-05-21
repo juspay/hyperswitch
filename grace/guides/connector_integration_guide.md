@@ -65,7 +65,31 @@ This phase follows the "Hyperswitch Connector Integration Assistant" flow.
 
 ### Step 4: Flow Selection
 -   For the selected payment method (e.g., Cards), determine the primary flow to implement first (e.g., Authorization, Capture, Refund).
--   **Consult `flow_guide`**: Use the `flow_guide` (from `memory-bank/techContext.md` or a similar reference) to understand Hyperswitch's standard flows (DirectAuthorization, PreprocessingBasedAuthorization, etc.).
+-   **Consult `flow_guide`**: Use the `flow_guide` (from `memory-bank/techContext.md` or a similar reference) to understand Hyperswitch's standard flows ->
+
+preprocessing_flow
+tokenization_flow
+authorize_flow
+cancel_flow
+capture_flow
+psync_flow
+access_token_flow
+refund 
+rsync
+
+<|> give examples of how flows work
+
+<|> [Ignore]
+complete_authorize_flow
+incremental_authorization_flow
+post_session_tokens_flow
+reject_flow
+session_update_flow
+setup_mandate_flow
+update_metadata_flow
+<|> [Ignore]
+
+
 -   **Decision Criteria**:
     -   Analyze the connector's API request/response formats for the chosen payment method and flow.
     -   Compare with Hyperswitch's implementation requirements and the `flow_guide` to select the best-fit Hyperswitch flow.
@@ -119,6 +143,7 @@ This phase focuses on coding the `.../<connector-name-lowercase>/transformers.rs
     4.  **Optional Field Handling**: Use `#[serde(skip_serializing_if = "Option::is_none")]`.
     5.  **Field Renaming**: Use `#[serde(rename = "api_field_name")]`.
     6.  **Case Conventions**: Use `#[serde(rename_all = "camelCase")]` or `#[serde(rename_all = "snake_case")]` as per connector API.
+    <|> remame all
 -   Define the connector's authentication struct (e.g., `MyConnectorAuthType`) and implement `TryFrom<&ConnectorAuthType>`.
 -   Define the connector's error response struct (e.g., `MyConnectorErrorResponse`).
 
@@ -149,8 +174,17 @@ This phase focuses on coding the `.../<connector-name-lowercase>/transformers.rs
         (e.g., `TryFrom<&MyConnectorRouterData<&PaymentsAuthorizeData>> for MyConnectorPaymentRequest`)
     -   `TryFrom<ResponseRouterData<F, {{project-name}}ResponseStruct, T, HyperswitchResponseData>> for RouterData<F, T, HyperswitchResponseData>`
         (e.g., `TryFrom<ResponseRouterData<Authorize, MyConnectorPaymentResponse, PaymentsAuthorizeData, PaymentsResponseData>> for PaymentsAuthorizeRouterData`)
+
+        <|> add example for each type
+        give ref. domainmodels/types
+
 -   Handle amount conversions within these traits or via the `{{project-name}}RouterData` wrapper (using `utils::convert_amount` in the main logic file is also common).
--   Refer to `connector-template/transformers.rs` and existing connectors (e.g., `stripebilling/transformers.rs`) for patterns.
+-   Refer to `connector-template/transformers.rs` and existing connectors (e.g., `hipay/transformers.rs`, adyen/transformers) for patterns.
+
+1. payment status psync status mapping (cybersource-> diff, hipay -> same)
+2. refunds status 
+3. Construct auth type in transformers.rs
+
 
 ## Phase D: Main Logic Implementation (`<connector_name>.rs`)
 
@@ -180,7 +214,7 @@ This phase focuses on coding the `.../<connector-name-lowercase>.rs` file.
     -   `get_connector_about()`: Return `ConnectorInfo`.
     -   `get_supported_payment_methods()`: Return `SupportedPaymentMethods`.
     -   `get_supported_webhook_flows()`: Return slice of `common_enums::EventClass`.
-7.  **Implement `webhooks::IncomingWebhook`** (if applicable).
+7. <|> remove **Implement `webhooks::IncomingWebhook`** (if applicable).
 
 ## Phase E: Registration, Configuration & Testing
 
