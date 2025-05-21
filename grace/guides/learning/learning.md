@@ -844,8 +844,9 @@ Based on our experience with connector integrations (such as HiPay), here are ke
 ### 3. Request Format Requirements
 
 - Some connectors expect `application/x-www-form-urlencoded` while others require `multipart/form-data`
+<|> add supported types
 - For FormData requests, you may need a custom serialization helper function
-- Check content type requirements for each endpoint as they may vary within the same API
+- Check content type requirements for each endpoint as they may vary within the same connector docs 
 
 ### 4. URL Construction Patterns
 
