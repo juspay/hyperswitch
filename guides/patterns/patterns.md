@@ -124,3 +124,393 @@ let request_body_content = RequestContent::Json(Box::new(connector_req_struct));
 // ... and request_body_content in RequestBuilder::new().set_body()
 ```
 **Reason for Variation:** Ensures the exact string representation of the request body is used for the signature, matching what the server will receive, while still using the `RequestContent` abstraction.
+
+## Common Error: [Error Name]
+
+### Error Message:
+[Exact error message]
+
+### Root Cause:
+[Explanation of what causes this error]
+
+### Solution Pattern:
+```rust
+// Code showing correct implementation
+```
+Why It Works:
+[Explanation of why this solution resolves the issue]
+
+### Connector Pattern Variation
+
+## Pattern Variation: [Pattern Name]
+
+### Standard Implementation:
+```rust
+// Standard code implementation
+```
+[Connector] Variation:
+```rust
+// Connector-specific implementation
+```
+Reason for Variation:
+[Explanation of why this connector requires a different approach]
+
+## Pattern: Correct `TryFrom` for Connector Auth Response to `RouterData<AccessTokenAuth, ...>`
+
+### Context:
+Implementing `TryFrom` to convert a connector-specific authentication response (e.g., for access tokens) into the Hyperswitch `RouterData` struct, specifically for the `AccessTokenAuth` flow. This pattern addresses Rust's orphan rule (E0117) by using the local `crate::types::ResponseRouterData` wrapper.
+
+### Standard Implementation:
+```rust
+// In your_connector/transformers.rs
+use crate::types::ResponseRouterData; // Local wrapper: hyperswitch_connectors::types::ResponseRouterData
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, RouterData as HyperswitchRouterData}, // Core RouterData
+    router_flow_types::access_token_auth::AccessTokenAuth,      // Flow marker
+    router_request_types::AccessTokenRequestData,               // Request data type for this flow
+};
+use hyperswitch_interfaces::errors; // For error handling
+// Potentially: use common_utils::date_time;
+
+// Define your connector's specific authentication response structure
+#[derive(Debug, serde::Deserialize, serde::Serialize)] // Ensure Serialize for event_builder
+pub struct YourConnectorAuthResponse {
+    pub token_field: masking::Secret<String>,
+    pub expires_field: i64, // Or PrimitiveDateTime, etc.
+    // ... other fields
+}
+
+// Implement TryFrom using the local ResponseRouterData wrapper as input
+impl TryFrom<ResponseRouterData<AccessTokenAuth, YourConnectorAuthResponse, AccessTokenRequestData, AccessToken>>
+    for HyperswitchRouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AccessTokenAuth, YourConnectorAuthResponse, AccessTokenRequestData, AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        // item.response is YourConnectorAuthResponse (the direct connector response)
+        // item.data is the original HyperswitchRouterData passed into crate::types::ResponseRouterData
+
+        // Example: Calculate expiry if needed
+        // let expires_in_seconds = (item.response.expires_at_datetime - common_utils::date_time::now()).whole_seconds();
+
+        Ok(Self {
+            response: Ok(AccessToken { // Construct the Hyperswitch AccessToken struct
+                token: item.response.token_field,
+                expires: item.response.expires_field, // Or calculated expires_in_seconds
+            }),
+            ..item.data // Spread all other fields from the original RouterData
+        })
+    }
+}
+```
+### Why It Works:
+*   **Orphan Rule (E0117)**: `crate::types::ResponseRouterData` is local to the `hyperswitch_connectors` crate, so implementing `TryFrom` for it is allowed.
+*   **Data Flow**: The `item.response` field of `crate::types::ResponseRouterData` holds the direct deserialized response from the connector. `item.data` holds the original `RouterData` instance that was passed into the flow, allowing its fields to be copied over.
+*   **Clarity**: Clearly separates the connector's raw response from the standardized Hyperswitch `AccessToken` and `RouterData` structures.
+
+## Pattern: Correct `TryFrom` for Connector Payment Response to `RouterData<PaymentFlow, ...>`
+
+### Context:
+Implementing `TryFrom` to convert a connector-specific payment response into the Hyperswitch `RouterData` struct for various payment flows (Authorize, Capture, PSync, etc.). This also uses `crate::types::ResponseRouterData` to satisfy the orphan rule.
+
+### Standard Implementation:
+```rust
+// In your_connector/transformers.rs
+use crate::types::ResponseRouterData; // Local wrapper
+use hyperswitch_domain_models::{
+    router_data::{RouterData as HyperswitchRouterData},
+    router_flow_types::payments::Authorize, // Example flow, replace with actual flow
+    router_request_types::PaymentsAuthorizeData, // Example request, replace
+    router_response_types::{PaymentsResponseData, RedirectForm}, // Hyperswitch response enum
+    // Potentially: types::PaymentsAuthorizeRouterData as TargetRouterData, (if using specific type alias for output)
+};
+use hyperswitch_interfaces::errors;
+use common_enums; // For AttemptStatus, etc.
+
+// Define your connector's specific payment response structure
+#[derive(Debug, serde::Deserialize, serde::Serialize)] // Ensure Serialize for event_builder
+pub struct YourConnectorPaymentResponse {
+    pub transaction_id: String,
+    pub status_from_connector: String, // e.g., "approved", "failed"
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub redirect_url: Option<String>,
+    // ... other fields
+}
+
+// Implement TryFrom using the local ResponseRouterData wrapper
+impl TryFrom<ResponseRouterData<Authorize, YourConnectorPaymentResponse, PaymentsAuthorizeData, PaymentsResponseData>>
+    for HyperswitchRouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+    // Or for types::PaymentsAuthorizeRouterData if that's the target alias
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<Authorize, YourConnectorPaymentResponse, PaymentsAuthorizeData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        // Convert connector status to Hyperswitch AttemptStatus
+        let hyperswitch_status = match item.response.status_from_connector.as_str() {
+            "approved" => common_enums::AttemptStatus::Charged, // Or Authorized if capture is manual
+            "failed" => common_enums::AttemptStatus::Failure,
+            _ => common_enums::AttemptStatus::Pending,
+        };
+
+        let redirection_data = item.response.redirect_url.map(|url| {
+            Box::new(RedirectForm::Form { // Or other RedirectForm variants
+                endpoint: url,
+                method: common_utils::request::Method::Get, // Or Post
+                form_fields: std::collections::HashMap::new(), // Populate if POST with data
+            })
+        });
+        
+        // Construct PaymentsResponseData variant
+        let payments_response_data = if hyperswitch_status == common_enums::AttemptStatus::Failure {
+            // This construction is for the 'response: Err(ErrorResponse)' case,
+            // which is typically handled by the main connector logic calling build_error_response.
+            // This TryFrom usually handles the Ok(PaymentsResponseData) case.
+            // For simplicity, we'll assume success path here.
+            // If error, the main connector logic would return RouterData with response: Err(...)
+            unreachable!("Error case should be handled before this TryFrom typically")
+        } else {
+            PaymentsResponseData::TransactionResponse {
+                resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(item.response.transaction_id.clone()),
+                redirection_data,
+                mandate_reference: None, // Populate if applicable
+                connector_metadata: None, // Populate if applicable
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.transaction_id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }
+        };
+
+        Ok(Self {
+            status: hyperswitch_status, // Update RouterData status
+            response: Ok(payments_response_data),
+            // reference_id: Some(item.response.transaction_id), // If applicable for RouterData.reference_id
+            ..item.data // Spread other fields
+        })
+    }
+}
+```
+
+## Pattern: Importing Request Data Accessor Traits
+
+### Context:
+Accessing fields from request data structs (e.g., `PaymentsAuthorizeData`, `PaymentsPreProcessingData`) often requires helper methods like `get_amount()`, `get_currency()`, `get_browser_info()`. These methods are provided by traits.
+
+### Standard Implementation:
+These traits are typically defined in `crate::utils` (i.e., `hyperswitch_connectors::utils`).
+```rust
+// In your_connector/transformers.rs
+use crate::utils::{
+    PaymentsAuthorizeRequestData, 
+    PaymentsPreProcessingRequestData, 
+    RefundsRequestData, 
+    // ... import other necessary traits
+};
+
+// Example usage:
+// fn some_function(item: &types::PaymentsAuthorizeRouterData) {
+//     let browser_info = item.request.get_browser_info();
+//     let amount = item.request.get_amount();
+// }
+```
+### Why It Works:
+Importing these traits brings the accessor methods into scope, allowing them to be called on the respective request data structs.
+
+## Pattern: Importing `ByteSliceExt` for `parse_struct`
+
+### Context:
+The `parse_struct` method, used to deserialize connector responses from raw byte slices (`&[u8]`), is an extension trait method.
+
+### Standard Implementation:
+The `ByteSliceExt` trait is defined in `common_utils::ext_traits`.
+```rust
+// In your_connector.rs (e.g., airwallex.rs)
+use common_utils::ext_traits::ByteSliceExt;
+
+// Example usage:
+// fn handle_response(...) {
+//     let response_struct: YourConnectorResponseType = res.response // res.response is &[u8]
+//         .parse_struct("YourConnectorResponseType")
+//         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+// }
+```
+### Why It Works:
+Importing `ByteSliceExt` makes the `parse_struct` method available on `&[u8]` types.
+
+## Pattern: Populating `RedirectForm.form_fields`
+
+### Context:
+The `form_fields` field of `hyperswitch_domain_models::router_response_types::RedirectForm::Form` expects a `HashMap<String, String>`. If the redirect data comes as a JSON object, its values need to be converted to strings.
+
+### Standard Implementation:
+```rust
+use serde_json::Value;
+use std::collections::HashMap;
+use hyperswitch_domain_models::router_response_types::RedirectForm;
+use common_utils::request::Method as RequestMethod;
+
+
+// Assuming `redirect_json_data` is a serde_json::Value::Object
+// let redirect_json_data: Value = ...; 
+// let redirect_url: String = ...;
+// let redirect_method: RequestMethod = RequestMethod::Post; // Or Get
+
+let form_fields = if let Value::Object(map) = redirect_json_data {
+    map.into_iter()
+        .filter_map(|(k, v)| {
+            match v {
+                Value::String(s) => Some((k, s)),
+                Value::Number(n) => Some((k, n.to_string())),
+                Value::Bool(b) => Some((k, b.to_string())),
+                // Decide how to handle Null, Array, Object. Often skipped or error.
+                _ => None, 
+            }
+        })
+        .collect::<HashMap<String, String>>()
+} else {
+    HashMap::new()
+};
+
+let redirection_data = Some(Box::new(RedirectForm::Form {
+    endpoint: redirect_url,
+    method: redirect_method,
+    form_fields,
+}));
+```
+### Why It Works:
+This pattern explicitly iterates through the JSON object's key-value pairs, converts values to strings (handling common types like String, Number, Bool), and collects them into the required `HashMap<String, String>`.
+
+## Pattern: Constructing `ObjectReferenceId::PaymentId` for Webhooks
+
+### Context:
+When handling webhooks, the `get_webhook_object_reference_id` method needs to return an `api_models::webhooks::ObjectReferenceId`. For payment-related webhooks, this is often `ObjectReferenceId::PaymentId`.
+
+### Standard Implementation:
+```rust
+// In your_connector.rs
+use api_models::payments::PaymentIdType;
+use api_models::webhooks::ObjectReferenceId;
+use hyperswitch_domain_models::id_type; // For id_type::PaymentId or GlobalPaymentId
+use std::borrow::Cow;
+use error_stack::ResultExt; // For change_context & attach_printable
+use hyperswitch_interfaces::errors;
+
+// Assuming `webhook_source_id_string` is the relevant ID from the webhook payload (String)
+// fn get_webhook_object_reference_id(...) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+//     let payment_id_v1 = id_type::PaymentId::try_from(Cow::Owned(webhook_source_id_string.clone()))
+//         .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
+//         .attach_printable("Failed to parse source_id as v1 PaymentId for webhook")?;
+//     
+//     // For v2, you might parse into id_type::GlobalPaymentId if applicable
+//     // let global_payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(webhook_source_id_string))
+//     //    .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
+//     //    .attach_printable("Failed to parse source_id as GlobalPaymentId for webhook")?;
+
+//     Ok(ObjectReferenceId::PaymentId(
+//         PaymentIdType::PaymentIntentId(payment_id_v1) // Or appropriate variant of PaymentIdType
+//     ))
+// }
+```
+### Why It Works:
+*   Uses the correct `api_models::payments::PaymentIdType` enum.
+*   Uses the correct `api_models::webhooks::ObjectReferenceId::PaymentId` variant.
+*   Correctly converts the string ID from the webhook payload into the appropriate Hyperswitch ID type (e.g., `id_type::PaymentId` or `id_type::GlobalPaymentId`) using `TryFrom`.
+
+## Pattern: Deriving `Serialize` and `Default` for Connector Structs/Enums
+
+### Context:
+Connector-specific data structures often need to be serialized (e.g., for logging in `event_builder`) or require default instances.
+
+### Standard Implementation:
+*   **`serde::Serialize`**: Add `#[derive(serde::Serialize)]` (and often `serde::Deserialize`, `Debug`, `Clone`) to structs/enums that will be serialized.
+    ```rust
+    #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+    pub struct YourConnectorResponse { /* ... */ }
+    ```
+*   **`Default`**:
+    *   For structs where all fields have a natural default or are `Option`, derive `Default`:
+      ```rust
+      #[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone)]
+      pub struct YourConnectorStructWithDefaults {
+          pub field1: Option<String>,
+          pub count: i32, // Default is 0
+      }
+      ```
+    *   For enums used within a struct that derives `Default`, the enum itself must derive `Default` or have one variant marked with `#[default]` (if using `serde(default)` on the field in the parent struct).
+      ```rust
+      #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
+      #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+      pub enum YourConnectorStatus {
+          Succeeded,
+          Failed,
+          #[default] // This variant will be used if the struct derives Default
+          Pending,
+      }
+
+      #[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
+      pub struct ResponseContainingStatus {
+          pub status: YourConnectorStatus, // YourConnectorStatus needs to be Default
+          pub other_field: Option<String>,
+      }
+      ```
+### Why It Works:
+*   `Serialize` allows the struct/enum to be converted into formats like JSON.
+*   `Default` allows for easy creation of default instances, which is often required by other derives or generic code.
+
+# Active Context
+
+## Current Focus
+
+- Airwallex connector: Finalizing implementation by resolving compilation errors and warnings.
+
+## Recent Changes (21/05/2025)
+
+- **Airwallex Connector Compilation Fixes**:
+    - **`transformers.rs`**:
+        - Corrected `AirwallexPaymentsCaptureRequest.amount` field type from `Option<common_utils::types::StringMinorUnit>` to `Option<String>`.
+        - Updated `TryFrom<&PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequest` to use `crate::utils::to_currency_base_unit(item.request.amount_to_capture, item.request.currency)` for amount conversion, resolving `E0308` (mismatched types for `StringMinorUnit::from(i64)`).
+    - **`airwallex.rs`**:
+        - Modified `get_request_body` in `ConnectorIntegration<AccessTokenAuth, ...>` to return `RequestContent::Json(Box::new(AirwallexAuthUpdateRequest {}))` instead of `RequestContent::Empty`, aligning with the expectation of an empty JSON body for login.
+        - Corrected `handle_response` in `ConnectorIntegration<AccessTokenAuth, ...>` to use `..data.clone()` for `RefreshTokenRouterData` initialization and removed the erroneous `status: common_enums::AttemptStatus::Tokenized` field.
+        - Added a placeholder implementation for `ConnectorRedirectResponse` trait for the `Airwallex` struct to satisfy `Connector` trait bounds. This involved:
+            - Importing `ConnectorRedirectResponse` from `hyperswitch_interfaces::api`.
+            - Importing `CallConnectorAction` and `PaymentAction` from `common_enums::enums`.
+            - Implementing `get_flow_type` method with the correct signature and return type (`CustomResult<CallConnectorAction, errors::ConnectorError>`).
+    - **`router/src/types/api.rs`**:
+        - Corrected the instantiation of `Airwallex` connector in `ConnectorData::convert_connector` from `Box::new(&connector::Airwallex)` to `Box::new(connector::Airwallex::new())` to call the constructor, resolving `E0423`.
+- **Build Process**:
+    - Ran `cargo build` multiple times to identify and fix errors iteratively.
+    - Attempted `cargo fix --lib -p hyperswitch_connectors` to address unused import warnings (output capture issues prevented confirmation of fixes).
+
+## Next Steps
+
+- Run `cargo build` to confirm all compilation errors are resolved and to check the status of warnings.
+- If warnings persist, manually remove unused imports from `airwallex.rs` and `airwallex/transformers.rs`.
+- Update `memory-bank/progress.md`.
+- Compare the final code with `real-codebase/airwallex/` for any conceptual differences or missed patterns, and document these in `guides/patterns/patterns.md` or `guides/learnings/learning.md`.
+- Inform the user about the successful compilation and the next steps (testing).
+
+## Key Decisions & Considerations
+
+- **`StringMinorUnit` vs. `String` for Amounts**: For connector request structs like `AirwallexPaymentsCaptureRequest`, if the API expects a string representation of a minor unit, the field should be `Option<String>`, and `crate::utils::to_currency_base_unit` should be used for conversion from `i64`.
+- **`ConnectorRedirectResponse` Implementation**: Understanding the exact signature and purpose of traits like `ConnectorRedirectResponse` by reading their definitions in `hyperswitch_interfaces` is crucial. Placeholder implementations should match the trait definition to avoid further compilation errors.
+- **Build Command Output**: Persistent issues with capturing output for long-running commands like `cargo build` and `cargo fix`. Proceeding with assumptions and asking for user-provided output when necessary.
+
+## Important Patterns & Preferences
+
+- **Iterative Debugging**: `cargo build` -> analyze error -> fix -> `cargo build` loop.
+- **Trait Implementation**: Ensure all required traits for a `Connector` (like `ConnectorRedirectResponse`) are implemented, even if initially as placeholders, to satisfy trait bounds.
+
+## Learnings & Insights (Airwallex Specific - New from this session)
+
+- **`StringMinorUnit` Construction**: There's no direct public constructor `StringMinorUnit::from(i64)`. For amounts in request structs that need to be `StringMinorUnit` (or more commonly, `String` representing minor units), use utilities like `crate::utils::to_currency_base_unit`.
+- **`ConnectorRedirectResponse` Trait**:
+    - Defines `get_flow_type(&self, _query_params: &str, _json_payload: Option<serde_json::Value>, _action: common_enums::enums::PaymentAction) -> CustomResult<common_enums::enums::CallConnectorAction, errors::ConnectorError>`.
+    - Does *not* include `get_connector_redirect_response`. This method is likely part of a specific flow's `ConnectorIntegration` (e.g., `PaymentsCompleteAuthorize`).
+    - `PaymentAction` and `CallConnectorAction` enums are located in `common_enums::enums`.
+- **Connector Instantiation in Router**: When a connector (e.g., `Airwallex`) has a `new()` constructor, it must be called (e.g., `connector::Airwallex::new()`) when being boxed in `ConnectorEnum` in `crates/router/src/types/api.rs`.
