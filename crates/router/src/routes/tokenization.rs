@@ -73,35 +73,3 @@ pub async fn create_token_vault_api(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::TokenizationRetrieve))]
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-pub async fn get_token_vault_api(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<id_type::GlobalTokenId>,
-    query: web::Query<api_models::tokenization::TokenizationQueryParameters>,
-) -> HttpResponse {
-    let reveal_flag = matches!(query.reveal, Some(true));
-    let token_id = path.into_inner();
-    Box::pin(api_service::server_wrap(
-        Flow::TokenizationRetrieve,
-        state,
-        &req,
-        token_id.clone(),
-        |state, auth: auth::AuthenticationData, token_id, _| async move {
-            tokenization::get_token_vault_core(
-                state,
-                &auth.merchant_account,
-                &auth.key_store,
-                (token_id, reveal_flag),
-            )
-            .await
-        },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}

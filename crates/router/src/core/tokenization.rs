@@ -12,6 +12,7 @@ use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode, StringExt},
     id_type,
+    errors::CustomResult,
 };
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
@@ -111,14 +112,14 @@ pub async fn get_token_vault_core(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_key_store: &domain::MerchantKeyStore,
-    query_params: (id_type::GlobalTokenId, bool),
-) -> RouterResponse<serde_json::Value> {
+    query: id_type::GlobalTokenId,
+) -> CustomResult<serde_json::Value, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
     let tokenization_record = db
         .get_entity_id_vault_id_by_token_id(
-            &query_params.0,
+            &query,
             &(merchant_key_store.clone()),
             key_manager_state,
         )
@@ -127,8 +128,8 @@ pub async fn get_token_vault_core(
         .attach_printable("Failed to get tokenization record")?;
 
     if tokenization_record.flag == enums::TokenizationFlag::Disabled {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Tokenization is disabled".to_string(),
+        return Err(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Tokenization is disabled for the id".to_string(),
         }
         .into());
     }
@@ -150,44 +151,7 @@ pub async fn get_token_vault_core(
         .cloned()
         .unwrap_or(serde_json::Value::Null);
 
-    let response_data = if !query_params.1 {
-        // Use the JsonMaskStrategy to mask sensitive values while preserving JSON structure
-        apply_json_mask_strategy(data_json)
-    } else {
-        data_json
-    };
-
     // Create the response
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response_data,
-    ))
+    Ok(data_json)
 }
 
-// Helper function that applies JsonMaskStrategy while preserving the JSON structure
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-fn apply_json_mask_strategy(value: serde_json::Value) -> serde_json::Value {
-    match value {
-        serde_json::Value::Object(map) => {
-            let mut masked = serde_json::Map::new();
-            for (key, val) in map {
-                masked.insert(key, apply_json_mask_strategy(val));
-            }
-            serde_json::Value::Object(masked)
-        }
-        serde_json::Value::Array(arr) => {
-            // Recursively mask each element in arrays
-            let masked_arr = arr.into_iter().map(apply_json_mask_strategy).collect();
-            serde_json::Value::Array(masked_arr)
-        }
-        serde_json::Value::String(_)
-        | serde_json::Value::Number(_)
-        | serde_json::Value::Bool(_) => {
-            // Create a Secret with JsonMaskStrategy for each primitive value
-            let secret = Secret::<_, JsonMaskStrategy>::new(value);
-            // Convert the Debug output of the masked value to a JSON string
-            serde_json::Value::String(format!("{:?}", secret))
-        }
-        // Keep null as is
-        serde_json::Value::Null => serde_json::Value::Null,
-    }
-}

@@ -248,26 +248,13 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_json_mask_strategy() {
         // Create a sample JSON with different types for testing
-        let original = json!({
-            "user": {
-                "name": "John Doe",
-                "email": "john@example.com",
-                "age": 35,
-                "verified": true
-            },
-            "card": {
-                "number": "4242424242424242",
-                "cvv": 123,
-                "amount": 99.99
-            },
-            "tags": ["personal", "premium"],
-            "null_value": null,
-            "short": "hi"
-        });
+        let original = json!({ "user": { "name": "John Doe", "email": "john@example.com", "age": 35, "verified": true }, "card": { "number": "4242424242424242", "cvv": 123, "amount": 99.99 }, "tags": ["personal", "premium"], "null_value": null, "short": "hi" });
 
         // Apply the JsonMaskStrategy
         let secret = Secret::<_, JsonMaskStrategy>::new(original.clone());
         let masked_str = format!("{:?}", secret);
+        println!("Original JSON: {}", serde_json::to_string_pretty(&original).unwrap());
+        println!("Masked JSON: {}", masked_str);
 
         // Get specific values from original
         let original_obj = original.as_object().expect("Original should be an object");
@@ -401,6 +388,36 @@ mod tests {
         assert!(
             masked_str.contains("\"null_value\":null"),
             "Null value not preserved correctly"
+        );
+
+        // Additional security checks to ensure no original values are exposed
+        assert!(
+            !masked_str.contains(name),
+            "Original name value exposed in masked output"
+        );
+        assert!(
+            !masked_str.contains(email),
+            "Original email value exposed in masked output"
+        );
+        assert!(
+            !masked_str.contains(card_number),
+            "Original card number exposed in masked output"
+        );
+        assert!(
+            !masked_str.contains(&age.to_string()),
+            "Original age value exposed in masked output"
+        );
+        assert!(
+            !masked_str.contains(&cvv.to_string()),
+            "Original CVV value exposed in masked output"
+        );
+        assert!(
+            !masked_str.contains(tag1),
+            "Original tag value exposed in masked output"
+        );
+        assert!(
+            !masked_str.contains("hi"),
+            "Original short string value exposed in masked output"
         );
     }
 }
