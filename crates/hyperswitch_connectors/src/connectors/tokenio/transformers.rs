@@ -46,15 +46,12 @@ pub struct TokenioConnectorMeta {
     pub faster_payments_sort_code: Option<Secret<String>>,
     pub faster_payments_account_number: Option<Secret<String>>,
 
-    // SEPA fields - differentiated by type
     pub sepa_iban: Option<Secret<String>>,
     pub sepa_instant_iban: Option<Secret<String>>,
 
-    // You might want to rename one of these to avoid confusion
     pub elixir_account_number: Option<Secret<String>>,
     pub elixir_iban: Option<Secret<String>>,
 
-    // Swedish payment methods
     pub bankgiro_number: Option<Secret<String>>,
     pub plusgiro_number: Option<Secret<String>>,
 }
@@ -274,14 +271,15 @@ impl From<TokenioPaymentStatus> for common_enums::AttemptStatus {
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TokenioPaymentsResponse {
-    pub payment: Payment,
+#[serde(rename_all = "camelCase", untagged)]
+pub enum TokenioPaymentsResponse {
+    Success(PaymentResponse),
+    Error(TokenioErrorResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Payment {
+pub struct PaymentResponse {
     pub id: String,
     pub status: PaymentStatus,
     pub status_reason_information: Option<String>,
@@ -328,38 +326,42 @@ pub struct ErrorInfo {
 
 impl From<TokenioPaymentsResponse> for common_enums::AttemptStatus {
     fn from(response: TokenioPaymentsResponse) -> Self {
-        match response.payment.status {
-            // Pending statuses - payment is still in progress
-            PaymentStatus::InitiationPending
-            | PaymentStatus::InitiationPendingRedirectAuth
-            | PaymentStatus::InitiationPendingRedirectAuthVerification
-            | PaymentStatus::InitiationPendingRedirectHp
-            | PaymentStatus::InitiationPendingRedemption
-            | PaymentStatus::InitiationPendingRedemptionVerification => {
-                common_enums::AttemptStatus::AuthenticationPending
-            }
+        match response {
+            TokenioPaymentsResponse::Success(payment) => match payment.status {
+                // Pending statuses - payment is still in progress
+                PaymentStatus::InitiationPending
+                | PaymentStatus::InitiationPendingRedirectAuth
+                | PaymentStatus::InitiationPendingRedirectAuthVerification
+                | PaymentStatus::InitiationPendingRedirectHp
+                | PaymentStatus::InitiationPendingRedemption
+                | PaymentStatus::InitiationPendingRedemptionVerification => {
+                    common_enums::AttemptStatus::AuthenticationPending
+                }
 
-            // Success statuses
-            PaymentStatus::SettlementCompleted => common_enums::AttemptStatus::Charged,
+                // Success statuses
+                PaymentStatus::SettlementCompleted => common_enums::AttemptStatus::Charged,
 
-            // Settlement in progress - could map to different status based on business logic
-            PaymentStatus::SettlementInProgress => common_enums::AttemptStatus::Pending,
+                // Settlement in progress - could map to different status based on business logic
+                PaymentStatus::SettlementInProgress => common_enums::AttemptStatus::Pending,
 
-            // Failure statuses
-            PaymentStatus::InitiationRejected
-            | PaymentStatus::InitiationFailed
-            | PaymentStatus::InitiationExpired
-            | PaymentStatus::InitiationRejectedInsufficientFunds
-            | PaymentStatus::InitiationDeclined => common_enums::AttemptStatus::Failure,
+                // Failure statuses
+                PaymentStatus::InitiationRejected
+                | PaymentStatus::InitiationFailed
+                | PaymentStatus::InitiationExpired
+                | PaymentStatus::InitiationRejectedInsufficientFunds
+                | PaymentStatus::InitiationDeclined => common_enums::AttemptStatus::Failure,
 
-            // Uncertain status
-            PaymentStatus::InitiationCompleted
-            | PaymentStatus::InitiationProcessing
-            | PaymentStatus::InitiationNoFinalStatusAvailable
-            | PaymentStatus::SettlementIncomplete => common_enums::AttemptStatus::Pending,
+                // Uncertain status
+                PaymentStatus::InitiationCompleted
+                | PaymentStatus::InitiationProcessing
+                | PaymentStatus::InitiationNoFinalStatusAvailable
+                | PaymentStatus::SettlementIncomplete => common_enums::AttemptStatus::Pending,
+            },
+            TokenioPaymentsResponse::Error(_) => common_enums::AttemptStatus::Failure,
         }
     }
 }
+
 impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -367,52 +369,78 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
     fn try_from(
         item: ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response);
-        let response = if let common_enums::AttemptStatus::Failure = attempt_status {
-            let error_info = &item.response.payment.error_info;
-            let status_reason = &item.response.payment.status_reason_information;
-
-            Err(ErrorResponse {
-                code: error_info
-                    .as_ref()
-                    .map(|ei| ei.http_error_code.to_string())
+        let status = common_enums::AttemptStatus::from(item.response.clone());
+        let response = match item.response {
+            TokenioPaymentsResponse::Success(payment) => {
+                if let common_enums::AttemptStatus::Failure = status {
+                    // This case should ideally not be reached if the From impl for TokenioPaymentsResponse to AttemptStatus is correct
+                    // but adding a fallback error response just in case.
+                    Err(ErrorResponse {
+                        code: payment
+                            .error_info
+                            .as_ref()
+                            .map(|ei| ei.http_error_code.to_string())
+                            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                        message: payment
+                            .error_info
+                            .as_ref()
+                            .and_then(|ei| ei.message.clone())
+                            .or_else(|| payment.status_reason_information.clone())
+                            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        reason: Some(
+                            payment
+                                .error_info
+                                .as_ref()
+                                .and_then(|ei| ei.message.clone())
+                                .or_else(|| payment.status_reason_information.clone())
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        ),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(payment.id.clone()),
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(payment.id.clone()),
+                        redirection_data: Box::new(payment.authentication.as_ref().and_then(
+                            |auth| match auth {
+                                Authentication::RedirectUrl { redirect_url } => {
+                                    Some(RedirectForm::from((redirect_url.clone(), Method::Get)))
+                                }
+                            },
+                        )),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    })
+                }
+            }
+            TokenioPaymentsResponse::Error(error_response) => Err(ErrorResponse {
+                code: error_response
+                    .error_code
+                    .clone()
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: error_info
-                    .as_ref()
-                    .and_then(|ei| ei.message.clone())
-                    .or_else(|| status_reason.clone())
+                message: error_response
+                    .message
+                    .clone()
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: Some(
-                    error_info
-                        .as_ref()
-                        .and_then(|ei| ei.message.clone())
-                        .or_else(|| status_reason.clone())
-                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                ),
+                reason: error_response
+                    .message
+                    .clone()
+                    .or_else(|| Some(NO_ERROR_MESSAGE.to_string())),
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(item.response.payment.id.clone()),
+                connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
-            })
-        } else {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id.clone()),
-                redirection_data: Box::new(item.response.payment.authentication.as_ref().and_then(
-                    |auth| match auth {
-                        Authentication::RedirectUrl { redirect_url } => {
-                            Some(RedirectForm::from((redirect_url.clone(), Method::Get)))
-                        }
-                    },
-                )),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            })
+            }),
         };
         Ok(Self {
             status,
@@ -422,9 +450,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct TokenioRefundRequest {
     pub amount: StringMinorUnit,
@@ -438,8 +463,6 @@ impl<F> TryFrom<&TokenioRouterData<&RefundsRouterData<F>>> for TokenioRefundRequ
         })
     }
 }
-
-// Type definition for Refund Response
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
@@ -499,10 +522,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenioErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub error_code: Option<String>,
+    pub message: Option<String>,
 }
