@@ -51,7 +51,7 @@ use url::Url;
 use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
+    utils::RefundsRequestData,
 };
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
@@ -787,25 +787,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Barclay
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
-        match req.request.capture_method {
-            Some(enums::CaptureMethod::Automatic)
-            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(format!(
-                "{}pts/v2/payments/{connector_payment_id}/refunds",
-                self.base_url(connectors)
-            )),
-            Some(enums::CaptureMethod::Manual) => Ok(format!(
-                "{}pts/v2/captures/{connector_payment_id}/refunds",
-                self.base_url(connectors)
-            )),
-            Some(enums::CaptureMethod::ManualMultiple)
-            | Some(enums::CaptureMethod::Scheduled)
-            | None => Err(utils::construct_not_implemented_error_report(
-                req.request
-                    .capture_method
-                    .unwrap_or(enums::CaptureMethod::ManualMultiple),
-                self.id(),
-            )),
-        }
+        Ok(format!(
+            "{}pts/v2/payments/{connector_payment_id}/refunds",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
