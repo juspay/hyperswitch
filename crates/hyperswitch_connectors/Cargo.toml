@@ -18,6 +18,7 @@ actix-web = "4.5.1"
 async-trait = "0.1.79"
 base64 = "0.22.0"
 bytes = "1.6.0"
+chrono = { version = "0.4.38", features = ["serde"] } # Added chrono
 encoding_rs = "0.8.33"
 error-stack = "0.4.1"
 hex = "0.4.3"

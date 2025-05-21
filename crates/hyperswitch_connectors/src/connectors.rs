@@ -26,6 +26,7 @@ pub mod datatrans;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
+pub mod dotpay;
 pub mod ebanx;
 pub mod elavon;
 pub mod facilitapay;
@@ -107,7 +108,7 @@ pub use self::{
     cashtocode::Cashtocode, chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
-    digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx, elavon::Elavon,
+    digitalvirgo::Digitalvirgo, dlocal::Dlocal, dotpay::Dotpay, ebanx::Ebanx, elavon::Elavon,
     facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
     getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay,

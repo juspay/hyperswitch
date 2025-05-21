@@ -39,6 +39,7 @@ pub struct ConnectorAuthentication {
     pub deutschebank: Option<SignatureKey>,
     pub digitalvirgo: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
+    pub dotpay: Option<HeaderKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,

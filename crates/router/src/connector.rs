@@ -13,7 +13,7 @@ pub use hyperswitch_connectors::connectors::{
     coinbase, coinbase::Coinbase, coingate, coingate::Coingate, cryptopay, cryptopay::Cryptopay,
     ctp_mastercard, ctp_mastercard::CtpMastercard, cybersource, cybersource::Cybersource,
     datatrans, datatrans::Datatrans, deutschebank, deutschebank::Deutschebank, digitalvirgo,
-    digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, ebanx, ebanx::Ebanx, elavon,
+    digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, dotpay, dotpay::Dotpay, ebanx, ebanx::Ebanx, elavon,
     elavon::Elavon, facilitapay, facilitapay::Facilitapay, fiserv, fiserv::Fiserv, fiservemea,
     fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte, getnet, getnet::Getnet,
     globalpay, globalpay::Globalpay, globepay, globepay::Globepay, gocardless,
