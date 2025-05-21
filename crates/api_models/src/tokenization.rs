@@ -15,15 +15,6 @@ pub struct GenericTokenizationResponse {
     #[schema(value_type = String,example = "enabled")]
     pub flag: common_enums::TokenizationFlag,
 }
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-#[derive(Debug, Serialize, Deserialize, strum::Display, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum TokenizationFlag {
-    Enabled,
-    Disabled,
-}
-
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GenericTokenizationRequest {

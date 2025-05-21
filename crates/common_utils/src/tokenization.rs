@@ -19,14 +19,3 @@ pub fn generate_token() -> String {
     use nanoid::nanoid;
     nanoid!(TOKEN_LENGTH)
 }
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-/// Enum representing the status of a tokenized payment method
-#[derive(Debug, Clone, Serialize, Deserialize, strum::Display, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum TokenizationFlag {
-    /// Token is active and can be used for payments
-    Enabled,
-    /// Token is inactive and cannot be used for payments
-    Disabled,
-}

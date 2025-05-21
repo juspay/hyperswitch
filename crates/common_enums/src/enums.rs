@@ -8315,7 +8315,9 @@ pub enum CryptoPadding {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum TokenizationFlag {
+    /// Token is active and can be used for payments
     Enabled,
+    /// Token is inactive and cannot be used for payments
     Disabled,
 }
 
