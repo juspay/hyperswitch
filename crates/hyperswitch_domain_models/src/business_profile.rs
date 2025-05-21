@@ -75,6 +75,7 @@ pub struct Profile {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -186,6 +187,7 @@ impl From<ProfileSetter> for Profile {
             merchant_business_country: value.merchant_business_country,
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
+            three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
         }
     }
 }
@@ -255,6 +257,7 @@ pub enum ProfileUpdate {
     RoutingAlgorithmUpdate {
         routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
+        three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     },
     DynamicRoutingAlgorithmUpdate {
         dynamic_routing_algorithm: Option<serde_json::Value>,
@@ -369,11 +372,13 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
+                    three_ds_decision_rule_algorithm: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm,
                 payout_routing_algorithm,
+                three_ds_decision_rule_algorithm,
             } => Self {
                 profile_name: None,
                 modified_at: now,
@@ -419,6 +424,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -467,6 +473,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -515,6 +522,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -563,6 +571,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -611,6 +620,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -659,6 +669,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
         }
     }
@@ -727,6 +738,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
+            three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
         })
     }
 
@@ -821,6 +833,7 @@ impl super::behaviour::Conversion for Profile {
                 is_pre_network_tokenization_enabled: item
                     .is_pre_network_tokenization_enabled
                     .unwrap_or(false),
+                three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
             })
         }
         .await
