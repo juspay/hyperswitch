@@ -56,6 +56,7 @@ pub mod nexixpay;
 pub mod nmi;
 pub mod nomupay;
 pub mod noon;
+pub mod nordea;
 pub mod novalnet;
 pub mod nuvei;
 pub mod opayo;
@@ -114,10 +115,10 @@ pub use self::{
     itaubank::Itaubank, jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver,
     klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
-    nmi::Nmi, nomupay::Nomupay, noon::Noon, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo,
-    opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme, payone::Payone,
-    paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay, plaid::Plaid,
-    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
+    nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei,
+    opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
+    payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
+    plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
     square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
     threedsecureio::Threedsecureio, thunes::Thunes, trustpay::Trustpay, tsys::Tsys,
