@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.14.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [CASHTOCODE] Added supported countries and currencies ([#8101](https://github.com/juspay/hyperswitch/pull/8101)) ([`5398e3b`](https://github.com/juspay/hyperswitch/commit/5398e3b13a4ee912765df3514770a9240b8c8d5e))
+
+**Full Changelog:** [`2025.05.14.0-hotfix2...2025.05.14.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.05.14.0-hotfix2...2025.05.14.0-hotfix3)
+
+
+- - -
+
 ## 2025.05.14.0-hotfix2
 
 ### Refactors
