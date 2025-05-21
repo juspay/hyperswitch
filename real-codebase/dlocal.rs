@@ -1,6 +1,6 @@
 pub mod transformers;
 
-// Removed: use std::fmt::Debug;
+use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
@@ -10,12 +10,11 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    // Removed AmountConvertor, StringMinorUnit, StringMinorUnitForConnector
 };
 use error_stack::{report, ResultExt};
 use hex::encode;
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -28,7 +27,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt, // Added SupportedPaymentMethodsExt
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -41,30 +40,18 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{Mask, Maskable, PeekInterface}; // Removed ExposeInterface, Secret
+use masking::{Mask, Maskable, PeekInterface};
 use transformers as dlocal;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::RefundsRequestData, // Removed RouterData as _
-};
-
-#[derive(Clone, Debug)] // Added Debug back as the problematic field is removed
-pub struct Dlocal; // Removed amount_converter field
-
-impl Dlocal {
-    pub fn new() -> &'static Self {
-        &Self {} // Removed initialization of amount_converter
-    }
-}
+use crate::{constants::headers, types::ResponseRouterData};
+#[derive(Debug, Clone)]
+pub struct Dlocal;
 
 impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
@@ -79,60 +66,52 @@ impl api::Refund for Dlocal {}
 impl api::RefundExecute for Dlocal {}
 impl api::RefundSync for Dlocal {}
 
-impl<Flow, Req, Resp> ConnectorCommonExt<Flow, Req, Resp> for Dlocal
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Dlocal
 where
-    Self: ConnectorIntegration<Flow, Req, Resp>,
+    Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &RouterData<Flow, Req, Resp>,
+        req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let request_content = self.get_request_body(req, connectors)?;
-        // Use get_inner_value().peek().to_owned() to get the request body string
-        // This handles various RequestContent types and returns a String.
-        let request_body_str = request_content.get_inner_value().peek().to_owned();
+        let dlocal_req = self.get_request_body(req, connectors)?;
 
         let date = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let sign_payload = format!("{}{}{}", auth.x_login.peek(), date, request_body_str);
-
-        let signature = crypto::HmacSha256::sign_message(
+        let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
+        let sign_req: String = format!(
+            "{}{}{}",
+            auth.x_login.peek(),
+            date,
+            dlocal_req.get_inner_value().peek().to_owned()
+        );
+        let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
-            auth.secret_key.peek().as_bytes(), // Assuming DlocalAuthType has secret_key
-            sign_payload.as_bytes(),
+            auth.secret.peek().as_bytes(),
+            sign_req.as_bytes(),
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to sign the message")?;
-        let auth_string = format!("V2-HMAC-SHA256, Signature: {}", encode(signature));
-
-        let mut headers_vec = vec![
+        let auth_string: String = format!("V2-HMAC-SHA256, Signature: {}", encode(authz));
+        let headers = vec![
             (
                 headers::AUTHORIZATION.to_string(),
                 auth_string.into_masked(),
             ),
-            (
-                headers::X_LOGIN.to_string(),
-                auth.x_login.clone().into_masked(),
-            ),
+            (headers::X_LOGIN.to_string(), auth.x_login.into_masked()),
             (
                 headers::X_TRANS_KEY.to_string(),
-                auth.x_trans_key.clone().into_masked(),
+                auth.x_trans_key.into_masked(),
             ),
             (headers::X_VERSION.to_string(), "2.1".to_string().into()),
-            (headers::X_DATE.to_string(), date.into_masked()),
-        ];
-
-        if !request_body_str.is_empty() {
-            headers_vec.push((
+            (headers::X_DATE.to_string(), date.into()),
+            (
                 headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            ));
-        }
-        Ok(headers_vec)
+                Self.get_content_type().to_string().into(),
+            ),
+        ];
+        Ok(headers)
     }
 }
 
@@ -153,15 +132,6 @@ impl ConnectorCommon for Dlocal {
         connectors.dlocal.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        // Dlocal uses custom headers X-Login, X-Trans-Key, X-Date, X-Version, and Authorization
-        // These are constructed in `build_headers` as part of ConnectorCommonExt
-        Ok(Vec::new())
-    }
-
     fn build_error_response(
         &self,
         res: Response,
@@ -169,17 +139,17 @@ impl ConnectorCommon for Dlocal {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: dlocal::DlocalErrorResponse = res
             .response
-            .parse_struct("DlocalErrorResponse")
+            .parse_struct("Dlocal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_error_response_body(&response));
+        event_builder.map(|i: &mut ConnectorEvent| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code.map_or_else(|| consts::NO_ERROR_CODE.to_string(), |c| c.to_string()),
-            message: response.message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.reason, // Changed from response.param to response.reason
+            code: response.code.to_string(),
+            message: response.message,
+            reason: response.param,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -191,14 +161,10 @@ impl ConnectorCommon for Dlocal {
 
 impl ConnectorValidation for Dlocal {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Dlocal
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Dlocal
 {
-    // Not Implemented
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Dlocal {
@@ -246,10 +212,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::from((
-            req.request.minor_amount.get_amount_as_i64(), // Assuming DlocalRouterData::from takes (i64, &RouterData)
+        let connector_router_data = dlocal::DlocalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
             req,
-        ));
+        ))?;
         let connector_req = dlocal::DlocalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -318,8 +286,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
     }
 
     fn get_content_type(&self) -> &'static str {
-        // GET request, no content type
-        ""
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -327,25 +294,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // Assuming DlocalPaymentsSyncRequest::try_from(req) exists in transformers
-        // and extracts the connector_transaction_id as authz_id or similar.
-        let payment_id_str = req.request.connector_transaction_id.get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let sync_data = dlocal::DlocalPaymentsSyncRequest::try_from(req)?;
         Ok(format!(
             "{}payments/{}/status",
             self.base_url(connectors),
-            payment_id_str
+            sync_data.authz_id,
         ))
     }
-    
-    fn get_request_body(
-        &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(serde_json::Value::Null))) // Boxed serde_json::Value::Null
-    }
-
 
     fn build_request(
         &self,
@@ -360,6 +315,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 
     fn handle_response(
@@ -382,14 +345,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Dlocal {
@@ -410,7 +365,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // DLocal's API captures by creating a new payment with 'authorization_id'
         Ok(format!("{}payments", self.base_url(connectors)))
     }
 
@@ -419,8 +373,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // Assuming DlocalCaptureRequest exists in transformers
-        let connector_req = dlocal::DlocalCaptureRequest::try_from(req)?;
+        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -484,9 +437,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
     }
 
     fn get_content_type(&self) -> &'static str {
-        // POST request, but DLocal Void might not need a body or specific content type if path based
-        // Aligning with real-codebase which sets content-type in build_headers if body is present.
-        // If Void has no body, build_headers won't add content-type.
         self.common_get_content_type()
     }
 
@@ -495,23 +445,12 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // Assuming DlocalPaymentsCancelRequest::try_from(req) exists in transformers
-        // and extracts the connector_transaction_id.
-        let payment_id_str = req.request.connector_transaction_id.clone();
+        let cancel_data = dlocal::DlocalPaymentsCancelRequest::try_from(req)?;
         Ok(format!(
             "{}payments/{}/cancel",
             self.base_url(connectors),
-            payment_id_str
+            cancel_data.cancel_id
         ))
-    }
-    
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCancelRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // DLocal Void (Cancel) is a POST to /payments/{payment_id}/cancel, likely no body.
-        Ok(RequestContent::Json(Box::new(serde_json::Value::Null))) // Boxed serde_json::Value::Null
     }
 
     fn build_request(
@@ -521,11 +460,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post) // Void is typically a POST
+                .method(Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(self, req, connectors)?) // Will be NoContent
                 .build(),
         ))
     }
@@ -537,7 +475,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         router_env::logger::debug!(dlocal_payments_cancel_response=?res);
-        let response: dlocal::DlocalPaymentsResponse = res // Assuming Void returns a similar structure
+        let response: dlocal::DlocalPaymentsResponse = res
             .response
             .parse_struct("Dlocal PaymentsCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -587,10 +525,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dlocal 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = dlocal::DlocalRouterData::from((
-            req.request.minor_refund_amount.get_amount_as_i64(), // Assuming DlocalRouterData::from takes (i64, &RouterData)
+        let connector_router_data = dlocal::DlocalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
             req,
-        ));
+        ))?;
         let connector_req = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -621,10 +561,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dlocal 
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         router_env::logger::debug!(dlocal_refund_response=?res);
-        let response: dlocal::DlocalRefundResponse = res // Changed from dlocal::RefundResponse
-            .response
-            .parse_struct("Dlocal RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?; // Was RequestEncodingFailed
+        let response: dlocal::RefundResponse =
+            res.response
+                .parse_struct("Dlocal RefundResponse")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -654,8 +594,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
     }
 
     fn get_content_type(&self) -> &'static str {
-        // GET request, no content type
-        ""
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -663,23 +602,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // Assuming DlocalRefundSyncRequest::try_from(req) exists in transformers
-        // and extracts the connector_refund_id.
-        let refund_id = req.request.get_connector_refund_id()
-            .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
+        let sync_data = dlocal::DlocalRefundsSyncRequest::try_from(req)?;
         Ok(format!(
-            "{}refunds/{}", // DLocal doc says /refunds/{refund_id}/status, but real-codebase implies /refunds/{refund_id}
+            "{}refunds/{}/status",
             self.base_url(connectors),
-            refund_id
+            sync_data.refund_id,
         ))
-    }
-    
-    fn get_request_body(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Ok(RequestContent::Json(Box::new(serde_json::Value::Null))) // Boxed serde_json::Value::Null
     }
 
     fn build_request(
@@ -704,7 +632,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         router_env::logger::debug!(dlocal_refund_sync_response=?res);
-        let response: dlocal::DlocalRefundResponse = res // Changed from dlocal::RefundResponse
+        let response: dlocal::RefundResponse = res
             .response
             .parse_struct("Dlocal RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -740,7 +668,7 @@ impl webhooks::IncomingWebhook for Dlocal {
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(IncomingWebhookEvent::EventNotSupported) // Align with real-codebase
+        Ok(IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
@@ -756,10 +684,7 @@ lazy_static! {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
-            // DLocal docs don't explicitly mention sequential automatic,
-            // but it's often a subset of manual/automatic capabilities.
-            // For now, aligning with real-codebase which might have broader assumptions.
-            // enums::CaptureMethod::SequentialAutomatic,
+            enums::CaptureMethod::SequentialAutomatic,
         ];
 
         let supported_card_network = vec![
@@ -769,64 +694,50 @@ lazy_static! {
             common_enums::CardNetwork::Discover,
             common_enums::CardNetwork::JCB,
             common_enums::CardNetwork::DinersClub,
-            // Elo, Hipercard are also mentioned for Brazil by DLocal.
-            // UnionPay, Interac, CartesBancaires are more generic.
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::Interac,
+            common_enums::CardNetwork::CartesBancaires,
+
         ];
 
         let mut dlocal_supported_payment_methods = SupportedPaymentMethods::new();
 
-        // Cards
-        // Changed add_multiple to individual add calls
         dlocal_supported_payment_methods.add(
             enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit, // Removed Some()
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported, // DLocal docs focus on one-time payments
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported, // DLocal supports 3DS
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
-                        },
-                    ),
+                        }
+                    }),
                 ),
             },
         );
         dlocal_supported_payment_methods.add(
             enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit, // Removed Some()
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported, // DLocal docs focus on one-time payments
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported, // DLocal supports 3DS
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
-                        },
-                    ),
+                        }
+                    }),
                 ),
             },
         );
-        
-        // TODO: Add other payment methods supported by DLocal like Bank Transfer, Cash Payments, E-wallets
-        // based on their documentation and connector capabilities.
-        // Example:
-        // dlocal_supported_payment_methods.add(
-        //     enums::PaymentMethod::BankTransfer,
-        //     enums::PaymentMethodType::Pix, // Example for Brazil
-        //     PaymentMethodDetails {
-        //         mandates: common_enums::FeatureStatus::NotSupported,
-        //         refunds: common_enums::FeatureStatus::Supported, // Check DLocal docs
-        //         supported_capture_methods: vec![enums::CaptureMethod::Automatic], // Typically automatic
-        //         specific_features: None,
-        //     },
-        // );
 
         dlocal_supported_payment_methods
     };
@@ -835,17 +746,15 @@ lazy_static! {
         display_name: "DLOCAL",
         description:
             "Dlocal is a cross-border payment processor enabling businesses to accept and send payments in emerging markets worldwide.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway, // As per real-codebase
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-    // DLocal webhooks are for payment status notifications (PAID, REJECTED, CANCELLED)
-    // These would map to events like PAYMENT_SUCCEEDED, PAYMENT_FAILED, etc.
-    // For now, aligning with real-codebase which has an empty Vec.
     static ref DLOCAL_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
 }
 
 impl ConnectorSpecifications for Dlocal {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> { // Renamed from get_connector_info
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*DLOCAL_CONNECTOR_INFO)
     }
 
@@ -856,5 +765,4 @@ impl ConnectorSpecifications for Dlocal {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*DLOCAL_SUPPORTED_WEBHOOK_FLOWS)
     }
-    // Removed get_payment_method_details_if_supported method
 }
