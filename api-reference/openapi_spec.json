@@ -15977,6 +15977,24 @@
           },
           {
             "type": "object",
+            "required": [
+              "popup_url",
+              "type"
+            ],
+            "properties": {
+              "popup_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "redirect_inside_popup"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)",
             "required": [
               "bank_transfer_steps_and_charges_details",
@@ -16205,7 +16223,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -19349,6 +19368,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         }
       },
@@ -19760,6 +19784,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         }
@@ -20338,6 +20367,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         }
@@ -21041,6 +21075,11 @@
               }
             ],
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21645,6 +21684,11 @@
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         }
       },
@@ -22184,6 +22228,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         }
@@ -24219,6 +24268,11 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         },

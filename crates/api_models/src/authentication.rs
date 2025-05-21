@@ -133,12 +133,11 @@ pub struct AuthenticationResponse {
 
 impl ApiEventMetric for AuthenticationCreateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        match &self.authentication_id {
-            Some(id) => Some(ApiEventsType::Authentication {
+        self.authentication_id
+            .as_ref()
+            .map(|id| ApiEventsType::Authentication {
                 authentication_id: id.clone(),
-            }),
-            _ => None,
-        }
+            })
     }
 }
 impl ApiEventMetric for AuthenticationResponse {
