@@ -99,7 +99,6 @@ pub struct BarclaycardPaymentsRequest {
 pub struct ProcessingInformation {
     commerce_indicator: String,
     capture: Option<bool>,
-    capture_options: Option<CaptureOptions>,
 }
 
 #[derive(Debug, Serialize)]
@@ -118,18 +117,6 @@ pub struct BarclaycardConsumerAuthInformation {
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
     specification_version: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CaptureOptions {
-    capture_sequence_number: u32,
-    total_capture_count: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BarclaycardPaymentInstrument {
-    id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -287,7 +274,6 @@ impl
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
-            capture_options: None,
             commerce_indicator,
         })
     }
@@ -586,7 +572,6 @@ pub struct BarclaycardClientReferenceResponse {
     payment_information: Option<PaymentInformationResponse>,
     payment_insights_information: Option<PaymentInsightsInformation>,
     risk_information: Option<ClientRiskInformation>,
-    token_information: Option<BarclaycardTokenInformation>,
     error_information: Option<BarclaycardErrorInformation>,
     issuer_information: Option<IssuerInformation>,
     sender_information: Option<SenderInformation>,
@@ -678,12 +663,6 @@ pub struct ProcessingInformationResponse {
     commerce_indicator: Option<String>,
     commerce_indicator_label: Option<String>,
     ecommerce_indicator: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BarclaycardTokenInformation {
-    payment_instrument: Option<BarclaycardPaymentInstrument>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1018,7 +997,6 @@ pub struct BarclaycardTransactionResponse {
     error_information: Option<BarclaycardErrorInformation>,
     fraud_marking_information: Option<FraudMarkingInformation>,
     risk_information: Option<ClientRiskInformation>,
-    token_information: Option<BarclaycardTokenInformation>,
     reconciliation_id: Option<String>,
     consumer_authentication_information: Option<ConsumerAuthenticationInformation>,
 }
