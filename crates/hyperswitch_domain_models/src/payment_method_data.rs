@@ -1,3 +1,6 @@
+#[cfg(feature = "v2")]
+use std::str::FromStr;
+
 use api_models::{
     mandates,
     payment_methods::{self},
@@ -1928,6 +1931,10 @@ fn saved_in_locker_default() -> bool {
     true
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -1943,6 +1950,50 @@ pub struct CardDetailsPaymentMethod {
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CardDetailsPaymentMethod {
+    pub last4_digits: Option<String>,
+    pub issuer_country: Option<String>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    #[serde(default = "saved_in_locker_default")]
+    pub saved_to_locker: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl CardDetailsPaymentMethod {
+    pub fn to_card_details_from_locker(self) -> payment_methods::CardDetailFromLocker {
+        payment_methods::CardDetailFromLocker {
+            card_number: None,
+            card_holder_name: self.card_holder_name,
+            card_issuer: self.card_issuer,
+            card_network: self.card_network,
+            card_type: self.card_type,
+            issuer_country: self
+                .issuer_country
+                .as_ref()
+                .map(|c| api_enums::CountryAlpha2::from_str(c))
+                .transpose()
+                .ok()
+                .flatten(),
+            last4_digits: self.last4_digits,
+            expiry_month: self.expiry_month,
+            expiry_year: self.expiry_year,
+            card_fingerprint: None,
+            nick_name: self.nick_name,
+            card_isin: self.card_isin,
+            saved_to_locker: self.saved_to_locker,
+        }
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
