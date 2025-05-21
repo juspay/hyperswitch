@@ -821,3 +821,57 @@ fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
 *   Error handling and context messages in `change_context()` are more specific in the reference code.
 
 This comparison highlights several areas where my initial implementation can be improved to align with the more complete and robust patterns in the reference codebase, especially concerning 3DS, detailed API field mapping, and authentication.
+
+
+## Common Pitfalls and Lessons Learned
+
+Based on our experience with connector integrations (such as HiPay), here are key pitfalls to watch out for:
+
+### 1. Authentication Mechanism Issues
+
+- **Verify the auth type carefully**: Some connectors use `HeaderKey`, others use `BodyKey`, and some require complex multi-step authentication. Read the API docs thoroughly.
+- **Check for Base64 encoding requirements**: Many Basic Auth implementations require Base64 encoding of credentials.
+- **Use the correct credential handling**: For sensitive data, leverage `PeekInterface` rather than `expose()` when possible.
+
+### 2. Amount Handling Variations
+
+- **Major vs Minor Units**: Different payment processors expect amounts in different formats:
+  - Major units (like 10.99 for dollars/euros) using `StringMajorUnit`
+  - Minor units (like 1099 for cents) using `StringMinorUnit`
+- Always check the API documentation carefully for amount format requirements.
+- Verify by examining sample requests in the payment processor's documentation.
+
+### 3. Request Format Requirements
+
+- Some connectors expect `application/x-www-form-urlencoded` while others require `multipart/form-data`
+- For FormData requests, you may need a custom serialization helper function
+- Check content type requirements for each endpoint as they may vary within the same API
+
+### 4. URL Construction Patterns
+
+- Many connectors use different base URLs for different services (e.g., tokenization vs payment processing)
+- Some connectors require path parameters, others use query parameters
+- Ensure proper URL construction by testing each endpoint's format separately
+
+### 5. Status Mapping Complexity
+
+- Payment processors often use numeric or custom string codes for statuses
+- Create comprehensive status mapping that covers all possible states
+- Pay special attention to pending, partial success, and error states
+- Document status mapping clearly for future reference
+
+### 6. Structure Definition Completeness
+
+- Ensure all required fields are included in request/response structures
+- Handle optional fields appropriately with `Option<T>` and proper serde attributes
+- Use `#[serde(rename = "field_name")]` when field names don't match Rust naming conventions
+- Use `#[serde(skip_serializing_if = "Option::is_none")]` for optional fields
+
+### 7. Testing All Flows
+
+- Test the entire payment lifecycle: authorization, capture, refund, void
+- Test both successful and error scenarios
+- Verify 3DS flows if the connector supports them
+- Test synchronization endpoints separately
+
+By keeping these lessons in mind, you can avoid common pitfalls and accelerate connector integrations.
