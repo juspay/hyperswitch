@@ -22,7 +22,7 @@ pub struct ProxyRequest {
     #[schema(value_type = String, example = "https://api.example.com/endpoint")]
     pub destination_url: url::Url,
     /// The headers that need to be forwarded
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    #[schema(value_type = Object, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub headers: Headers,
     /// The method that needs to be used for the request
     #[schema(value_type = Method, example = "Post")]
@@ -48,7 +48,7 @@ pub struct ProxyResponse {
     /// The status code of the response
     pub status_code: u16,
     /// The headers of the response
-    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    #[schema(value_type = Object, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub response_headers: Headers,
 }
 

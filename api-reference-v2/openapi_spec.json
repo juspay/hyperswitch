@@ -20486,6 +20486,7 @@
         "required": [
           "request_body",
           "destination_url",
+          "headers",
           "method",
           "token",
           "token_type"
@@ -20501,8 +20502,7 @@
           },
           "headers": {
             "type": "object",
-            "description": "The headers that need to be forwarded",
-            "nullable": true
+            "description": "The headers that need to be forwarded"
           },
           "method": {
             "$ref": "#/components/schemas/Method"
@@ -20520,7 +20520,8 @@
         "type": "object",
         "required": [
           "response",
-          "status_code"
+          "status_code",
+          "response_headers"
         ],
         "properties": {
           "response": {
@@ -20534,8 +20535,7 @@
           },
           "response_headers": {
             "type": "object",
-            "description": "The headers of the response",
-            "nullable": true
+            "description": "The headers of the response"
           }
         }
       },
