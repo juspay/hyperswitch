@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
             DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             RevenueRecoveryRecordBackData, WebhookSourceVerifyData,
         },
-        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData, VaultConnectorFlowData,
     },
     router_flow_types::{
         authentication::{
@@ -26,7 +26,8 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth,
+        AccessTokenAuth, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        ExternalVaultRetrieveFlow,
     },
     router_request_types::{
         authentication,
@@ -43,7 +44,7 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -52,7 +53,7 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -107,6 +108,9 @@ use hyperswitch_interfaces::{
             BillingConnectorInvoiceSyncIntegrationV2, BillingConnectorPaymentsSyncIntegrationV2,
             RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
+        vault_v2::{
+            ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, ExternalVaultV2,
+        },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
@@ -137,6 +141,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl PaymentUpdateMetadataV2 for $path::$connector{}
+            impl ExternalVaultV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -3196,6 +3201,145 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Worldpayxml,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_external_vault {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ExternalVaultInsertV2 for $path::$connector {}
+            impl ExternalVaultRetrieveV2 for $path::$connector {}
+            impl ExternalVaultDeleteV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            ExternalVaultInsertFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            ExternalVaultRetrieveFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            ExternalVaultDeleteFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_external_vault!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authorizedotnet,
+    connectors::Barclaycard,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nordea,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Nmi,
+    connectors::Payone,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payme,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Shift4,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Worldline,
+    connectors::Worldpayxml,
+    connectors::Wise,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
