@@ -462,15 +462,15 @@ pub fn payments_cancel() {}
     get,
     path = "/payments/list",
     params(
-        ("customer_id" = String, Query, description = "The identifier for the customer"),
-        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
-        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
-        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
-        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
-        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
-        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
-        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
-        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
+        ("customer_id" = Option<String>, Query, description = "The identifier for the customer"),
+        ("starting_after" = Option<String>, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+        ("ending_before" = Option<String>, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+        ("limit" = Option<i64>, Query, description = "Limit on the number of objects to return"),
+        ("created" = Option<PrimitiveDateTime>, Query, description = "The time at which payment is created"),
+        ("created_lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the payment created time"),
+        ("created_gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the payment created time"),
+        ("created_lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the payment created time"),
+        ("created_gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment created time")
     ),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
