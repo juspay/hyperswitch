@@ -192,6 +192,8 @@ where
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
         .await?;
 
+    // Fetch Payment Method
+    // if saved card we have permane
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
             let router_data = call_connector_service(

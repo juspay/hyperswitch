@@ -2536,6 +2536,169 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         Ok(payment_data)
     }
+
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        router_data: &types::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+        merchant_context: &domain::MerchantContext,
+        payment_data: &mut PaymentConfirmData<F>,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        // If we received a payment_method_id from connector in the router data response
+        // Then we either update the payment method or create a new payment method
+        // The case for updating the payment method is when the payment is created from the payment method service
+
+        let Ok(payments_response) = &router_data.response else {
+            // In case there was an error response from the connector
+            // We do not take any action related to the payment method
+            return Ok(());
+        };
+
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_token_details
+            .as_ref()
+            .and_then(|token_details| token_details.get_connector_token_request_reference_id());
+
+        let connector_token =
+            payments_response.get_updated_connector_token_details(connector_request_reference_id);
+
+        let payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
+
+        // TODO: check what all conditions we will need to see if card need to be saved
+        match (
+            connector_token
+                .as_ref()
+                .and_then(|connector_token| connector_token.connector_mandate_id.clone()),
+            payment_method_id,
+        ) {
+            (Some(token), Some(payment_method_id)) => {
+                if !matches!(
+                    router_data.status,
+                    enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                ) {
+                    return Ok(());
+                }
+                let connector_id = payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .get_required_value("merchant_connector_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing connector id")?;
+
+                let net_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                let currency = payment_data.payment_intent.amount_details.currency;
+
+                let connector_token_details_for_payment_method_update =
+                    api_models::payment_methods::ConnectorTokenDetails {
+                        connector_id,
+                        status: common_enums::ConnectorTokenStatus::Active,
+                        connector_token_request_reference_id: connector_token
+                            .and_then(|details| details.connector_token_request_reference_id),
+                        original_payment_authorized_amount: Some(net_amount),
+                        original_payment_authorized_currency: Some(currency),
+                        metadata: None,
+                        token: masking::Secret::new(token),
+                        token_type: common_enums::TokenizationType::MultiUse,
+                    };
+
+                let payment_method_update_request =
+                    api_models::payment_methods::PaymentMethodUpdate {
+                        payment_method_data: None,
+                        connector_token_details: Some(
+                            connector_token_details_for_payment_method_update,
+                        ),
+                    };
+
+                payment_methods::update_payment_method_core(
+                    state,
+                    merchant_context,
+                    payment_method_update_request,
+                    &payment_method_id,
+                )
+                .await
+                .attach_printable("Failed to update payment method")?;
+            }
+            (Some(_), None) => {
+                // TODO: create a new payment method
+                let payment_method_data;
+                match payment_data.payment_method_data.clone().unwrap() {
+                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
+                        card,
+                    ) => {
+                        payment_method_data =
+                            api_models::payment_methods::PaymentMethodCreateData::Card(
+                                api_models::payment_methods::CardDetail {
+                                    card_number: card.card_number,
+                                    card_exp_month: card.card_exp_month,
+                                    card_exp_year: card.card_exp_year,
+                                    card_holder_name: card.card_holder_name,
+                                    nick_name: card.nick_name,
+                                    card_issuing_country: None,
+                                    card_network: card.card_network,
+                                    card_issuer: card.card_issuer,
+                                    card_type: None,
+                                    card_cvc: Some(card.card_cvc),
+                                },
+                            );
+                    }
+                    _ => todo!(),
+                };
+
+                let req = api_models::payment_methods::PaymentMethodCreate {
+                    payment_method_type: payment_data.payment_attempt.payment_method_type,
+                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                    metadata: None,
+                    customer_id: payment_data.payment_intent.customer_id.clone().unwrap(),
+                    payment_method_data,
+                    billing: None,
+                    psp_tokenization: None,
+                    network_tokenization: None,
+                };
+                let output = payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    merchant_context,
+                    business_profile,
+                )
+                .await?;
+
+                let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+
+                let payment_attempt_update =
+                    hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PaymentMethodDetailsUpdate { payment_method_id: Some(output.id), updated_by: storage_scheme.clone().to_string() } ;
+
+                let out = state
+                    .store
+                    .update_payment_attempt(
+                        &(&(*state)).into(),
+                        merchant_context.get_merchant_key_store(),
+                        payment_data.payment_attempt.clone(),
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await;
+
+                return Ok(());
+
+                // payment_methods::create_payment_method_core() -> Vault call will happen inside it only
+                // Update PaymentAttempt
+            }
+            (None, Some(_)) | (None, None) => {}
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v2")]
