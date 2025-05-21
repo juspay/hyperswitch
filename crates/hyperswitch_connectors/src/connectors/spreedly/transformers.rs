@@ -1,32 +1,27 @@
-use common_enums::{enums, PaymentMethodType};
-use common_utils::types::StringMinorUnit;
+use common_enums::enums;
 use error_stack::Report;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, RouterData as HyperswitchRouterData, ErrorResponse}, // Aliased RouterData
     router_flow_types::{payments::Authorize, refunds::{Execute, RSync}},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RedirectForm, MandateReference, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_request_types::{ResponseId as RouterResponseId, PaymentsAuthorizeData}, // Added PaymentsAuthorizeData
+    router_response_types::{PaymentsResponseData, RefundsResponseData}, // Removed RedirectForm, MandateReference
+    types::{RefundsRouterData, PaymentsAuthorizeRouterData}, // Added PaymentsAuthorizeRouterData
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface}; // Removed Secret
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
-use crate::{
-    types::{self, RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PaymentsAuthorizeRequestData},
-};
+use crate::types::{self, RefundsResponseRouterData}; // Added types, removed ResponseRouterData
 
 // Router Data
 pub struct SpreedlyRouterData<T> {
-    pub amount: StringMinorUnit,
+    pub amount: i64, // Changed from StringMinorUnit to i64
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for SpreedlyRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(i64, T)> for SpreedlyRouterData<T> { // Changed from StringMinorUnit to i64
+    fn from((amount, item): (i64, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -91,9 +86,10 @@ impl TryFrom<&SpreedlyRouterData<&PaymentsAuthorizeRouterData>> for SpreedlyPaym
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
+                let card_number_secret: masking::Secret<String> = req_card.card_number.get_card_no().into();
                 let card = SpreedlyCardDetails {
-                    number: req_card.card_number.into(),
-                    cvv: req_card.card_cvc.into(),
+                    number: cards::CardNumber::from(card_number_secret),
+                    cvv: cards::CVV::from(req_card.card_cvc.clone()), // Using From for consistency
                     month: req_card.card_exp_month.clone().expose(),
                     year: req_card.card_exp_year.clone().expose(),
                     first_name: req_card.card_holder_name.clone().map(|name| {
@@ -115,7 +111,7 @@ impl TryFrom<&SpreedlyRouterData<&PaymentsAuthorizeRouterData>> for SpreedlyPaym
                 };
                 
                 // Get the amount as i64
-                let amount = item.amount.to_owned().get_amount_as_i64().unwrap_or(0);
+                let amount = item.amount; // amount is now i64
                 
                 Ok(Self {
                     transaction: SpreedlyTransactionRequest {
@@ -141,13 +137,9 @@ impl TryFrom<&ConnectorAuthType> for SpreedlyAuthType {
     type Error = Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey {
-                api_key,
-                api_secret,
-                ..
-            } => Ok(Self {
-                environment_key: api_key.expose(),
-                access_secret: api_secret.expose(),
+            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
+                environment_key: api_key.peek().to_string(),
+                access_secret: api_secret.peek().to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -212,7 +204,12 @@ impl<F> TryFrom<&SpreedlyRouterData<&RefundsRouterData<F>>> for SpreedlyRefundRe
     type Error = Report<errors::ConnectorError>;
     fn try_from(item: &SpreedlyRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         // Get the amount as i64
-        let amount = item.amount.to_owned().get_amount_as_i64();
+        let parsed_amount = item.amount; // amount is now i64
+        let amount = if parsed_amount == 0 && item.router_data.request.minor_refund_amount.get_amount_as_i64() != 0 {
+            None
+        } else {
+            Some(parsed_amount)
+        };
         
         Ok(Self {
             transaction_token: item.router_data.request.connector_transaction_id.clone(),
@@ -279,50 +276,72 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 }
 
 // Error Response
-#[derive(Debug, Deserialize, Serialize)]
+// Error Response
+#[derive(Debug, Clone, Deserialize, Serialize)] // Added Clone
 pub struct SpreedlyErrorResponse {
     pub errors: Option<Vec<SpreedlyError>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)] // Added Clone
 pub struct SpreedlyError {
     pub key: Option<String>,
     pub message: Option<String>,
+    // Spreedly error responses might have more fields, this is a basic representation
+    // For example, 'attribute' is sometimes seen.
+    pub attribute: Option<String>, 
+    pub text: Option<String>,
 }
 
+
 // Response Data Transformation
-impl TryFrom<ResponseRouterData<Authorize, SpreedlyPaymentsResponse, PaymentsAuthorizeRouterData, PaymentsResponseData>> for PaymentsAuthorizeRouterData {
+impl TryFrom<types::ResponseRouterData<Authorize, SpreedlyPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>>
+    for HyperswitchRouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+{
     type Error = Report<errors::ConnectorError>;
-    fn try_from(item: ResponseRouterData<Authorize, SpreedlyPaymentsResponse, PaymentsAuthorizeRouterData, PaymentsResponseData>) -> Result<Self, Self::Error> {
-        let mut router_data = item.data;
-        
-        // Set the session token
-        let token = item.response.transaction.token.clone();
-        router_data.response.session_token = Some(token.clone());
-        
-        let transaction_status = match item.response.transaction.succeeded {
-            true => match item.response.transaction.state.clone().unwrap_or_default().as_str() {
-                "succeeded" => enums::AttemptStatus::Charged,
+    fn try_from(
+        item: types::ResponseRouterData<Authorize, SpreedlyPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let spreedly_transaction = item.response.transaction; 
+        let mut router_data_item_data = item.data; 
+
+        let transaction_status = match spreedly_transaction.succeeded {
+            true => match spreedly_transaction.state.as_deref() {
+                Some("succeeded") => enums::AttemptStatus::Charged,
                 _ => enums::AttemptStatus::Authorized,
             },
             false => enums::AttemptStatus::Failure,
         };
+
+        router_data_item_data.status = transaction_status;
+
+        let new_response_field: Result<PaymentsResponseData, ErrorResponse> = match transaction_status {
+            enums::AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: "Failure".to_string(), 
+                message: spreedly_transaction.message.clone().unwrap_or_else(|| "Transaction failed".to_string()),
+                reason: spreedly_transaction.message.clone(), 
+                attempt_status: Some(transaction_status),
+                connector_transaction_id: Some(spreedly_transaction.token.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
+            _ => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: RouterResponseId::ConnectorTransactionId(spreedly_transaction.token.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(spreedly_transaction.token.clone()),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+        };
         
-        router_data.response.transaction_id = Some(token);
-        
-        router_data.response.connector_response_reference_id = item
-            .response
-            .transaction
-            .payment_method
-            .as_ref()
-            .and_then(|pm| Some(pm.token.clone()));
-            
-        router_data.response.status = transaction_status;
-        
-        // Set the redirection and mandate data properly
-        router_data.response.redirection_data = Box::new(None);
-        router_data.response.mandate_reference = Box::new(None);
-        
-        Ok(router_data)
+        Ok(Self {
+            response: new_response_field,
+            status: transaction_status,
+            ..router_data_item_data
+        })
     }
 }

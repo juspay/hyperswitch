@@ -1,7 +1,8 @@
 use masking::Secret;
-use router::{
-    types::{self, api, storage::enums,
-}};
+use common_enums::RefundStatus;
+use hyperswitch_domain_models::{
+    router::types::{self, api, storage::enums},
+};
 
 use crate::utils::{self, ConnectorActions};
 use test_utils::connector_auth;
@@ -36,63 +37,11 @@ impl utils::Connector for SpreedlyTest {
 static CONNECTOR: SpreedlyTest = SpreedlyTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    Some(utils::PaymentInfo {
-        payment_method_data: Some(types::PaymentMethodData::Card(utils::CardData {
-            card_number: owned_string!("4111111111111111"),
-            card_exp_month: owned_string!("12"),
-            card_exp_year: owned_string!("2025"),
-            card_cvc: owned_string!("123"),
-            card_first_name: Some(owned_string!("John")),
-            card_last_name: Some(owned_string!("Doe")),
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            card_last_four: None,
-            bank_account_holder_name: None,
-        })),
-        currency: types::Currency::USD,
-        amount: 1000,
-        ..utils::PaymentInfo::default()
-    })
+    None
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::PaymentMethodData::Card(types::api::Card {
-            card_number: cards::CardNumber::from(owned_string!("4111111111111111")),
-            card_exp_month: owned_string!("12"),
-            card_exp_year: owned_string!("2025"),
-            card_cvc: owned_string!("123"),
-            card_first_name: Some(owned_string!("John")),
-            card_last_name: Some(owned_string!("Doe")),
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            card_issuing_country: None,
-            bank_code: None,
-            card_holder_name: None,
-        }),
-        currency: types::Currency::USD,
-        amount: 1000,
-        confirm: true,
-        statement_descriptor_suffix: None,
-        statement_descriptor_name: None,
-        statement_descriptor: None,
-        capture_method: Some(types::CaptureMethod::Automatic),
-        browser_info: None,
-        email: None,
-        customer_id: None,
-        phone: None,
-        preferences: None,
-        setup_future_usage: None,
-        off_session: None,
-        mandate_id: None,
-        setup_mandate_details: None,
-        profile_id: None,
-        ..utils::PaymentAuthorizeType::default().0
-    })
+    None
 }
 
 // Cards Positive Tests

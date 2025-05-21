@@ -139,7 +139,7 @@ Structure:
         connector_integration_guide.md - Contains step-by-step integration process
         patterns/patterns.md - Contains common reusable patterns and solutions
         errors/errors.md - Contains common errors and solutions encountered during implementations
-        learnings/learning.md - Contains lessons learned from previous implementations
+        learning/learning.md - Contains lessons learned from previous implementations
         types/types.md - Contains all types used in the connector
 
 [Update all the files based on learnings during the integration process similar to memory bank]

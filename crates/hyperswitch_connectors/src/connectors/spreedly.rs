@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use common_enums::{self, enums, CaptureMethod, PaymentExperience, PaymentMethod, PaymentMethodType};
+use common_enums::{self, enums::PaymentConnectorCategory}; // Removed unused enums
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -18,9 +18,9 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        RefundsData, SetupMandateRequestData, ResponseId as RouterResponseId
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -37,11 +37,10 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
 use base64::Engine;
 use transformers as spreedly;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData}; // Removed utils
 
 #[derive(Clone)]
 pub struct Spreedly {
@@ -289,11 +288,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
+        let amount = req.request.minor_amount.get_amount_as_i64(); // Changed to i64
         
         let router_data = transformers::SpreedlyRouterData {
             amount,
@@ -338,26 +333,37 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         
         let transaction_status = match response.transaction.succeeded {
             true => match response.transaction.state.clone().unwrap_or_default().as_str() {
-                "succeeded" => enums::AttemptStatus::Charged,
-                _ => enums::AttemptStatus::Authorized,
+                "succeeded" => common_enums::AttemptStatus::Charged,
+                _ => common_enums::AttemptStatus::Authorized,
             },
-            false => enums::AttemptStatus::Failure,
+            false => common_enums::AttemptStatus::Failure,
         };
         
         let response_data = match transaction_status {
-            enums::AttemptStatus::Failure => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+            common_enums::AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: res.status_code,
+                code: response.transaction.message.clone().unwrap_or_else(|| "Failure".to_string()), // Using message as code if error object is not present
+                message: response.transaction.message.clone().unwrap_or_else(|| "Transaction failed".to_string()),
+                reason: response.transaction.message.clone(), // Using message as reason
+                attempt_status: Some(transaction_status),
+                connector_transaction_id: Some(response.transaction.token.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
             _ => {
                 let connector_id = response.transaction.token.clone();
                 let response_id = Some(connector_id.clone());
                 
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: utils::ResponseId::ConnectorTransactionId(connector_id),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    resource_id: RouterResponseId::ConnectorTransactionId(connector_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: response_id,
                     incremental_authorization_allowed: None,
+                    charges: None,
                 })
             }
         };
@@ -429,26 +435,37 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
         
         let transaction_status = match response.transaction.succeeded {
             true => match response.transaction.state.clone().unwrap_or_default().as_str() {
-                "succeeded" => enums::AttemptStatus::Charged,
-                _ => enums::AttemptStatus::Authorized,
+                "succeeded" => common_enums::AttemptStatus::Charged,
+                _ => common_enums::AttemptStatus::Authorized,
             },
-            false => enums::AttemptStatus::Failure,
+            false => common_enums::AttemptStatus::Failure,
         };
         
         let response_data = match transaction_status {
-            enums::AttemptStatus::Failure => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+            common_enums::AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: res.status_code,
+                code: response.transaction.message.clone().unwrap_or_else(|| "Failure".to_string()), // Using message as code if error object is not present
+                message: response.transaction.message.clone().unwrap_or_else(|| "Transaction failed".to_string()),
+                reason: response.transaction.message.clone(), // Using message as reason
+                attempt_status: Some(transaction_status),
+                connector_transaction_id: Some(response.transaction.token.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
             _ => {
                 let connector_id = response.transaction.token.clone();
                 let response_id = Some(connector_id.clone());
                 
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: utils::ResponseId::ConnectorTransactionId(connector_id),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    resource_id: RouterResponseId::ConnectorTransactionId(connector_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: response_id,
                     incremental_authorization_allowed: None,
+                    charges: None,
                 })
             }
         };
@@ -533,26 +550,37 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         
         let transaction_status = match response.transaction.succeeded {
             true => match response.transaction.state.clone().unwrap_or_default().as_str() {
-                "succeeded" => enums::AttemptStatus::Charged,
-                _ => enums::AttemptStatus::Authorized,
+                "succeeded" => common_enums::AttemptStatus::Charged,
+                _ => common_enums::AttemptStatus::Authorized,
             },
-            false => enums::AttemptStatus::Failure,
+            false => common_enums::AttemptStatus::Failure,
         };
         
         let response_data = match transaction_status {
-            enums::AttemptStatus::Failure => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+            common_enums::AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: res.status_code,
+                code: response.transaction.message.clone().unwrap_or_else(|| "Failure".to_string()), // Using message as code if error object is not present
+                message: response.transaction.message.clone().unwrap_or_else(|| "Transaction failed".to_string()),
+                reason: response.transaction.message.clone(), // Using message as reason
+                attempt_status: Some(transaction_status),
+                connector_transaction_id: Some(response.transaction.token.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
             _ => {
                 let connector_id = response.transaction.token.clone();
                 let response_id = Some(connector_id.clone());
                 
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: utils::ResponseId::ConnectorTransactionId(connector_id),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    resource_id: RouterResponseId::ConnectorTransactionId(connector_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: response_id,
                     incremental_authorization_allowed: None,
+                    charges: None,
                 })
             }
         };
@@ -601,11 +629,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
+        let refund_amount = req.request.minor_refund_amount.get_amount_as_i64(); // Changed to i64
 
         let connector_router_data = spreedly::SpreedlyRouterData::from((refund_amount, req));
         let connector_req = spreedly::SpreedlyRefundRequest::try_from(&connector_router_data)?;
@@ -754,25 +778,14 @@ impl ConnectorSpecifications for Spreedly {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         static ABOUT: ConnectorInfo = ConnectorInfo {
             display_name: "Spreedly",
-            connector_type: "Payment Processor",
+            description: "Spreedly Payment Orchestration Platform",
+            connector_type: PaymentConnectorCategory::PaymentGateway, 
         };
         Some(&ABOUT)
     }
 
-    fn get_supported_payment_methods(&self) -> common_enums::SupportedPaymentMethods {
-        let mut payment_methods = common_enums::SupportedPaymentMethods::default();
-        payment_methods.add_payment_method(PaymentMethod::Card);
-        payment_methods
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
     }
 
-    fn get_supported_card_networks(&self) -> &'static [common_enums::enums::CardNetwork] {
-        &[
-            common_enums::enums::CardNetwork::Visa,
-            common_enums::enums::CardNetwork::Mastercard,
-            common_enums::enums::CardNetwork::AmericanExpress,
-            common_enums::enums::CardNetwork::Discover,
-            common_enums::enums::CardNetwork::JCB,
-            common_enums::enums::CardNetwork::DinersClub,
-        ]
-    }
 }

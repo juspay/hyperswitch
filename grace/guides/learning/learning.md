@@ -538,9 +538,8 @@ fn get_currency_unit(&self) -> api::CurrencyUnit {
 1.  **Returned Unit**: Mine returns `Minor`, reference returns `Base`.
     *   My reasoning for `Minor` was based on the Bambora doc stating "Currency Unit: Bambora uses minor units". However, the API examples show `100.0` for $100.
     *   The reference `transformers.rs` `BamboraRouterData::try_from` takes `(&api::CurrencyUnit, enums::Currency, i64, T)` and uses `utils::get_amount_as_f64(currency_unit, amount, currency)`. If `currency_unit` is `Base`, `get_amount_as_f64` would interpret the `i64` amount (which is Hyperswitch's internal minor unit amount) as a base unit if not careful.
-    *   **Correction**: The reference `transformers.rs` `BamboraRouterData` expects the *output* amount to be `f64` (major units). The `utils::get_amount_as_f64` correctly converts the input `i64` (minor units) to `f64` (major units) *regardless* of whether `currency_unit` is Base or Minor, as long as the `currency_unit` correctly describes the input `i64 amount`.
-    *   If Hyperswitch's internal `req.request.amount` (which is `i64`) is *always* in minor units, then `get_currency_unit()` should be `api::CurrencyUnit::Minor` to correctly describe this internal representation to `utils::get_amount_as_f64`. The reference `get_currency_unit()` returning `Base` seems contradictory if `req.request.amount` is minor. This needs careful checking of `utils::get_amount_as_f64`'s behavior.
-    *   **Re-evaluation**: The Bambora documentation *text* says "minor units" but the *API example* shows `100.0`. The reference `transformers.rs` `BamboraPaymentsRequest` has `amount: f64`. The `utils::get_amount_as_f64` converts an `i64` (assumed minor unit from Hyperswitch core) to an `f64` (major unit for Bambora). So, `get_currency_unit()` should describe the unit *Bambora expects for its `amount` field if it were an integer*, or more accurately, it describes the unit of Hyperswitch's internal `amount` field. If Hyperswitch's `req.request.amount` is `i64` minor units, then `get_currency_unit()` should be `Minor`. The reference returning `Base` here is confusing and potentially an error if `req.request.amount` is minor. My choice of `Minor` seems more consistent with Hyperswitch's internal minor unit representation.
+    *   **Correction**: The reference `transformers.rs` `BamboraRouterData` expects the *output* amount to be `f64` (major units). The `utils::get_amount_as_f64` correctly converts the input `i64` (minor units) to an `f64` (major units) *regardless* of whether `currency_unit` is Base or Minor, as long as the `currency_unit` correctly describes the input `i64 amount`.
+    *   If Hyperswitch's internal `req.request.amount` (which is `i64`) is *always* in minor units, then `get_currency_unit()` should be `api::CurrencyUnit::Minor` to correctly describe this internal representation to `utils::get_amount_as_f64`. The reference `get_currency_unit()` returning `Base` here is suspect. My choice of `Minor` seems more consistent with Hyperswitch's internal minor unit representation.
 
 #### Lessons Learned:
 *   The interpretation of `get_currency_unit()` is critical. It should reflect the unit of the amount *as it is stored in Hyperswitch's `RouterData`* before any connector-specific conversion. If Hyperswitch's `PaymentsAuthorizeData.request.amount` (an `i64`) is in minor units, then `get_currency_unit()` must return `Minor`. The conversion to Bambora's `f64` major unit is a separate step. The reference code's `Base` here is suspect.
@@ -876,3 +875,45 @@ Based on our experience with connector integrations (such as HiPay), here are ke
 - Test synchronization endpoints separately
 
 By keeping these lessons in mind, you can avoid common pitfalls and accelerate connector integrations.
+
+## Spreedly Integration Learnings (2025-05-21)
+
+### Type Resolution and Imports:
+- **`crate::types` vs. `hyperswitch_domain_models::types`**:
+    - `crate::types` in the connector crate typically refers to `hyperswitch_interfaces::types`.
+    - Specific `RouterData` aliases (e.g., `PaymentsAuthorizeRouterData`, `RefundsRouterData`) are usually defined in `hyperswitch_domain_models::types`. These should be imported from there or via a common alias like `hyperswitch_types`.
+    - The generic `ResponseRouterData` struct used as a wrapper for `TryFrom` implementations (to satisfy orphan rules if the target is also foreign) is often `crate::types::ResponseRouterData`.
+- **Unused Imports**: Regularly clean up unused imports flagged by the compiler to maintain code clarity. This was done for `RedirectForm`, `MandateReference`, `StringMinorUnit`, `ResultExt`, `Secret`, `FromStr`, `PaymentsAuthorizeRequestData`, and `ResponseRouterData` (from `crate::types` when `types::self` was used) in `spreedly/transformers.rs`. Similarly, `AttemptStatus`, `CaptureMethod`, `PaymentExperience`, `PaymentMethod`, `PaymentMethodType`, and `utils` were removed from `spreedly.rs`.
+
+### Field Access and Method Calls:
+- **Private Fields (`CardNumber`)**:
+    - The `hyperswitch_domain_models::payment_method_data::Card` struct contains `card_number: cards::CardNumber`. This `cards::CardNumber` is from the `crates/cards` crate (specifically `crates/cards/src/validate.rs`).
+    - This `cards::CardNumber` struct (e.g., `req_card.card_number`) has its inner `Secret<String>` field private.
+    - To access the card number string, use the public method `get_card_no() -> String`.
+    - **Example**: `let card_number_string = req_card.card_number.get_card_no();`
+- **Local `cards` Module in Transformers**:
+    - Connectors often define a local `cards` module (e.g., `spreedly/transformers.rs/cards`) with structs like `CardNumber(pub Secret<String>)` and `CVV(pub Secret<String>)`.
+    - These local structs usually have `impl From<Secret<String>> for CardNumber`.
+    - **Conversion Path**: `req_card.card_number.get_card_no()` (String) -> `Secret<String>` -> `local_module::cards::CardNumber::from(secret_string)`.
+
+### Type Annotation for `.into()` (E0283):
+- **Ambiguity**: When `some_string.into()` is used, and the target type for the `From` trait can be multiple things (e.g., `String` can be `.into()` itself, or `.into()` a `Secret<String>`), the compiler needs clarification.
+- **Solution**: Provide an explicit type annotation for the intermediate variable.
+    - **Example**:
+      ```rust
+      // In spreedly/transformers.rs, inside impl TryFrom for SpreedlyPaymentsRequest:
+      // let card_number_string = req_card.card_number.get_card_no();
+      // let card_number_secret: masking::Secret<String> = card_number_string.into(); // Explicit type
+      // let spreedly_card_number = local_module::cards::CardNumber::from(card_number_secret);
+      let card_number_secret: masking::Secret<String> = req_card.card_number.get_card_no().into(); // Combined
+      let number = cards::CardNumber::from(card_number_secret);
+      ```
+- **Reason for Compilation Success**: This explicit annotation resolves the ambiguity for the `.into()` call, allowing the compiler to choose the correct `From<String> for Secret<String>` implementation. Then, `cards::CardNumber::from()` can correctly use its `From<Secret<String>> for cards::CardNumber` implementation.
+
+### General Debugging Process:
+- Iteratively run `cargo build --package router`.
+- Analyze compiler errors (E-codes) and warnings.
+- Consult relevant source files (e.g., for type definitions, trait implementations) using `read_file` or `search_files`.
+- Refer to `grace/guides/` for patterns and common error resolutions.
+- Apply targeted fixes using `replace_in_file`.
+- Repeat until compilation is successful.
