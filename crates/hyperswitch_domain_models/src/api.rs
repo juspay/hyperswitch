@@ -72,7 +72,7 @@ pub enum PaymentLinkAction {
 pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub html_meta_tags: String,
 }
 
@@ -127,7 +127,7 @@ pub struct GenericExpiredLinkData {
 pub struct GenericLinkFormData {
     pub js_data: String,
     pub css_data: String,
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub html_meta_tags: String,
 }
 
