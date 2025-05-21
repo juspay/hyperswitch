@@ -68,7 +68,7 @@ pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Contract based dynamic routing algorithm";
 
 pub const DECISION_ENGINE_RULE_CREATE_ENDPOINT: &str = "rule/create";
-pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/udpate";
+pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/update";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
