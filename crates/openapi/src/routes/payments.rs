@@ -219,9 +219,12 @@ pub fn payments_create() {}
     get,
     path = "/payments/{payment_id}",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        ("force_sync" = Option<bool>, Query, description = "Decider to enable or disable the connector call for retrieve request"),
+        ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
+        ("expand_attempts" = Option<bool>, Query, description = "If enabled provides list of attempts linked to payment intent"),
+        ("expand_captures" = Option<bool>, Query, description = "If enabled provides list of captures linked to latest attempt"),
     ),
-    request_body=PaymentRetrieveBody,
     responses(
         (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found")

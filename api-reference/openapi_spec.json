@@ -312,18 +312,48 @@
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentRetrieveBody"
-              }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "Decider to enable or disable the connector call for retrieve request",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
             }
           },
-          "required": true
-        },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "expand_attempts",
+            "in": "query",
+            "description": "If enabled provides list of attempts linked to payment intent",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "expand_captures",
+            "in": "query",
+            "description": "If enabled provides list of captures linked to latest attempt",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Gets the payment with final status",
@@ -592,16 +622,6 @@
         "description": "To list the *payments*",
         "operationId": "List all Payments",
         "parameters": [
-          {
-            "name": "customer_id",
-            "in": "query",
-            "description": "The identifier for the customer",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
           {
             "name": "starting_after",
             "in": "query",
