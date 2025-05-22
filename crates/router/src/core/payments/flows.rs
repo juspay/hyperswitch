@@ -654,19 +654,6 @@ impl<const T: u8>
 {
 }
 
-macro_rules! default_imp_for_create_order {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentsCreateOrder for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                api::CreateOrder,
-                types::CreateOrderRequestData,
-                types::PaymentsResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentsCreateOrder for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -678,14 +665,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
-default_imp_for_create_order!(
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}

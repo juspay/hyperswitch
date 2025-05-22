@@ -3249,6 +3249,8 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
+    router_data = router_data.add_order_id(state, &connector).await?;
+
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
@@ -4821,16 +4823,6 @@ where
         }
         Some(domain::PaymentMethodData::BankDebit(_)) => {
             if connector.connector_name == router_types::Connector::Gocardless {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else {
-                (router_data, should_continue_payment)
-            }
-        }
-        Some(domain::PaymentMethodData::Upi(_)) => {
-            if connector.connector_name == router_types::Connector::Razorpay {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 let is_error_in_response = router_data.response.is_err();
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error

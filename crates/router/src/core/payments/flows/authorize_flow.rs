@@ -445,14 +445,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             &createorder_router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .to_payment_failed_response()?;
 
         match resp.response {
-            Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id }) => {
+            Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { ref order_id }) => {
                 let mut router_data = self;
-                router_data.request.order_id = Some(order_id);
+                router_data.request.order_id = Some(order_id.clone());
+                router_data.response = resp.response;
                 Ok(router_data)
             }
             _ => Ok(self),
