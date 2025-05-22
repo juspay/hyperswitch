@@ -1475,10 +1475,20 @@ pub async fn retrieve_payment_method_from_vault(
             )
             .await
         }
-        false => retrieve_payment_method_from_vault_internal(state, merchant_context, pm)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault"),
+        false => {
+            let vault_id = pm
+                .locker_id
+                .clone()
+                .ok_or(errors::VaultError::MissingRequiredField {
+                    field_name: "locker_id",
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
+            retrieve_payment_method_from_vault_internal(state, merchant_context, &vault_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")
+        }
     }
 }
 

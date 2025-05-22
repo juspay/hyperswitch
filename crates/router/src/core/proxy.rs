@@ -24,7 +24,7 @@ pub async fn proxy_core(
         )
         .await?;
 
-    let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault(
+    let vault_response = super::payment_methods::vault::retrieve_payment_method_from_vault_internal(
         &state,
         &merchant_context,
         &vault_id,
