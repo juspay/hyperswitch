@@ -21,7 +21,10 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
-use crate::{query::generics, schema_v2::tokenization, PgPooledConn, StorageResult, tokenization as tokenization_diesel};
+use crate::{
+    query::generics, schema_v2::tokenization, tokenization as tokenization_diesel, PgPooledConn,
+    StorageResult,
+};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 impl tokenization_diesel::Tokenization {

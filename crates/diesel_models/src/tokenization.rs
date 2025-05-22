@@ -51,8 +51,6 @@ pub struct TokenizationNew {
     pub flag: common_enums::enums::TokenizationFlag,
 }
 
-
-
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = tokenization)]
