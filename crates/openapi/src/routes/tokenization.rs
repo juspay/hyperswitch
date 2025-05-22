@@ -1,5 +1,5 @@
-use utoipa::OpenApi;
 use serde_json::json;
+use utoipa::OpenApi;
 
 #[cfg(feature = "v2")]
 #[utoipa::path(
@@ -30,4 +30,4 @@ use serde_json::json;
     operation_id = "create_token_vault_api",
     security(("ephemeral_key" = []),("api_key" = []))
 )]
-pub async fn create_token_vault_api() {} 
+pub async fn create_token_vault_api() {}
