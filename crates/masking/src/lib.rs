@@ -17,9 +17,9 @@ pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface, SwitchStrat
 
 mod secret;
 mod strong_secret;
-pub use secret::Secret;
 #[cfg(feature = "serde")]
 pub use secret::JsonMaskStrategy;
+pub use secret::Secret;
 pub use strong_secret::StrongSecret;
 
 #[cfg(feature = "alloc")]
