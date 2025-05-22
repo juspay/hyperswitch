@@ -360,8 +360,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                 Some(req_org_id.clone())
             }
             (None, Some(auth)) => Some(auth.organization_id.clone()),
-            (Some(req_org_id), None) => Some(req_org_id.clone()),
-            (None, None) => None,
+            (req_org_id, _) => req_org_id.clone(),
         };
 
         let organization = CreateOrValidateOrganization::new(org_id)
