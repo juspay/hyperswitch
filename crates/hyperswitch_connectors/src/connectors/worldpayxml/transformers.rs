@@ -678,7 +678,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
             } else {
                 order_status.error
                         .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the reponse".to_string()),
+                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
                         ))?;
                 // Handle API errors unrelated to the payment to prevent failing the payment.
                 Ok(Self {
@@ -783,7 +783,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
                 let error =
                 order_status.error
                         .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the reponse".to_string()),
+                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
                         ))?;
 
                 Ok(Self {
@@ -1010,7 +1010,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaymentService>> for RefundsRouter
             } else {
                 order_status.error
                         .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the reponse".to_string()),
+                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
                         ))?;
                 // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment.
                 let response = Ok(RefundsResponseData {
@@ -1081,7 +1081,7 @@ fn validate_order_status(order_status: &OrderStatus) -> Result<(), errors::Conne
     {
         Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from(
-                "Either order_status.payment or order_status.error must be present in the reponse"
+                "Either order_status.payment or order_status.error must be present in the response"
                     .to_string(),
             ),
         ))
