@@ -95,7 +95,7 @@ pub struct MerchantRoutingAlgorithm {
     pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
     pub description: String,
-    pub algorithm: RoutingAlgorithm,
+    pub algorithm: RoutingAlgorithmWrapper,
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: TransactionType,
@@ -287,6 +287,19 @@ pub struct RoutingPayloadWrapper {
     pub updated_config: Vec<RoutableConnectorChoice>,
     pub profile_id: common_utils::id_type::ProfileId,
 }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum RoutingAlgorithmWrapper {
+    Static(RoutingAlgorithm),
+    Dynamic(RoutingAlgorithmDynamic),
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub enum RoutingAlgorithmDynamic {
+    SuccessBasedAlgorithm(SuccessBasedRoutingConfig),
+    EliminationBasedAlgorithm(EliminationRoutingConfig),
+    ContractBasedAlgorithm(ContractBasedRoutingConfig),
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
@@ -295,13 +308,32 @@ pub struct RoutingPayloadWrapper {
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
-/// Routing Algorithm kind
 pub enum RoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
     Advanced(ast::Program<ConnectorSelection>),
+}
+impl<'de> Deserialize<'de> for RoutingAlgorithmDynamic {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let val: serde_json::Value = serde_json::Value::deserialize(deserializer)?;
+
+        if let Ok(v) = serde_json::from_value::<SuccessBasedRoutingConfig>(val.clone()) {
+            Ok(Self::SuccessBasedAlgorithm(v))
+        } else if let Ok(v) = serde_json::from_value::<EliminationRoutingConfig>(val.clone()) {
+            Ok(Self::EliminationBasedAlgorithm(v))
+        } else if let Ok(v) = serde_json::from_value::<ContractBasedRoutingConfig>(val.clone()) {
+            Ok(Self::ContractBasedAlgorithm(v))
+        } else {
+            Err(serde::de::Error::custom(
+                "Unrecognized dynamic routing algorithm",
+            ))
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
