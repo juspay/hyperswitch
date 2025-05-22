@@ -5,6 +5,9 @@
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account")
+    ),
     request_body(
         content = MerchantConnectorCreate,
         examples(
