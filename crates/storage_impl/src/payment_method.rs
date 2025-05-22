@@ -510,11 +510,19 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
+        storage_scheme: MerchantStorageScheme, // Parameter added
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.router_store
-            .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
-            .await
+        let lookup_key = format!("pm_v2_fingerprint_{}", fingerprint_id);
+
+        self.find_resource_by_id(
+            state,
+            key_store,
+            storage_scheme, // Use the passed storage_scheme
+            PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id),
+            FindResourceBy::LookupId(lookup_key),
+        )
+        .await
     }
 }
 
@@ -836,6 +844,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.call_database(
@@ -1141,6 +1150,7 @@ impl PaymentMethodInterface for MockDb {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         self.get_resource::<PaymentMethod, _>(

@@ -853,6 +853,7 @@ pub trait PaymentMethodInterface {
         state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(all(

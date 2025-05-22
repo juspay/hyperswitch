@@ -1824,6 +1824,7 @@ pub async fn vault_payment_method(
             &(state.into()),
             merchant_context.get_merchant_key_store(),
             &fingerprint_id_from_vault,
+            merchant_context.get_merchant_account().storage_scheme.clone()
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -2322,9 +2322,10 @@ impl PaymentMethodInterface for KafkaStore {
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         fingerprint_id: &str,
+        storage_scheme : MerchantStorageScheme
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
+            .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id, storage_scheme)
             .await
     }
 }
