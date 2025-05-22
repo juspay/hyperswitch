@@ -250,7 +250,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        router_env::logger::info!(connector_response=?res.response);
         let response: worldpayxml::PaymentService =
             utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -407,7 +406,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        router_env::logger::info!(connector_response=?res.response);
         let response: worldpayxml::PaymentService =
             utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -528,7 +526,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
         )?;
         let connector_req_string = String::from_utf8(connector_req.clone()).unwrap();
-        router_env::logger::info!(sssssssconnector_request=?connector_req_string);
         Ok(RequestContent::RawBytes(connector_req))
     }
 
