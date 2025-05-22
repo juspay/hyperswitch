@@ -1,5 +1,7 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
+use common_enums::enums;
 use common_utils::{
     crypto,
     errors::CustomResult,
@@ -20,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -652,4 +657,48 @@ impl webhooks::IncomingWebhook for Paystack {
     }
 }
 
-impl ConnectorSpecifications for Paystack {}
+static PAYSTACK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut paystack_supported_payment_methods = SupportedPaymentMethods::new();
+
+        paystack_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Eft,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
+
+        paystack_supported_payment_methods
+    });
+
+static PAYSTACK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Paystack",
+    description: "Paystack is a Nigerian financial technology company that provides online and offline payment solutions to businesses across Africa.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static PAYSTACK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
+
+impl ConnectorSpecifications for Paystack {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYSTACK_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PAYSTACK_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PAYSTACK_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
