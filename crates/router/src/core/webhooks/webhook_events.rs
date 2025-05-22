@@ -69,7 +69,6 @@ pub async fn list_initial_delivery_attempts(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to list events with specified constraints")?;
 
-
             let total_count = i64::try_from(events.len())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error while converting from usize to i64")?;
