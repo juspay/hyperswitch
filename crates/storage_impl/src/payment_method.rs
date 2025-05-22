@@ -72,7 +72,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             storage_scheme,
             PaymentMethod::find_by_id(&conn, payment_method_id),
             FindResourceBy::LookupId(format!(
-                "payment_method_{}",
+                "payment_method_v2_{}",
                 payment_method_id.get_string_repr()
             )),
         )
@@ -162,7 +162,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
 
         let mut reverse_lookups = vec![
             // This key format should match what find_payment_method (by GlobalPaymentMethodId) expects
-            // format!("payment_method_v2_{}", record_id_str)
+            format!("payment_method_v2_{}", payment_method_id)
         ];
 
         if let Some(ref locker_fingerprint_id) = payment_method_new.locker_fingerprint_id {
