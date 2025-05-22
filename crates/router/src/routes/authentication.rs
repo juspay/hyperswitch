@@ -26,7 +26,11 @@ pub async fn authentication_create(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            crate::core::authentication::authentication_create_core(state, merchant_context, req)
+            crate::core::unified_authentication_service::authentication_create_core(
+                state,
+                merchant_context,
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,

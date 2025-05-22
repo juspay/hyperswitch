@@ -221,6 +221,8 @@ pub async fn create_new_authentication(
     payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
@@ -266,6 +268,8 @@ pub async fn create_new_authentication(
         service_details: None,
         organization_id,
         authentication_client_secret,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
     };
     state
         .store

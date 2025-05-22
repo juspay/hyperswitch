@@ -3,10 +3,7 @@ pub(crate) mod utils;
 pub mod transformers;
 pub mod types;
 
-use api_models::{
-    authentication::{AuthenticationCreateRequest, AuthenticationResponse},
-    payments,
-};
+use api_models::payments;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
@@ -14,11 +11,7 @@ use masking::ExposeInterface;
 
 use super::errors::StorageErrorExt;
 use crate::{
-    consts,
-    core::{
-        errors::{ApiErrorResponse, RouterResponse},
-        payments as payments_core,
-    },
+    core::{errors::ApiErrorResponse, payments as payments_core},
     routes::SessionState,
     types::{
         self as core_types, api,
@@ -135,7 +128,7 @@ pub async fn perform_post_authentication(
         .attach_printable_lazy(|| {
             format!(
                 "Error while fetching authentication record with authentication_id {}",
-                authentication_id.get_string_repr().to_string()
+                authentication_id.get_string_repr()
             )
         })?;
 
@@ -163,7 +156,7 @@ pub async fn perform_post_authentication(
     // getting authentication value from temp locker before moving ahead with authrisation
     let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
         state,
-        &authentication_id.get_string_repr().to_string(),
+        authentication_id.get_string_repr(),
         false,
         key_store.key.get_inner(),
     )
@@ -191,6 +184,8 @@ pub async fn perform_pre_authentication(
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: common_utils::id_type::PaymentId,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
@@ -210,6 +205,8 @@ pub async fn perform_pre_authentication(
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while finding mca_id from merchant_connector_account")?,
         organization_id,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
     )
     .await?;
 
@@ -278,88 +275,4 @@ pub async fn perform_pre_authentication(
             cavv: None, // since cavv wont be present in pre_authentication step
         },
     )
-}
-
-// Modular authentication
-
-pub async fn authentication_create_core(
-    state: SessionState,
-    merchant_context: domain::MerchantContext,
-    req: AuthenticationCreateRequest,
-) -> RouterResponse<AuthenticationResponse> {
-    let db = &*state.store;
-    let merchant_account = merchant_context.get_merchant_account();
-    let merchant_id = merchant_account.get_id();
-    let key_manager_state = (&state).into();
-    let profile_id = crate::core::utils::get_profile_id_from_business_details(
-        &key_manager_state,
-        None,
-        None,
-        &merchant_context,
-        req.profile_id.as_ref(),
-        db,
-        true,
-    )
-    .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
-    let organization_id = merchant_account.organization_id.clone();
-    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
-        consts::AUTHENTICATION_ID_PREFIX,
-    );
-
-    let new_authentication =
-        crate::core::unified_authentication_service::create_new_authentication(
-            &state,
-            merchant_id.clone(),
-            req.authentication_connector.clone(),
-            profile_id.clone(),
-            None,
-            None,
-            &authentication_id,
-            None,
-            common_enums::AuthenticationStatus::Started,
-            None,
-            organization_id,
-        )
-        .await?;
-
-    let force_3ds_challenge = Some(
-        req.force_3ds_challenge
-            .unwrap_or(business_profile.force_3ds_challenge),
-    );
-
-    let response = AuthenticationResponse {
-        authentication_id: new_authentication.authentication_id,
-        client_secret: new_authentication
-            .authentication_client_secret
-            .map(masking::Secret::new),
-        amount: req.amount,
-        currency: req.currency,
-        customer: None,
-        force_3ds_challenge,
-        merchant_id: merchant_id.clone(),
-        status: new_authentication.authentication_status,
-        authentication_connector: req.authentication_connector.clone(),
-        return_url: req.return_url.clone(),
-        created_at: Some(common_utils::date_time::now()),
-        error_code: None,
-        error_message: None,
-        metadata: req.metadata.clone(),
-        profile_id: Some(profile_id),
-        browser_info: None,
-    };
-
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
-    ))
 }

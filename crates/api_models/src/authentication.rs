@@ -7,17 +7,18 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::payments::{CustomerDetails, SdkInformation};
+use crate::payments::CustomerDetails;
 
 // Renamed from AuthenticationRequest to AuthenticationCreateRequest
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthenticationCreateRequest {
+    /// The unique identifier for this authentication.
+    #[schema(value_type = Option<String>, example = "auth_mbabizu24mvu3mela5njyhpit4")]
     pub authentication_id: Option<id_type::AuthenticationId>,
-    /// The merchant account identifier. Optional in request, will be taken from header if not passed.
-    #[schema(value_type = Option<String>, example = "merchant_abc")]
-    pub merchant_id: Option<id_type::MerchantId>,
 
+    /// The business profile that is associated with this authentication
+    #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The connector to be used for authentication, if known.
@@ -44,19 +45,9 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<String>, example = "https://example.com/redirect")]
     pub return_url: Option<String>,
 
-    /// SDK information if the request is from an SDK.
-    pub sdk_information: Option<SdkInformation>,
-
-    /// Acquirer BIN, if available.
-    #[schema(value_type = Option<String>, example = "408999")]
-    pub acquirer_bin: Option<String>,
-
-    /// Acquirer merchant ID, if available.
-    #[schema(value_type = Option<String>, example = "987654")]
-    pub acquirer_merchant_id: Option<String>,
-
-    /// 3DS method URL, if available.
-    pub three_ds_method_url: Option<String>,
+    /// Acquirer details information
+    #[schema(value_type = Option<AcquirerDetails>)]
+    pub acquirer_details: Option<AcquirerDetails>,
 
     /// Metadata for the authentication.
     #[schema(value_type = Option<Object>, example = json!({"order_id": "OR_12345"}))]
@@ -65,6 +56,17 @@ pub struct AuthenticationCreateRequest {
     /// Force 3DS challenge.
     #[serde(default)]
     pub force_3ds_challenge: Option<bool>,
+
+    /// Choose what kind of sca exemption is required for this payment
+    #[schema(value_type = Option<ScaExemptionType>)]
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AcquirerDetails {
+    pub bin: Option<String>,
+    pub merchant_id: Option<String>,
+    pub country_code: Option<String>,
 }
 
 // Renamed from AuthenticationResponse to AuthenticationCreateResponse
@@ -129,6 +131,14 @@ pub struct AuthenticationResponse {
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
     pub browser_info: Option<serde_json::Value>,
+
+    /// Choose what kind of sca exemption is required for this payment
+    #[schema(value_type = Option<ScaExemptionType>)]
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+
+    /// Acquirer details information
+    #[schema(value_type = Option<AcquirerDetails>)]
+    pub acquirer_details: Option<AcquirerDetails>,
 }
 
 impl ApiEventMetric for AuthenticationCreateRequest {

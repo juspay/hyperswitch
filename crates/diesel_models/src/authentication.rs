@@ -50,6 +50,8 @@ pub struct Authentication {
     pub service_details: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub authentication_client_secret: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 impl Authentication {
@@ -100,6 +102,8 @@ pub struct AuthenticationNew {
     pub service_details: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub authentication_client_secret: Option<String>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Debug)]
@@ -194,6 +198,8 @@ pub struct AuthenticationUpdateInternal {
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
     pub service_details: Option<serde_json::Value>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -227,6 +233,8 @@ impl Default for AuthenticationUpdateInternal {
             directory_server_id: Default::default(),
             acquirer_country_code: Default::default(),
             service_details: Default::default(),
+            force_3ds_challenge: Default::default(),
+            psd2_sca_exemption_type: Default::default(),
         }
     }
 }
@@ -262,6 +270,8 @@ impl AuthenticationUpdateInternal {
             directory_server_id,
             acquirer_country_code,
             service_details,
+            force_3ds_challenge,
+            psd2_sca_exemption_type,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -296,6 +306,8 @@ impl AuthenticationUpdateInternal {
             directory_server_id: directory_server_id.or(source.directory_server_id),
             acquirer_country_code: acquirer_country_code.or(source.acquirer_country_code),
             service_details: service_details.or(source.service_details),
+            force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
+            psd2_sca_exemption_type: psd2_sca_exemption_type.or(source.psd2_sca_exemption_type),
             ..source
         }
     }

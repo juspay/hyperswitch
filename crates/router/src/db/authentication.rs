@@ -59,7 +59,7 @@ impl AuthenticationInterface for Store {
         storage::Authentication::find_by_merchant_id_authentication_id(
             &conn,
             merchant_id,
-            &authentication_id,
+            authentication_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -158,6 +158,8 @@ impl AuthenticationInterface for MockDb {
             service_details: authentication.service_details,
             organization_id: authentication.organization_id,
             authentication_client_secret: authentication.authentication_client_secret,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

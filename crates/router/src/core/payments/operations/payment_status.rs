@@ -473,7 +473,7 @@ async fn get_tracker_for_sync<
             .attach_printable_lazy(|| {
                 format!(
                     "Error while fetching authentication record with authentication_id {}",
-                    authentication_id.get_string_repr().to_string()
+                    authentication_id.get_string_repr()
                 )
             })?;
 

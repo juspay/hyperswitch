@@ -1032,6 +1032,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer_details,
                     payment_data.payment_attempt.payment_id.clone(),
                     payment_data.payment_attempt.organization_id.clone(),
+                    payment_data.payment_intent.force_3ds_challenge,
+                    payment_data.payment_intent.psd2_sca_exemption_type,
                 ))
                 .await?;
                 if authentication_store
@@ -1237,6 +1239,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             authentication_status,
                             network_token.clone(),
                             payment_data.payment_attempt.organization_id.clone(),
+                            payment_data.payment_intent.force_3ds_challenge,
+                            payment_data.payment_intent.psd2_sca_exemption_type,
+                            None,
+                            None,
+                            None,
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1313,6 +1320,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Error while finding mca_id from merchant_connector_account")?,
                     payment_data.payment_attempt.organization_id.clone(),
+                    payment_data.payment_intent.force_3ds_challenge,
+                    payment_data.payment_intent.psd2_sca_exemption_type,
                 )
                 .await?;
 
@@ -1392,7 +1401,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {}", authentication_id.get_string_repr().to_string()))?;
+                    .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {}", authentication_id.get_string_repr()))?;
                 let updated_authentication = if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
                     let post_auth_response = uas_utils::types::ExternalAuthentication::post_authentication(
                         state,
@@ -1417,7 +1426,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication
                 };
 
-                let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication_id.get_string_repr(), false, key_store.key.get_inner()).await?;
+                let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, key_store.key.get_inner()).await?;
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: Some(masking::Secret::new(tokenized_data.value1)),
