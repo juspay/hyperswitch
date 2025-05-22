@@ -31,6 +31,7 @@ pub async fn call_psync_api(
         force_sync: false,
         param: None,
         expand_attempts: true,
+        all_keys_required: None,
     };
     let merchant_context_from_revenue_recovery_data =
         MerchantContext::NormalMerchant(Box::new(Context(
@@ -128,6 +129,7 @@ pub async fn call_proxy_api(
         get_tracker_response,
         payments::CallConnectorAction::Trigger,
         payments_domain::HeaderPayload::default(),
+        None,
     ))
     .await?;
     Ok(payment_data)

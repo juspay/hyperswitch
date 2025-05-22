@@ -2618,8 +2618,10 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         (_, Some(hyperswitch_token)) => {
             let existing_vault_data = payment_data.get_vault_operation();
 
-            let vault_data = existing_vault_data.map(|data| match data {
-                domain_payments::VaultOperation::ExistingVaultData(vault_data) => vault_data,
+            let vault_data = existing_vault_data.and_then(|data| match data {
+                domain_payments::VaultOperation::ExistingVaultData(vault_data) => Some(vault_data),
+                domain_payments::VaultOperation::SaveCardData(_)
+                | domain_payments::VaultOperation::SaveCardAndNetworkTokenData(_) => None,
             });
 
             let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
@@ -4170,6 +4172,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
+        whole_connector_response: router_data.whole_connector_response,
     }
 }
 

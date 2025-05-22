@@ -74,6 +74,7 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -126,6 +127,7 @@ pub struct ProfileSetter {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -183,6 +185,7 @@ impl From<ProfileSetter> for Profile {
             is_debit_routing_enabled: value.is_debit_routing_enabled,
             merchant_business_country: value.merchant_business_country,
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
         }
     }
 }
@@ -242,6 +245,7 @@ pub struct ProfileGeneralUpdate {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -316,6 +320,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_debit_routing_enabled,
                     merchant_business_country,
                     is_iframe_redirection_enabled,
+                    is_pre_network_tokenization_enabled,
                 } = *update;
 
                 Self {
@@ -363,6 +368,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_debit_routing_enabled,
                     merchant_business_country,
                     is_iframe_redirection_enabled,
+                    is_pre_network_tokenization_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -412,6 +418,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -459,6 +466,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -506,6 +514,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -553,6 +562,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -600,6 +610,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -647,6 +658,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
             },
         }
     }
@@ -714,6 +726,7 @@ impl super::behaviour::Conversion for Profile {
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
         })
     }
 
@@ -805,6 +818,9 @@ impl super::behaviour::Conversion for Profile {
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,
                 is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
+                is_pre_network_tokenization_enabled: item
+                    .is_pre_network_tokenization_enabled
+                    .unwrap_or(false),
             })
         }
         .await
@@ -867,6 +883,7 @@ impl super::behaviour::Conversion for Profile {
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
         })
     }
 }
@@ -1070,6 +1087,11 @@ impl Profile {
             .and_then(|details| details.webhook_url)
             .get_required_value("webhook_details.webhook_url")
             .map(ExposeInterface::expose)
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn is_external_vault_enabled(&self) -> bool {
+        self.is_external_vault_enabled.unwrap_or(false)
     }
 }
 
