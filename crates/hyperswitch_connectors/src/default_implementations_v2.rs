@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
             DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             RevenueRecoveryRecordBackData, WebhookSourceVerifyData,
         },
-        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+        AccessTokenFlowData, ExternalAuthenticationFlowData, FilesFlowData, VaultConnectorFlowData,
     },
     router_flow_types::{
         authentication::{
@@ -26,7 +26,8 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth,
+        AccessTokenAuth, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        ExternalVaultRetrieveFlow,
     },
     router_request_types::{
         authentication,
@@ -43,7 +44,7 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -52,7 +53,7 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -107,6 +108,9 @@ use hyperswitch_interfaces::{
             BillingConnectorInvoiceSyncIntegrationV2, BillingConnectorPaymentsSyncIntegrationV2,
             RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
+        vault_v2::{
+            ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, ExternalVaultV2,
+        },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
     connector_integration_v2::ConnectorIntegrationV2,
@@ -137,6 +141,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl PaymentUpdateMetadataV2 for $path::$connector{}
+            impl ExternalVaultV2 for $path::$connector{}
             impl
             ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
             for $path::$connector{}
@@ -240,6 +245,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
+    connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Adyenplatform,
@@ -247,6 +253,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -286,6 +293,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -317,6 +325,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -354,6 +363,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -363,6 +373,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -402,6 +413,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -433,6 +445,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -465,6 +478,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 }
 
 default_imp_for_new_connector_integration_connector_access_token!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -474,6 +488,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -513,6 +528,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -544,6 +560,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -582,6 +599,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 }
 
 default_imp_for_new_connector_integration_accept_dispute!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -591,6 +609,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -629,6 +648,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -660,6 +680,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -697,6 +718,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 }
 
 default_imp_for_new_connector_integration_submit_evidence!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -706,6 +728,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -744,6 +767,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -775,6 +799,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -812,6 +837,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 }
 
 default_imp_for_new_connector_integration_defend_dispute!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -821,6 +847,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -860,6 +887,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -891,6 +919,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -938,6 +967,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 }
 
 default_imp_for_new_connector_integration_file_upload!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -947,6 +977,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -986,6 +1017,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1017,6 +1049,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1056,6 +1089,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1065,6 +1099,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1104,6 +1139,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1135,6 +1171,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1174,6 +1211,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1183,6 +1221,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1222,6 +1261,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1253,6 +1293,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1292,6 +1333,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1301,6 +1343,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1340,6 +1383,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1371,6 +1415,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1410,6 +1455,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1419,6 +1465,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1458,6 +1505,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1489,6 +1537,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1528,6 +1577,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1537,6 +1587,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1576,6 +1627,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1607,6 +1659,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1646,6 +1699,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1655,6 +1709,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1694,6 +1749,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1725,6 +1781,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1764,6 +1821,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1773,6 +1831,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1812,6 +1871,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1843,6 +1903,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1882,6 +1943,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1891,6 +1953,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -1930,6 +1993,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -1961,6 +2025,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -1998,6 +2063,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 }
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2007,6 +2073,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2046,6 +2113,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2077,6 +2145,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2116,6 +2185,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2125,6 +2195,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2164,6 +2235,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2195,6 +2267,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2234,6 +2307,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2243,6 +2317,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2282,6 +2357,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2313,6 +2389,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2352,6 +2429,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2361,6 +2439,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2400,6 +2479,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2431,6 +2511,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2470,6 +2551,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2479,6 +2561,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2518,6 +2601,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2549,6 +2633,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2588,6 +2673,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2597,6 +2683,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2636,6 +2723,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2667,6 +2755,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2703,6 +2792,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 }
 
 default_imp_for_new_connector_integration_revoking_mandates!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2712,6 +2802,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2751,6 +2842,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Klarna,
     connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2781,6 +2873,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Stripebilling,
     connectors::Taxjar,
@@ -2812,10 +2905,12 @@ macro_rules! default_imp_for_new_connector_integration_frm {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm!(
+    connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
     connectors::Bamboraapac,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2844,6 +2939,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Nomupay,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2867,6 +2963,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Taxjar,
     connectors::Threedsecureio,
@@ -2927,10 +3024,12 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
+    connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
     connectors::Bamboraapac,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -2959,6 +3058,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Nomupay,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -2980,6 +3080,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Taxjar,
     connectors::Threedsecureio,
@@ -3031,10 +3132,12 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
 }
 
 default_imp_for_new_connector_integration_revenue_recovery!(
+    connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Bambora,
     connectors::Bamboraapac,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -3063,6 +3166,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Nomupay,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Netcetera,
     connectors::Nexinets,
@@ -3085,6 +3189,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
     connectors::Taxjar,
     connectors::Threedsecureio,
@@ -3096,6 +3201,145 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Volt,
     connectors::Worldpay,
     connectors::Worldpayxml,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_new_connector_integration_external_vault {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ExternalVaultInsertV2 for $path::$connector {}
+            impl ExternalVaultRetrieveV2 for $path::$connector {}
+            impl ExternalVaultDeleteV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            ExternalVaultInsertFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            ExternalVaultRetrieveFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            ExternalVaultDeleteFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_external_vault!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authorizedotnet,
+    connectors::Barclaycard,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Cashtocode,
+    connectors::Chargebee,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nordea,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Nmi,
+    connectors::Payone,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payme,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Payu,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Multisafepay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Shift4,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Trustpay,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Worldline,
+    connectors::Worldpayxml,
+    connectors::Wise,
+    connectors::Worldpay,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl

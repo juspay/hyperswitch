@@ -798,6 +798,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
             payment_method_info,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -824,6 +825,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             card_testing_guard_data: None,
             vault_operation: None,
             threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1227,12 +1229,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &authentication_id,
                             payment_data.service_details.clone(),
                             authentication_status,
-                            network_token,
+                            network_token.clone(),
                             payment_data.payment_attempt.organization_id.clone(),
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                            cavv: None, // since in case of CTP we will be storing all details in network token under payment_method_data
+                            cavv: network_token.and_then(|token| token.token_cryptogram),
                             authentication
                         };
                         payment_data.authentication = Some(authentication_store);
@@ -1406,7 +1408,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication_id, false, key_store.key.get_inner()).await?;
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: Some(tokenized_data.value1),
+                    cavv: Some(masking::Secret::new(tokenized_data.value1)),
                     authentication: updated_authentication
                 };
 
@@ -1878,6 +1880,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         is_payment_processor_token_flow,
                         tax_details: None,
                         force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                        is_iframe_redirection_enabled: payment_data
+                            .payment_intent
+                            .is_iframe_redirection_enabled,
                     })),
                     &m_key_store,
                     storage_scheme,

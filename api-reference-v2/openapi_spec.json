@@ -7334,7 +7334,11 @@
           "UnionPay",
           "Interac",
           "RuPay",
-          "Maestro"
+          "Maestro",
+          "Star",
+          "Pulse",
+          "Accel",
+          "Nyce"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -8002,6 +8006,7 @@
           "threedsecureio",
           "trustpay",
           "tsys",
+          "vgs",
           "volt",
           "wellsfargo",
           "wise",
@@ -8235,7 +8240,8 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
-          "billing_processor"
+          "billing_processor",
+          "vault_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -14140,6 +14146,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
+          },
+          "platform_merchant_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/id_type.MerchantId"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -16921,6 +16935,11 @@
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },
@@ -18268,6 +18287,11 @@
           "param": {
             "type": "string",
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }

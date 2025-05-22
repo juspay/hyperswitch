@@ -8,7 +8,7 @@ use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[cfg(feature = "v1")]
 use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -303,6 +303,56 @@ pub struct RoutingAlgorithmHelpers<'h> {
     pub routing_algorithm: &'h routing_types::RoutingAlgorithm,
 }
 
+#[cfg(feature = "v1")]
+pub enum RoutingDecisionData {
+    DebitRouting(DebitRoutingDecisionData),
+}
+#[cfg(feature = "v1")]
+pub struct DebitRoutingDecisionData {
+    pub card_network: common_enums::enums::CardNetwork,
+    pub debit_routing_result: open_router::DebitRoutingOutput,
+}
+#[cfg(feature = "v1")]
+impl RoutingDecisionData {
+    pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
+    where
+        F: Send + Clone,
+        D: crate::core::payments::OperationSessionGetters<F>
+            + crate::core::payments::OperationSessionSetters<F>
+            + Send
+            + Sync
+            + Clone,
+    {
+        match self {
+            Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
+        }
+    }
+
+    pub fn get_debit_routing_decision_data(
+        network: common_enums::enums::CardNetwork,
+        debit_routing_result: open_router::DebitRoutingOutput,
+    ) -> Self {
+        Self::DebitRouting(DebitRoutingDecisionData {
+            card_network: network,
+            debit_routing_result,
+        })
+    }
+}
+#[cfg(feature = "v1")]
+impl DebitRoutingDecisionData {
+    pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
+    where
+        F: Send + Clone,
+        D: crate::core::payments::OperationSessionGetters<F>
+            + crate::core::payments::OperationSessionSetters<F>
+            + Send
+            + Sync
+            + Clone,
+    {
+        payment_data.set_card_network(self.card_network.clone());
+        payment_data.set_co_badged_card_data(&self.debit_routing_result);
+    }
+}
 #[derive(Clone, Debug)]
 pub struct ConnectNameAndMCAIdForProfile<'a>(
     pub  FxHashSet<(
@@ -1702,10 +1752,13 @@ where
     let algo_type_enabled_features = algo_type.get_enabled_features();
     if *algo_type_enabled_features == feature_to_enable {
         // algorithm already has the required feature
-        return Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!("{} is already enabled", dynamic_routing_type),
-        }
-        .into());
+        let routing_algorithm = db
+            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algo_type_algorithm_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        let updated_routing_record = routing_algorithm.foreign_into();
+
+        return Ok(ApplicationResponse::Json(updated_routing_record));
     };
     *algo_type_enabled_features = feature_to_enable;
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
