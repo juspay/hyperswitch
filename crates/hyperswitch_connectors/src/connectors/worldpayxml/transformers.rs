@@ -17,7 +17,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
-use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -594,11 +593,6 @@ fn get_attempt_status(
     last_event: LastEvent,
     previous_status: Option<&common_enums::AttemptStatus>,
 ) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
-    logger::debug!(
-        "lastevent: {:?} previous_status {:?}",
-        last_event,
-        previous_status
-    );
     match last_event {
         LastEvent::Authorised => {
             if is_auto_capture {
