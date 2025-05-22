@@ -23,7 +23,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self as connector_utils, CardData, RouterData as _, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
+        self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
+        RouterData as _,
     },
 };
 
@@ -58,7 +59,7 @@ pub struct PaymentService {
     #[serde(skip_serializing_if = "Option::is_none")]
     submit: Option<Submit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    reply: Option<Reply>,
+    pub reply: Option<Reply>,
     #[serde(skip_serializing_if = "Option::is_none")]
     inquiry: Option<Inquiry>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,15 +117,15 @@ struct Submit {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Reply {
+pub struct Reply {
     order_status: Option<OrderStatus>,
-    error: Option<WorldpayXmlErrorResponse>,
+    pub error: Option<WorldpayXmlErrorResponse>,
     ok: Option<OkResponse>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OkResponse {
+struct OkResponse {
     capture_received: Option<ModifyRequestReceived>,
     cancel_received: Option<ModifyRequestReceived>,
     refund_received: Option<ModifyRequestReceived>,
@@ -132,7 +133,7 @@ pub struct OkResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModifyRequestReceived {
+struct ModifyRequestReceived {
     #[serde(rename = "@orderCode")]
     order_code: String,
     amount: Option<WorldpayXmlAmount>,
@@ -147,7 +148,7 @@ pub struct WorldpayXmlErrorResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct OrderStatus {
+struct OrderStatus {
     #[serde(rename = "@orderCode")]
     order_code: String,
     payment: Option<Payment>,
@@ -156,7 +157,7 @@ pub struct OrderStatus {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Payment {
+struct Payment {
     payment_method: String,
     amount: WorldpayXmlAmount,
     last_event: LastEvent,
@@ -187,7 +188,7 @@ pub struct Payment {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ReturnCode {
+struct ReturnCode {
     #[serde(rename = "@description")]
     description: String,
     #[serde(rename = "@code")]
@@ -195,13 +196,13 @@ pub struct ReturnCode {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ResultCode {
+struct ResultCode {
     #[serde(rename = "@description")]
     description: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Balance {
+struct Balance {
     #[serde(rename = "@accountType")]
     account_type: String,
     amount: WorldpayXmlAmount,
@@ -209,13 +210,13 @@ pub struct Balance {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentMethodDetail {
+struct PaymentMethodDetail {
     card: CardResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CardResponse {
+struct CardResponse {
     #[serde(rename = "@number")]
     number: Option<String>,
     #[serde(rename = "@type")]
@@ -224,14 +225,14 @@ pub struct CardResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AuthorisationId {
+struct AuthorisationId {
     #[serde(rename = "@id")]
     id: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum LastEvent {
+enum LastEvent {
     Authorised,
     Refused,
     Cancelled,
@@ -246,7 +247,7 @@ pub enum LastEvent {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SchemeResponse {
+struct SchemeResponse {
     transaction_identifier: String,
 }
 
@@ -264,10 +265,10 @@ struct Order {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum AutoCapture {
-    OFF,
+enum AutoCapture {
+    Off,
     #[serde(rename = "0")]
-    ON,
+    On,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -280,7 +281,6 @@ struct WorldpayXmlAmount {
     #[serde(rename = "@exponent")]
     exponent: String,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PaymentDetails {
@@ -345,9 +345,9 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
             .connector_request_reference_id
             .to_owned();
         let capture_delay = if authorize_data.router_data.request.is_auto_capture()? {
-            AutoCapture::ON
+            AutoCapture::On
         } else {
-            AutoCapture::OFF
+            AutoCapture::Off
         };
         let description = authorize_data.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -399,7 +399,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             })?
         };
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => PaymentService::try_from((item, &req_card)),
+            PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
             _ => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
             ))?,
@@ -492,7 +492,6 @@ impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for PaymentServic
                             .number_of_digits_after_decimal_point()
                             .to_string(),
                         value: item.amount.to_owned(),
-
                     },
                 }),
             },
@@ -581,8 +580,6 @@ impl TryFrom<&ConnectorAuthType> for WorldpayxmlAuthType {
     }
 }
 
-// PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum WorldpayxmlPaymentStatus {
@@ -676,7 +673,9 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
                     &payment_data,
                     item.http_code,
                     order_status.order_code.clone(),
-                );
+                )
+                .map_err(|err| *err);
+
                 Ok(Self {
                     status,
                     response,
@@ -687,7 +686,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
                         .ok_or(errors::ConnectorError::UnexpectedResponseError(
                             bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the reponse".to_string()),
                         ))?;
-                // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment.
+                // Handle API errors unrelated to the payment to prevent failing the payment.
                 Ok(Self {
                     status: item.data.status,
                     response: Ok(PaymentsResponseData::TransactionResponse {
@@ -706,7 +705,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
                 })
             }
         } else {
-            // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment
+            // Handle API errors unrelated to the payment to prevent failing the payment
             Ok(Self {
                 status: item.data.status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -779,7 +778,8 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsAuthorizeData, Pay
                     &payment_data,
                     item.http_code,
                     order_status.order_code.clone(),
-                );
+                )
+                .map_err(|err| *err);
                 Ok(Self {
                     status,
                     response,
@@ -1066,26 +1066,16 @@ impl TryFrom<&RefundSyncRouterData> for PaymentService {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct WorldpayxmlErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-}
-
 fn validate_reply(reply: &Reply) -> Result<(), errors::ConnectorError> {
     if (reply.error.is_some() && reply.order_status.is_some())
         || (reply.error.is_none() && reply.order_status.is_none())
     {
-        return Err(
-            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+        Err(errors::ConnectorError::UnexpectedResponseError(
+            bytes::Bytes::from(
                 "Either reply.error_data or reply.order_data must be present in the response"
                     .to_string(),
-            ))
-            .into(),
-        );
+            ),
+        ))
     } else {
         Ok(())
     }
@@ -1095,13 +1085,12 @@ fn validate_order_status(order_status: &OrderStatus) -> Result<(), errors::Conne
     if (order_status.payment.is_some() && order_status.error.is_some())
         || (order_status.payment.is_none() && order_status.error.is_none())
     {
-        return Err(
-            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+        Err(errors::ConnectorError::UnexpectedResponseError(
+            bytes::Bytes::from(
                 "Either order_status.payment or order_status.error must be present in the reponse"
                     .to_string(),
-            ))
-            .into(),
-        );
+            ),
+        ))
     } else {
         Ok(())
     }
@@ -1112,7 +1101,7 @@ fn process_payment_response(
     payment_data: &Payment,
     http_code: u16,
     order_code: String,
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     if connector_utils::is_payment_failure(status) {
         let error_code = payment_data
             .return_code
@@ -1123,7 +1112,7 @@ fn process_payment_response(
             .as_ref()
             .map(|code| code.description.clone());
 
-        Err(ErrorResponse {
+        Err(Box::new(ErrorResponse {
             code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
@@ -1133,7 +1122,7 @@ fn process_payment_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
-        })
+        }))
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_code.clone()),
