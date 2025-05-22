@@ -467,7 +467,7 @@ pub enum ConnectorType {
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
-    /// External Vault Connector
+    /// Represents vaulting processors that handle the storage and management of payment method data
     VaultProcessor,
 }
 
