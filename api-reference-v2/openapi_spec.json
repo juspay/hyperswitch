@@ -863,7 +863,7 @@
         ],
         "summary": "Profile - Connector Accounts List",
         "description": "List Connector Accounts for the profile",
-        "operationId": "List all Merchant Connectors",
+        "operationId": "List all Merchant Connectors for Profile",
         "parameters": [
           {
             "name": "id",
@@ -2151,7 +2151,7 @@
         ],
         "summary": "Payments - Session token",
         "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
-        "operationId": "Create Session tokens for a Payment",
+        "operationId": "Create V2 Session tokens for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -2921,7 +2921,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id": {
+    "/v2/payment-method-session/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3018,7 +3018,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/list-payment-methods": {
+    "/v2/payment-method-session/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3059,7 +3059,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/update-saved-payment-method": {
+    "/v2/payment-method-session/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3122,7 +3122,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/confirm": {
+    "/v2/payment-method-session/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -14225,6 +14225,9 @@
       },
       "OrganizationUpdateRequest": {
         "type": "object",
+        "required": [
+          "platform_merchant_id"
+        ],
         "properties": {
           "organization_name": {
             "type": "string",
@@ -14243,8 +14246,7 @@
           },
           "platform_merchant_id": {
             "type": "string",
-            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org",
-            "nullable": true
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org"
           }
         },
         "additionalProperties": false
