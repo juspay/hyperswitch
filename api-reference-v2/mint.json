@@ -142,6 +142,10 @@
     {
       "group": "Refunds",
       "pages": ["api-reference/refunds/refunds--create"]
+    },
+    {
+      "group": "Proxy",
+      "pages": ["api-reference/proxy/proxy"]
     }
   ],
   "footerSocials": {
