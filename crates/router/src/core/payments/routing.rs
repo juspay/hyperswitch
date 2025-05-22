@@ -1779,11 +1779,11 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 );
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
-                        .get(&connector_choice_a.connector.to_string())
+                        .get(&connector_choice_a.to_string())
                         .copied()
                         .unwrap_or(0.0);
                     let connector_choice_b_score = gateway_priority_map
-                        .get(&connector_choice_b.connector.to_string())
+                        .get(&connector_choice_b.to_string())
                         .copied()
                         .unwrap_or(0.0);
                     connector_choice_b_score

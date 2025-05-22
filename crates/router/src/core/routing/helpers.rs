@@ -1752,10 +1752,13 @@ where
     let algo_type_enabled_features = algo_type.get_enabled_features();
     if *algo_type_enabled_features == feature_to_enable {
         // algorithm already has the required feature
-        return Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!("{} is already enabled", dynamic_routing_type),
-        }
-        .into());
+        let routing_algorithm = db
+            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algo_type_algorithm_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        let updated_routing_record = routing_algorithm.foreign_into();
+
+        return Ok(ApplicationResponse::Json(updated_routing_record));
     };
     *algo_type_enabled_features = feature_to_enable;
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
