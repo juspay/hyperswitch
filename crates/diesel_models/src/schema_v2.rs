@@ -125,6 +125,8 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 128]
         authentication_client_secret -> Nullable<Varchar>,
+        force_3ds_challenge -> Nullable<Bool>,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
 
