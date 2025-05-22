@@ -718,7 +718,7 @@ impl webhooks::IncomingWebhook for Inespay {
 }
 
 static INESPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = Vec::new();
+    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
     let mut inespay_supported_payment_methods = SupportedPaymentMethods::new();
 
     inespay_supported_payment_methods.add(

@@ -312,18 +312,48 @@
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentRetrieveBody"
-              }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "Decider to enable or disable the connector call for retrieve request",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
             }
           },
-          "required": true
-        },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "expand_attempts",
+            "in": "query",
+            "description": "If enabled provides list of attempts linked to payment intent",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "expand_captures",
+            "in": "query",
+            "description": "If enabled provides list of captures linked to latest attempt",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Gets the payment with final status",
@@ -593,90 +623,89 @@
         "operationId": "List all Payments",
         "parameters": [
           {
-            "name": "customer_id",
-            "in": "query",
-            "description": "The identifier for the customer",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "starting_after",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "ending_before",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Limit on the number of objects to return",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
             "name": "created",
             "in": "query",
             "description": "The time at which payment is created",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_lt",
             "in": "query",
             "description": "Time less than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_gt",
             "in": "query",
             "description": "Time greater than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_lte",
             "in": "query",
             "description": "Time less than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_gte",
             "in": "query",
             "description": "Time greater than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           }
         ],
@@ -918,6 +947,17 @@
         ],
         "summary": "Payments - Post Session Tokens",
         "operationId": "Create Post Session Tokens for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -957,6 +997,17 @@
         ],
         "summary": "Payments - Update Metadata",
         "operationId": "Update Metadata for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1073,6 +1124,15 @@
         "description": "Retrieves a relay details.",
         "operationId": "Retrieve a Relay details",
         "parameters": [
+          {
+            "name": "relay_id",
+            "in": "path",
+            "description": "The unique identifier for the Relay",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "X-Profile-Id",
             "in": "header",
@@ -1735,6 +1795,17 @@
         "summary": "Merchant Connector - Create",
         "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2286,6 +2357,17 @@
         "summary": "Mandates - Customer Mandates List",
         "description": "Lists all the mandates for a particular customer id.",
         "operationId": "List Mandates for a Customer",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of retrieved mandates for a customer",
@@ -2810,7 +2892,7 @@
         ],
         "summary": "List customer saved payment methods for a Payment",
         "description": "Lists all the applicable payment methods for a particular payment tied to the `client_secret`.",
-        "operationId": "List all Payment Methods for a Customer",
+        "operationId": "List Customer Payment Methods via Client Secret",
         "parameters": [
           {
             "name": "client-secret",
@@ -2919,7 +3001,7 @@
       }
     },
     "/{customer_id}/payment_methods/{payment_method_id}/default": {
-      "get": {
+      "post": {
         "tags": [
           "Payment Methods"
         ],
@@ -16534,6 +16616,9 @@
       },
       "OrganizationUpdateRequest": {
         "type": "object",
+        "required": [
+          "platform_merchant_id"
+        ],
         "properties": {
           "organization_name": {
             "type": "string",
@@ -16552,8 +16637,7 @@
           },
           "platform_merchant_id": {
             "type": "string",
-            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org",
-            "nullable": true
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org"
           }
         },
         "additionalProperties": false
