@@ -6677,9 +6677,8 @@ where
 
     let decided_connector = decide_connector(
         state.clone(),
-        merchant_account,
+        merchant_context,
         business_profile,
-        key_store,
         &mut routing_data,
         payment_dsl_input,
         mandate_type,
@@ -6699,7 +6698,6 @@ pub async fn decide_connector(
     state: SessionState,
     merchant_context: &domain::MerchantContext,
     business_profile: &domain::Profile,
-    key_store: &domain::MerchantKeyStore,
     routing_data: &mut storage::RoutingData,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     mandate_type: Option<api::MandateTransactionType>,
@@ -6723,7 +6721,7 @@ pub async fn decide_connector(
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
-        return Ok(ConnectorCallType::PreDetermined(connector_data));
+        return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
     if let Some(routable_connector_choice) = &routing_data.pre_routing_connector_choice {
@@ -6768,15 +6766,14 @@ pub async fn decide_connector(
         // helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
         return Ok(ConnectorCallType::PreDetermined(
-            first_pre_routing_connector_data_list.clone(),
+            first_pre_routing_connector_data_list.clone().into(),
         ));
     }
 
     route_connector_v2_for_payments(
         &state,
-        merchant_account,
+        merchant_context,
         business_profile,
-        key_store,
         payment_dsl_input,
         routing_data,
         mandate_type,
@@ -7563,61 +7560,6 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v2_for_payments(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    business_profile: &domain::Profile,
-    key_store: &domain::MerchantKeyStore,
-    transaction_data: core_routing::PaymentsDslInput<'_>,
-    routing_data: &mut storage::RoutingData,
-    _mandate_type: Option<api::MandateTransactionType>,
-) -> RouterResult<ConnectorCallType> {
-    let routing_algorithm_id = routing_data
-        .algorithm_requested
-        .as_ref()
-        .or(business_profile.routing_algorithm_id.as_ref());
-
-    let connectors = routing::perform_static_routing_v1(
-        state,
-        merchant_account.get_id(),
-        routing_algorithm_id,
-        business_profile,
-        &TransactionData::Payment(transaction_data.clone()),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let connectors = routing::perform_eligibility_analysis_with_fallback(
-        &state.clone(),
-        key_store,
-        connectors,
-        &TransactionData::Payment(transaction_data),
-        None,
-        business_profile,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("failed eligibility analysis and fallback")?;
-
-    connectors
-        .first()
-        .map(|conn| {
-            routing_data.routed_through = Some(conn.connector.to_string());
-            routing_data.merchant_connector_id = conn.merchant_connector_id.clone();
-            api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &conn.connector.to_string(),
-                api::GetToken::Connector,
-                conn.merchant_connector_id.clone(),
-            )
-        })
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received")?
-        .map(ConnectorCallType::PreDetermined)
-}
-
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn route_connector_v2_for_payments(
-    state: &SessionState,
     merchant_context: &domain::MerchantContext,
     business_profile: &domain::Profile,
     transaction_data: core_routing::PaymentsDslInput<'_>,
@@ -7631,7 +7573,7 @@ pub async fn route_connector_v2_for_payments(
 
     let connectors = routing::perform_static_routing_v1(
         state,
-        merchant_account.get_id(),
+        merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id,
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
@@ -7641,7 +7583,7 @@ pub async fn route_connector_v2_for_payments(
 
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
-        key_store,
+        merchant_context.get_merchant_key_store(),
         connectors,
         &TransactionData::Payment(transaction_data),
         None,
@@ -7665,7 +7607,7 @@ pub async fn route_connector_v2_for_payments(
         })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received")?
-        .map(ConnectorCallType::PreDetermined)
+        .map(|connector_data| ConnectorCallType::PreDetermined(connector_data.into()))
 }
 
 #[cfg(feature = "v1")]

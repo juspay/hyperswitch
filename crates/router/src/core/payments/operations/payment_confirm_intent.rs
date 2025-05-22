@@ -340,9 +340,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         crate::core::payments::connector_selection(
             state,
-            merchant_account,
+            merchant_context,
             business_profile,
-            mechant_key_store,
             payment_data,
             None,
         )

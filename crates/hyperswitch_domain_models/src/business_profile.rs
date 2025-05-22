@@ -1873,20 +1873,25 @@ impl super::behaviour::Conversion for Profile {
                 authentication_product_ids: item.authentication_product_ids,
                 three_ds_decision_manager_config: item.three_ds_decision_manager_config,
                 card_testing_guard_config: item.card_testing_guard_config,
-                card_testing_secret_key: item
-                    .card_testing_secret_key
-                    .async_lift(|inner| async {
-                        crypto_operation(
+                card_testing_secret_key: match item.card_testing_secret_key {
+                    Some(encrypted_value) => {
+                        match crypto_operation(
                             state,
                             type_name!(Self::DstType),
-                            CryptoOperation::DecryptOptional(inner),
+                            CryptoOperation::DecryptOptional(Some(encrypted_value)),
                             key_manager_identifier.clone(),
                             key.peek(),
                         )
                         .await
-                        .and_then(|val| val.try_into_optionaloperation())
-                    })
-                    .await?,
+                        .and_then(|val| val.try_into_optionaloperation()) {
+                            Ok(value) => value,
+                            Err(err) => {
+                                None
+                            }
+                        }
+                    }
+                    None => None,
+                },
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
                 is_debit_routing_enabled: item.is_debit_routing_enabled,
                 merchant_business_country: item.merchant_business_country,

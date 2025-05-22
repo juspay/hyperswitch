@@ -1902,12 +1902,17 @@ pub enum PaymentMethodsData {
 }
 
 impl PaymentMethodsData {
+    #[cfg(feature = "v1")]
     pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
         if let Self::Card(card) = self {
             card.co_badged_card_data.clone()
         } else {
             None
         }
+    }
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
+        todo!()
     }
 }
 
@@ -2011,7 +2016,6 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
-            co_badged_card_data: None,
         }
     }
 }

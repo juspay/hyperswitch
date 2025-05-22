@@ -2758,9 +2758,18 @@ pub async fn payment_confirm_intent(
             ))
             .await
         },
-        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
-            global_payment_id,
-        )),
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(
+                common_utils::types::authentication::ResourceId::Payment(
+                    global_payment_id,
+                ),
+            ),
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
