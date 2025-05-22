@@ -7929,6 +7929,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
@@ -10949,6 +10950,50 @@
           }
         }
       },
+      "GenericTokenizationRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "token_request"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "token_request": {
+            "type": "object",
+            "description": "Request for tokenization which contains the data to be tokenized"
+          }
+        }
+      },
+      "GenericTokenizationResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "flag"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Created time of the tokenization id",
+            "example": "2024-02-24T11:04:09.922Z"
+          },
+          "flag": {
+            "type": "string",
+            "description": "Status of the tokenization id created",
+            "example": "enabled"
+          }
+        }
+      },
       "GiftCardAdditionalData": {
         "oneOf": [
           {
@@ -13804,7 +13849,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -18118,6 +18164,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18288,6 +18339,11 @@
               }
             ],
             "default": "no_three_ds",
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         }
@@ -20091,6 +20147,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20352,6 +20413,11 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "is_external_vault_enabled": {
@@ -21435,6 +21501,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
           "billwerk",

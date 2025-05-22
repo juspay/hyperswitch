@@ -2884,7 +2884,7 @@ pub struct PaymentMethodsSessionUpdateRequest {
 
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
-    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2951,7 +2951,7 @@ pub struct PaymentMethodSessionResponse {
 
     /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
     #[schema(value_type = Option<serde_json::Value>)]
-    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 
     /// The iso timestamp when the session will expire
     /// Trying to retrieve the session or any operations on the session after this time will result in an error

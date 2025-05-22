@@ -1,3 +1,5 @@
+use common_utils::pii;
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodSession {
@@ -6,7 +8,7 @@ pub struct PaymentMethodSession {
     pub billing: Option<common_utils::encryption::Encryption>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-    pub tokenization_data: Option<masking::Secret<serde_json::Value>>,
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub return_url: Option<common_utils::types::Url>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_at: time::PrimitiveDateTime,

@@ -38,21 +38,6 @@ pub struct Tokenization {
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl Tokenization {
-    pub async fn find_by_id(
-        conn: &PgPooledConn,
-        id: &common_utils::id_type::GlobalTokenId,
-    ) -> StorageResult<Self> {
-        use diesel::ExpressionMethods;
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            tokenization::dsl::id.eq(id.to_owned()),
-        )
-        .await
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = tokenization)]
 pub struct TokenizationNew {
@@ -66,12 +51,7 @@ pub struct TokenizationNew {
     pub flag: common_enums::enums::TokenizationFlag,
 }
 
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-impl Tokenization {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
-        generics::generic_insert(conn, self).await
-    }
-}
+
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, AsChangeset)]
