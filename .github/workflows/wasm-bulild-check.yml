@@ -29,11 +29,11 @@ jobs:
           tool: wasm-pack
           checksum: true
 
-      - name: Install wasm-opt
-        uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-opt
-          checksum: true
+      # - name: Install wasm-opt
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: wasm-opt
+      #     checksum: true
 
       - name: wasm build
         shell: bash
