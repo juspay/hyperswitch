@@ -1409,7 +1409,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::AuthenticationFailed
         | common_enums::AttemptStatus::CaptureFailed
-        | common_enums::AttemptStatus::RouterDeclined => common_enums::AttemptStatus::Failure,
+        | common_enums::AttemptStatus::RouterDeclined
+        | common_enums::AttemptStatus::IntegrityFailure => common_enums::AttemptStatus::Failure,
         common_enums::AttemptStatus::Started
         | common_enums::AttemptStatus::AuthenticationPending
         | common_enums::AttemptStatus::AuthenticationSuccessful
@@ -1454,7 +1455,8 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
             common_enums::AttemptStatus::Unresolved => Self::Pending,
             common_enums::AttemptStatus::Pending => Self::Pending,
-            common_enums::AttemptStatus::Failure => Self::Failure,
+            common_enums::AttemptStatus::Failure
+            | common_enums::AttemptStatus::IntegrityFailure => Self::Failure,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
             common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
             common_enums::AttemptStatus::DeviceDataCollectionPending => Self::Pending,

@@ -77,7 +77,8 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
         match intent_status {
             // Payment attempt can be recorded for failed payment as well in revenue recovery flow.
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Conflicted => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing

@@ -181,6 +181,7 @@ fn validate_payment_status_for_payment_method_list(
     match intent_status {
         common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
         common_enums::IntentStatus::Succeeded
+        | common_enums::IntentStatus::Conflicted
         | common_enums::IntentStatus::Failed
         | common_enums::IntentStatus::Cancelled
         | common_enums::IntentStatus::Processing

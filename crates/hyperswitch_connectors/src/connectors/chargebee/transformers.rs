@@ -667,7 +667,8 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Success),
             enums::AttemptStatus::Failure
             | enums::AttemptStatus::CaptureFailed
-            | enums::AttemptStatus::RouterDeclined => Ok(Self::Failure),
+            | enums::AttemptStatus::RouterDeclined
+            | enums::AttemptStatus::IntegrityFailure => Ok(Self::Failure),
             enums::AttemptStatus::AuthenticationFailed
             | enums::AttemptStatus::Started
             | enums::AttemptStatus::AuthenticationPending
