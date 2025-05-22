@@ -1475,6 +1475,48 @@ pub async fn configure_dynamic_routing_volume_split(
     Ok(service_api::ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
+pub async fn retrieve_dynamic_routing_volume_split(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResponse<routing_types::RoutingVolumeSplitResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        merchant_context.get_merchant_key_store(),
+        Some(&profile_id),
+        merchant_context.get_merchant_account().get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+
+    let resp = routing_types::RoutingVolumeSplitResponse {
+        split: dynamic_routing_algo_ref
+            .dynamic_routing_volume_split
+            .unwrap_or_default(),
+    };
+
+    Ok(service_api::ApplicationResponse::Json(resp))
+}
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn success_based_routing_update_configs(
     state: SessionState,
