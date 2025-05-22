@@ -936,12 +936,12 @@ impl Default for SuccessBasedRoutingConfig {
         Self {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             config: Some(SuccessBasedRoutingConfigBody {
-                min_aggregates_size: Some(2),
+                min_aggregates_size: Some(5),
                 default_success_rate: Some(100.0),
-                max_aggregates_size: Some(3),
+                max_aggregates_size: Some(8),
                 current_block_threshold: Some(CurrentBlockThreshold {
-                    duration_in_mins: Some(5),
-                    max_total_count: Some(2),
+                    duration_in_mins: None,
+                    max_total_count: Some(5),
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
             }),

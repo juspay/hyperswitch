@@ -219,6 +219,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bamboraapac => Self::Bamboraapac,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            // api_enums::Connector::Barclaycard => Self::Barclaycard,
             api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
@@ -287,6 +288,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
+            // api_enums::Connector::Nordea => Self::Nordea,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
@@ -326,7 +328,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             // api_enums::Connector::UnifiedAuthenticationService => {
             //     Self::UnifiedAuthenticationService
             // }
-            // api_enums::Connector::Vgs => Self::Vgs,
+            api_enums::Connector::Vgs => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Vgs is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Volt => Self::Volt,
             api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             // api_enums::Connector::Wellsfargopayout => Self::Wellsfargopayout,
@@ -365,11 +371,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Taxjar => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Taxjar is not a routable connector".to_string(),
-                })?
-            }
-            api_enums::Connector::Vgs => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "Vgs is not a routable connector".to_string(),
                 })?
             }
         })
