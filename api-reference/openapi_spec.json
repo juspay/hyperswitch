@@ -2981,7 +2981,7 @@
       }
     },
     "/{customer_id}/payment_methods/{payment_method_id}/default": {
-      "get": {
+      "post": {
         "tags": [
           "Payment Methods"
         ],

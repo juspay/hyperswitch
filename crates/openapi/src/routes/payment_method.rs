@@ -181,7 +181,7 @@ pub async fn payment_method_delete_api() {}
 ///
 /// Set the Payment Method as Default for the Customer.
 #[utoipa::path(
-    get,
+    post,
     path = "/{customer_id}/payment_methods/{payment_method_id}/default",
     params (
         ("customer_id" = String,Path, description ="The unique identifier for the Customer"),
