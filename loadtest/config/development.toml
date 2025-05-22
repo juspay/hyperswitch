@@ -86,6 +86,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/pts/v2/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
@@ -142,6 +143,7 @@ nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
+nordea.base_url = "https://api.nordeaopenbanking.com"
 noon.key_mode = "Test"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
@@ -209,6 +211,7 @@ cards = [
     "bambora",
     "bamboraapac",
     "bankofamerica",
+    "barclaycard",
     "billwerk",
     "bitpay",
     "bluesnap",
@@ -252,6 +255,7 @@ cards = [
     "nexixpay",
     "nmi",
     "noon",
+    "nordea",
     "novalnet",
     "nuvei",
     "opayo",
@@ -590,6 +594,12 @@ bank_redirect.trustly.connector_list = "adyen,aci"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 bank_redirect.eps.connector_list = "globalpay,nexinets,aci"
 
+[debit_routing_config]
+supported_currencies = "USD"
+supported_connectors = "adyen"
+
+[debit_routing_config.connector_supported_debit_networks]
+adyen = "Star,Pulse,Accel,Nyce"
 
 [cors]
 max_age = 30

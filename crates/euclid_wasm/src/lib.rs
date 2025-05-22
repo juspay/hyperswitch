@@ -4,6 +4,7 @@ mod utils;
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    sync::OnceLock,
 };
 
 use api_models::{
@@ -27,7 +28,6 @@ use euclid::{
         dir::{self, enums as dir_enums, EuclidDirFilter},
     },
 };
-use once_cell::sync::OnceCell;
 use strum::{EnumMessage, EnumProperty, VariantNames};
 use wasm_bindgen::prelude::*;
 
@@ -42,8 +42,8 @@ struct SeedData {
     connectors: Vec<ast::ConnectorChoice>,
 }
 
-static SEED_DATA: OnceCell<SeedData> = OnceCell::new();
-static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
+static SEED_DATA: OnceLock<SeedData> = OnceLock::new();
+static SEED_FOREX: OnceLock<currency_conversion_types::ExchangeRates> = OnceLock::new();
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
 /// The input argument is a struct fields base_currency and conversion where later is all the conversions associated with the base_currency
