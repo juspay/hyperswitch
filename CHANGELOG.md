@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.14.0-hotfix4
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] fix CartesBancaires card_type for Cybersource ([#8108](https://github.com/juspay/hyperswitch/pull/8108)) ([`7c15f37`](https://github.com/juspay/hyperswitch/commit/7c15f3728796650eded2c884449b3394cc43bcda))
+
+**Full Changelog:** [`2025.05.14.0-hotfix3...2025.05.14.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.05.14.0-hotfix3...2025.05.14.0-hotfix4)
+
+
+- - -
+
 ## 2025.05.14.0-hotfix3
 
 ### Bug Fixes
