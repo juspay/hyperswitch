@@ -169,8 +169,10 @@ impl AsRef<[u8]> for Secret<Vec<u8>> {
 }
 
 /// Strategy for masking JSON values
+#[cfg(feature = "serde")]
 pub enum JsonMaskStrategy {}
 
+#[cfg(feature = "serde")]
 impl Strategy<serde_json::Value> for JsonMaskStrategy {
     fn fmt(value: &serde_json::Value, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match value {
@@ -239,6 +241,7 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
 }
 
 #[cfg(test)]
+#[cfg(feature = "serde")]
 mod tests {
     use serde_json::json;
 
