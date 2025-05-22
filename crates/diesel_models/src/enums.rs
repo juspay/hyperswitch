@@ -301,21 +301,3 @@ pub enum UserRoleVersion {
     V1,
     V2,
 }
-
-// #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-// #[derive(
-//     Clone,
-//     Copy,
-//     Debug,
-//     Eq,
-//     PartialEq,
-//     serde::Deserialize,
-//     serde::Serialize,
-//     diesel::deserialize::FromSqlRow,
-//     diesel::expression::AsExpression,
-// )]
-// #[diesel(sql_type = diesel::sql_types::Text)]
-// pub enum TokenizationFlag {
-//     Enabled,
-//     Disabled,
-// }

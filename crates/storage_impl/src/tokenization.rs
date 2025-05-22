@@ -96,7 +96,6 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
     {
         let conn = connection::pg_connection_read(self).await?;
 
-        // Use the find_by_id method we just defined
         let tokenization = diesel_models::tokenization::Tokenization::find_by_id(&conn, token)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;

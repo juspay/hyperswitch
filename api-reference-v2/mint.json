@@ -146,6 +146,10 @@
     {
       "group": "Proxy",
       "pages": ["api-reference/proxy/proxy"]
+    },
+    {
+      "group": "Tokenization",
+      "pages": ["api-reference/tokenization/tokenization--create"]
     }
   ],
   "footerSocials": {
