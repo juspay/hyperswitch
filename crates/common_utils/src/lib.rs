@@ -110,6 +110,12 @@ pub mod date_time {
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
     }
 
+    /// Return the current date and time in UTC formatted as an RFC 7231 HTTP Date.
+    pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
+        let now_utc = OffsetDateTime::now_utc();
+        now_utc.format(&time::format_description::well_known::Rfc2822)
+    }
+
     impl From<DateFormat> for &[BorrowedFormatItem<'_>] {
         fn from(format: DateFormat) -> Self {
             match format {
