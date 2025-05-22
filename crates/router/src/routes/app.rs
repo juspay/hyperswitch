@@ -47,6 +47,8 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use super::proxy;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -665,6 +667,18 @@ impl Relay {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct Proxy;
+
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+impl Proxy {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/proxy")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
 }
 

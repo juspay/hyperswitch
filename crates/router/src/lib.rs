@@ -232,6 +232,11 @@ pub fn mk_app(
             .service(routes::Cards::server(state.clone()));
     }
 
+    #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+    {
+        server_app = server_app.service(routes::Proxy::server(state.clone()));
+    }
+
     #[cfg(all(feature = "recon", feature = "v1"))]
     {
         server_app = server_app.service(routes::Recon::server(state.clone()));
