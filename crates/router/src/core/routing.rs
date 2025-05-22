@@ -1420,7 +1420,7 @@ pub async fn configure_dynamic_routing_volume_split(
     merchant_context: domain::MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     routing_info: routing::RoutingVolumeSplit,
-) -> RouterResponse<()> {
+) -> RouterResponse<routing::RoutingVolumeSplit> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
@@ -1472,7 +1472,7 @@ pub async fn configure_dynamic_routing_volume_split(
     )
     .await?;
 
-    Ok(service_api::ApplicationResponse::StatusOk)
+    Ok(service_api::ApplicationResponse::Json(routing_info))
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
