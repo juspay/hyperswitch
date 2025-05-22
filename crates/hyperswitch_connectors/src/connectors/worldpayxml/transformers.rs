@@ -217,7 +217,7 @@ struct PaymentMethodDetail {
 #[serde(rename_all = "camelCase")]
 struct CardResponse {
     #[serde(rename = "@number")]
-    number: Option<String>,
+    number: Option<Secret<String>>,
     #[serde(rename = "@type")]
     card_type: String,
     expiry_date: Option<ExpiryDate>,
@@ -226,7 +226,7 @@ struct CardResponse {
 #[derive(Debug, Deserialize, Serialize)]
 struct AuthorisationId {
     #[serde(rename = "@id")]
-    id: String,
+    id: Secret<String>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
