@@ -16793,11 +16793,9 @@
             "nullable": true
           },
           "associated_token_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.GlobalTokenId"
-              }
-            ],
+            "type": "string",
+            "description": "The token-id created if there is tokenization_data present",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         }
