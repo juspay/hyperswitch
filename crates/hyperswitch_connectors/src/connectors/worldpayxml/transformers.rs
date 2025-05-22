@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
+        self as connector_utils, CardData, RouterData as _, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
     },
 };
 
@@ -271,14 +271,16 @@ pub enum AutoCapture {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct WorldpayXmlAmount {
+    #[serde(rename = "@value")]
+    value: StringMinorUnit,
     #[serde(rename = "@currencyCode")]
     currency_code: api_models::enums::Currency,
     #[serde(rename = "@exponent")]
     exponent: String,
-    #[serde(rename = "@value")]
-    value: StringMinorUnit,
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PaymentDetails {
@@ -390,6 +392,12 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
     fn try_from(
         item: &WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "Worldpayxml",
+            })?
+        };
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => PaymentService::try_from((item, &req_card)),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -484,6 +492,7 @@ impl<F> TryFrom<&WorldpayxmlRouterData<&RefundsRouterData<F>>> for PaymentServic
                             .number_of_digits_after_decimal_point()
                             .to_string(),
                         value: item.amount.to_owned(),
+
                     },
                 }),
             },
@@ -653,7 +662,6 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
             ))?;
 
         validate_reply(&reply)?;
-
         if let Some(order_status) = reply.order_status {
             validate_order_status(&order_status)?;
 
