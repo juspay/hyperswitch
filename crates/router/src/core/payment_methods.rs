@@ -2240,16 +2240,12 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
 
-    let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
-        state,
-        merchant_context,
-        profile,
-        &vault_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to retrieve payment method from vault")?
-    .data;
+    let pmd: domain::PaymentMethodVaultingData =
+        vault::retrieve_payment_method_from_vault(state, merchant_context, profile, &vault_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")?
+            .data;
 
     let vault_request_data = request.payment_method_data.map(|payment_method_data| {
         pm_transforms::generate_pm_vaulting_req_from_update_request(pmd, payment_method_data)
