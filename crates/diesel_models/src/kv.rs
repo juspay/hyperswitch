@@ -46,7 +46,10 @@ impl DBOperation {
                 Insertable::PayoutAttempt(_) => "payout_attempt",
                 Insertable::Customer(_) => "customer",
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
+                #[cfg(all(any(feature = "v1", feature="v2"), not(feature = "payment_methods_v2")))]
                 Insertable::PaymentMethod(_) => "payment_method",
+                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                Insertable::PaymentMethodV2(_) => "payment_method",
                 Insertable::Mandate(_) => "mandate",
             },
             Self::Update { updatable } => match **updatable {
@@ -106,7 +109,12 @@ impl DBOperation {
                 Insertable::PayoutAttempt(rev) => {
                     DBResult::PayoutAttempt(Box::new(rev.insert(conn).await?))
                 }
+                #[cfg(all(any(feature = "v1", feature="v2"), not(feature = "payment_methods_v2")))]
                 Insertable::PaymentMethod(rev) => {
+                    DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
+                }
+                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                Insertable::PaymentMethodV2(rev) => {
                     DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
                 }
                 Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
@@ -223,7 +231,10 @@ pub enum Insertable {
     ReverseLookUp(ReverseLookupNew),
     Payouts(PayoutsNew),
     PayoutAttempt(PayoutAttemptNew),
+    #[cfg(all(any(feature = "v1", feature="v2"), not(feature = "payment_methods_v2")))]
     PaymentMethod(PaymentMethodNew),
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    PaymentMethodV2(PaymentMethodNew),
     Mandate(MandateNew),
 }
 

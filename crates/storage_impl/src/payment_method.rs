@@ -140,12 +140,61 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
-        payment_method: DomainPaymentMethod,
+        payment_method: DomainPaymentMethod, // Domain model
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        self.router_store
-            .insert_payment_method(state, key_store, payment_method, storage_scheme)
+        let conn = pg_connection_write(self).await?;
+
+        let mut payment_method_new = payment_method // diesel_models::payment_method::PaymentMethodNew (V2)
+            .construct_new()
             .await
+            .change_context(errors::StorageError::DecryptionError)?;
+        payment_method_new.update_storage_scheme(storage_scheme);
+
+        let partition_key = PartitionKey::MerchantIdGlobalCustomerId { // Ensure this variant exists
+            merchant_id: &payment_method_new.merchant_id,
+            customer_id: &payment_method_new.customer_id,
+        };
+
+        let payment_method_id = payment_method_new.id.get_string_repr();
+        // This identifier is for the main record within its partition (e.g., field in a Redis hash)
+        let field = format!("payment_method_id_{}", payment_method_id);
+
+        let mut reverse_lookups = vec![
+            // This key format should match what find_payment_method (by GlobalPaymentMethodId) expects
+            // format!("payment_method_v2_{}", record_id_str)
+        ];
+
+        if let Some(ref locker_fingerprint_id) = payment_method_new.locker_fingerprint_id {
+            // This key format should match what find_payment_method_by_fingerprint_id expects
+            reverse_lookups.push(format!("pm_v2_fingerprint_{}", locker_fingerprint_id));
+        }
+
+        // Clone payment_method_new once for all subsequent uses except the direct DB insert.
+        let payment_method_new_cloned = payment_method_new.clone();
+        
+        // Create the diesel model for KV return from the clone.
+        // This is the V2 diesel_models::PaymentMethod
+        let payment_method_diesel_model = (&payment_method_new).into();
+
+        self.insert_resource(
+            state,
+            key_store,
+            storage_scheme,
+            // The original payment_method_new is consumed here by the insert method.
+            payment_method_new.clone().insert(&conn), 
+            payment_method_diesel_model,
+            InsertResourceParams {
+                // Use the cloned version for the KV store insertable.
+                // This is the V2 diesel_models::payment_method::PaymentMethodNew
+                insertable: kv::Insertable::PaymentMethodV2(payment_method_new_cloned), 
+                reverse_lookups,
+                key: partition_key,
+                identifier: field,
+                resource_type: "payment_method_v2",
+            },
+        )
+        .await
     }
 
     #[cfg(all(
