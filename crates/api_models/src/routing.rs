@@ -269,7 +269,9 @@ impl RoutableConnectorChoiceWithStatus {
     }
 }
 
-#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize, strum::Display, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -484,6 +486,7 @@ pub struct RoutingDictionaryRecord {
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: Option<TransactionType>,
+    pub decision_engine_routing_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -886,12 +889,12 @@ impl Default for SuccessBasedRoutingConfig {
         Self {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             config: Some(SuccessBasedRoutingConfigBody {
-                min_aggregates_size: Some(2),
+                min_aggregates_size: Some(5),
                 default_success_rate: Some(100.0),
-                max_aggregates_size: Some(3),
+                max_aggregates_size: Some(8),
                 current_block_threshold: Some(CurrentBlockThreshold {
-                    duration_in_mins: Some(5),
-                    max_total_count: Some(2),
+                    duration_in_mins: None,
+                    max_total_count: Some(5),
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
             }),

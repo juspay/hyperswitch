@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    sync::LazyLock,
 };
 
 #[cfg(feature = "payouts")]
@@ -21,19 +22,10 @@ use common_utils::{
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    mandates,
-    network_tokenization::NetworkTokenNumber,
-    payments::payment_attempt::PaymentAttempt,
-    router_request_types::{
-        AuthoriseIntegrityObject, CaptureIntegrityObject, RefundIntegrityObject,
-        SyncIntegrityObject,
-    },
+    network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,
 };
 use masking::{Deserialize, ExposeInterface, Secret};
-use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::Serializer;
-use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
 use crate::types::fraud_check;
@@ -753,7 +745,6 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.capture_method.to_owned()
     }
 }
-
 pub trait SplitPaymentData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest>;
 }
@@ -1355,29 +1346,31 @@ impl From<domain::GooglePayWalletData> for GooglePayWalletData {
     }
 }
 
-static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-    // [#379]: Determine card issuer from card BIN number
-    map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
-    map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-    map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-    map.insert(
-        CardIssuer::Maestro,
-        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-    );
-    map.insert(
-        CardIssuer::DinersClub,
-        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
-    );
-    map.insert(
-        CardIssuer::JCB,
-        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
-    );
-    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
-    map
-});
+static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
+    || {
+        let mut map = HashMap::new();
+        // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+        // [#379]: Determine card issuer from card BIN number
+        map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
+        map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
+        map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
+        map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+        map.insert(
+            CardIssuer::Maestro,
+            Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+        );
+        map.insert(
+            CardIssuer::DinersClub,
+            Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+        );
+        map.insert(
+            CardIssuer::JCB,
+            Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+        );
+        map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
+        map
+    },
+);
 
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
 pub enum CardIssuer {
@@ -1932,13 +1925,6 @@ pub fn get_header_key_value<'a>(
     get_header_field(headers.get(key))
 }
 
-pub fn get_http_header<'a>(
-    key: &str,
-    headers: &'a http::HeaderMap,
-) -> CustomResult<&'a str, errors::ConnectorError> {
-    get_header_field(headers.get(key))
-}
-
 fn get_header_field(
     field: Option<&http::HeaderValue>,
 ) -> CustomResult<&str, errors::ConnectorError> {
@@ -1951,23 +1937,6 @@ fn get_header_field(
         .ok_or(report!(
             errors::ConnectorError::WebhookSourceVerificationFailed
         ))?
-}
-
-pub fn to_boolean(string: String) -> bool {
-    let str = string.as_str();
-    match str {
-        "true" => true,
-        "false" => false,
-        "yes" => true,
-        "no" => false,
-        _ => false,
-    }
-}
-
-pub fn get_connector_meta(
-    connector_meta: Option<serde_json::Value>,
-) -> Result<serde_json::Value, Error> {
-    connector_meta.ok_or_else(missing_field_err("connector_meta_data"))
 }
 
 pub fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
@@ -1990,77 +1959,6 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
-pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
-    consts::BASE64_ENGINE
-        .decode(data)
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-}
-
-pub fn to_currency_base_unit_from_optional_amount(
-    amount: Option<i64>,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    match amount {
-        Some(a) => to_currency_base_unit(a, currency),
-        _ => Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "amount",
-        }
-        .into()),
-    }
-}
-
-pub fn get_amount_as_string(
-    currency_unit: &api::CurrencyUnit,
-    amount: i64,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let amount = match currency_unit {
-        api::CurrencyUnit::Minor => amount.to_string(),
-        api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
-    };
-    Ok(amount)
-}
-
-pub fn get_amount_as_f64(
-    currency_unit: &api::CurrencyUnit,
-    amount: i64,
-    currency: enums::Currency,
-) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    let amount = match currency_unit {
-        api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
-        api::CurrencyUnit::Minor => u32::try_from(amount)
-            .change_context(errors::ConnectorError::ParsingFailed)?
-            .into(),
-    };
-    Ok(amount)
-}
-
-pub fn to_currency_base_unit(
-    amount: i64,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_base_unit(amount)
-        .change_context(errors::ConnectorError::ParsingFailed)
-}
-
-pub fn to_currency_lower_unit(
-    amount: String,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_lower_unit(amount)
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-}
-
-pub fn construct_not_implemented_error_report(
-    capture_method: enums::CaptureMethod,
-    connector_name: &str,
-) -> error_stack::Report<errors::ConnectorError> {
-    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
-        .into()
-}
-
 pub fn construct_not_supported_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &'static str,
@@ -2070,77 +1968,6 @@ pub fn construct_not_supported_error_report(
         connector: connector_name,
     }
     .into()
-}
-
-pub fn to_currency_base_unit_with_zero_decimal_check(
-    amount: i64,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_base_unit_with_zero_decimal_check(amount)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-}
-
-pub fn to_currency_base_unit_asf64(
-    amount: i64,
-    currency: enums::Currency,
-) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_base_unit_asf64(amount)
-        .change_context(errors::ConnectorError::ParsingFailed)
-}
-
-pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let float_value = value.parse::<f64>().map_err(|_| {
-        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
-    })?;
-    serializer.serialize_f64(float_value)
-}
-
-pub fn collect_values_by_removing_signature(
-    value: &serde_json::Value,
-    signature: &String,
-) -> Vec<String> {
-    match value {
-        serde_json::Value::Null => vec!["null".to_owned()],
-        serde_json::Value::Bool(b) => vec![b.to_string()],
-        serde_json::Value::Number(n) => match n.as_f64() {
-            Some(f) => vec![format!("{f:.2}")],
-            None => vec![n.to_string()],
-        },
-        serde_json::Value::String(s) => {
-            if signature == s {
-                vec![]
-            } else {
-                vec![s.clone()]
-            }
-        }
-        serde_json::Value::Array(arr) => arr
-            .iter()
-            .flat_map(|v| collect_values_by_removing_signature(v, signature))
-            .collect(),
-        serde_json::Value::Object(obj) => obj
-            .values()
-            .flat_map(|v| collect_values_by_removing_signature(v, signature))
-            .collect(),
-    }
-}
-
-pub fn collect_and_sort_values_by_removing_signature(
-    value: &serde_json::Value,
-    signature: &String,
-) -> Vec<String> {
-    let mut values = collect_values_by_removing_signature(value, signature);
-    values.sort();
-    values
-}
-
-#[inline]
-pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str) -> String {
-    format!("whsec_verification_{connector_label}_{merchant_id}")
 }
 
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
@@ -2315,71 +2142,6 @@ pub trait MultipleCaptureSyncResponse {
         None
     }
     fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>>;
-}
-
-pub fn construct_captures_response_hashmap<T>(
-    capture_sync_response_list: Vec<T>,
-) -> CustomResult<HashMap<String, types::CaptureSyncResponse>, errors::ConnectorError>
-where
-    T: MultipleCaptureSyncResponse,
-{
-    let mut hashmap = HashMap::new();
-    for capture_sync_response in capture_sync_response_list {
-        let connector_capture_id = capture_sync_response.get_connector_capture_id();
-        if capture_sync_response.is_capture_response() {
-            hashmap.insert(
-                connector_capture_id.clone(),
-                types::CaptureSyncResponse::Success {
-                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
-                    status: capture_sync_response.get_capture_attempt_status(),
-                    connector_response_reference_id: capture_sync_response
-                        .get_connector_reference_id(),
-                    amount: capture_sync_response
-                        .get_amount_captured()
-                        .change_context(errors::ConnectorError::AmountConversionFailed)
-                        .attach_printable(
-                            "failed to convert back captured response amount to minor unit",
-                        )?,
-                },
-            );
-        }
-    }
-
-    Ok(hashmap)
-}
-
-pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
-    capture_method == Some(enums::CaptureMethod::Manual)
-        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
-}
-
-pub fn generate_random_bytes(length: usize) -> Vec<u8> {
-    // returns random bytes of length n
-    let mut rng = rand::thread_rng();
-    (0..length).map(|_| rand::Rng::gen(&mut rng)).collect()
-}
-
-pub fn validate_currency(
-    request_currency: types::storage::enums::Currency,
-    merchant_config_currency: Option<types::storage::enums::Currency>,
-) -> Result<(), errors::ConnectorError> {
-    let merchant_config_currency =
-        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-    if request_currency != merchant_config_currency {
-        Err(errors::ConnectorError::NotSupported {
-            message: format!(
-                "currency {} is not supported for this merchant account",
-                request_currency
-            ),
-            connector: "Braintree",
-        })?
-    }
-    Ok(())
-}
-
-pub fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
-    let utc_datetime = datetime.assume_utc();
-    utc_datetime.unix_timestamp() * 1000
 }
 
 #[cfg(feature = "frm")]
@@ -2969,27 +2731,6 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     }
 }
 
-pub fn get_mandate_details(
-    setup_mandate_details: Option<&mandates::MandateData>,
-) -> Result<Option<&mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
-    setup_mandate_details
-        .map(|mandate_data| match &mandate_data.mandate_type {
-            Some(mandates::MandateDataType::SingleUse(mandate))
-            | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate),
-            Some(mandates::MandateDataType::MultiUse(None)) => {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
-                }
-                .into())
-            }
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "setup_future_usage.mandate_data.mandate_type",
-            }
-            .into()),
-        })
-        .transpose()
-}
-
 pub fn convert_amount<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: MinorUnit,
@@ -3010,73 +2751,6 @@ pub fn convert_back_amount_to_minor_units<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
-pub fn get_authorise_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: T,
-    currency: String,
-) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-
-    let amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
-
-    Ok(AuthoriseIntegrityObject {
-        amount: amount_in_minor_unit,
-        currency: currency_enum,
-    })
-}
-
-pub fn get_sync_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: T,
-    currency: String,
-) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-    let amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
-
-    Ok(SyncIntegrityObject {
-        amount: Some(amount_in_minor_unit),
-        currency: Some(currency_enum),
-    })
-}
-
-pub fn get_capture_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    capture_amount: Option<T>,
-    currency: String,
-) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-
-    let capture_amount_in_minor_unit = capture_amount
-        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
-        .transpose()?;
-
-    Ok(CaptureIntegrityObject {
-        capture_amount: capture_amount_in_minor_unit,
-        currency: currency_enum,
-    })
-}
-
-pub fn get_refund_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    refund_amount: T,
-    currency: String,
-) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-
-    let refund_amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
-
-    Ok(RefundIntegrityObject {
-        currency: currency_enum,
-        refund_amount: refund_amount_in_minor_unit,
-    })
-}
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
