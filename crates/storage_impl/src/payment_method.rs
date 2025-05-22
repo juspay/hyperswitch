@@ -303,19 +303,63 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         &self,
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
-        payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method: DomainPaymentMethod, // Domain model input
+        payment_method_update: diesel_models::payment_method::PaymentMethodUpdate, // Diesel Update model input
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        self.router_store
-            .update_payment_method(
-                state,
-                key_store,
-                payment_method,
-                payment_method_update,
-                storage_scheme,
-            )
-            .await
+        let conn = pg_connection_write(self).await?;
+
+        let current_payment_method_diesel: diesel_models::payment_method::PaymentMethod =
+            Conversion::convert(payment_method)
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+
+        let partition_key = PartitionKey::MerchantIdGlobalCustomerId {
+            merchant_id: &current_payment_method_diesel.merchant_id,
+            customer_id: &current_payment_method_diesel.customer_id,
+        };
+
+        let payment_method_id_str = current_payment_method_diesel.id.get_string_repr();
+        let field_identifier = format!("payment_method_id_{}", payment_method_id_str);
+
+        let payment_method_update_internal: diesel_models::payment_method::PaymentMethodUpdateInternal =
+            payment_method_update.convert_to_payment_method_update(storage_scheme);
+
+        let updated_payment_method_diesel = payment_method_update_internal
+            .clone()
+            .apply_changeset(current_payment_method_diesel.clone());
+
+        let storage_scheme_string = format!("{}", storage_scheme);
+
+        self.update_resource(
+            state,
+            key_store,
+            storage_scheme,
+            // Database update operation:
+            current_payment_method_diesel
+                .clone()
+                .update_with_id(&conn, payment_method_update_internal.clone()),
+            // Updated resource (V2 diesel model) to be converted and returned:
+            updated_payment_method_diesel,
+            UpdateResourceParams {
+                updateable: kv::Updateable::PaymentMethodUpdate(Box::new(
+                    kv::PaymentMethodUpdateMems {
+                        orig: current_payment_method_diesel.clone(),
+                        update_data: payment_method_update_internal.clone(),
+                    },
+                )),
+                operation: Op::Update(
+                    partition_key.clone(),
+                    &field_identifier,
+                    Some(storage_scheme_string.as_str())
+                    //payment_method_update_internal.updated_by.as_deref(),
+                ),
+                // reverse_lookups can be added here if any indexed fields are part of the update
+                // and require their reverse lookup entries to be managed.
+                // For typical payment method updates, primary identifiers usually don't change.
+            },
+        )
+        .await
     }
 
     #[cfg(all(
