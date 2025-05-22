@@ -145,8 +145,7 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
-            .service(routes::Relay::server(state.clone()))
-            .service(routes::Authentication::server(state.clone()));
+            .service(routes::Relay::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
@@ -164,7 +163,8 @@ pub fn mk_app(
         {
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
-                .service(routes::Mandates::server(state.clone()));
+                .service(routes::Mandates::server(state.clone()))
+                .service(routes::Authentication::server(state.clone()));
         }
     }
 

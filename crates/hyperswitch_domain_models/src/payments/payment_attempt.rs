@@ -428,7 +428,7 @@ pub struct PaymentAttempt {
     /// The connector that was used for external authentication
     pub authentication_connector: Option<String>,
     /// The foreign key reference to the authentication details
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,

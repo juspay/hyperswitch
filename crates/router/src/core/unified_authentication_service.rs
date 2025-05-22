@@ -566,7 +566,7 @@ pub async fn create_new_authentication(
 }
 
 // Modular authentication
-
+#[cfg(feature = "v1")]
 pub async fn authentication_create_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,

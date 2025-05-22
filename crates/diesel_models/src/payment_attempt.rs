@@ -74,7 +74,7 @@ pub struct PaymentAttempt {
     pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
