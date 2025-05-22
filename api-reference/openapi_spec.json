@@ -623,6 +623,16 @@
         "operationId": "List all Payments",
         "parameters": [
           {
+            "name": "customer_id",
+            "in": "query",
+            "description": "The identifier for the customer",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
             "name": "starting_after",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
