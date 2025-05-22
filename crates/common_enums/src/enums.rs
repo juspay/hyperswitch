@@ -216,6 +216,7 @@ pub enum CardDiscovery {
     Clone,
     Copy,
     Debug,
+    Default,
     Hash,
     Eq,
     PartialEq,
@@ -230,6 +231,7 @@ pub enum CardDiscovery {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryAlgorithmType {
+    #[default]
     Monitoring,
     Smart,
     Cascading,
@@ -465,7 +467,7 @@ pub enum ConnectorType {
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
-    /// External Vault Connector
+    /// Represents vaulting processors that handle the storage and management of payment method data
     VaultProcessor,
 }
 
