@@ -863,7 +863,7 @@
         ],
         "summary": "Profile - Connector Accounts List",
         "description": "List Connector Accounts for the profile",
-        "operationId": "List all Merchant Connectors",
+        "operationId": "List all Merchant Connectors for Profile",
         "parameters": [
           {
             "name": "id",
@@ -2151,7 +2151,7 @@
         ],
         "summary": "Payments - Session token",
         "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
-        "operationId": "Create Session tokens for a Payment",
+        "operationId": "Create V2 Session tokens for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -2921,7 +2921,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id": {
+    "/v2/payment-method-session/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3018,7 +3018,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/list-payment-methods": {
+    "/v2/payment-method-session/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3059,7 +3059,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/update-saved-payment-method": {
+    "/v2/payment-method-session/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3122,7 +3122,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/confirm": {
+    "/v2/payment-method-session/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3447,6 +3447,88 @@
         "security": [
           {
             "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/proxy": {
+      "post": {
+        "tags": [
+          "Proxy"
+        ],
+        "summary": "Proxy",
+        "description": "Create a proxy request",
+        "operationId": "Proxy Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyRequest"
+              },
+              "examples": {
+                "Create a proxy request": {
+                  "value": {
+                    "destination_url": "https://api.example.com/payments",
+                    "headers": {
+                      "Authorization": "Bearer sk_test_example",
+                      "Content-Type": "application/json"
+                    },
+                    "method": "POST",
+                    "request_body": {
+                      "amount": 6540,
+                      "capture": true,
+                      "currency": "USD",
+                      "reference": "ORD-5023-4E89",
+                      "source": {
+                        "billing_address": {
+                          "address_line1": "123 High St.",
+                          "city": "London",
+                          "country": "GB"
+                        },
+                        "expiry_month": "{{$card_exp_month}}",
+                        "expiry_year": "{{$card_exp_year}}",
+                        "number": "{{$card_number}}",
+                        "type": "card"
+                      }
+                    },
+                    "token": "pm_0196ea5a42a67583863d5b1253d62931",
+                    "token_type": "PaymentMethodId"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Proxy request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
           }
         ]
       }
@@ -8083,6 +8165,7 @@
           "adyen",
           "airwallex",
           "amazonpay",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
@@ -13343,6 +13426,16 @@
           }
         }
       },
+      "Method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH"
+        ]
+      },
       "MifinityData": {
         "type": "object",
         "required": [
@@ -13963,7 +14056,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -14290,6 +14384,9 @@
       },
       "OrganizationUpdateRequest": {
         "type": "object",
+        "required": [
+          "platform_merchant_id"
+        ],
         "properties": {
           "organization_name": {
             "type": "string",
@@ -14307,12 +14404,8 @@
             "nullable": true
           },
           "platform_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org"
           }
         },
         "additionalProperties": false
@@ -17094,6 +17187,11 @@
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         }
       },
@@ -18252,6 +18350,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18423,6 +18526,11 @@
             ],
             "default": "no_three_ds",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         }
       },
@@ -18441,6 +18549,11 @@
           "param": {
             "type": "string",
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -20220,6 +20333,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20483,6 +20601,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20516,6 +20639,64 @@
           "metadata": {
             "type": "object",
             "additionalProperties": {}
+          }
+        }
+      },
+      "ProxyRequest": {
+        "type": "object",
+        "required": [
+          "request_body",
+          "destination_url",
+          "headers",
+          "method",
+          "token",
+          "token_type"
+        ],
+        "properties": {
+          "request_body": {
+            "description": "The request body that needs to be forwarded"
+          },
+          "destination_url": {
+            "type": "string",
+            "description": "The destination URL where the request needs to be forwarded",
+            "example": "https://api.example.com/endpoint"
+          },
+          "headers": {
+            "type": "object",
+            "description": "The headers that need to be forwarded"
+          },
+          "method": {
+            "$ref": "#/components/schemas/Method"
+          },
+          "token": {
+            "type": "string",
+            "description": "The vault token that is used to fetch sensitive data from the vault"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/TokenType"
+          }
+        }
+      },
+      "ProxyResponse": {
+        "type": "object",
+        "required": [
+          "response",
+          "status_code",
+          "response_headers"
+        ],
+        "properties": {
+          "response": {
+            "description": "The response received from the destination"
+          },
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The status code of the response",
+            "minimum": 0
+          },
+          "response_headers": {
+            "type": "object",
+            "description": "The headers of the response"
           }
         }
       },
@@ -20763,6 +20944,9 @@
           },
           {
             "type": "object",
+            "required": [
+              "refund_id"
+            ],
             "properties": {
               "payment_id": {
                 "type": "string",
@@ -20770,12 +20954,8 @@
                 "nullable": true
               },
               "refund_id": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/common_utils.id_type.GlobalRefundId"
-                  }
-                ],
-                "nullable": true
+                "type": "string",
+                "description": "The identifier for the refund"
               },
               "limit": {
                 "type": "integer",
@@ -21565,6 +21745,7 @@
           "adyen",
           "airwallex",
           "amazonpay",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
           "billwerk",
@@ -23262,6 +23443,13 @@
           {
             "$ref": "#/components/schemas/NetworkTokenDetailsResponse"
           }
+        ]
+      },
+      "TokenType": {
+        "type": "string",
+        "enum": [
+          "tokenization_id",
+          "payment_method_id"
         ]
       },
       "TokenizationType": {

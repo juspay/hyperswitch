@@ -470,6 +470,7 @@ async fn payments_incoming_webhook_flow(
                         force_sync: true,
                         expand_attempts: false,
                         param: None,
+                        all_keys_required: None,
                     },
                     get_trackers_response,
                     consume_or_trigger_flow,
@@ -726,6 +727,7 @@ async fn verify_webhook_source_verification_call(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await?;

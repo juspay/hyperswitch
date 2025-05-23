@@ -153,7 +153,10 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::refunds::refunds_list,
 
         // Routes for Revenue Recovery flow under Process Tracker
-        routes::revenue_recovery::revenue_recovery_pt_retrieve_api
+        routes::revenue_recovery::revenue_recovery_pt_retrieve_api,
+
+        // Routes for proxy
+        routes::proxy::proxy_core,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -189,6 +192,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
+        common_utils::request::Method,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
@@ -736,6 +740,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::AuthenticationDetails,
         api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
         api_models::enums::ProcessTrackerStatus,
+        api_models::proxy::ProxyRequest,
+        api_models::proxy::ProxyResponse,
+        api_models::proxy::TokenType,
         routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)
