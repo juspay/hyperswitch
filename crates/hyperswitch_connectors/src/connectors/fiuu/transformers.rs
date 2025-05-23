@@ -1458,7 +1458,7 @@ impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
         match (sync_status.stat_code, sync_status.stat_name) {
             (StatCode::Success, StatName::Captured | StatName::Settled) => Ok(Self::Charged), // For Success as StatCode we can only expect Captured,Settled and Authorized as StatName.
             (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
-            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknow as StatName.
+            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknown as StatName.
             (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
             (StatCode::Failure, StatName::Cancelled) | (StatCode::Failure, StatName::ReqCancel) => {
                 Ok(Self::Voided)
@@ -1897,7 +1897,7 @@ pub enum FiuuWebhooksRefundType {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct FiuuWebhookSignauture {
+pub struct FiuuWebhookSignature {
     pub skey: Secret<String>,
 }
 
