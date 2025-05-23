@@ -175,7 +175,8 @@ fn fetch_payment_instrument(
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayQr(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
             .into()),

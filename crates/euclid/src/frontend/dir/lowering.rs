@@ -62,6 +62,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Venmo => Self::Venmo,
             enums::WalletType::Mifinity => Self::Mifinity,
             enums::WalletType::Paze => Self::Paze,
+            enums::WalletType::RevolutPay => Self::RevolutPay,
         }
     }
 }
