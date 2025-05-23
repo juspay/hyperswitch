@@ -7929,6 +7929,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
@@ -13154,7 +13155,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/RoutingAlgorithmWrapper"
           },
           "created_at": {
             "type": "integer",
@@ -13804,7 +13805,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -18098,6 +18100,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18268,6 +18275,11 @@
               }
             ],
             "default": "no_three_ds",
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           }
         }
@@ -20071,6 +20083,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20332,6 +20349,11 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "is_external_vault_enabled": {
@@ -21415,6 +21437,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
           "billwerk",
@@ -21498,92 +21521,6 @@
           "zsl"
         ]
       },
-      "RoutingAlgorithm": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "single"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/RoutableConnectorChoice"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "priority"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/RoutableConnectorChoice"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "advanced"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/ProgramConnectorSelection"
-              }
-            }
-          }
-        ],
-        "description": "Routing Algorithm kind",
-        "discriminator": {
-          "propertyName": "type"
-        }
-      },
       "RoutingAlgorithmId": {
         "type": "object",
         "required": [
@@ -21605,6 +21542,16 @@
           "dynamic"
         ]
       },
+      "RoutingAlgorithmWrapper": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicRoutingAlgorithm"
+          }
+        ]
+      },
       "RoutingConfigRequest": {
         "type": "object",
         "required": [
@@ -21621,7 +21568,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
           },
           "profile_id": {
             "type": "string"
