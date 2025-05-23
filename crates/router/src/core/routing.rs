@@ -1138,7 +1138,7 @@ pub async fn retrieve_linked_routing_config(
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
-    
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
@@ -1190,20 +1190,26 @@ pub async fn retrieve_linked_routing_config(
 
         if let Some(algorithm_id) = routing_ref.algorithm_id {
             let record = db
-                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(&algorithm_id, profile_id)
+                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
+                    &algorithm_id,
+                    profile_id,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
             active_algorithms.push(record.foreign_into());
         }
 
         // Handle dynamic routing algorithms
-        let dynamic_routing_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile.dynamic_routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize dynamic routing algorithm ref from business profile")?
-        .unwrap_or_default();
+        let dynamic_routing_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize dynamic routing algorithm ref from business profile",
+            )?
+            .unwrap_or_default();
 
         // Collect all dynamic algorithm IDs
         let mut dynamic_algorithm_ids = Vec::new();
@@ -1227,7 +1233,10 @@ pub async fn retrieve_linked_routing_config(
         // Fetch all dynamic algorithms
         for algorithm_id in dynamic_algorithm_ids {
             let record = db
-                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(&algorithm_id, profile_id)
+                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
+                    &algorithm_id,
+                    profile_id,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
             active_algorithms.push(record.foreign_into());
