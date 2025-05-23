@@ -273,7 +273,7 @@ pub async fn create_routing_algorithm_under_profile(
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    use api_models::routing::RoutingAlgorithm as EuclidAlgorithm;
+    use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
     use crate::services::logger;
 

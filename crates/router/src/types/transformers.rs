@@ -1819,7 +1819,7 @@ impl From<domain::Address> for payments::AddressDetails {
     }
 }
 
-impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
+impl ForeignFrom<ConnectorSelection> for routing_types::StaticRoutingAlgorithm {
     fn foreign_from(value: ConnectorSelection) -> Self {
         match value {
             ConnectorSelection::Priority(connectors) => Self::Priority(connectors),

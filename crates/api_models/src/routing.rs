@@ -35,7 +35,7 @@ impl ConnectorSelection {
 pub struct RoutingConfigRequest {
     pub name: String,
     pub description: String,
-    pub algorithm: RoutingAlgorithm,
+    pub algorithm: StaticRoutingAlgorithm,
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
@@ -45,7 +45,7 @@ pub struct RoutingConfigRequest {
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
-    pub algorithm: Option<RoutingAlgorithm>,
+    pub algorithm: Option<StaticRoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
@@ -290,14 +290,15 @@ pub struct RoutingPayloadWrapper {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum RoutingAlgorithmWrapper {
-    Static(RoutingAlgorithm),
-    Dynamic(RoutingAlgorithmDynamic),
+    Static(StaticRoutingAlgorithm),
+    Dynamic(DynamicRoutingAlgorithm),
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub enum RoutingAlgorithmDynamic {
-    SuccessBasedAlgorithm(SuccessBasedRoutingConfig),
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum DynamicRoutingAlgorithm {
     EliminationBasedAlgorithm(EliminationRoutingConfig),
+    SuccessBasedAlgorithm(SuccessBasedRoutingConfig),
     ContractBasedAlgorithm(ContractBasedRoutingConfig),
 }
 
@@ -308,32 +309,12 @@ pub enum RoutingAlgorithmDynamic {
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
-pub enum RoutingAlgorithm {
+pub enum StaticRoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
     Advanced(ast::Program<ConnectorSelection>),
-}
-impl<'de> Deserialize<'de> for RoutingAlgorithmDynamic {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let val: serde_json::Value = serde_json::Value::deserialize(deserializer)?;
-
-        if let Ok(v) = serde_json::from_value::<SuccessBasedRoutingConfig>(val.clone()) {
-            Ok(Self::SuccessBasedAlgorithm(v))
-        } else if let Ok(v) = serde_json::from_value::<EliminationRoutingConfig>(val.clone()) {
-            Ok(Self::EliminationBasedAlgorithm(v))
-        } else if let Ok(v) = serde_json::from_value::<ContractBasedRoutingConfig>(val.clone()) {
-            Ok(Self::ContractBasedAlgorithm(v))
-        } else {
-            Err(serde::de::Error::custom(
-                "Unrecognized dynamic routing algorithm",
-            ))
-        }
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -345,7 +326,7 @@ pub enum RoutingAlgorithmSerde {
     Advanced(ast::Program<ConnectorSelection>),
 }
 
-impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
+impl TryFrom<RoutingAlgorithmSerde> for StaticRoutingAlgorithm {
     type Error = error_stack::Report<ParsingError>;
 
     fn try_from(value: RoutingAlgorithmSerde) -> Result<Self, Self::Error> {
@@ -452,7 +433,7 @@ impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
     }
 }
 
-impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
+impl From<StraightThroughAlgorithm> for StaticRoutingAlgorithm {
     fn from(value: StraightThroughAlgorithm) -> Self {
         match value {
             StraightThroughAlgorithm::Single(conn) => Self::Single(conn),
@@ -462,7 +443,7 @@ impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
     }
 }
 
-impl RoutingAlgorithm {
+impl StaticRoutingAlgorithm {
     pub fn get_kind(&self) -> RoutingAlgorithmKind {
         match self {
             Self::Single(_) => RoutingAlgorithmKind::Single,
@@ -863,12 +844,14 @@ pub struct ToggleDynamicRoutingPath {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EliminationAnalyserConfig {
     pub bucket_size: Option<u64>,
     pub bucket_leak_interval_in_secs: Option<u64>,
@@ -911,6 +894,7 @@ impl EliminationRoutingConfig {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<SuccessBasedRoutingConfigBody>,
@@ -934,7 +918,7 @@ impl Default for SuccessBasedRoutingConfig {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
@@ -946,6 +930,7 @@ pub enum DynamicRoutingConfigParams {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfigBody {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,

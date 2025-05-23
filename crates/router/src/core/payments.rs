@@ -6240,7 +6240,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let _: api_models::routing::RoutingAlgorithm = request_straight_through
+    let _: api_models::routing::StaticRoutingAlgorithm = request_straight_through
         .clone()
         .parse_value("RoutingAlgorithm")
         .attach_printable("Invalid straight through routing rules format")?;
