@@ -416,7 +416,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         }
     }
 
-    async fn add_order_id(
+    async fn create_order_at_connector(
         self,
         state: &SessionState,
         connector: &api::ConnectorData,

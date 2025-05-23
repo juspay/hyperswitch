@@ -1708,7 +1708,7 @@ pub trait PaymentsAuthorizeRequestData {
         &self,
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
-    fn get_order_id(&self) -> Result<String, Error>;
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1938,10 +1938,10 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.connector_testing_data.clone()
     }
 
-    fn get_order_id(&self) -> Result<String, Error> {
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError> {
         self.order_id
             .to_owned()
-            .ok_or_else(missing_field_err("order_id"))
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
     }
 }
 

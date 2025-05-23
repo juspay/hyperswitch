@@ -58,7 +58,7 @@ pub struct RazorpayOrderRequest {
 #[serde(untagged)]
 pub enum RazorpayNotes {
     Map(HashMap<String, String>),
-    EmptyVec(Vec<()>),
+    EmptyMap(HashMap<String, String>),
 }
 
 impl TryFrom<&RazorpayRouterData<&types::CreateOrderRouterData>> for RazorpayOrderRequest {
@@ -67,7 +67,7 @@ impl TryFrom<&RazorpayRouterData<&types::CreateOrderRouterData>> for RazorpayOrd
         item: &RazorpayRouterData<&types::CreateOrderRouterData>,
     ) -> Result<Self, Self::Error> {
         let currency = item.router_data.request.currency;
-        let receipt = uuid::Uuid::new_v4().to_string();
+        let receipt = item.router_data.connector_request_reference_id.clone();
 
         Ok(Self {
             amount: item.amount,
@@ -152,7 +152,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
         let router_request = &payment_router_data.request;
         let payment_method_data = &router_request.payment_method_data;
 
-        let (method_str, upi_details) = match payment_method_data {
+        let (razorpay_payment_method, upi_details) = match payment_method_data {
             PaymentMethodData::Upi(upi_type_data) => match upi_type_data {
                 UpiData::UpiCollect(upi_collect_data) => {
                     let vpa_secret = upi_collect_data
@@ -190,7 +190,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
             order_id,
             email,
             contact: contact_number,
-            method: method_str,
+            method: razorpay_payment_method,
             upi: upi_details,
             ip,
             user_agent,

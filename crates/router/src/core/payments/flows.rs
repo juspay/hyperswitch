@@ -198,7 +198,7 @@ pub trait Feature<F, T> {
         Ok((None, true))
     }
 
-    async fn add_order_id(
+    async fn create_order_at_connector(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
