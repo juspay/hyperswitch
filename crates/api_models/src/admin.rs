@@ -165,8 +165,9 @@ impl MerchantAccountCreate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::StaticRoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("StaticRoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -425,8 +426,9 @@ impl MerchantAccountUpdate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::StaticRoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("StaticRoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
