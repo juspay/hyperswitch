@@ -75,6 +75,7 @@ pub struct Profile {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -128,6 +129,7 @@ pub struct ProfileSetter {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -186,6 +188,7 @@ impl From<ProfileSetter> for Profile {
             merchant_business_country: value.merchant_business_country,
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
+            tokenize_fields: value.tokenize_fields,
         }
     }
 }
@@ -246,6 +249,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -321,6 +325,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
+                    tokenize_fields,
                 } = *update;
 
                 Self {
@@ -369,6 +374,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
+                    tokenize_fields,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -419,6 +425,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -467,6 +474,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -515,6 +523,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -563,6 +572,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -611,6 +621,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -659,6 +670,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
+                tokenize_fields: None,
             },
         }
     }
@@ -727,6 +739,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
+            tokenize_fields: self.tokenize_fields,
         })
     }
 
@@ -821,6 +834,7 @@ impl super::behaviour::Conversion for Profile {
                 is_pre_network_tokenization_enabled: item
                     .is_pre_network_tokenization_enabled
                     .unwrap_or(false),
+                tokenize_fields: item.tokenize_fields,
             })
         }
         .await
@@ -878,12 +892,12 @@ impl super::behaviour::Conversion for Profile {
             authentication_product_ids: self.authentication_product_ids,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
-            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-            force_3ds_challenge: Some(self.force_3ds_challenge),
+            is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
             is_debit_routing_enabled: self.is_debit_routing_enabled,
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
+            tokenize_fields: self.tokenize_fields,
         })
     }
 }
@@ -943,6 +957,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -998,6 +1013,7 @@ pub struct ProfileSetter {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1058,6 +1074,7 @@ impl From<ProfileSetter> for Profile {
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_external_vault_enabled: value.is_external_vault_enabled,
             external_vault_connector_details: value.external_vault_connector_details,
+            tokenize_fields: value.tokenize_fields,
         }
     }
 }
@@ -1132,6 +1149,7 @@ pub struct ProfileGeneralUpdate {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1210,6 +1228,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    tokenize_fields,
                 } = *update;
                 Self {
                     profile_name,
@@ -1261,6 +1280,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled: None,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    tokenize_fields,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1315,6 +1335,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1367,6 +1388,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1419,6 +1441,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1471,6 +1494,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1523,6 +1547,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1575,6 +1600,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1627,6 +1653,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1679,6 +1706,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -1732,6 +1760,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                tokenize_fields: None,
             },
         }
     }
@@ -1806,6 +1835,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
+            tokenize_fields: self.tokenize_fields,
         })
     }
 
@@ -1900,6 +1930,7 @@ impl super::behaviour::Conversion for Profile {
                 is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
                 is_external_vault_enabled: item.is_external_vault_enabled,
                 external_vault_connector_details: item.external_vault_connector_details,
+                tokenize_fields: item.tokenize_fields,
             })
         }
         .await
@@ -1968,6 +1999,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
+            tokenize_fields: self.tokenize_fields,
         })
     }
 }

@@ -196,6 +196,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
+            tokenize_fields: item.tokenize_fields,
         })
     }
 }
@@ -280,6 +281,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             external_vault_connector_details: item
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
+            tokenize_fields: item.tokenize_fields,
         })
     }
 }
@@ -430,7 +432,7 @@ pub async fn create_profile_from_merchant_account(
                     &key_manager_state,
                     common_utils::type_name!(domain::Profile),
                     domain_types::CryptoOperation::EncryptOptional(inner),
-                    km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                    km_types::Identifier::Merchant(merchant_id.to_owned()),
                     key.peek(),
                 )
                 .await
@@ -447,5 +449,6 @@ pub async fn create_profile_from_merchant_account(
         is_pre_network_tokenization_enabled: request
             .is_pre_network_tokenization_enabled
             .unwrap_or_default(),
+        tokenize_fields: request.tokenize_fields,
     }))
 }

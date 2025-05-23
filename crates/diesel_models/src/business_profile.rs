@@ -73,6 +73,8 @@ pub struct Profile {
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -128,6 +130,8 @@ pub struct ProfileNew {
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -181,6 +185,8 @@ pub struct ProfileUpdateInternal {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -231,6 +237,7 @@ impl ProfileUpdateInternal {
             merchant_business_country,
             is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled,
+            tokenize_fields,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -310,6 +317,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_iframe_redirection_enabled),
             is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
                 .or(source.is_pre_network_tokenization_enabled),
+            tokenize_fields,
         }
     }
 }
@@ -382,6 +390,8 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 impl Profile {
@@ -455,6 +465,8 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -512,6 +524,8 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub tokenize_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -566,6 +580,7 @@ impl ProfileUpdateInternal {
             is_iframe_redirection_enabled,
             is_external_vault_enabled,
             external_vault_connector_details,
+            tokenize_fields,
         } = self;
         Profile {
             id: source.id,
@@ -608,10 +623,10 @@ impl ProfileUpdateInternal {
                 .or(source.outgoing_webhook_custom_http_headers),
             always_collect_billing_details_from_wallet_connector:
                 always_collect_billing_details_from_wallet_connector
-                    .or(always_collect_billing_details_from_wallet_connector),
+                    .or(source.always_collect_billing_details_from_wallet_connector),
             always_collect_shipping_details_from_wallet_connector:
                 always_collect_shipping_details_from_wallet_connector
-                    .or(always_collect_shipping_details_from_wallet_connector),
+                    .or(source.always_collect_shipping_details_from_wallet_connector),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
@@ -656,6 +671,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_external_vault_enabled),
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
+            tokenize_fields,
         }
     }
 }
