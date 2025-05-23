@@ -1896,7 +1896,7 @@ impl TryFrom<WebhookStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
-    pub merchant_reference: String,
+    pub merchant_reference: Option<String>,
     pub payment_id: Option<String>,
     pub payment_request_id: Option<String>,
 }
