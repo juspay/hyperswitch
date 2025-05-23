@@ -840,23 +840,17 @@ impl webhooks::IncomingWebhook for Trustpay {
         match details.payment_information.credit_debit_indicator {
             trustpay::CreditDebitIndicator::Crdt => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        payment_attempt_id,
-                    ),
+                    api_models::payments::PaymentIdType::PaymentAttemptId(payment_attempt_id),
                 ))
             }
             trustpay::CreditDebitIndicator::Dbit => {
                 if details.payment_information.status == trustpay::WebhookStatus::Chargebacked {
                     Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentAttemptId(
-                            payment_attempt_id,
-                        ),
+                        api_models::payments::PaymentIdType::PaymentAttemptId(payment_attempt_id),
                     ))
                 } else {
                     Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                        api_models::webhooks::RefundIdType::RefundId(
-                            payment_attempt_id,
-                        ),
+                        api_models::webhooks::RefundIdType::RefundId(payment_attempt_id),
                     ))
                 }
             }
