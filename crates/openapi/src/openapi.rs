@@ -743,6 +743,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::feature_matrix::PaymentMethodSpecificFeatures,
         api_models::feature_matrix::CardSpecificFeatures,
         api_models::feature_matrix::SupportedPaymentMethod,
+        api_models::open_router::DecisionEngineSuccessRateData,
+        api_models::open_router::DecisionEngineGatewayWiseExtraScore,
+        api_models::open_router::DecisionEngineSRSubLevelInputConfig,
+        api_models::open_router::DecisionEngineEliminationData,
     )),
     modifiers(&SecurityAddon)
 )]

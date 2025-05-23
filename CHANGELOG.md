@@ -4,6 +4,49 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.23.0
+
+### Features
+
+- **dynamic_routing:** Decision engine config API integration ([#8044](https://github.com/juspay/hyperswitch/pull/8044)) ([`d41f653`](https://github.com/juspay/hyperswitch/commit/d41f65381add66e84366c79d1adf1e3a52c44544))
+- **router:** Add support for Proxy api ([#7901](https://github.com/juspay/hyperswitch/pull/7901)) ([`8e9bad6`](https://github.com/juspay/hyperswitch/commit/8e9bad6457449ef2a435be03a9f97acc2dd2108a))
+
+### Bug Fixes
+
+- **connector:** Connector Feature Matrix Bugfix ([#8047](https://github.com/juspay/hyperswitch/pull/8047)) ([`8b0fd04`](https://github.com/juspay/hyperswitch/commit/8b0fd048ab92237bb07a06c7ea89a25d18e366d4))
+
+### Miscellaneous Tasks
+
+- **mintlify:** Fix mintlify api methods for endpoint ([#8112](https://github.com/juspay/hyperswitch/pull/8112)) ([`d1fe284`](https://github.com/juspay/hyperswitch/commit/d1fe2841c188a80b3bf46850540827844e1a426c))
+- **openapi:** Resolve openapi semantic inconsistency ([#8099](https://github.com/juspay/hyperswitch/pull/8099)) ([`fa4b552`](https://github.com/juspay/hyperswitch/commit/fa4b552a329bc7a9ad474ad27981c552f141e1fa))
+
+**Full Changelog:** [`2025.05.22.0...2025.05.23.0`](https://github.com/juspay/hyperswitch/compare/2025.05.22.0...2025.05.23.0)
+
+
+- - -
+
+## 2025.05.22.0
+
+### Features
+
+- **connector:** [nordea] template code ([#8056](https://github.com/juspay/hyperswitch/pull/8056)) ([`7c1d893`](https://github.com/juspay/hyperswitch/commit/7c1d893c91d22d7402504513d79fc94e0315dd10))
+- **payment_methods:** Add external vault connector service ([#7917](https://github.com/juspay/hyperswitch/pull/7917)) ([`1238ae7`](https://github.com/juspay/hyperswitch/commit/1238ae77deaaba213678da6e9ef8a96444bdbdaf))
+
+### Bug Fixes
+
+- **connector:** Added Paypal in feature matrix for authorizedotnet ([#8072](https://github.com/juspay/hyperswitch/pull/8072)) ([`5f5998f`](https://github.com/juspay/hyperswitch/commit/5f5998fb07dfd72c8360c97919dfa56ba25de205))
+- Updated the docker setup ([#8093](https://github.com/juspay/hyperswitch/pull/8093)) ([`78f43ae`](https://github.com/juspay/hyperswitch/commit/78f43ae0513698737cef191b6f8f4857751b7935))
+
+### Refactors
+
+- **success_rate:** Update the default configs ([#8098](https://github.com/juspay/hyperswitch/pull/8098)) ([`1cdd7d1`](https://github.com/juspay/hyperswitch/commit/1cdd7d1de378ab5f994ac91119e17ec07d4f447c))
+- Added api-key auth for routing APIs ([#8083](https://github.com/juspay/hyperswitch/pull/8083)) ([`278618c`](https://github.com/juspay/hyperswitch/commit/278618cc1e2068647c148a0cd424158b13c86bc4))
+
+**Full Changelog:** [`2025.05.21.0...2025.05.22.0`](https://github.com/juspay/hyperswitch/compare/2025.05.21.0...2025.05.22.0)
+
+
+- - -
+
 ## 2025.05.21.0
 
 ### Features

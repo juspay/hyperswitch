@@ -1332,17 +1332,11 @@ pub async fn add_payment_method_to_vault(
 pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
-    pm: &domain::PaymentMethod,
+    vault_id: &domain::VaultId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
         entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
-        vault_id: pm
-            .locker_id
-            .clone()
-            .ok_or(errors::VaultError::MissingRequiredField {
-                field_name: "locker_id",
-            })
-            .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
+        vault_id: vault_id.to_owned(),
     }
     .encode_to_vec()
     .change_context(errors::VaultError::RequestEncodingFailed)
@@ -1481,10 +1475,20 @@ pub async fn retrieve_payment_method_from_vault(
             )
             .await
         }
-        false => retrieve_payment_method_from_vault_internal(state, merchant_context, pm)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault"),
+        false => {
+            let vault_id = pm
+                .locker_id
+                .clone()
+                .ok_or(errors::VaultError::MissingRequiredField {
+                    field_name: "locker_id",
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
+            retrieve_payment_method_from_vault_internal(state, merchant_context, &vault_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")
+        }
     }
 }
 
