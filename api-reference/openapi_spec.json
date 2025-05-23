@@ -2690,74 +2690,94 @@
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
-            "name": "account_id",
-            "in": "path",
-            "description": "The unique identifier for the merchant account",
-            "required": true,
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "accepted_country",
             "in": "query",
             "description": "The two-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "nullable": true
             }
           },
           {
             "name": "accepted_currency",
-            "in": "path",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
