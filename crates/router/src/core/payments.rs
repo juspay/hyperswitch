@@ -3249,6 +3249,10 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
+    router_data = router_data
+        .create_order_at_connector(state, &connector)
+        .await?;
+
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
@@ -3468,6 +3472,10 @@ where
         .await?;
 
     router_data = router_data.add_session_token(state, &connector).await?;
+
+    router_data = router_data
+        .create_order_at_connector(state, &connector)
+        .await?;
 
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,

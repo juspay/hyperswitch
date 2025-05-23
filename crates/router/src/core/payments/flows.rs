@@ -197,6 +197,19 @@ pub trait Feature<F, T> {
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
     }
+
+    async fn create_order_at_connector(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -636,6 +649,18 @@ impl<const T: u8>
     services::ConnectorIntegration<
         api::PostSessionTokens,
         types::PaymentsPostSessionTokensData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsCreateOrder for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateOrder,
+        types::CreateOrderRequestData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
