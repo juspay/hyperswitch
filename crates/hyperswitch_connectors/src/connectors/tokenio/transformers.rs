@@ -63,7 +63,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for TokenioConnectorMeta {
     }
 }
 
-#[derive(Debug,,Deserialize Serialize)]
+#[derive(Debug,,Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenioPaymentsRequest {
     pub initiation: PaymentInitiation,

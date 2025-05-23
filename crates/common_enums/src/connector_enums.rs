@@ -25,7 +25,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
-	Tokenio,
+    Tokenio,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -174,7 +174,7 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-	Tokenio,
+    Tokenio,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -367,7 +367,6 @@ impl Connector {
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
-            | Self::Tokenio
             #[cfg(feature = "dummy_connector")]
             Self::DummyBillingConnector => false,
             #[cfg(feature = "dummy_connector")]
@@ -471,6 +470,7 @@ impl Connector {
             | Self::CtpMastercard
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans => false,
             Self::Checkout | Self::Nmi |Self::Cybersource => true,
@@ -627,6 +627,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
+            Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyBillingConnector => Ok(Self::DummyBillingConnector),

@@ -41,8 +41,8 @@ use transformers as tokenio;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
-use std::collections::HashMap;
 use serde_json;
+use std::collections::HashMap;
 use url;
 
 #[derive(Clone)]
@@ -95,60 +95,6 @@ where
         let auth = tokenio::TokenioAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        // Extract method, host, and path from the request
-        // Note: This part needs proper implementation based on how the Request struct is structured
-        let method = req.request.method().to_string(); // Assuming a method() exists on the request data
-        let url = req.get_url(self, connectors)?; // Assuming get_url is available or can be derived
-        let parsed_url = url::Url::parse(&url)
-             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let host = parsed_url.host_str().ok_or(errors::ConnectorError::RequestEncodingFailed)?.to_string();
-        let path = parsed_url.path().to_string();
-        let query = parsed_url.query().map(|q| q.to_string());
-
-        // Generate expiration time (e.g., 10 minutes from now)
-        let exp = (common_utils::time::now().unix_timestamp() + 600) * 1000; // in milliseconds
-
-        // Construct JWT header
-        let mut jwt_header: HashMap<String, serde_json::Value> = HashMap::new();
-        jwt_header.insert("alg".to_string(), serde_json::json!(auth.key_algorithm.expose()));
-        jwt_header.insert("typ".to_string(), serde_json::json!("JWT"));
-        jwt_header.insert("exp".to_string(), serde_json::json!(exp));
-        jwt_header.insert("mid".to_string(), serde_json::json!(auth.merchant_id.expose()));
-        jwt_header.insert("kid".to_string(), serde_json::json!(auth.key_id.expose()));
-        jwt_header.insert("method".to_string(), serde_json::json!(method));
-        jwt_header.insert("host".to_string(), serde_json::json!(host));
-        jwt_header.insert("path".to_string(), serde_json::json!(path));
-        if let Some(q) = query {
-             jwt_header.insert("query".to_string(), serde_json::json!(q));
-        }
-
-        // Construct JWT payload
-        // Note: The request body is needed here. This might require access to the request content.
-        let request_body = ""; // Placeholder: Need to get the actual request body
-        let mut jwt_payload: HashMap<String, serde_json::Value> = HashMap::new();
-        if !request_body.is_empty() { // Include payload only if there's a body
-            // Assuming request_body is a JSON string; parse and include as "requestPayload"
-            let payload_content: serde_json::Value = serde_json::from_str(request_body)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-             jwt_payload.insert("requestPayload".to_string(), payload_content);
-        }
-
-        // Base64Url encode header and payload
-        // Note: This requires a Base64Url encoding implementation
-        let encoded_header = "encoded_header_placeholder"; // Placeholder
-        let encoded_payload = "encoded_payload_placeholder"; // Placeholder
-
-        // Sign the data (encoded_header + "." + encoded_payload) with the private key
-        // Note: This requires a signing implementation using the correct algorithm and private key
-        let signature = "signature_placeholder"; // Placeholder
-
-        // Construct the JWT string (using detached JWT format if payload is empty)
-        let jwt = if request_body.is_empty() {
-             format!("{encoded_header}..{signature}")
-        } else {
-             format!("{encoded_header}.{encoded_payload}.{signature}")
-        };
-
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", jwt).into_masked(),
@@ -160,7 +106,7 @@ where
 }
 
 impl ConnectorCommon for Tokenio {
-    fn id(&self) -> 'static str {
+    fn id(&self) -> &'static str {
         "tokenio"
     }
 
@@ -269,6 +215,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth = tokenio::TokenioAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let private_key = auth.private_key.clone();
+        let key_id = auth.key_id.clone();
+        let merchant_id = auth.merchant_id.clone();
+        let key_algorithm = auth.key_algorithm.clone();
+        let method = "POST".to_string();
+        let url = types::PaymentsAuthorizeType::get_url(self, req, connectors)?;
+        let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
+
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -330,7 +286,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
     fn get_url(
         &self,
         req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req
             .request
