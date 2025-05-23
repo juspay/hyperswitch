@@ -214,6 +214,7 @@ pub async fn trigger_refund_to_gateway(
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await;
         let option_refund_error_update =
@@ -646,6 +647,7 @@ pub async fn sync_refund_with_gateway(
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await

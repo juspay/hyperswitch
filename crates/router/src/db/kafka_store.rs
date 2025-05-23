@@ -5,7 +5,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
@@ -21,6 +21,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    cards_info::CardsInfoInterface,
     disputes,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
@@ -61,7 +62,6 @@ use crate::{
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
         capture::CaptureInterface,
-        cards_info::CardsInfoInterface,
         configs::ConfigInterface,
         customers::CustomerInterface,
         dispute::DisputeInterface,
@@ -286,6 +286,7 @@ impl ApiKeyInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl CardsInfoInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn get_card_info(
         &self,
         card_iin: &str,
@@ -3297,6 +3298,10 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
+        Box::new(self.clone())
+    }
+
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
     }
@@ -4130,6 +4135,16 @@ impl ThemeInterface for KafkaStore {
         lineage: ThemeLineage,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
         self.diesel_store.find_theme_by_lineage(lineage).await
+    }
+
+    async fn update_theme_by_theme_id(
+        &self,
+        theme_id: String,
+        theme_update: diesel_models::user::theme::ThemeUpdate,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .update_theme_by_theme_id(theme_id, theme_update)
+            .await
     }
 
     async fn delete_theme_by_lineage_and_theme_id(

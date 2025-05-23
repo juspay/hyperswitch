@@ -225,6 +225,8 @@ async fn payments_create_core() {
         force_3ds_challenge_trigger: None,
         issuer_error_code: None,
         issuer_error_message: None,
+        is_iframe_redirection_enabled: None,
+        whole_connector_response: None,
     };
 
     let expected_response =
@@ -509,6 +511,8 @@ async fn payments_create_core_adyen_no_redirect() {
             force_3ds_challenge_trigger: None,
             issuer_error_code: None,
             issuer_error_message: None,
+            is_iframe_redirection_enabled: None,
+            whole_connector_response: None,
         },
         vec![],
     ));

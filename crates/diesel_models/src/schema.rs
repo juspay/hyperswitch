@@ -225,6 +225,8 @@ diesel::table! {
         merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        is_iframe_redirection_enabled -> Nullable<Bool>,
+        is_pre_network_tokenization_enabled -> Nullable<Bool>,
     }
 }
 
@@ -1035,6 +1037,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        is_iframe_redirection_enabled -> Nullable<Bool>,
     }
 }
 
@@ -1407,6 +1410,8 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        #[max_length = 64]
+        decision_engine_routing_id -> Nullable<Varchar>,
     }
 }
 
@@ -1551,6 +1556,7 @@ diesel::table! {
         totp_secret -> Nullable<Bytea>,
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
+        lineage_context -> Nullable<Jsonb>,
     }
 }
 

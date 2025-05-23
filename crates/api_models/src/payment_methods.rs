@@ -985,6 +985,15 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub co_badged_card_data: Option<CoBadgedCardData>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardData {
+    pub co_badged_card_networks: Vec<api_enums::CardNetwork>,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1313,6 +1322,7 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            co_badged_card_data: None,
         }
     }
 }
@@ -1321,8 +1331,10 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
-    fn from(item: CardDetailFromLocker) -> Self {
+impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaymentMethod {
+    fn from(
+        (item, co_badged_card_data): (CardDetailFromLocker, Option<&CoBadgedCardData>),
+    ) -> Self {
         Self {
             issuer_country: item.issuer_country,
             last4_digits: item.last4_digits,
@@ -1335,6 +1347,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: co_badged_card_data.cloned(),
         }
     }
 }
@@ -1354,6 +1367,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: None,
         }
     }
 }

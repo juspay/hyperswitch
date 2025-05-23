@@ -17,6 +17,7 @@ use external_services::{
     grpc_client::{GrpcClients, GrpcHeaders},
 };
 use hyperswitch_interfaces::{
+    crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
@@ -46,6 +47,8 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use super::proxy;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -124,6 +127,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -235,6 +239,7 @@ pub struct AppState {
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub crm_client: Arc<dyn CrmInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -396,6 +401,7 @@ impl AppState {
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
             let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
+            let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -418,6 +424,7 @@ impl AppState {
                 encryption_client,
                 grpc_client,
                 theme_storage_client,
+                crm_client,
             }
         })
         .await
@@ -511,6 +518,7 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
+            crm_client: self.crm_client.clone(),
         })
     }
 }
@@ -657,6 +665,18 @@ impl Relay {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct Proxy;
+
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+impl Proxy {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/proxy")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
 }
 
@@ -1187,7 +1207,11 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("").route(web::post().to(refunds::refunds_create)))
-                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)));
+                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)))
+                .service(
+                    web::resource("/{id}/update_metadata")
+                        .route(web::put().to(refunds::refunds_metadata_update)),
+                );
         }
 
         route
@@ -2196,7 +2220,7 @@ impl User {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/user").app_data(web::Data::new(state));
+        let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
             .service(web::resource("").route(web::get().to(user::get_user_details)))
@@ -2417,6 +2441,12 @@ impl User {
                     web::resource("/delete").route(web::delete().to(user_role::delete_user_role)),
                 ),
         );
+
+        if state.conf().clone_connector_allowlist.is_some() {
+            route = route.service(
+                web::resource("/clone_connector").route(web::post().to(user::clone_connector)),
+            );
+        }
 
         // Role information
         route =

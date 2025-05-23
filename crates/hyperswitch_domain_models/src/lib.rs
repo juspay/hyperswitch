@@ -5,11 +5,13 @@ pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
+pub mod cards_info;
 pub mod configs;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
 pub mod errors;
+pub mod ext_traits;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
@@ -34,7 +36,6 @@ pub mod router_response_types;
 pub mod routing;
 pub mod type_encryption;
 pub mod types;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
