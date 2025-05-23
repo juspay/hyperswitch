@@ -672,7 +672,8 @@ pub async fn save_payout_data_to_locker(
             if let Some(id) = pm_id {
                 id
             } else {
-                stored_resp.card_reference.to_owned()
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method was not found")?
             }
         }
     };
