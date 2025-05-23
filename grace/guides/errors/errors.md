@@ -1112,3 +1112,37 @@ MandateReference {
     connector_mandate_request_reference_id: None, // Provide if missing
     mandate_metadata: None,                      // Provide if missing
 }
+```
+
+## Common Error: Cannot Construct `common_utils::types::StringMajorUnit` from `String` due to Private Constructor or Missing `FromStr`
+
+*   **Symptom**:
+    *   Compilation error when attempting to call `common_utils::types::StringMajorUnit::new(some_string_value)` because `new` is private.
+    *   Compilation error if trying `some_string_value.parse::<common_utils::types::StringMajorUnit>()` and `FromStr` is not implemented.
+    *   General difficulty in converting a `String` (e.g., from an API response) into `StringMajorUnit` for use with `AmountConvertor::convert_back()`.
+*   **Root Cause**: The `StringMajorUnit` struct (and similar amount types in `common_utils::types`) has a private constructor and may not provide a public `FromStr` or other direct public conversion from a raw `String`.
+*   **Solution**:
+    1.  **Leverage Serde Deserialization**: If the `String` value originates from a JSON API response, the most idiomatic way to get a `StringMajorUnit` instance is to define the field in your connector's response DTO (in `transformers.rs`) directly as `common_utils::types::StringMajorUnit`.
+        ```rust
+        // In your connector's transformers.rs
+        use common_utils::types::StringMajorUnit;
+        use serde::Deserialize;
+
+        #[derive(Debug, Deserialize)]
+        pub struct ConnectorApiResponse {
+            // ... other fields
+            pub amount: StringMajorUnit, // Serde will deserialize "123.45" into StringMajorUnit("123.45")
+            pub currency_code: String,
+            // ... other fields
+        }
+        ```
+    2.  **Use with `AmountConvertor`**: Once Serde populates your DTO, the `amount` field will be a valid `StringMajorUnit` instance. You can then pass this to `AmountConvertor::convert_back()`.
+        ```rust
+        // In your TryFrom<ResponseRouterData<...>> for RouterData<...> implementation:
+        // 'item.response' is your ConnectorApiResponse (or similar)
+        // 'item.response.transaction.amount' is now of type StringMajorUnit
+        let amount_minor_unit = common_utils::types::StringMajorUnitForConnector
+            .convert_back(item.response.transaction.amount.clone(), item.data.request.currency)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        ```
+*   **Why It Works**: `StringMajorUnit` derives `serde::Deserialize`. Serde's machinery handles the conversion from a JSON string to the `StringMajorUnit` tuple struct, bypassing the need for a public constructor in this context. This is the intended way to obtain instances of such types when dealing with external data.

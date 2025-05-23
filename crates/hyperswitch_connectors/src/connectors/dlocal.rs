@@ -27,8 +27,12 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt, // Added SupportedPaymentMethodsExt
+        ConnectorInfo,
+        PaymentMethodDetails,
+        PaymentsResponseData,
+        RefundsResponseData,
+        SupportedPaymentMethods,
+        SupportedPaymentMethodsExt, // Added SupportedPaymentMethodsExt
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -41,8 +45,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts,
-    errors,
+    consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -177,8 +180,12 @@ impl ConnectorCommon for Dlocal {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code.map_or_else(|| consts::NO_ERROR_CODE.to_string(), |c| c.to_string()),
-            message: response.message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            code: response
+                .code
+                .map_or_else(|| consts::NO_ERROR_CODE.to_string(), |c| c.to_string()),
+            message: response
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: response.reason, // Changed from response.param to response.reason
             attempt_status: None,
             connector_transaction_id: None,
@@ -191,12 +198,8 @@ impl ConnectorCommon for Dlocal {
 
 impl ConnectorValidation for Dlocal {}
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Dlocal
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Dlocal
 {
     // Not Implemented
 }
@@ -329,7 +332,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
     ) -> CustomResult<String, errors::ConnectorError> {
         // Assuming DlocalPaymentsSyncRequest::try_from(req) exists in transformers
         // and extracts the connector_transaction_id as authz_id or similar.
-        let payment_id_str = req.request.connector_transaction_id.get_connector_transaction_id()
+        let payment_id_str = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
             "{}payments/{}/status",
@@ -337,7 +343,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
             payment_id_str
         ))
     }
-    
+
     fn get_request_body(
         &self,
         _req: &PaymentsSyncRouterData,
@@ -345,7 +351,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Ok(RequestContent::Json(Box::new(serde_json::Value::Null))) // Boxed serde_json::Value::Null
     }
-
 
     fn build_request(
         &self,
@@ -504,7 +509,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
             payment_id_str
         ))
     }
-    
+
     fn get_request_body(
         &self,
         _req: &PaymentsCancelRouterData,
@@ -525,7 +530,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(self, req, connectors)?) // Will be NoContent
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?) // Will be NoContent
                 .build(),
         ))
     }
@@ -665,7 +672,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
     ) -> CustomResult<String, errors::ConnectorError> {
         // Assuming DlocalRefundSyncRequest::try_from(req) exists in transformers
         // and extracts the connector_refund_id.
-        let refund_id = req.request.get_connector_refund_id()
+        let refund_id = req
+            .request
+            .get_connector_refund_id()
             .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
         Ok(format!(
             "{}refunds/{}", // DLocal doc says /refunds/{refund_id}/status, but real-codebase implies /refunds/{refund_id}
@@ -673,7 +682,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
             refund_id
         ))
     }
-    
+
     fn get_request_body(
         &self,
         _req: &RefundSyncRouterData,
@@ -813,7 +822,7 @@ lazy_static! {
                 ),
             },
         );
-        
+
         // TODO: Add other payment methods supported by DLocal like Bank Transfer, Cash Payments, E-wallets
         // based on their documentation and connector capabilities.
         // Example:
@@ -845,7 +854,8 @@ lazy_static! {
 }
 
 impl ConnectorSpecifications for Dlocal {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> { // Renamed from get_connector_info
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        // Renamed from get_connector_info
         Some(&*DLOCAL_CONNECTOR_INFO)
     }
 

@@ -5938,3 +5938,11 @@ label = "Acquirer Merchant ID"
 placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
+
+[spreedly]
+base_url = "https://core.spreedly.com/v1/"
+
+[spreedly.connector_auth.HeaderKey] # For Hyperswitch internal auth representation
+api_key = "SPREEDLY_ENVIRONMENT_KEY" # Placeholder for env var name for environment_key
+key1 = "SPREEDLY_ACCESS_SECRET"    # Placeholder for env var name for access_secret
+api_secret = "SPREEDLY_GATEWAY_TOKEN" # Placeholder for env var name for gateway_token

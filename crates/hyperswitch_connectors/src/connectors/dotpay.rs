@@ -110,7 +110,7 @@ impl ConnectorCommon for Dotpay {
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.dotpay.base_url.as_ref() // FIX_NEED
-    } 
+    }
 
     fn get_auth_header(
         &self,

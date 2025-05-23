@@ -876,3 +876,36 @@ Based on our experience with connector integrations (such as HiPay), here are ke
 - Test synchronization endpoints separately
 
 By keeping these lessons in mind, you can avoid common pitfalls and accelerate connector integrations.
+
+## Handling `common_utils::types` with Private Constructors (e.g., `StringMajorUnit`)
+
+*   **Problem**: How to convert a `String` (e.g., an amount from an API response like `"10.00"`) into a `common_utils::types::StringMajorUnit` when its constructor `StringMajorUnit::new(String)` is private.
+*   **Solution**:
+    1.  Define the relevant field in your connector's response DTO (in `transformers.rs`) directly as the target Hyperswitch amount type (e.g., `amount: common_utils::types::StringMajorUnit`).
+    2.  Serde will automatically handle the deserialization of the JSON string value into this struct, provided the struct derives `serde::Deserialize`.
+    3.  Once deserialized, you will have an instance of `StringMajorUnit`. You can then use the appropriate `AmountConvertor` (e.g., `common_utils::types::StringMajorUnitForConnector`) and its `convert_back()` method to convert this `StringMajorUnit` into Hyperswitch's internal `MinorUnit`.
+
+    *Example in `transformers.rs` for a response struct:*
+    ```rust
+    use common_utils::types::StringMajorUnit; // Import the type
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    pub struct ConnectorTransactionResponse {
+        // ... other fields
+        pub amount: StringMajorUnit, // Define field as StringMajorUnit
+        pub currency_code: String,
+        // ... other fields
+    }
+    ```
+
+    *Example in `TryFrom` implementation for `RouterData` (converting connector response to Hyperswitch internal):*
+    ```rust
+    // ...
+    // item.response.transaction.amount is already StringMajorUnit due to Serde
+    let amount_minor_unit = common_utils::types::StringMajorUnitForConnector
+        .convert_back(item.response.transaction.amount.clone(), parsed_currency) // Assuming parsed_currency is available
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    // ...
+    ```
+*   **Benefit**: This approach leverages Serde's deserialization capabilities and avoids needing public constructors or `FromStr` implementations for these wrapper types when dealing with API responses.

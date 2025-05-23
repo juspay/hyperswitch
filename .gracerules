@@ -144,6 +144,10 @@ Structure:
 
 [Update all the files based on learnings during the integration process similar to memory bank]
 
+I need to generate plan in such way that each step is atomic and at the end of the code generation the code is compilable.
+I need to ensure that after each step the learnings and the progress must be updated as this is the only source of truth for the project.
+
+
 
 
 
