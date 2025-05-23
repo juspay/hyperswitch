@@ -881,7 +881,7 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
-    pub payment_attempt: Option<PaymentAttempt>,
+    pub payment_attempt: PaymentAttempt,
     pub payment_address: payment_address::PaymentAddress,
     pub attempts: Option<Vec<PaymentAttempt>>,
     /// Should the payment status be synced with connector

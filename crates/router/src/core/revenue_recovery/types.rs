@@ -229,11 +229,7 @@ impl Decision {
                 .await
                 .change_context(errors::RecoveryError::PaymentCallFailed)
                 .attach_printable("Error while executing the Psync call")?;
-                let payment_attempt = psync_data
-                    .payment_attempt
-                    .get_required_value("Payment Attempt")
-                    .change_context(errors::RecoveryError::ValueNotFound)
-                    .attach_printable("Error while executing the Psync call")?;
+                let payment_attempt = psync_data.payment_attempt;
                 Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
             }
             (
@@ -250,11 +246,7 @@ impl Decision {
                 .change_context(errors::RecoveryError::PaymentCallFailed)
                 .attach_printable("Error while executing the Psync call")?;
 
-                let payment_attempt = psync_data
-                    .payment_attempt
-                    .get_required_value("Payment Attempt")
-                    .change_context(errors::RecoveryError::ValueNotFound)
-                    .attach_printable("Error while executing the Psync call")?;
+                let payment_attempt = psync_data.payment_attempt;
 
                 let attempt_triggered_by = payment_attempt
                     .feature_metadata

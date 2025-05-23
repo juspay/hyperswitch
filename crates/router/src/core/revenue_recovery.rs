@@ -259,10 +259,8 @@ pub async fn perform_payments_sync(
         revenue_recovery_payment_data,
     )
     .await?;
-    // If there is an active_attempt id then there will be a payment attempt
-    let payment_attempt = psync_data
-        .payment_attempt
-        .get_required_value("Payment Attempt")?;
+
+    let payment_attempt = psync_data.payment_attempt;
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()

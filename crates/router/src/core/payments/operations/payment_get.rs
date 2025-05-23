@@ -137,22 +137,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_attempt = payment_intent
-            .active_attempt_id
-            .as_ref()
-            .async_map(|active_attempt| async {
-                db.find_payment_attempt_by_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_key_store(),
-                    active_attempt,
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not find payment attempt given the attempt id")
-            })
+        let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: ("active_attempt_id"),
+            }
+        })?;
+
+        let payment_attempt = db
+            .find_payment_attempt_by_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                active_attempt_id,
+                storage_scheme,
+            )
             .await
-            .transpose()?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not find payment attempt given the attempt id")?;
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
@@ -168,8 +168,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                 .clone()
                 .map(|address| address.into_inner()),
             payment_attempt
+                .payment_method_billing_address
                 .as_ref()
-                .and_then(|payment_attempt| payment_attempt.payment_method_billing_address.as_ref())
                 .cloned()
                 .map(|address| address.into_inner()),
             Some(true),
@@ -268,34 +268,35 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentStatusData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        match &payment_data.payment_attempt {
-            Some(payment_attempt) if payment_data.should_sync_with_connector => {
-                let connector = payment_attempt
-                    .connector
-                    .as_ref()
-                    .get_required_value("connector")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Connector is none when constructing response")?;
+        let payment_attempt = &payment_data.payment_attempt;
 
-                let merchant_connector_id = payment_attempt
-                    .merchant_connector_id
-                    .as_ref()
-                    .get_required_value("merchant_connector_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Merchant connector id is none when constructing response")?;
-
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    connector,
-                    api::GetToken::Connector,
-                    Some(merchant_connector_id.to_owned()),
-                )
+        if payment_data.should_sync_with_connector {
+            let connector = payment_attempt
+                .connector
+                .as_ref()
+                .get_required_value("connector")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received")?;
+                .attach_printable("Connector is none when constructing response")?;
 
-                Ok(ConnectorCallType::PreDetermined(connector_data.into()))
-            }
-            None | Some(_) => Ok(ConnectorCallType::Skip),
+            let merchant_connector_id = payment_attempt
+                .merchant_connector_id
+                .as_ref()
+                .get_required_value("merchant_connector_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Merchant connector id is none when constructing response")?;
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                connector,
+                api::GetToken::Connector,
+                Some(merchant_connector_id.to_owned()),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+            Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+        } else {
+            Ok(ConnectorCallType::Skip)
         }
     }
 }
