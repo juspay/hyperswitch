@@ -8771,6 +8771,6 @@ impl Serialize for NullObject {
     where
         S: Serializer,
     {
-        serializer.serialize_none() 
+        serializer.serialize_none()
     }
 }
