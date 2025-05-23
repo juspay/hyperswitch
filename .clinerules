@@ -1,0 +1,254 @@
+# Hyperswitch .clinerules
+
+This file contains project-specific rules and guidelines for working with the Hyperswitch codebase using Cline.
+
+## Filesystem MCP Access Rules
+
+When using filesystem MCP tools (`read_file`, `read_multiple_files`, `write_file`, etc.), always use the full absolute path starting with the allowed directory.
+
+### Correct Path Format
+```
+/Users/arunraj/github/hyperswitch/crates/storage_impl/Cargo.toml
+```
+
+### Incorrect Path Format (Will Fail)
+```
+crates/storage_impl/Cargo.toml
+```
+
+### Allowed Base Directories
+- `/Users/arunraj/github/hyperswitch`
+- `/Users/arunraj/github/connector-service`
+- `/Users/arunraj/github/mcp-proxy`
+
+### Path Construction Best Practice
+When constructing paths for file operations, always:
+1. Start with the full absolute path to the current working directory
+2. Append the relative path to the target file
+3. Use path.join() logic: `${CWD}/${relativePath}`
+
+Example:
+```typescript
+// Given CWD = /Users/arunraj/github/hyperswitch
+// To access crates/router/Cargo.toml
+const filePath = `/Users/arunraj/github/hyperswitch/crates/router/Cargo.toml`;
+```
+
+## Project Structure Guidelines
+
+### Crate Organization
+- Core functionality should be in the `router` crate
+- Shared utilities should be in appropriate utility crates
+- Domain models should be in `hyperswitch_domain_models`
+- Database models should be in `diesel_models`
+
+### Code Style
+- Follow Rust coding conventions
+- Use meaningful variable and function names
+- Include appropriate documentation comments
+- Keep functions focused and concise
+
+## Testing Guidelines
+
+- Write unit tests for all new functionality
+- Ensure integration tests for API endpoints
+- Use mock objects where appropriate
+- Test error scenarios as well as happy paths
+
+## Tool Usage Guidelines
+
+When working on Hyperswitch development tasks, leverage the most appropriate tools based on task complexity and requirements:
+
+### MCP Tool Selection Strategy
+
+- **Filesystem Operations**: For file operations, prefer the filesystem MCP over execute_command:
+  - Use `list_directory` for directory exploration 
+  - Use `read_multiple_files` when examining multiple related files
+  - Use `edit_file` for targeted changes rather than rewriting entire files
+  - Use `search_files` for locating code patterns across the codebase
+
+- **Browser Interactions**: For testing frontend components or web interfaces:
+  - Use `playwright_navigate` for accessing URLs (preferred over puppeteer)
+  - Use `playwright_screenshot` for capturing visual state
+  - Use `playwright_evaluate` for JavaScript DOM interactions
+
+- **API Testing**: For working with HTTP endpoints:
+  - Use `playwright_post`, `playwright_get`, etc. for RESTful operations
+
+- **Information Gathering**: For research and context:
+  - Use `brave_web_search` for general information
+  - Use `fetch_md` or `fetch_html` for specific documentation
+
+### Tool Parameter Optimization
+
+Always optimize tool parameter configurations:
+- Include appropriate timeouts for network operations
+- Use targeted selectors for DOM operations
+- Provide descriptive names for screenshots and generated files
+- Use meaningful error messages in try/catch blocks
+
+## Sequential Thinking Enhancement
+
+For complex, multi-step problems, use the sequentialthinking MCP for structured reasoning:
+
+### Implementation Guidelines
+
+1. **Problem Decomposition**:
+   - Break down complex tasks into discrete, ordered steps
+   - Identify dependencies between steps
+   - Establish clear success criteria for each step
+
+2. **Thought Process Structure**:
+   ```
+   <use_mcp_tool>
+   <server_name>github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking</server_name>
+   <tool_name>sequentialthinking</tool_name>
+   <arguments>
+   {
+     "thought": "Initial analysis of the problem...",
+     "nextThoughtNeeded": true,
+     "thoughtNumber": 1,
+     "totalThoughts": 5
+   }
+   </arguments>
+   </use_mcp_tool>
+   ```
+
+3. **Revision Pattern**:
+   - Use `isRevision: true` to refine earlier thoughts
+   - Use `branchFromThought` to explore alternative approaches
+   - Ensure final thought produces actionable conclusion
+
+### Best Practices
+
+- Start with clear problem definition
+- Use intermediate conclusions to guide next steps
+- Document assumptions explicitly
+- Consider edge cases in separate thoughts
+- End with implementation plan that ties back to original goal
+
+## Knowledge Graph for Complex Tasks
+
+For tasks involving complex relationships or extensive domain knowledge, use the Memory MCP to build and query knowledge graphs:
+
+### Entity and Relationship Modeling
+
+1. **Entity Definition**:
+   - Model software components as entities
+   - Define clear entity types (Class, Function, Module, etc.)
+   - Include meaningful observations about each entity
+
+2. **Relationship Mapping**:
+   - Create explicit relationships between entities
+   - Use descriptive relation types (depends_on, implements, extends)
+   - Maintain bidirectional relationships where appropriate
+
+3. **Graph Operations**:
+   ```
+   <use_mcp_tool>
+   <server_name>github.com/modelcontextprotocol/servers/tree/main/src/memory</server_name>
+   <tool_name>create_entities</tool_name>
+   <arguments>
+   {
+     "entities": [
+       {
+         "name": "PaymentProcessor",
+         "entityType": "Component",
+         "observations": ["Handles payment logic", "Interfaces with connectors"]
+       }
+     ]
+   }
+   </arguments>
+   </use_mcp_tool>
+   ```
+
+### Knowledge Graph Best Practices
+
+- Start with core domain entities
+- Build relationships incrementally
+- Use consistent naming conventions
+- Query the graph to validate understanding
+- Visualize complex subgraphs when necessary
+- Update entities with new observations as discovered
+
+## Memory Bank Planning and Documentation
+
+For creating and maintaining documentation in the Memory Bank:
+
+### Documentation Structure
+
+- Organize documents hierarchically (core → thematic → specific)
+- Use consistent formatting and section headings
+- Include diagrams for complex concepts (mermaid)
+- Cross-reference related documentation
+
+### Generation Process
+
+1. **Research Phase**:
+   - Examine source code using filesystem MCP
+   - Build knowledge graph of key components
+   - Identify relationships between modules
+
+2. **Drafting Phase**:
+   - Create file structure for documentation
+   - Draft core concepts and high-level overview
+   - Document specific implementations with code examples
+
+3. **Review Phase**:
+   - Cross-validate with codebase
+   - Ensure comprehensive coverage
+   - Update related documentation for consistency
+
+4. **Maintenance Phase**:
+   - Establish update schedule
+   - Track changes in related code modules
+   - Version documentation alongside code releases
+
+### File Size Management
+
+When memory bank files grow too large, they should be split efficiently to ensure optimal performance across all AI models:
+
+1. **File Size Thresholds**:
+   - Split files when they exceed 300 lines (approximately 15KB)
+   - Individual sections exceeding 100 lines should be considered for extraction
+
+2. **Strategic Splitting Patterns**:
+   - **Topic-Based Splitting**: Separate distinct topics into individual files
+   - **Hierarchical Splitting**: Create parent/overview documents that link to detailed child documents
+   - **Temporal Splitting**: Separate historical/archival content from current documentation
+
+3. **Implementation Process**:
+   ```
+   Primary Document (now too large)
+   ↓
+   ├── overview.md         # Contains summary and links to all sub-documents
+   ├── core-concept-1.md   # Extracted detailed content
+   ├── core-concept-2.md   # Extracted detailed content
+   └── appendices.md       # Optional supplementary material
+   ```
+
+4. **File Naming and Organization**:
+   - Use consistent, descriptive prefixes to maintain sorting order (e.g., `01-overview.md`, `02-architecture.md`)
+   - Store related split files in a dedicated subdirectory
+   - Maintain parallel structure across split files for navigation consistency
+
+5. **Cross-Reference System**:
+   - Add clear "Table of Contents" in parent documents
+   - Include breadcrumb references at the top of each split file
+   - Use relative markdown links between documents
+   - Add "See Also" sections at relevant points
+
+6. **Metadata Requirements**:
+   - Include standardized headers in each split file with:
+     - Parent document reference
+     - Last updated timestamp
+     - Document position in sequence
+     - Dependencies or related files
+
+7. **Split Processing Rules**:
+   - Never split mid-section or mid-concept
+   - Ensure each file is independently readable and useful
+   - Duplicate minimal contextual information rather than forcing cross-navigation
+   - Include summary information in parent documents
+
+This organized approach ensures documentation remains effective even when growing beyond single-file limits, optimizing for model context window constraints while maintaining usability.
