@@ -109,11 +109,16 @@ pub mod date_time {
             .encode();
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
     }
-
-    /// Return the current date and time in UTC formatted as an RFC 7231 HTTP Date.
+    
+    /// Return the current date and time in UTC formatted as "ddd, DD MMM YYYY HH:mm:ss GMT".
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
         let now_utc = OffsetDateTime::now_utc();
-        now_utc.format(&time::format_description::well_known::Rfc2822)
+        // Desired format: ddd, DD MMM YYYY HH:mm:ss GMT
+        // Example: Fri, 23 May 2025 06:19:35 GMT
+        let format = time::macros::format_description!(
+            "[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT"
+        );
+        now_utc.format(&format)
     }
 
     impl From<DateFormat> for &[BorrowedFormatItem<'_>] {

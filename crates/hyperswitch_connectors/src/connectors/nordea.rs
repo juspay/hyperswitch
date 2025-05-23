@@ -2,16 +2,17 @@ mod requests;
 mod responses;
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
-    date_time,
+    consts, date_time,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -39,21 +40,96 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
-use transformers as nordea;
+use masking::{ExposeInterface, Mask, PeekInterface};
+use requests::{NordeaPaymentsRequest, NordeaRefundRequest, NordeaRouterData};
+use responses::{NordeaPaymentsResponse, NordeaRefundResponse};
+use ring::digest;
+use ring::signature::{RsaKeyPair, RSA_PKCS1_SHA256};
+use transformers::NordeaAuthType;
+use url::Url;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Nordea {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Nordea {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
+    }
+
+    pub fn generate_digest(&self, payload: &[u8]) -> String {
+        let payload_digest = digest::digest(&digest::SHA256, payload);
+        consts::BASE64_ENGINE.encode(payload_digest)
+    }
+
+    pub fn generate_signature(
+        &self,
+        auth: &NordeaAuthType,
+        content_type: &str,
+        host: &str,
+        path: &str,
+        payload_digest: Option<&str>,
+        date: &str,
+        http_method: Method,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        const REQUEST_WITHOUT_CONTENT_HEADERS: &str =
+            "(request-target) x-nordea-originating-host x-nordea-originating-date";
+        const REQUEST_WITH_CONTENT_HEADERS: &str = "(request-target) x-nordea-originating-host x-nordea-originating-date content-type digest";
+
+        let method_string = http_method.to_string().to_lowercase();
+        let mut normalized_string = format!(
+            "(request-target) {} {}\nx-nordea-originating-host: {}\nx-nordea-originating-date: {}",
+            method_string, path, host, date
+        );
+
+        let headers = if matches!(http_method, Method::Post | Method::Put | Method::Patch) {
+            let digest = payload_digest.unwrap_or("");
+            normalized_string.push_str(&format!(
+                "\ncontent-type: {}\ndigest: sha-256={}",
+                content_type, digest
+            ));
+            REQUEST_WITH_CONTENT_HEADERS
+        } else {
+            REQUEST_WITHOUT_CONTENT_HEADERS
+        };
+
+        let signature_base64 = {
+            let private_key_der = pem::parse(auth.eidas_private_key.clone().expose())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "eIDAS Private Key",
+                })?;
+            let private_key_der_contents = private_key_der.contents();
+
+            let key_pair = RsaKeyPair::from_der(&private_key_der_contents).change_context(
+                errors::ConnectorError::InvalidConnectorConfig {
+                    config: "eIDAS Private Key",
+                },
+            )?;
+
+            let mut signature = vec![0u8; key_pair.public().modulus_len()];
+            key_pair
+                .sign(
+                    &RSA_PKCS1_SHA256,
+                    &ring::rand::SystemRandom::new(),
+                    normalized_string.as_bytes(),
+                    &mut signature,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+            consts::BASE64_ENGINE.encode(signature)
+        };
+
+        Ok(format!(
+            r#"keyId="{}",algorithm="rsa-sha256",headers="{}",signature="{}""#,
+            auth.client_id.peek(),
+            headers,
+            signature_base64
+        ))
     }
 }
 
@@ -83,15 +159,102 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
+        let content_type = self.get_content_type().to_string();
+        let http_method = self.get_http_method();
+
+        // Extract host from base URL
+        let nordea_host = Url::parse(self.base_url(connectors))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            .host_str()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+            .to_string();
+
+        let nordea_origin_date = date_time::now_rfc7231_http_date()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let full_url = self.get_url(req, connectors)?;
+        let url_parsed =
+            Url::parse(&full_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let path = url_parsed.path();
+        let path_with_query = if let Some(query) = url_parsed.query() {
+            format!("{}?{}", path, query)
+        } else {
+            path.to_string()
+        };
+
+        let mut required_headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                content_type.clone().into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.clone().peek()).into_masked(),
+            ),
+            (
+                "X-IBM-Client-ID".to_string(),
+                auth.client_id.clone().expose().into_masked(),
+            ),
+            (
+                "X-IBM-Client-Secret".to_string(),
+                auth.client_secret.clone().expose().into_masked(),
+            ),
+            (
+                "X-Nordea-Originating-Date".to_string(),
+                nordea_origin_date.clone().into_masked(),
+            ),
+            (
+                "X-Nordea-Originating-Host".to_string(),
+                nordea_host.clone().into_masked(),
+            ),
+        ];
+
+        if matches!(http_method, Method::Post | Method::Put | Method::Patch) {
+            let nordea_request = self.get_request_body(req, connectors)?;
+
+            let sha256_digest =
+                self.generate_digest(nordea_request.get_inner_value().expose().as_bytes());
+
+            // Add Digest header
+            required_headers.push((
+                "Digest".to_string(),
+                format!("sha-256={}", sha256_digest).into_masked(),
+            ));
+
+            let signature = self.generate_signature(
+                &auth,
+                &content_type,
+                &nordea_host,
+                &path,
+                Some(&sha256_digest),
+                &nordea_origin_date,
+                http_method,
+            )?;
+
+            required_headers.push(("Signature".to_string(), signature.into_masked()));
+        } else {
+            // Generate signature without digest for GET requests
+            let signature = self.generate_signature(
+                &auth,
+                &content_type,
+                &nordea_host,
+                &path_with_query,
+                None,
+                &nordea_origin_date,
+                http_method,
+            )?;
+
+            required_headers.push(("Signature".to_string(), signature.into_masked()));
+        }
+
+        Ok(required_headers)
     }
 }
 
@@ -112,24 +275,12 @@ impl ConnectorCommon for Nordea {
         connectors.nordea.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = nordea::NordeaAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
-    }
-
     fn build_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: nordea::NordeaErrorResponse = res
+        let response: responses::NordeaErrorResponse = res
             .response
             .parse_struct("NordeaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -195,8 +346,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = nordea::NordeaRouterData::from((amount, req));
-        let connector_req = nordea::NordeaPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = NordeaRouterData::from((amount, req));
+        let connector_req = NordeaPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -228,9 +379,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: nordea::NordeaPaymentsResponse = res
+        let response: NordeaPaymentsResponse = res
             .response
-            .parse_struct("Nordea PaymentsAuthorizeResponse")
+            .parse_struct("NordeaPaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -292,9 +443,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nordea::NordeaPaymentsResponse = res
+        let response: NordeaPaymentsResponse = res
             .response
-            .parse_struct("nordea PaymentsSyncResponse")
+            .parse_struct("NordeaPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -330,9 +481,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "personal/v4/payments/sepa/confirm"
+        ))
     }
 
     fn get_request_body(
@@ -369,9 +524,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: nordea::NordeaPaymentsResponse = res
+        let response: NordeaPaymentsResponse = res
             .response
-            .parse_struct("Nordea PaymentsCaptureResponse")
+            .parse_struct("NordeaPaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -425,8 +580,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nordea 
             req.request.currency,
         )?;
 
-        let connector_router_data = nordea::NordeaRouterData::from((refund_amount, req));
-        let connector_req = nordea::NordeaRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = NordeaRouterData::from((refund_amount, req));
+        let connector_req = NordeaRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -455,10 +610,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nordea 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: nordea::RefundResponse =
-            res.response
-                .parse_struct("nordea RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: NordeaRefundResponse = res
+            .response
+            .parse_struct("NordeaRefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -522,9 +677,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nordea {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: nordea::RefundResponse = res
+        let response: NordeaRefundResponse = res
             .response
-            .parse_struct("nordea RefundSyncResponse")
+            .parse_struct("NordeaRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

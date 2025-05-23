@@ -1,4 +1,5 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use url::Url;
 
 // PaymentsResponse
 //TODO: Append the remaining status flags
@@ -10,6 +11,7 @@ pub enum NordeaPaymentStatus {
     #[default]
     Processing,
 }
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NordeaPaymentsResponse {
@@ -48,8 +50,8 @@ pub struct NordeaRefundRequest {
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
+pub enum NordeaRefundStatus {
     Succeeded,
     Failed,
     #[default]
@@ -58,9 +60,9 @@ pub enum RefundStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
+pub struct NordeaRefundResponse {
     pub id: String,
-    pub status: RefundStatus,
+    pub status: NordeaRefundStatus,
 }
 
 //TODO: Fill the struct with respective fields

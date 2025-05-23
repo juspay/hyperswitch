@@ -1,16 +1,15 @@
-use common_utils::types::StringMinorUnit; // Will be used by transformer, request struct uses String for amount
+use common_utils::types::StringMajorUnit;
 use masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub struct NordeaRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct NordeaPaymentsRequest {
-    pub amount: StringMinorUnit,
+    pub amount: StringMajorUnit,
     pub card: NordeaCard,
 }
 

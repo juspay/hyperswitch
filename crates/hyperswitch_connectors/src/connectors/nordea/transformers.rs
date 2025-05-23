@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::StringMajorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -10,43 +10,32 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
+
+use super::{
+    requests::{
+        NordeaCard,
+        NordeaPaymentsRequest,
+        NordeaRefundRequest, NordeaRouterData,
+    },
+    responses::{
+        NordeaPaymentStatus, NordeaPaymentsResponse,
+        NordeaRefundResponse, NordeaRefundStatus,
+    },
+};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{PaymentsAuthorizeRequestData},
 };
 
-//TODO: Fill the struct with respective fields
-pub struct NordeaRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
-}
-
-impl<T> From<(StringMinorUnit, T)> for NordeaRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(StringMajorUnit, T)> for NordeaRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct NordeaPaymentsRequest {
-    amount: StringMinorUnit,
-    card: NordeaCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct NordeaCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
 }
 
 impl TryFrom<&NordeaRouterData<&PaymentsAuthorizeRouterData>> for NordeaPaymentsRequest {
@@ -76,29 +65,24 @@ impl TryFrom<&NordeaRouterData<&PaymentsAuthorizeRouterData>> for NordeaPayments
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct NordeaAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+    /// PEM format private key for eIDAS signing
+    pub(super) eidas_private_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for NordeaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => Ok(Self {
+                client_id: key1.to_owned(),
+                client_secret: api_key.to_owned(),
+                eidas_private_key: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
-}
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum NordeaPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
 }
 
 impl From<NordeaPaymentStatus> for common_enums::AttemptStatus {
@@ -109,13 +93,6 @@ impl From<NordeaPaymentStatus> for common_enums::AttemptStatus {
             NordeaPaymentStatus::Processing => Self::Authorizing,
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NordeaPaymentsResponse {
-    status: NordeaPaymentStatus,
-    id: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, NordeaPaymentsResponse, T, PaymentsResponseData>>
@@ -142,14 +119,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NordeaPaymentsResponse, T, PaymentsResp
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct NordeaRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
 impl<F> TryFrom<&NordeaRouterData<&RefundsRouterData<F>>> for NordeaRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &NordeaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
@@ -159,70 +128,43 @@ impl<F> TryFrom<&NordeaRouterData<&RefundsRouterData<F>>> for NordeaRefundReques
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+impl TryFrom<RefundsResponseRouterData<Execute, NordeaRefundResponse>> for RefundsRouterData<Execute> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<Execute, NordeaRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl TryFrom<RefundsResponseRouterData<RSync, NordeaRefundResponse>> for RefundsRouterData<RSync> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, NordeaRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<NordeaRefundStatus> for enums::RefundStatus {
+    fn from(item: NordeaRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            NordeaRefundStatus::Succeeded => Self::Success,
+            NordeaRefundStatus::Failed => Self::Failure,
+            NordeaRefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct NordeaErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }
