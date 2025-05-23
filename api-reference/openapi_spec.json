@@ -312,18 +312,48 @@
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentRetrieveBody"
-              }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "Decider to enable or disable the connector call for retrieve request",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
             }
           },
-          "required": true
-        },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "expand_attempts",
+            "in": "query",
+            "description": "If enabled provides list of attempts linked to payment intent",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "expand_captures",
+            "in": "query",
+            "description": "If enabled provides list of captures linked to latest attempt",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Gets the payment with final status",
@@ -596,87 +626,96 @@
             "name": "customer_id",
             "in": "query",
             "description": "The identifier for the customer",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "starting_after",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "ending_before",
             "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Limit on the number of objects to return",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
             "name": "created",
             "in": "query",
             "description": "The time at which payment is created",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_lt",
             "in": "query",
             "description": "Time less than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_gt",
             "in": "query",
             "description": "Time greater than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_lte",
             "in": "query",
             "description": "Time less than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           },
           {
             "name": "created_gte",
             "in": "query",
             "description": "Time greater than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "date-time",
+              "nullable": true
             }
           }
         ],
@@ -918,6 +957,17 @@
         ],
         "summary": "Payments - Post Session Tokens",
         "operationId": "Create Post Session Tokens for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -957,6 +1007,17 @@
         ],
         "summary": "Payments - Update Metadata",
         "operationId": "Update Metadata for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1073,6 +1134,15 @@
         "description": "Retrieves a relay details.",
         "operationId": "Retrieve a Relay details",
         "parameters": [
+          {
+            "name": "relay_id",
+            "in": "path",
+            "description": "The unique identifier for the Relay",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "X-Profile-Id",
             "in": "header",
@@ -1735,6 +1805,17 @@
         "summary": "Merchant Connector - Create",
         "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2286,6 +2367,17 @@
         "summary": "Mandates - Customer Mandates List",
         "description": "Lists all the mandates for a particular customer id.",
         "operationId": "List Mandates for a Customer",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of retrieved mandates for a customer",
@@ -2810,7 +2902,7 @@
         ],
         "summary": "List customer saved payment methods for a Payment",
         "description": "Lists all the applicable payment methods for a particular payment tied to the `client_secret`.",
-        "operationId": "List all Payment Methods for a Customer",
+        "operationId": "List Customer Payment Methods via Client Secret",
         "parameters": [
           {
             "name": "client-secret",
@@ -2919,7 +3011,7 @@
       }
     },
     "/{customer_id}/payment_methods/{payment_method_id}/default": {
-      "get": {
+      "post": {
         "tags": [
           "Payment Methods"
         ],
@@ -9843,6 +9935,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
@@ -11609,6 +11702,123 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          }
+        }
+      },
+      "DecisionEngineEliminationData": {
+        "type": "object",
+        "required": [
+          "threshold"
+        ],
+        "properties": {
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineGatewayWiseExtraScore": {
+        "type": "object",
+        "required": [
+          "gatewayName",
+          "gatewaySigmaFactor"
+        ],
+        "properties": {
+          "gatewayName": {
+            "type": "string"
+          },
+          "gatewaySigmaFactor": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineSRSubLevelInputConfig": {
+        "type": "object",
+        "properties": {
+          "paymentMethodType": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "latencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "bucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "hedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "upperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "gatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "DecisionEngineSuccessRateData": {
+        "type": "object",
+        "properties": {
+          "defaultLatencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultBucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "defaultHedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultLowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultUpperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultGatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          },
+          "subLevelInputConfig": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineSRSubLevelInputConfig"
+            },
             "nullable": true
           }
         }
@@ -15981,6 +16191,24 @@
           },
           {
             "type": "object",
+            "required": [
+              "popup_url",
+              "type"
+            ],
+            "properties": {
+              "popup_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "redirect_inside_popup"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)",
             "required": [
               "bank_transfer_steps_and_charges_details",
@@ -16209,7 +16437,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -16514,6 +16743,9 @@
       },
       "OrganizationUpdateRequest": {
         "type": "object",
+        "required": [
+          "platform_merchant_id"
+        ],
         "properties": {
           "organization_name": {
             "type": "string",
@@ -16531,12 +16763,8 @@
             "nullable": true
           },
           "platform_merchant_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantId"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org"
           }
         },
         "additionalProperties": false
@@ -19360,6 +19588,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
@@ -19776,6 +20009,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "all_keys_required": {
@@ -20359,6 +20597,11 @@
           "issuer_error_message": {
             "type": "string",
             "description": "Error message received from the issuer in case of failed payments",
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "whole_connector_response": {
@@ -21069,6 +21312,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
@@ -21678,6 +21926,11 @@
             "description": "Error message received from the issuer in case of failed payments",
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "whole_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
@@ -22227,6 +22480,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
           },
           "all_keys_required": {
@@ -24268,6 +24526,16 @@
               }
             ],
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
+          "is_pre_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if pre network tokenization is enabled or not",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24303,7 +24571,8 @@
           "is_auto_retries_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "force_3ds_challenge"
+          "force_3ds_challenge",
+          "is_pre_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -24545,6 +24814,12 @@
               }
             ],
             "nullable": true
+          },
+          "is_pre_network_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Indicates if pre network tokenization is enabled or not",
+            "default": false,
+            "example": false
           }
         }
       },
@@ -25690,6 +25965,7 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
           "billwerk",
@@ -26981,6 +27257,9 @@
       },
       "SuccessBasedRoutingConfig": {
         "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
         "properties": {
           "params": {
             "type": "array",
@@ -26996,6 +27275,9 @@
               }
             ],
             "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineSuccessRateData"
           }
         }
       },
