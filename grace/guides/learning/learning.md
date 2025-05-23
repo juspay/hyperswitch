@@ -917,3 +917,4 @@ By keeping these lessons in mind, you can avoid common pitfalls and accelerate c
 - Refer to `grace/guides/` for patterns and common error resolutions.
 - Apply targeted fixes using `replace_in_file`.
 - Repeat until compilation is successful.
+- **Suppressing `dead_code` Warnings**: For fields that are intentionally unused (e.g., an `amount_converter` field in a connector struct that might be used later or is part of a standard pattern but not for this specific connector), use `#[allow(dead_code)]` on the struct or field to suppress compiler warnings. This keeps the build output clean while acknowledging the intentionally unused code.

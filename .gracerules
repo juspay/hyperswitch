@@ -142,6 +142,10 @@ Structure:
         learning/learning.md - Contains lessons learned from previous implementations
         types/types.md - Contains all types used in the connector
 
+[For integration / debugging connector you should use context from the guides/connector_integration_guide.md]
+
+[For a {{connector}} check in guides/]
+
 [Update all the files based on learnings during the integration process similar to memory bank]
 
 

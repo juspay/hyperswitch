@@ -43,6 +43,7 @@ use transformers as spreedly;
 use crate::{constants::headers, types::ResponseRouterData}; // Removed utils
 
 #[derive(Clone)]
+#[allow(dead_code)] // Added to suppress warning for unused amount_converter
 pub struct Spreedly {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }

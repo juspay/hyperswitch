@@ -176,7 +176,7 @@ This phase focuses on coding the `.../<connector-name-lowercase>/transformers.rs
         (e.g., `TryFrom<ResponseRouterData<Authorize, MyConnectorPaymentResponse, PaymentsAuthorizeData, PaymentsResponseData>> for PaymentsAuthorizeRouterData`)
 
         <|> add example for each type
-        give ref. domainmodels/types
+        use types from **/hyperswitch_domain_models/types
 
 -   Handle amount conversions within these traits or via the `{{project-name}}RouterData` wrapper (using `utils::convert_amount` in the main logic file is also common).
 -   Refer to `connector-template/transformers.rs` and existing connectors (e.g., `hipay/transformers.rs`, adyen/transformers) for patterns.
