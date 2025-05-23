@@ -90,7 +90,7 @@ pub struct EmvThreedsData {
     browser_accept_header: Option<String>,
     browser_user_agent: Option<String>,
     browser_java_enabled: Option<bool>,
-    browser_java_script_enabled: Option<bool>,
+    browser_javascript_enabled: Option<bool>,
     browser_language: Option<String>,
     browser_color_depth: Option<String>,
     browser_screen_height: Option<String>,
@@ -139,7 +139,7 @@ impl EmvThreedsData {
             browser_accept_header: None,
             browser_user_agent: None,
             browser_java_enabled: None,
-            browser_java_script_enabled: None,
+            browser_javascript_enabled: None,
             browser_language: None,
             browser_color_depth: None,
             browser_screen_height: None,
@@ -159,7 +159,7 @@ impl EmvThreedsData {
         self.browser_accept_header = Some(browser_info.get_accept_header()?);
         self.browser_user_agent = Some(browser_info.get_user_agent()?);
         self.browser_java_enabled = Some(browser_info.get_java_enabled()?);
-        self.browser_java_script_enabled = browser_info.get_java_script_enabled().ok();
+        self.browser_javascript_enabled = browser_info.get_java_script_enabled().ok();
         self.browser_language = Some(browser_info.get_language()?);
         self.browser_color_depth = Some(browser_info.get_color_depth()?.to_string());
         self.browser_screen_height = Some(browser_info.get_screen_height()?.to_string());

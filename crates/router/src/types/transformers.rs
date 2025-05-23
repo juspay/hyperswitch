@@ -288,6 +288,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
+            // api_enums::Connector::Nordea => Self::Nordea,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
@@ -322,12 +323,17 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
+            // api_enums::Connector::Tokenio => Self::Tokenio,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             // api_enums::Connector::UnifiedAuthenticationService => {
             //     Self::UnifiedAuthenticationService
             // }
-            // api_enums::Connector::Vgs => Self::Vgs,
+            api_enums::Connector::Vgs => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Vgs is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Volt => Self::Volt,
             api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             // api_enums::Connector::Wellsfargopayout => Self::Wellsfargopayout,
@@ -366,11 +372,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Taxjar => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Taxjar is not a routable connector".to_string(),
-                })?
-            }
-            api_enums::Connector::Vgs => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "Vgs is not a routable connector".to_string(),
                 })?
             }
         })
