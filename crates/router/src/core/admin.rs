@@ -258,6 +258,26 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    // Call to DE here
+    // Check if creation should be based on default profile
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
@@ -1169,6 +1189,25 @@ pub async fn merchant_account_delete(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
+
+    // Call to DE here
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled && is_deleted {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
     }
 
     let state = state.clone();
