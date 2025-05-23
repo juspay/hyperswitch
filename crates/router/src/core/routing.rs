@@ -19,6 +19,8 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
@@ -31,7 +33,10 @@ use super::payouts;
 use super::{
     errors::RouterResult,
     payments::{
-        routing::{self as payments_routing},
+        routing::{
+            utils::*,
+            {self as payments_routing},
+        },
         OperationSessionGetters,
     },
 };
@@ -119,6 +124,7 @@ impl RoutingAlgorithmUpdate {
             modified_at: timestamp,
             algorithm_for: transaction_type,
             algorithm_type: common_utils::consts::ALGORITHM_TYPE_ROUTING,
+            decision_engine_routing_id: None,
         };
         Self(algo)
     }
@@ -154,13 +160,33 @@ pub async fn retrieve_merchant_routing_dictionary(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-    let routing_metadata =
-        super::utils::filter_objects_based_on_profile_id_list(profile_id_list, routing_metadata);
+    let routing_metadata = super::utils::filter_objects_based_on_profile_id_list(
+        profile_id_list.clone(),
+        routing_metadata,
+    );
 
     let result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
+
+    if let Some(profile_ids) = profile_id_list {
+        let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+        // DE_TODO: need to replace this with batch API call to reduce the number of network calls
+        for profile_id in profile_ids {
+            let list_request = ListRountingAlgorithmsRequest {
+                created_by: profile_id.get_string_repr().to_string(),
+            };
+            list_de_euclid_routing_algorithms(&state, list_request)
+                .await
+                .map_err(|e| {
+                    router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+                })
+                .ok() // Avoid throwing error if Decision Engine is not available or other errors
+                .map(|mut de_routing| de_result.append(&mut de_routing));
+        }
+        compare_and_log_result(de_result, result.clone(), "list_routing".to_string());
+    }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -251,6 +277,10 @@ pub async fn create_routing_algorithm_under_profile(
     transaction_type: enums::TransactionType,
     algorithm_type: enums::AlgorithmType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    use api_models::routing::RoutingAlgorithm as EuclidAlgorithm;
+
+    use crate::services::logger;
+
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -271,6 +301,7 @@ pub async fn create_routing_algorithm_under_profile(
 
     let algorithm = request
         .algorithm
+        .clone()
         .get_required_value("algorithm")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "algorithm",
@@ -308,6 +339,37 @@ pub async fn create_routing_algorithm_under_profile(
     )
     .await?;
 
+    let mut decision_engine_routing_id: Option<String> = None;
+
+    if let Some(EuclidAlgorithm::Advanced(program)) = request.algorithm.clone() {
+        let internal_program: Program = program.into();
+        let routing_rule = RoutingRule {
+            name: name.clone(),
+            description: Some(description.clone()),
+            created_by: profile_id.get_string_repr().to_string(),
+            algorithm: internal_program,
+            metadata: Some(RoutingMetadata {
+                kind: algorithm.get_kind().foreign_into(),
+                algorithm_for: transaction_type.to_owned(),
+            }),
+        };
+
+        decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
+            .await
+            .map_err(|e| {
+                // errors are ignored as this is just for diff checking as of now (optional flow).
+                logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+                logger::debug!(decision_engine_request=?routing_rule, "decision_engine_euclid");
+            })
+            .ok();
+    }
+
+    if decision_engine_routing_id.is_some() {
+        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
+    } else {
+        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
+    }
+
     let timestamp = common_utils::date_time::now();
     let algo = RoutingAlgorithm {
         algorithm_id: algorithm_id.clone(),
@@ -321,6 +383,7 @@ pub async fn create_routing_algorithm_under_profile(
         modified_at: timestamp,
         algorithm_for: transaction_type.to_owned(),
         algorithm_type,
+        decision_engine_routing_id,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -506,6 +569,24 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
+
+                // Call to DE here to update SR configs
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the success rate routing config in Decision Engine",
+                        )?;
+                    }
+                }
             } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
             {
                 dynamic_routing_ref.update_algorithm_id(
@@ -520,6 +601,22 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::EliminationRouting,
             );
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::EliminationRouting,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the elimination routing config in Decision Engine",
+                        )?;
+                    }
+                }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
@@ -539,7 +636,7 @@ pub async fn link_routing_config(
                 db,
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                business_profile,
+                business_profile.clone(),
                 dynamic_routing_ref,
             )
             .await?;
@@ -581,14 +678,37 @@ pub async fn link_routing_config(
                 db,
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                business_profile,
+                business_profile.clone(),
                 routing_ref,
                 transaction_type,
             )
             .await?;
         }
     };
-
+    if let Some(euclid_routing_id) = routing_algorithm.decision_engine_routing_id.clone() {
+        let routing_algo = ActivateRoutingConfigRequest {
+            created_by: business_profile.get_id().get_string_repr().to_string(),
+            routing_algorithm_id: euclid_routing_id,
+        };
+        let link_result = link_de_euclid_routing_algorithm(&state, routing_algo).await;
+        match link_result {
+            Ok(_) => {
+                router_env::logger::info!(
+                    routing_flow=?"link_routing_algorithm",
+                    is_equal=?true,
+                    "decision_engine_euclid"
+                );
+            }
+            Err(e) => {
+                router_env::logger::info!(
+                    routing_flow=?"link_routing_algorithm",
+                    is_equal=?false,
+                    error=?e,
+                    "decision_engine_euclid"
+                );
+            }
+        }
+    }
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.foreign_into(),
@@ -1435,11 +1555,12 @@ pub async fn success_based_routing_update_configs(
         name: dynamic_routing_algo_to_update.name,
         description: dynamic_routing_algo_to_update.description,
         kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update),
+        algorithm_data: serde_json::json!(config_to_update.clone()),
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
         algorithm_type: dynamic_routing_algo_to_update.algorithm_type,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1470,23 +1591,25 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    state
-        .grpc_client
-        .dynamic_routing
-        .success_rate_client
-        .as_ref()
-        .async_map(|sr_client| async {
-            sr_client
-                .invalidate_success_rate_routing_keys(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the routing keys")
-        })
-        .await
-        .transpose()?;
+    if !state.conf.open_router.enabled {
+        state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .async_map(|sr_client| async {
+                sr_client
+                    .invalidate_success_rate_routing_keys(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
@@ -1540,6 +1663,7 @@ pub async fn elimination_routing_update_configs(
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
         algorithm_type: dynamic_routing_algo_to_update.algorithm_type,
+        decision_engine_routing_id: None,
     };
 
     let record = db
@@ -1572,23 +1696,25 @@ pub async fn elimination_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    state
-        .grpc_client
-        .dynamic_routing
-        .elimination_based_client
-        .as_ref()
-        .async_map(|er_client| async {
-            er_client
-                .invalidate_elimination_bucket(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the elimination routing keys")
-        })
-        .await
-        .transpose()?;
+    if !state.conf.open_router.enabled {
+        state
+            .grpc_client
+            .dynamic_routing
+            .elimination_based_client
+            .as_ref()
+            .async_map(|er_client| async {
+                er_client
+                    .invalidate_elimination_bucket(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the elimination routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
@@ -1686,6 +1812,7 @@ pub async fn contract_based_dynamic_routing_setup(
         modified_at: timestamp,
         algorithm_for: common_enums::TransactionType::Payment,
         algorithm_type: common_utils::consts::ALGORITHM_TYPE_ROUTING,
+        decision_engine_routing_id: None,
     };
 
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based
@@ -1874,6 +2001,7 @@ pub async fn contract_based_routing_update_configs(
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
         algorithm_type: dynamic_routing_algo_to_update.algorithm_type,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)

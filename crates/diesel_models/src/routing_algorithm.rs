@@ -18,6 +18,7 @@ pub struct RoutingAlgorithm {
     pub modified_at: time::PrimitiveDateTime,
     pub algorithm_for: enums::TransactionType,
     pub algorithm_type: enums::AlgorithmType,
+    pub decision_engine_routing_id: Option<String>,
 }
 
 pub struct RoutingAlgorithmMetadata {

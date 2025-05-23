@@ -659,6 +659,7 @@ async fn payments_incoming_webhook_flow(
                     client_secret: None,
                     expand_attempts: None,
                     expand_captures: None,
+                    all_keys_required: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow.clone(),
@@ -1466,7 +1467,7 @@ async fn mandates_incoming_webhook_flow(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 updated_mandate.clone(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_merchant_account(),
             )
             .await?,
         );
@@ -1842,6 +1843,7 @@ async fn verify_webhook_source_verification_call(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await?;

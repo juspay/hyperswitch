@@ -223,6 +223,8 @@ diesel::table! {
         merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         id -> Varchar,
+        is_iframe_redirection_enabled -> Nullable<Bool>,
+        three_ds_decision_rule_algorithm -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -975,6 +977,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        is_iframe_redirection_enabled -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1069,6 +1072,8 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 64]
+        external_vault_source -> Nullable<Varchar>,
     }
 }
 
@@ -1489,6 +1494,7 @@ diesel::table! {
         totp_secret -> Nullable<Bytea>,
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
+        lineage_context -> Nullable<Jsonb>,
     }
 }
 

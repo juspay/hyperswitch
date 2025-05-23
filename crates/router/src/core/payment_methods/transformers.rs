@@ -1,3 +1,4 @@
+pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -73,13 +74,6 @@ pub struct StoreCardRespPayload {
     pub duplication_check: Option<DataDuplicationCheck>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum DataDuplicationCheck {
-    Duplicated,
-    MetaDataChanged,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
@@ -107,13 +101,6 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DeleteCardResp {
-    pub status: String,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -539,8 +526,10 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_network: card_create.card_network,
             card_issuer: card_create.card_issuer,
             card_type: card_create.card_type,
-            card_holder_name: update_card.card_holder_name,
-            nick_name: update_card.nick_name,
+            card_holder_name: update_card
+                .card_holder_name
+                .or(card_create.card_holder_name),
+            nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
         }),
         _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.

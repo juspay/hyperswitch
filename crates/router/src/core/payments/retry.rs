@@ -34,7 +34,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
-    mut connectors: IntoIter<api::ConnectorData>,
+    mut connector_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     merchant_context: &domain::MerchantContext,
@@ -137,7 +137,7 @@ where
                         break;
                     }
 
-                    if connectors.len() == 0 {
+                    if connector_routing_data.len() == 0 {
                         logger::info!("connectors exhausted for auto_retry payment");
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         break;
@@ -159,7 +159,7 @@ where
                         // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
                         original_connector_data.clone()
                     } else {
-                        super::get_connector_data(&mut connectors)?
+                        super::get_connector_data(&mut connector_routing_data)?.connector_data
                     };
 
                     router_data = do_retry(
@@ -372,6 +372,8 @@ where
         business_profile,
         true,
         should_retry_with_pan,
+        None,
+        None,
     )
     .await?;
 
@@ -615,7 +617,7 @@ pub fn make_new_payment_attempt(
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
     is_step_up: bool,
-    setup_futture_usage_intent: Option<storage_enums::FutureUsage>,
+    setup_future_usage_intent: Option<storage_enums::FutureUsage>,
 ) -> storage::PaymentAttemptNew {
     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
     storage::PaymentAttemptNew {
@@ -687,7 +689,7 @@ pub fn make_new_payment_attempt(
         surcharge_algorithm_id: old_payment_attempt.surcharge_algorithm_id,
         processor_merchant_id: old_payment_attempt.processor_merchant_id,
         created_by: old_payment_attempt.created_by,
-        setup_future_usage_applied: setup_futture_usage_intent, // setup future usage is picked from intent for new payment attempt
+        setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
     }
 }
 

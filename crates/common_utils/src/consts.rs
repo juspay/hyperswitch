@@ -127,6 +127,8 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+/// Role ID for Internal Demo
+pub const ROLE_ID_INTERNAL_DEMO: &str = "internal_demo";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -184,3 +186,9 @@ pub const ALGORITHM_TYPE_ROUTING: common_enums::AlgorithmType =
 /// Algorithm Type for Surcharge
 pub const ALGORITHM_TYPE_SURCHARGE: common_enums::AlgorithmType =
     common_enums::AlgorithmType::Surcharge;
+
+/// The tag name used for identifying the host in metrics.
+pub const METRICS_HOST_TAG_NAME: &str = "host";
+
+/// API client request timeout (in seconds)
+pub const REQUEST_TIME_OUT: u64 = 30;
