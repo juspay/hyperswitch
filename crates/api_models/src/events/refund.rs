@@ -22,13 +22,6 @@ impl ApiEventMetric for RefundRequest {
     }
 }
 
-#[cfg(feature = "v2")]
-impl ApiEventMetric for refunds::RefundsCreateRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
-    }
-}
-
 #[cfg(feature = "v1")]
 impl ApiEventMetric for refunds::RefundResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -43,7 +36,7 @@ impl ApiEventMetric for refunds::RefundResponse {
 impl ApiEventMetric for refunds::RefundResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Refund {
-            payment_id: self.payment_id.clone(),
+            payment_id: Some(self.payment_id.clone()),
             refund_id: self.id.clone(),
         })
     }
@@ -62,7 +55,10 @@ impl ApiEventMetric for RefundsRetrieveRequest {
 #[cfg(feature = "v2")]
 impl ApiEventMetric for refunds::RefundsRetrieveRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
+        Some(ApiEventsType::Refund {
+            payment_id: None,
+            refund_id: self.refund_id.clone(),
+        })
     }
 }
 
