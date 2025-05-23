@@ -346,6 +346,7 @@ pub async fn add_surcharge_decision_config(
         modified_at: timestamp,
         algorithm_for: transaction_type,
         algorithm_type,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)

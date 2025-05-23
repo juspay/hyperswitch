@@ -682,6 +682,9 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 active_surcharge_algorithm_id: None,
                 is_debit_routing_enabled: false,
                 merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::ActiveSurchargeIdUpdate {
                 active_surcharge_algorithm_id,
