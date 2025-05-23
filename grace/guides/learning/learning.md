@@ -471,6 +471,36 @@ use hyperswitch_interfaces::{
     *   The return type is `CustomResult<common_enums::enums::CallConnectorAction, errors::ConnectorError>`.
     *   The default implementation returns `Ok(CallConnectorAction::Avoid)`. For Airwallex, if a redirect always implies a next step (like `CompleteAuthorize`), returning `Ok(CallConnectorAction::Trigger)` might be more appropriate.
 *   **Imports**: Need `use common_enums::enums::{CallConnectorAction, PaymentAction};` in `airwallex.rs`.
+
+## Spreedly Integration Learnings (Session - 2025-05-23)
+
+### API Structure & Authentication:
+-   **Endpoint Pattern**: Spreedly often uses a `gateway_token` path parameter for transaction operations (e.g., `/v1/gateways/{gateway_token}/transactions.json`).
+-   **Payment Method Token**: Transactions like Authorize and Capture typically require a `payment_method_token` obtained from a prior tokenization step.
+-   **Tokenization**: Occurs at a separate endpoint (e.g., `/v1/payment_methods.json`) and requires the `environment_key` in the request body.
+-   **HTTP Methods**:
+    -   Authorize, Capture, Credit (Refund): Typically `PUT` requests.
+    -   Tokenize: `POST` request.
+    -   Retrieve Transaction (PSync, RSync): `GET` request.
+-   **Authentication**: Uses HTTP Basic Auth with `environment_key` as the username and `access_secret` as the password. The `gateway_token` is part of the URL path for specific gateway operations, not directly part of the auth header for the transaction itself, but essential for routing the request within Spreedly.
+
+### Data Handling:
+-   **Amount Format**: Spreedly expects amounts in major units as strings (e.g., "10.00" for $10.00).
+    -   Use `common_utils::types::StringMajorUnit` in response DTOs for Serde deserialization.
+    -   Use `common_utils::types::StringMajorUnitForConnector` to convert Hyperswitch's internal `MinorUnit` (i64) to `StringMajorUnit` for requests, and back for responses.
+-   **Request/Response Wrapping**: Spreedly often wraps the core data within a `transaction` object in both request and response JSON payloads.
+-   **Capture Behavior**:
+    -   To capture the full authorized amount, the capture request body can be empty or omit amount/currency.
+    -   For partial capture, the `amount` and `currency_code` (in major units) must be specified in the request body.
+-   **Error Handling**: Spreedly error responses can have error details nested within a `transaction` object or at the top level of the JSON response. The `build_error_response` function needs to check both locations. Fields like `key` and `message` within an `errors` array are common.
+
+### Hyperswitch Specifics:
+-   **Currency in `PaymentsCaptureData`**: The currency for the amount to capture is `router_data.request.currency`, not a separate `minor_amount_to_capture_currency` field.
+-   **Transaction ID for Sync/Refund**:
+    -   `PSync`: Uses `req.request.connector_transaction_id` (which is `ResponseId::ConnectorTransactionId(String)`).
+    -   `RSync`: Uses `req.request.connector_refund_id` (which is `Option<String>`). Ensure to unwrap this Option.
+    -   `Capture` / `Refund Execute`: Use `req.request.connector_transaction_id` (String) of the original payment.
+-   **Tokenize Request**: The `SpreedlyTokenizeRequest` needs the `environment_key` (from `SpreedlyAuthType`) in its body, alongside the payment method details.
 ## Bambora Connector (bambora.rs) Implementation Comparison
 
 This document compares the implemented `crates/hyperswitch_connectors/src/connectors/bambora.rs` (My Implementation) with `real-codebase/bambora.rs` (Reference Implementation).

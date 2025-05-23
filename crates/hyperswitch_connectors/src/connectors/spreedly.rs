@@ -76,7 +76,61 @@ impl
         PaymentsResponseData,
     > for Spreedly
 {
-    // Not Implemented (R)
+    fn get_headers(&self, req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>, connectors: &Connectors,) -> CustomResult<Vec<(String, masking::Maskable<String>)>,errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(&self, _req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>, connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        Ok(format!(
+            "{}/payment_methods.json",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(&self, req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>, _connectors: &Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = spreedly::SpreedlyTokenizeRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&self.get_url(req, connectors)?)
+                .attach_default_headers()
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,errors::ConnectorError> {
+        let response: spreedly::SpreedlyTokenizeResponse = res.response.parse_struct("SpreedlyTokenizeResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Spreedly
@@ -317,10 +371,16 @@ impl
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let transaction_token = req.request.connector_transaction_id.clone().get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/transactions/{}.json",
+            self.base_url(connectors),
+            transaction_token
+        ))
     }
 
     fn build_request(
@@ -388,18 +448,31 @@ impl
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_type = spreedly::SpreedlyAuthType::try_from(&req.connector_auth_type)?;
+        let transaction_token = req.request.connector_transaction_id.clone(); // This is already a String
+        Ok(format!(
+            "{}/gateways/{}/transactions/{}/capture.json",
+            self.base_url(connectors),
+            auth_type.gateway_token.expose(),
+            transaction_token
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_router_data =
+            spreedly::SpreedlyRouterData::from((
+                req.request.minor_amount_to_capture, // Pass MinorUnit directly for amount to capture
+                req,
+            ));
+        let connector_req = spreedly::SpreedlyCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -471,8 +544,15 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &RefundsRouterData<Execute>, _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    fn get_url(&self, req: &RefundsRouterData<Execute>, connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let auth_type = spreedly::SpreedlyAuthType::try_from(&req.connector_auth_type)?;
+        let transaction_token = req.request.connector_transaction_id.clone(); // This is already a String
+        Ok(format!(
+            "{}/gateways/{}/transactions/{}/credit.json",
+            self.base_url(connectors),
+            auth_type.gateway_token.expose(),
+            transaction_token
+        ))
     }
 
     fn get_request_body(&self, req: &RefundsRouterData<Execute>, _connectors: &Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
@@ -527,8 +607,15 @@ impl
         self.common_get_content_type()
     }
 
-    fn get_url(&self, _req: &RefundSyncRouterData,_connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    fn get_url(&self, req: &RefundSyncRouterData,connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        // RSync uses the connector_refund_id which is the Spreedly transaction token for the refund
+        let transaction_token = req.request.connector_refund_id.clone()
+            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {field_name: "connector_refund_id"})?;
+        Ok(format!(
+            "{}/transactions/{}.json",
+            self.base_url(connectors),
+            transaction_token
+        ))
     }
 
     fn build_request(

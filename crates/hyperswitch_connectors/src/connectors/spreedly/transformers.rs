@@ -5,14 +5,17 @@ use serde::{Deserialize, Serialize};
 use common_enums::enums;
 use common_utils::types::{AmountConvertor, MinorUnit, StringMajorUnit}; // Added StringMajorUnit
 use hyperswitch_domain_models::{
+    payment_method_data, // Added for PaymentMethodData
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
         payments::Authorize as AuthorizeFlow, payments::Capture as CaptureFlow,
-        payments::PSync as PSyncFlow, refunds::Execute, refunds::RSync,
+        payments::PSync as PSyncFlow, payments::PaymentMethodToken, refunds::Execute,
+        refunds::RSync,
     },
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, // Added RefundsData
-    }, 
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsSyncData, RefundsData, ResponseId, // Added RefundsData
+    },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     // types::RefundsRouterData, // This is an alias for RouterData<F, RefundsData, RefundsResponseData>
 };
@@ -298,8 +301,16 @@ impl
             .convert_back(item.response.transaction.amount.clone(), item.data.request.currency)
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
+        // For Capture, the status should reflect a successful capture.
+        // Spreedly's 'succeeded' state for a capture transaction means it's captured.
+        let capture_status = match item.response.transaction.state {
+            SpreedlyTransactionState::Succeeded => common_enums::AttemptStatus::Charged,
+            SpreedlyTransactionState::Failed | SpreedlyTransactionState::GatewayProcessingFailed => common_enums::AttemptStatus::Failure,
+            _ => common_enums::AttemptStatus::Pending, // Or specific status like CaptureFailed if applicable
+        };
+
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.transaction.state.clone()),
+            status: capture_status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction.token.clone(),
@@ -318,10 +329,147 @@ impl
     }
 }
 
+// Request for Capture Flow
+#[derive(Debug, Serialize, Default)]
+pub struct SpreedlyCaptureRequestTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<String>, // Major unit string
+    #[serde(skip_serializing_if = "Option::is_none")]
+    currency_code: Option<String>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct SpreedlyCaptureRequest {
+    transaction: SpreedlyCaptureRequestTransaction,
+}
+
+impl TryFrom<&SpreedlyRouterData<&RouterData<CaptureFlow, PaymentsCaptureData, PaymentsResponseData>>>
+    for SpreedlyCaptureRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &SpreedlyRouterData<&RouterData<CaptureFlow, PaymentsCaptureData, PaymentsResponseData>>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let amount_to_capture = router_data.request.amount_to_capture; // This is i64
+        let currency = router_data.request.currency; // This is enums::Currency
+
+        let (amount_str, currency_code_str) = if amount_to_capture > 0 {
+            let converter = common_utils::types::StringMajorUnitForConnector;
+            let major_unit_amount = converter
+                .convert(MinorUnit::new(amount_to_capture), currency)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            (
+                Some(major_unit_amount.get_amount_as_string()),
+                Some(currency.to_string()),
+            )
+        } else {
+            // If amount_to_capture is 0 or not specified, Spreedly captures the full authorized amount
+            // by not sending amount/currency in the request.
+            (None, None)
+        };
+
+
+        Ok(Self {
+            transaction: SpreedlyCaptureRequestTransaction {
+                amount: amount_str,
+                currency_code: currency_code_str,
+            },
+        })
+    }
+}
+
+
 #[derive(Default, Debug, Serialize)]
 pub struct SpreedlyRefundRequest {
     pub amount: String,
 }
+
+// Request for Tokenize Flow
+#[derive(Debug, Serialize)]
+pub struct SpreedlyTokenizeCard {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    number: cards::CardNumber,
+    month: Secret<String>,
+    year: Secret<String>,
+    verification_value: Secret<String>, // CVV
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpreedlyTokenizeRequestPaymentMethod {
+    credit_card: SpreedlyTokenizeCard,
+    // email: Option<pii::Email>, // Spreedly docs show email at payment_method level
+    // metadata: Option<serde_json::Value>
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpreedlyTokenizeRequest {
+    payment_method: SpreedlyTokenizeRequestPaymentMethod,
+    environment_key: Secret<String>,
+}
+
+impl TryFrom<&RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>>
+    for SpreedlyTokenizeRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let card_details = match item.request.payment_method_data.clone() {
+            payment_method_data::PaymentMethodData::Card(card) => Ok(card),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Only card tokenization is supported".to_string(),
+            )),
+        }?;
+
+        let auth = SpreedlyAuthType::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            environment_key: auth.environment_key,
+            payment_method: SpreedlyTokenizeRequestPaymentMethod {
+                credit_card: SpreedlyTokenizeCard {
+                    first_name: card_details.card_holder_name.clone().unwrap_or_else(|| Secret::new("".to_string())), // Spreedly requires first/last name
+                    last_name: card_details.card_holder_name.unwrap_or_else(|| Secret::new("".to_string())), // Assuming full name is in card_holder_name
+                    number: card_details.card_number,
+                    month: card_details.card_exp_month,
+                    year: card_details.card_exp_year,
+                    verification_value: card_details.card_cvc,
+                },
+            },
+        })
+    }
+}
+
+
+// Response for Tokenize Flow
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SpreedlyTokenizeResponsePaymentMethod {
+    token: String,
+    // ... other fields like created_at, updated_at, email, storage_state, test, etc.
+    // For simplicity, only token is mapped for now.
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SpreedlyTokenizeResponse {
+    transaction: SpreedlyTokenizeResponsePaymentMethod, // Spreedly wraps it in a "transaction" object, even for tokenization
+}
+
+
+impl TryFrom<ResponseRouterData<PaymentMethodToken, SpreedlyTokenizeResponse, PaymentMethodTokenizationData, PaymentsResponseData>>
+    for RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ResponseRouterData<PaymentMethodToken, SpreedlyTokenizeResponse, PaymentMethodTokenizationData, PaymentsResponseData>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: item.response.transaction.token,
+            }),
+            ..item.data
+        })
+    }
+}
+
 
 // Changed RefundsRouterData to RouterData<F, RefundsData, RefundsResponseData> for consistency
 impl<F> TryFrom<&SpreedlyRouterData<&RouterData<F, RefundsData, RefundsResponseData>>>

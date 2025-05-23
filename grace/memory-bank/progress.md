@@ -19,24 +19,27 @@
 
 - Full implementation of the Spreedly connector, following the generated `planner-steps.md`.
 - This includes:
-    - Resolving compilation errors in `spreedly.rs` and `spreedly/transformers.rs`.
-    - Completing transformers for Authorize flow (request/response).
-    - Completing main logic for Authorize flow (`get_request_body`, `handle_response`, etc.).
-    - Implementing Tokenize, Capture, PSync, Refund flows (transformers and main logic).
-    - Configuring backend and test authentication (placeholders currently exist).
-    - Writing and passing tests for all implemented flows.
-    - (Optional) UI updates for Control Center.
+- Spreedly Connector:
+    - Phase C (Transformer Implementation) and Phase D (Main Logic Implementation) are complete for:
+        - Authorize Flow
+        - Capture Flow
+        - PSync Flow
+        - Refund Execute Flow
+        - Refund Sync Flow
+        - Tokenize Flow
+- All compilation errors resolved. `cargo build` is successful.
+- Next: Phase E (Registration, Configuration & Testing), focusing on integration tests for Spreedly.
 
 ## Current Status
 
-- Memory Bank updated with comprehensive and actionable guidance for connector integration. The "Hyperswitch Connector Integration Assistant" details have been integrated into `techContext.md`, and related updates made to `systemPatterns.md` and `activeContext.md`.
-- Verification against the codebase (including `stripebilling` connector and `connector-template`) has confirmed high consistency between the documentation and actual implementation patterns. The documentation now provides a clearer and more structured path for developers, further refined with insights from this verification.
-- **Spreedly Integration**: Phase A (Preparation & Setup) is complete. Phase B/C/D for the Authorize flow is partially underway. Configuration files have been updated.
-- `cargo build` attempted, revealing compilation errors in Spreedly connector files and pre-existing errors in other crates.
-- Resolved all compilation errors and warnings in `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs` and `crates/hyperswitch_connectors/src/connectors/spreedly.rs`.
-  - The primary fix involved changing `SpreedlyAuthorizeTransactionResponse.amount` from `String` to `common_utils::types::StringMajorUnit` in `transformers.rs`, allowing Serde to handle deserialization. This resolved the blocker regarding `StringMajorUnit` construction.
-  - Removed various unused imports and fields related to older amount conversion approaches.
-- `cargo build` now completes successfully without any Spreedly-related errors or warnings.
+- Memory Bank updated with comprehensive and actionable guidance for connector integration.
+- **Spreedly Integration**:
+    - Phase A (Preparation & Setup) complete.
+    - Phase C (Transformer Implementation) and Phase D (Main Logic Implementation) for Authorize, Capture, PSync, Refund Execute, Refund Sync, and Tokenize flows are complete.
+    - `cargo build` completes successfully.
+- Configuration files (`development.toml`, `sample_auth.toml`) updated for Spreedly.
+- `connector_enums.rs` verified for Spreedly registration.
+- Updated `grace/guides/learning/learning.md` and `grace/guides/errors/errors.md` with information about handling `StringMajorUnit` construction via Serde.
 
 ## Known Issues
 

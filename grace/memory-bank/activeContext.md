@@ -29,12 +29,21 @@
     - Removed unused field `amount_converter` from the `Spreedly` struct and its initialization.
     - Removed unused imports `AmountConvertor`, `StringMinorUnit`, and `StringMinorUnitForConnector` from `common_utils::types`.
 - Successfully ran `cargo build` with no errors or warnings related to the Spreedly connector.
+- Updated `grace/guides/learning/learning.md` with insights on handling `common_utils::types` (like `StringMajorUnit`) with private constructors by leveraging Serde for deserialization.
+- Updated `grace/guides/errors/errors.md` with a new entry detailing the error and solution for constructing `StringMajorUnit` from a `String` when constructors are private.
 
 ## Next Steps
 
-- Update memory bank files (`activeContext.md` and `progress.md`) - In progress.
-- Continue with Phase C (Transformer Implementation) and Phase D (Main Logic Implementation) for the Authorize flow and other payment flows as per `grace/connector_integration/spreedly/planner-steps.md`.
-- Proceed to Phase E (Registration, Configuration & Testing).
+- Completed Phase C (Transformer Implementation) and Phase D (Main Logic Implementation) for Spreedly connector:
+    - Authorize Flow
+    - Capture Flow (Request struct and TryFrom in transformers.rs; get_url, get_request_body in spreedly.rs)
+    - PSync Flow (get_url in spreedly.rs)
+    - Refund Execute Flow (get_url in spreedly.rs)
+    - Refund Sync Flow (get_url in spreedly.rs, ensuring connector_refund_id is unwrapped)
+    - Tokenize Flow (Request/Response structs and TryFrom in transformers.rs; full ConnectorIntegration impl in spreedly.rs)
+- Resolved all compilation errors. `cargo build` is successful.
+- Next step: Phase E (Registration, Configuration & Testing), focusing on integration tests.
+- Update `grace/memory-bank/progress.md`.
 
 ## Key Decisions & Considerations
 
@@ -54,4 +63,13 @@
     - The critical role of `crates/hyperswitch_domain_models/src/router_request_types.rs` and `crates/hyperswitch_domain_models/src/router_response_types.rs` as the source of truth for Hyperswitch's internal data structures.
     - Verification against actual connector code (e.g., `stripebilling`, `connector-template`) confirms high consistency between documentation and implementation, with template files providing excellent starting points including `TODO` comments for developer guidance.
 - Successfully followed Step 0 of the connector integration guide (`grace/guides/connector_integration_guide.md`) to create initial planning documents (`planner-steps.md` and `tech-spec.md`) for the Spreedly connector.
-- Completed Phase A (Preparation & Setup) for Spreedly connector.
+- Completed Phase A (Preparation & Setup) and initial parts of Phase C/D for Spreedly connector.
+- **Spreedly Specific Learnings (Current Session)**:
+    - API Structure: Uses `gateway_token` in URL paths, `payment_method_token` for transactions. Tokenization is separate, requiring `environment_key`.
+    - HTTP Methods: `PUT` for Authorize/Capture/Refund, `POST` for Tokenize, `GET` for Sync.
+    - Authentication: Basic Auth (`environment_key:access_secret`).
+    - Amounts: String major units.
+    - Request/Response: Often wrapped in a `transaction` object.
+    - Capture: Empty body for full capture; amount/currency for partial.
+    - Error Handling: Nested errors possible.
+    - Hyperswitch: `request.currency` for capture currency; careful with `connector_transaction_id` vs `connector_refund_id` for syncs. Tokenize request needs `environment_key`.

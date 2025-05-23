@@ -445,4 +445,23 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 
 // Connector dependent test cases goes here
 
+// Tokenize Tests
+#[actix_web::test]
+async fn should_tokenize_card() {
+    let response = CONNECTOR
+        .tokenize_payment_method(get_default_card_payment_info())
+        .await
+        .expect("Tokenize payment method response");
+    // Spreedly returns the token in response.data.TokenizationResponse.token
+    // We need to assert that a token is present.
+    let tokenization_response = response.response.expect("Response data should be present");
+    match tokenization_response {
+        types::PaymentsResponseData::TokenizationResponse { token } => {
+            assert!(!token.is_empty(), "Token should not be empty");
+        }
+        _ => panic!("Expected TokenizationResponse"),
+    }
+}
+
+
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
