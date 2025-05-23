@@ -444,6 +444,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PazeWalletData,
         api_models::payments::SessionToken,
         api_models::payments::ApplePaySessionResponse,
+        api_models::payments::NullObject,
         api_models::payments::ThirdPartySdkSessionResponse,
         api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
