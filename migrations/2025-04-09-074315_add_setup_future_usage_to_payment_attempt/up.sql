@@ -1,0 +1,1 @@
+ALTER TABLE payment_attempt ADD COLUMN IF NOT EXISTS setup_future_usage_applied "FutureUsage";

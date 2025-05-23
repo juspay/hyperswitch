@@ -283,6 +283,8 @@ pub enum ApiErrorResponse {
     PlatformAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_44", message = "Invalid platform account operation")]
     InvalidPlatformOperation,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
+    ExternalVaultFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -638,6 +640,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::CookieNotFound => {
                 AER::Unauthorized(ApiError::new("IR", 42, "Cookies are not found in the request", None))
             },
+            Self::ExternalVaultFailed => {
+                AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
+            },
 
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
@@ -702,8 +707,9 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
             },
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }

@@ -276,8 +276,9 @@ impl ConnectorCommon for Bankofamerica {
                     reason,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
             transformers::BankOfAmericaErrorResponse::AuthenticationError(response) => {
@@ -288,8 +289,9 @@ impl ConnectorCommon for Bankofamerica {
                     reason: Some(response.response.rmsg),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
         }
@@ -438,8 +440,9 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -562,8 +565,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -754,8 +758,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -877,8 +882,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

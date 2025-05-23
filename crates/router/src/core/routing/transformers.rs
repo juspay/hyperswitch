@@ -2,11 +2,19 @@ use api_models::routing::{
     MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
     RoutingDictionaryRecord,
 };
+#[cfg(feature = "v1")]
+use api_models::{
+    open_router::{OpenRouterDecideGatewayRequest, PaymentInfo, RankingAlgorithm},
+    routing::RoutableConnectorChoice,
+};
 use common_utils::ext_traits::ValueExt;
 use diesel_models::{
     enums as storage_enums,
     routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
 };
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+use masking::{PeekInterface, Secret};
 
 use crate::{
     core::{errors, routing},
@@ -25,6 +33,7 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
             algorithm_for: Some(value.algorithm_for),
+            decision_engine_routing_id: None,
         }
     }
 }
@@ -41,6 +50,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
             algorithm_for: Some(value.algorithm_for),
+            decision_engine_routing_id: value.decision_engine_routing_id,
         }
     }
 }
@@ -95,6 +105,84 @@ impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
             routing::TransactionData::Payment(_) => Self::Payment,
             #[cfg(feature = "payouts")]
             routing::TransactionData::Payout(_) => Self::Payout,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub trait OpenRouterDecideGatewayRequestExt {
+    fn construct_sr_request(
+        attempt: &PaymentAttempt,
+        eligible_gateway_list: Vec<RoutableConnectorChoice>,
+        ranking_algorithm: Option<RankingAlgorithm>,
+        is_elimination_enabled: bool,
+    ) -> Self
+    where
+        Self: Sized;
+
+    fn construct_debit_request(
+        attempt: &PaymentAttempt,
+        metadata: Option<String>,
+        card_isin: Option<Secret<String>>,
+        ranking_algorithm: Option<RankingAlgorithm>,
+    ) -> Self
+    where
+        Self: Sized;
+}
+
+#[cfg(feature = "v1")]
+impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
+    fn construct_sr_request(
+        attempt: &PaymentAttempt,
+        eligible_gateway_list: Vec<RoutableConnectorChoice>,
+        ranking_algorithm: Option<RankingAlgorithm>,
+        is_elimination_enabled: bool,
+    ) -> Self {
+        Self {
+            payment_info: PaymentInfo {
+                payment_id: attempt.payment_id.clone(),
+                amount: attempt.net_amount.get_order_amount(),
+                currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
+                payment_type: "ORDER_PAYMENT".to_string(),
+                payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
+                payment_method: attempt.payment_method.unwrap_or_default(),
+                metadata: None,
+                card_isin: None,
+            },
+            merchant_id: attempt.profile_id.clone(),
+            eligible_gateway_list: Some(
+                eligible_gateway_list
+                    .into_iter()
+                    .map(|connector| connector.to_string())
+                    .collect(),
+            ),
+            ranking_algorithm,
+            elimination_enabled: Some(is_elimination_enabled),
+        }
+    }
+
+    fn construct_debit_request(
+        attempt: &PaymentAttempt,
+        metadata: Option<String>,
+        card_isin: Option<Secret<String>>,
+        ranking_algorithm: Option<RankingAlgorithm>,
+    ) -> Self {
+        Self {
+            payment_info: PaymentInfo {
+                payment_id: attempt.payment_id.clone(),
+                amount: attempt.net_amount.get_order_amount(),
+                currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
+                payment_type: "ORDER_PAYMENT".to_string(),
+                card_isin: card_isin.map(|value| value.peek().clone()),
+                metadata,
+                payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
+                payment_method: attempt.payment_method.unwrap_or_default(),
+            },
+            merchant_id: attempt.profile_id.clone(),
+            // eligible gateway list is not used in debit routing
+            eligible_gateway_list: None,
+            ranking_algorithm,
+            elimination_enabled: None,
         }
     }
 }

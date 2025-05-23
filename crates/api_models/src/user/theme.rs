@@ -2,7 +2,7 @@ use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
 use common_utils::{
     id_type,
-    types::theme::{EmailThemeConfig, ThemeLineage},
+    types::user::{EmailThemeConfig, ThemeLineage},
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,6 @@ pub struct UploadFileAssetData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadFileRequest {
-    pub lineage: ThemeLineage,
     pub asset_name: String,
     pub asset_data: Secret<Vec<u8>>,
 }
@@ -44,9 +43,8 @@ pub struct CreateThemeRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateThemeRequest {
-    pub lineage: ThemeLineage,
-    pub theme_data: ThemeData,
-    // TODO: Add support to update email config
+    pub theme_data: Option<ThemeData>,
+    pub email_config: Option<EmailThemeConfig>,
 }
 
 // All the below structs are for the theme.json file,

@@ -284,7 +284,7 @@ pub struct ProcessingInformation {
 #[serde(rename_all = "camelCase")]
 pub struct WellsfargoConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
@@ -933,7 +933,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (Some(authn_data.cavv.clone()), None)
                     } else {
                         (None, Some(authn_data.cavv.clone()))
                     };
@@ -2381,8 +2381,9 @@ pub fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 pub fn get_error_reason(

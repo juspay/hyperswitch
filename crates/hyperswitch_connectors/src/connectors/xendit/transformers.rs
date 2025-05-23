@@ -330,8 +330,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             let charges = match item.data.request.split_payments.as_ref() {
@@ -441,8 +442,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -576,8 +578,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         attempt_status: None,
                         connector_transaction_id: Some(payment_response.id.clone()),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {

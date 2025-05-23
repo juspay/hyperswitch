@@ -17,6 +17,7 @@ use crate::{
     mandates, payments,
     router_data::{self, RouterData},
     router_flow_types as flows, router_response_types as response_types,
+    vault::PaymentMethodVaultingData,
 };
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
@@ -76,6 +77,7 @@ pub struct PaymentsAuthorizeData {
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -92,6 +94,12 @@ pub struct PaymentsPostSessionTokensData {
     pub shipping_cost: Option<MinorUnit>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub router_return_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsUpdateMetadataData {
+    pub metadata: pii::SecretSerdeValue,
+    pub connector_transaction_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -616,7 +624,7 @@ impl
 #[derive(Debug, Clone)]
 pub struct AuthenticationData {
     pub eci: Option<String>,
-    pub cavv: String,
+    pub cavv: Secret<String>,
     pub threeds_server_transaction_id: Option<String>,
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
@@ -652,6 +660,7 @@ pub struct RefundsData {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -929,4 +938,11 @@ pub struct SetupMandateRequestData {
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VaultRequestData {
+    pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
+    pub connector_vault_id: Option<String>,
 }

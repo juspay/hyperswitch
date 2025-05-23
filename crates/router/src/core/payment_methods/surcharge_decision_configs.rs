@@ -195,7 +195,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list_profi
 )> {
     let mut surcharge_metadata = types::SurchargeMetadata::new(
         payment_attempt.attempt_id.clone(),
-        Some(surcharge_algorithm_id.0.get_string_repr().to_string()),
+        Some(surcharge_algorithm_id.inner().get_string_repr().to_string()),
     );
 
     let (surcharge_source, merchant_surcharge_configs) = match (
@@ -442,7 +442,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards_profile_level
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
     let mut surcharge_metadata = types::SurchargeMetadata::new(
         payment_attempt.attempt_id.clone(),
-        Some(surcharge_algorithm_id.0.get_string_repr().to_string()),
+        Some(surcharge_algorithm_id.inner().get_string_repr().to_string()),
     );
     let surcharge_source = match (
         payment_attempt.get_surcharge_details(),

@@ -16,6 +16,7 @@ mod bambora;
 mod bamboraapac;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
+mod barclaycard;
 #[cfg(feature = "dummy_connector")]
 mod billwerk;
 mod bitpay;
@@ -61,6 +62,7 @@ mod nexixpay;
 mod nmi;
 mod nomupay;
 mod noon;
+mod nordea;
 mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
@@ -81,7 +83,6 @@ mod powertranz;
 mod prophetpay;
 mod rapyd;
 mod razorpay;
-mod recurly;
 mod redsys;
 mod shift4;
 mod square;
@@ -93,6 +94,7 @@ mod trustpay;
 mod tsys;
 mod unified_authentication_service;
 mod utils;
+mod vgs;
 mod volt;
 mod wellsfargo;
 // mod wellsfargopayout;
@@ -100,5 +102,6 @@ mod wellsfargo;
 mod wise;
 mod worldline;
 mod worldpay;
+mod worldpayxml;
 mod zen;
 mod zsl;

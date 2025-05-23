@@ -133,6 +133,8 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
+            #[cfg(feature = "v2")]
+            api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
             api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
             api_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),
             api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
@@ -323,6 +325,10 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Interac => Ok(dirval!(CardNetwork = Interac)),
             Self::RuPay => Ok(dirval!(CardNetwork = RuPay)),
             Self::Maestro => Ok(dirval!(CardNetwork = Maestro)),
+            Self::Star => Ok(dirval!(CardNetwork = Star)),
+            Self::Accel => Ok(dirval!(CardNetwork = Accel)),
+            Self::Pulse => Ok(dirval!(CardNetwork = Pulse)),
+            Self::Nyce => Ok(dirval!(CardNetwork = Nyce)),
         }
     }
 }

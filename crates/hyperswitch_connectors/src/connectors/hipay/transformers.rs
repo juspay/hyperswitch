@@ -204,7 +204,11 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                         Some(CardNetwork::Interac) => "interac".to_string(),
                         Some(CardNetwork::RuPay) => "rupay".to_string(),
                         Some(CardNetwork::Maestro) => "maestro".to_string(),
-                        None => "".to_string(),
+                        Some(CardNetwork::Star)
+                        | Some(CardNetwork::Accel)
+                        | Some(CardNetwork::Pulse)
+                        | Some(CardNetwork::Nyce)
+                        | None => "".to_string(),
                     },
                 },
                 amount: item.amount.clone(),
@@ -368,8 +372,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_reference),
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -719,8 +724,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
@@ -745,8 +751,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
