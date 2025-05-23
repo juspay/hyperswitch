@@ -85,7 +85,6 @@ clippy :
 
 euclid-wasm:
 	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector,v1
-	wasm-opt $(ROOT_DIR)/wasm/euclid_bg.wasm -o $(ROOT_DIR)/wasm/euclid_bg.wasm --enable-bulk-memory -O3
 
 # Run Rust tests of project.
 #
