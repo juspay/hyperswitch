@@ -52,20 +52,28 @@ Never share your secret api keys. Keep them guarded and secure.
         (url = "https://sandbox.hyperswitch.io", description = "Sandbox Environment")
     ),
     tags(
+        // API Reference Group
+        (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
+        (name = "Payment Methods", description = "Create and manage payment methods of customers"),
+        (name = "Customers", description = "Create and manage customers"),
+        (name = "Mandates", description = "Manage mandates"),
+        (name = "Refunds", description = "Create and manage refunds for successful payments"),
+        (name = "Disputes", description = "Manage disputes"),
+        (name = "Payouts", description = "Create and manage payouts"),
+        (name = "Event", description = "Manage events"),
+        (name = "Poll", description = "Manage Poll operations"),
+        (name = "Blocklist", description = "Manage Blocklist operations"),
+        (name = "Routing", description = "Create and manage routing configurations"),
+        (name = "Relay", description = "Manage Relay operations"),
+        (name = "payment link", description = "Create payment link"),
+
+        // Admin API based Group
+        (name = "Organization", description = "Manage Organization accounts"),
         (name = "Merchant Account", description = "Create and manage merchant accounts"),
         (name = "Profile", description = "Create and manage profiles"),
-        (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
-        (name = "Payments", description = "Create and manage one-time payments, recurring payments and mandates"),
-        (name = "Refunds", description = "Create and manage refunds for successful payments"),
-        (name = "Mandates", description = "Manage mandates"),
-        (name = "Customers", description = "Create and manage customers"),
-        (name = "Payment Methods", description = "Create and manage payment methods of customers"),
-        (name = "Disputes", description = "Manage disputes"),
         (name = "API Key", description = "Create and manage API Keys"),
-        (name = "Payouts", description = "Create and manage payouts"),
-        (name = "payment link", description = "Create payment link"),
-        (name = "Routing", description = "Create and manage routing configurations"),
-        (name = "Event", description = "Manage events"),
+        (name = "Merchant Connector Account", description = "Create and manage merchant connector accounts"),
+        (name = "GSM", description = "Manage Global Status Mapping rules")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
