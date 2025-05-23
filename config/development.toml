@@ -167,6 +167,7 @@ cards = [
     "nmi",
     "nomupay",
     "noon",
+    "nordea",
     "novalnet",
     "nuvei",
     "opayo",
@@ -295,6 +296,7 @@ nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
+nordea.base_url = "https://api.nordeaopenbanking.com"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
@@ -1162,6 +1164,10 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 [open_router]
 enabled = false
 url = "http://localhost:8080"
+
+[revenue_recovery]
+monitoring_threshold_in_seconds = 2592000
+retry_algorithm_type = "cascading"
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs

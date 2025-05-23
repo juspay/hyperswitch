@@ -92,6 +92,7 @@ nexixpay.base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.nomupay.com"
 noon.base_url = "https://api.noonpayments.com/"
+nordea.base_url = "https://openapi.portal.nordea.com"
 noon.key_mode = "Live"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 nuvei.base_url = "https://secure.safecharge.com/"
@@ -741,3 +742,8 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
+
+
+[revenue_recovery]
+monitoring_threshold_in_seconds = 2592000 
+retry_algorithm_type = "cascading" 

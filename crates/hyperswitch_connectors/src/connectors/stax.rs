@@ -966,8 +966,8 @@ static STAX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::Supported,
-                        no_three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     }
                 }),
@@ -985,8 +985,8 @@ static STAX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::Supported,
-                        no_three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     }
                 }),
@@ -1004,11 +1004,8 @@ static STAX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static STAX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-    enums::EventClass::Disputes,
-];
+static STAX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Stax {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
