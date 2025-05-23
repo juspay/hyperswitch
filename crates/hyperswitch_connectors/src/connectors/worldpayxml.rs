@@ -1,13 +1,16 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
+use base64::Engine;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -19,10 +22,13 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -31,7 +37,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -84,7 +90,7 @@ where
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            self.common_get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -102,7 +108,7 @@ impl ConnectorCommon for Worldpayxml {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "text/xml"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -115,9 +121,19 @@ impl ConnectorCommon for Worldpayxml {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = worldpayxml::WorldpayxmlAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let basic_auth_value = format!(
+            "Basic {}",
+            common_utils::consts::BASE64_ENGINE.encode(format!(
+                "{}:{}",
+                auth.api_username.expose(),
+                auth.api_password.expose()
+            ))
+        );
+
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            Mask::into_masked(basic_auth_value),
         )])
     }
 
@@ -126,30 +142,59 @@ impl ConnectorCommon for Worldpayxml {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: worldpayxml::WorldpayxmlErrorResponse = res
-            .response
-            .parse_struct("WorldpayxmlErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<worldpayxml::PaymentService, _> =
+            utils::deserialize_xml_to_struct(&res.response);
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response_data) => {
+                event_builder.map(|i| i.set_error_response_body(&response_data));
+                router_env::logger::info!(connector_response=?response_data);
+                let (error_code, error_msg) = response_data
+                    .reply
+                    .as_ref()
+                    .and_then(|reply| {
+                        reply
+                            .error
+                            .as_ref()
+                            .map(|error| (Some(error.code.clone()), Some(error.message.clone())))
+                    })
+                    .unwrap_or((None, None));
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_msg
+                        .clone()
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: error_msg.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "worldpayxml")
+            }
+        }
     }
 }
 
 impl ConnectorValidation for Worldpayxml {
-    //TODO: implement functions when support enabled
+    fn validate_mandate_payment(
+        &self,
+        _pm_type: Option<common_enums::PaymentMethodType>,
+        _pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "mandate payment".to_string(),
+            connector: "worldpayxml",
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayxml {
@@ -161,6 +206,17 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Worldpayxml
 {
+    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Worldpayxml".to_string(),
+        )
+        .into())
+    }
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Worldpayxml {
@@ -179,9 +235,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(
@@ -196,9 +252,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
-        let connector_req =
-            worldpayxml::WorldpayxmlPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -229,10 +292,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: worldpayxml::WorldpayxmlPaymentsResponse = res
-            .response
-            .parse_struct("Worldpayxml PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -267,9 +328,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
     fn get_url(
         &self,
         _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_owned())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -279,10 +356,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -293,10 +373,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::WorldpayxmlPaymentsResponse = res
-            .response
-            .parse_struct("worldpayxml PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -331,17 +409,32 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
+        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -370,10 +463,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: worldpayxml::WorldpayxmlPaymentsResponse = res
-            .response
-            .parse_struct("Worldpayxml PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -392,7 +483,85 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Worldpayxml {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Worldpayxml {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors).to_owned())
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpayxml {
     fn get_headers(
@@ -410,9 +579,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(
@@ -427,9 +596,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         )?;
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
-        let connector_req =
-            worldpayxml::WorldpayxmlRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -457,10 +632,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: worldpayxml::RefundResponse = res
-            .response
-            .parse_struct("worldpayxml RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -495,9 +668,26 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
     fn get_url(
         &self,
         _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(self.base_url(connectors).to_owned())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
     }
 
     fn build_request(
@@ -507,7 +697,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -524,10 +714,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::RefundResponse = res
-            .response
-            .parse_struct("worldpayxml RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayxml::PaymentService =
+            utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -570,4 +758,84 @@ impl webhooks::IncomingWebhook for Worldpayxml {
     }
 }
 
-impl ConnectorSpecifications for Worldpayxml {}
+static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            common_enums::CaptureMethod::Automatic,
+            common_enums::CaptureMethod::Manual,
+            common_enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::Maestro,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+        ];
+
+        let mut worldpayxml_supported_payment_methods = SupportedPaymentMethods::new();
+
+        worldpayxml_supported_payment_methods.add(
+            common_enums::PaymentMethod::Card,
+            common_enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        worldpayxml_supported_payment_methods.add(
+            common_enums::PaymentMethod::Card,
+            common_enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+        worldpayxml_supported_payment_methods
+    });
+
+static WORLDPAYXML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Worldpay XML",
+    description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
+    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Worldpayxml {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&WORLDPAYXML_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*WORLDPAYXML_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
