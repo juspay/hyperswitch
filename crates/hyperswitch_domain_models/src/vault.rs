@@ -6,6 +6,7 @@ use crate::payment_method_data;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     NetworkToken(payment_method_data::NetworkTokenDetails),
 }
 
@@ -13,7 +14,8 @@ impl PaymentMethodVaultingData {
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            _ => None,
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+            Self::NetworkToken(_) => None,
         }
     }
     pub fn get_payment_methods_data(&self) -> payment_method_data::PaymentMethodsData {
@@ -21,6 +23,7 @@ impl PaymentMethodVaultingData {
             Self::Card(card) => payment_method_data::PaymentMethodsData::Card(
                 payment_method_data::CardDetailsPaymentMethod::from(card.clone()),
             ),
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             Self::NetworkToken(network_token) => {
                 payment_method_data::PaymentMethodsData::NetworkToken(
                     payment_method_data::NetworkTokenDetailsPaymentMethod::from(
@@ -40,6 +43,7 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
             Self::Card(card) => card.card_number.to_string(),
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             Self::NetworkToken(network_token) => network_token.network_token.to_string(),
         }
     }

@@ -1083,6 +1083,17 @@ static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMetho
         );
 
         authorizedotnet_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        authorizedotnet_supported_payment_methods.add(
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {

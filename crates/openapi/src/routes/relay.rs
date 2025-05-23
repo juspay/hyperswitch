@@ -43,13 +43,10 @@ pub async fn relay() {}
 #[utoipa::path(
     get,
     path = "/relay/{relay_id}",
-    params (("id" = String, Path, description = "The unique identifier for the Relay")),
+    params (("relay_id" = String, Path, description = "The unique identifier for the Relay"), ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")),
     responses(
         (status = 200, description = "Relay Retrieved", body = RelayResponse),
         (status = 404, description = "Relay details was not found")
-    ),
-    params(
-        ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     tag = "Relay",
     operation_id = "Retrieve a Relay details",

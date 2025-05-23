@@ -27,7 +27,8 @@ use crate::{
         PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -35,7 +36,7 @@ use crate::{
             RevenueRecoveryRecordBackResponse,
         },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -140,4 +141,13 @@ pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
     router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
     RevenueRecoveryRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
+>;
+
+pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;
+
+pub type VaultRouterDataV2<F> = RouterDataV2<
+    F,
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    VaultRequestData,
+    VaultResponseData,
 >;

@@ -59,7 +59,9 @@ use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::headers;
 use crate::{
-    core::{errors, errors as oss_errors, payments::routing::utils::EuclidApiHandler, routing},
+    core::{
+        errors, errors as oss_errors, payments::routing::utils::DecisionEngineApiHandler, routing,
+    },
     logger, services,
     types::{
         api::{self, routing as routing_types},
@@ -1605,14 +1607,15 @@ pub async fn perform_open_routing_for_debit_routing(
         Some(or_types::RankingAlgorithm::NtwBasedRouting),
     );
 
-    let response: RoutingResult<DecidedGateway> = utils::EuclidApiClient::send_euclid_request(
-        state,
-        services::Method::Post,
-        "decide-gateway",
-        Some(open_router_req_body),
-        None,
-    )
-    .await;
+    let response: RoutingResult<DecidedGateway> =
+        utils::EuclidApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            "decide-gateway",
+            Some(open_router_req_body),
+            None,
+        )
+        .await;
 
     let output = match response {
         Ok(decided_gateway) => {
@@ -1779,11 +1782,11 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 );
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
-                        .get(&connector_choice_a.connector.to_string())
+                        .get(&connector_choice_a.to_string())
                         .copied()
                         .unwrap_or(0.0);
                     let connector_choice_b_score = gateway_priority_map
-                        .get(&connector_choice_b.connector.to_string())
+                        .get(&connector_choice_b.to_string())
                         .copied()
                         .unwrap_or(0.0);
                     connector_choice_b_score

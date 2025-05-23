@@ -111,6 +111,7 @@ pub enum RoutableConnectors {
     Nmi,
     Nomupay,
     Noon,
+    // Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -139,6 +140,7 @@ pub enum RoutableConnectors {
     // Taxjar,
     Trustpay,
     // Thunes
+    // Tokenio,
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
@@ -267,6 +269,7 @@ pub enum Connector {
     Nmi,
     Nomupay,
     Noon,
+    // Nordea,
     Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -292,6 +295,7 @@ pub enum Connector {
     Stripebilling,
     Taxjar,
     Threedsecureio,
+    // Tokenio,
     //Thunes,
     Trustpay,
     Tsys,
@@ -432,6 +436,7 @@ impl Connector {
             | Self::Nexinets
             | Self::Nexixpay
             | Self::Nomupay
+            // | Self::Nordea
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -454,6 +459,7 @@ impl Connector {
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
+            // | Self::Tokenio
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
             | Self::Vgs
@@ -586,6 +592,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nmi => Self::Nmi,
             RoutableConnectors::Nomupay => Self::Nomupay,
             RoutableConnectors::Noon => Self::Noon,
+            // RoutableConnectors::Nordea => Self::Nordea,
             RoutableConnectors::Novalnet => Self::Novalnet,
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
@@ -610,6 +617,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
+            // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
             RoutableConnectors::Wellsfargo => Self::Wellsfargo,
@@ -699,6 +707,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nmi => Ok(Self::Nmi),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Noon => Ok(Self::Noon),
+            // Connector::Nordea => Ok(Self::Nordea),
             Connector::Novalnet => Ok(Self::Novalnet),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
@@ -720,6 +729,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
+            // Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),

@@ -2750,7 +2750,6 @@ pub fn convert_back_amount_to_minor_units<T>(
         .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
-
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;

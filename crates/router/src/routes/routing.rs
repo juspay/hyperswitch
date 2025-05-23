@@ -42,7 +42,6 @@ pub async fn routing_create_config(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -53,10 +52,6 @@ pub async fn routing_create_config(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -134,7 +129,6 @@ pub async fn routing_link_config(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -145,10 +139,6 @@ pub async fn routing_link_config(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -233,7 +223,6 @@ pub async fn routing_retrieve_config(
                 algorithm_id,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -244,10 +233,6 @@ pub async fn routing_retrieve_config(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingRead,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -324,7 +309,6 @@ pub async fn list_routing_configs(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -335,10 +319,6 @@ pub async fn list_routing_configs(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::MerchantRoutingRead,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -370,7 +350,6 @@ pub async fn list_routing_configs_for_profile(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -381,10 +360,6 @@ pub async fn list_routing_configs_for_profile(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingRead,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -464,7 +439,6 @@ pub async fn routing_unlink_config(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -475,10 +449,6 @@ pub async fn routing_unlink_config(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -556,7 +526,6 @@ pub async fn routing_update_default_config(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -567,10 +536,6 @@ pub async fn routing_update_default_config(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::MerchantRoutingWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -644,9 +609,16 @@ pub async fn routing_retrieve_default_config(
                 transaction_type,
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingRead,
-        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRoutingRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -992,7 +964,6 @@ pub async fn routing_retrieve_linked_config(
                     transaction_type,
                 )
             },
-            #[cfg(not(feature = "release"))]
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
                     is_connected_allowed: false,
@@ -1004,11 +975,6 @@ pub async fn routing_retrieve_linked_config(
                 },
                 req.headers(),
             ),
-            #[cfg(feature = "release")]
-            &auth::JWTAuthProfileFromRoute {
-                profile_id,
-                required_permission: Permission::ProfileRoutingRead,
-            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1030,7 +996,6 @@ pub async fn routing_retrieve_linked_config(
                     transaction_type,
                 )
             },
-            #[cfg(not(feature = "release"))]
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
                     is_connected_allowed: false,
@@ -1041,10 +1006,6 @@ pub async fn routing_retrieve_linked_config(
                 },
                 req.headers(),
             ),
-            #[cfg(feature = "release")]
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
-            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1184,7 +1145,6 @@ pub async fn routing_update_default_config_for_profile(
                 transaction_type,
             )
         },
-        #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
@@ -1196,11 +1156,6 @@ pub async fn routing_update_default_config_for_profile(
             },
             req.headers(),
         ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuthProfileFromRoute {
-            profile_id: routing_payload_wrapper.profile_id,
-            required_permission: Permission::ProfileRoutingWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

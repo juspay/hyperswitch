@@ -73,6 +73,7 @@ pub struct Profile {
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -181,6 +182,7 @@ pub struct ProfileUpdateInternal {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -231,6 +233,7 @@ impl ProfileUpdateInternal {
             merchant_business_country,
             is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled,
+            three_ds_decision_rule_algorithm,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -310,6 +313,8 @@ impl ProfileUpdateInternal {
                 .or(source.is_iframe_redirection_enabled),
             is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
                 .or(source.is_pre_network_tokenization_enabled),
+            three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
+                .or(source.three_ds_decision_rule_algorithm),
         }
     }
 }
@@ -369,6 +374,7 @@ pub struct Profile {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -656,6 +662,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_external_vault_enabled),
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
+            three_ds_decision_rule_algorithm: None,
         }
     }
 }

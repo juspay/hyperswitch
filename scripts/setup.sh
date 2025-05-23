@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # ANSI color codes for pretty output
@@ -9,49 +9,60 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Alias for docker to use podman
-alias docker=podman
+# Global cleanup function to handle error conditions and graceful exit
+cleanup() {
+    # Restore strict error checking
+    set -e
+    # Remove any temporary files if needed
+    # Add any necessary cleanup operations here
+    
+    # The exit status passed to the function
+    exit $1
+}
+
+# Set up trap to call cleanup function on script exit or interruptions
+trap 'cleanup $?' EXIT
+trap 'cleanup 1' INT TERM
 
 # Function to print colorful messages
 echo_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 echo_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
 }
 
 echo_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    printf "${YELLOW}[WARNING]${NC} %s\n" "$1"
 }
 
 echo_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    printf "${RED}[ERROR]${NC} %s\n" "$1"
 }
 
 show_banner() {
-    echo -e "${BLUE}${BOLD}"
-    echo "" 
-    echo "        #             "
-    echo "        # #    #  ####  #####    ##   #   #  "
-    echo "        # #    # #      #    #  #  #   # #   "
-    echo "        # #    #  ####  #    # #    #   #    "
-    echo "  #     # #    #      # #####  ######   #    "
-    echo "  #     # #    # #    # #      #    #   #    "
-    echo "   #####   ####   ####  #      #    #   #    "
-    echo "" 
-    echo "" 
-    echo "  #     # #   # #####  ###### #####   ####  #    # # #####  ####  #    # "
-    echo "  #     #  # #  #    # #      #    # #      #    # #   #   #    # #    # "
-    echo "  #     #   #   #    # #####  #    #  ####  #    # #   #   #      ###### "
-    echo "  #######   #   #####  #      #####       # # ## # #   #   #      #    # "
-    echo "  #     #   #   #      #      #   #  #    # ##  ## #   #   #    # #    # "
-    echo "  #     #   #   #      ###### #    #  ####  #    # #   #    ####  #    # "
-    echo ""                                                                                                           
+    printf "${BLUE}${BOLD}\n"
+    printf "\n" 
+    printf "        #             \n"
+    printf "        # #    #  ####  #####    ##   #   #  \n"
+    printf "        # #    # #      #    #  #  #   # #   \n"
+    printf "        # #    #  ####  #    # #    #   #    \n"
+    printf "  #     # #    #      # #####  ######   #    \n"
+    printf "  #     # #    # #    # #      #    #   #    \n"
+    printf "   #####   ####   ####  #      #    #   #    \n"
+    printf "\n" 
+    printf "\n" 
+    printf "  #     # #   # #####  ###### #####   ####  #    # # #####  ####  #    # \n"
+    printf "  #     #  # #  #    # #      #    # #      #    # #   #   #    # #    # \n"
+    printf "  #     #   #   #    # #####  #    #  ####  #    # #   #   #      ###### \n"
+    printf "  #######   #   #####  #      #####       # # ## # #   #   #      #    # \n"
+    printf "  #     #   #   #      #      #   #  #    # ##  ## #   #   #    # #    # \n"
+    printf "  #     #   #   #      ###### #    #  ####  #    # #   #    ####  #    # \n"
+    printf "\n"                                                                                                           
     sleep 1
-    echo -e "${NC}"
-    echo -e "🚀 ${BLUE}One-Click Docker Setup${NC} 🚀"
-    echo
+    printf "${NC}\n"
+    printf "🚀 ${BLUE}One-Click Docker Setup${NC} 🚀\n"
 }
 
 # Detect Docker Compose version
@@ -135,7 +146,6 @@ check_prerequisites() {
             exit 1
         fi
     else
-        echo_success "All required ports are available."
         echo ""
     fi
 }
@@ -148,16 +158,16 @@ setup_config() {
 }
 
 select_profile() {    
-    echo ""    
-    echo "Select a setup option:"
-    echo -e "1) ${YELLOW}Standard Setup${NC}: ${BLUE}[Recommended]${NC} Ideal for quick trial."
-    echo -e "   Services included: ${BLUE}App Server, Control Center, Unified Checkout, PostgreSQL and Redis${NC}"
-    echo ""
-    echo -e "2) ${YELLOW}Full Stack Setup${NC}: Ideal for comprehensive end-to-end payment testing."
-    echo -e "   Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}"
-    echo ""
-    echo -e "3) ${YELLOW}Standalone App Server${NC}: Ideal for API-first integration testing."
-    echo -e "   Services included: ${BLUE}App server, PostgreSQL and Redis)${NC}"
+    printf "\n"    
+    printf "Select a setup option:\n"
+    printf "1) ${YELLOW}Standard Setup${NC}: ${BLUE}[Recommended]${NC} Ideal for quick trial.\n"
+    printf "   Services included: ${BLUE}App Server, Control Center, PostgreSQL and Redis${NC}\n"
+    printf "\n"
+    printf "2) ${YELLOW}Full Stack Setup${NC}: Ideal for comprehensive end-to-end payment testing.\n"
+    printf "   Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}\n"
+    printf "\n"
+    printf "3) ${YELLOW}Standalone App Server${NC}: Ideal for API-first integration testing.\n"
+    printf "   Services included: ${BLUE}App Server, PostgreSQL and Redis)${NC}\n"
     echo ""
     local profile_selected=false
     while [ "$profile_selected" = false ]; do
@@ -209,60 +219,272 @@ check_services_health() {
     RETRIES=0
     
     while [ $RETRIES -lt $MAX_RETRIES ]; do
-        if curl --silent --head --request GET 'http://localhost:8080/health' | grep "200 OK" > /dev/null; then
-            print_access_info  # Call print_access_info only when the server is healthy
+        response=$(curl -s -w "\\nStatus_Code:%{http_code}" http://localhost:8080/health)
+        status_code=$(echo "$response" | grep "Status_Code:" | cut -d':' -f2)
+        response_body=$(echo "$response" | head -n1)
+        
+        if [ "$status_code" = "200" ] && [ "$response_body" = "health is good" ]; then
+            print_access_info
             return
         fi
         
         RETRIES=$((RETRIES+1))
         if [ $RETRIES -eq $MAX_RETRIES ]; then
-            echo ""
+            printf "\n"
             echo_error "${RED}${BOLD}Hyperswitch server did not become healthy in the expected time."
-            echo -e "Check logs with: $DOCKER_COMPOSE logs hyperswitch-server, Or reach out to us on slack(https://hyperswitch-io.slack.com/) for help."
-            echo -e "The setup process will continue, but some services might not work correctly.${NC}"
-            echo ""
+            printf "Check logs with: $DOCKER_COMPOSE logs hyperswitch-server, Or reach out to us on slack(https://hyperswitch-io.slack.com/) for help.\n"
+            printf "\n"
         else
-            echo "Waiting for server to become healthy... ($RETRIES/$MAX_RETRIES)"
+            printf "Waiting for server to become healthy... (%d/%d)\n" $RETRIES $MAX_RETRIES
             sleep $RETRY_INTERVAL
         fi
     done
 }
 
+configure_account() {
+    # Temporarily disable strict error checking to prevent premature exit
+    set +e
+    local show_credentials_flag=false
+    
+    BASE_URL="http://localhost:8080"
+    EMAIL="demo@hyperswitch.com"
+    PASSWORD="Hyperswitch@123"
+    # Initialize merchant_id and profile_id to empty strings
+    merchant_id=""
+    profile_id=""
+
+    # Function to make API calls with proper headers
+    make_api_call() {
+        local method=$1
+        local endpoint=$2
+        local data=$3
+        local auth_header=${4:-}
+
+        # Ensure endpoint starts with /user if it doesn't already
+        if [[ ! $endpoint =~ ^/user && ! $endpoint =~ ^/health && ! $endpoint =~ ^/accounts && ! $endpoint =~ ^/account ]]; then
+            endpoint="/user$endpoint"
+        fi
+
+        local headers=(-H "Content-Type: application/json" -H "api-key: hyperswitch" -H "User-Agent: HyperSwitch-Shell-Client/1.0" -H "Referer: http://localhost:9000/")
+
+        if [ -n "$auth_header" ]; then
+            headers+=(-H "authorization: Bearer $auth_header")
+        fi
+
+        if [ -n "$merchant_id" ]; then
+            headers+=(-H "X-Merchant-Id: $merchant_id")
+        fi
+
+        if [ -n "$profile_id" ]; then
+            headers+=(-H "X-Profile-Id: $profile_id")
+        fi
+
+        local curl_cmd
+        if [ "$method" = "GET" ]; then
+            curl_cmd=(curl -s -X "$method" "${headers[@]}" "$BASE_URL$endpoint")
+        else
+            curl_cmd=(curl -s -X "$method" "${headers[@]}" -d "$data" "$BASE_URL$endpoint")
+        fi
+
+        local retries=3
+        local i=0
+        while [ $i -lt $retries ]; do
+            response=$("${curl_cmd[@]}")
+            local response_code=$("${curl_cmd[@]}" -o /dev/null -s -w "%{http_code}")
+
+            if [ $response_code -lt 400 ]; then
+                echo "$response"
+                return 0
+            fi
+
+            i=$((i+1))
+        done
+        return 1
+    }
+
+    # Test the health endpoint first to ensure the API is responsive
+    health_response=$(curl -s -w "\\nStatus_Code:%{http_code}" "$BASE_URL/health")
+    health_status_code=$(echo "$health_response" | grep "Status_Code:" | cut -d':' -f2)
+    health_response_body=$(echo "$health_response" | head -n1)
+
+    # Try signin first
+    signin_payload="{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
+    signin_response=$(make_api_call "POST" "/signin" "$signin_payload")
+    status_code=$?
+    
+    # Check if user needs to be created
+    if [[ $status_code -ne 0 || $(echo "$signin_response" | grep -q "error"; echo $?) -eq 0 ]]; then
+        # User doesn't exist or login failed, create new account
+        signup_payload="{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"country\":\"IN\"}"
+
+        # Only try signing up once - using exact headers from browser
+        # For making signup request without verbose logging
+        signup_cmd="curl -s -X POST '$BASE_URL/user/signup' \
+          -H 'Accept: */*' \
+          -H 'Accept-Language: en-GB,en-US;q=0.9,en;q=0.8' \
+          -H 'Content-Type: application/json' \
+          -H 'Origin: http://localhost:9000' \
+          -H 'Referer: http://localhost:9000/' \
+          -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36' \
+          -H 'api-key: hyperswitch' \
+          -d '$signup_payload'"
+        
+        signup_response=$(eval "$signup_cmd")
+        
+        # Extract token from signup response
+        token=$(echo "$signup_response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+        token_type=$(echo "$signup_response" | grep -o '"token_type":"[^"]*"' | cut -d'"' -f4)
+
+        if [ -n "$token" ]; then
+            show_credentials_flag=true
+        fi
+        is_new_user=true
+    else
+        auth_response="$signin_response"
+        token=$(echo "$auth_response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+        token_type=$(echo "$auth_response" | grep -o '"token_type":"[^"]*"' | cut -d'"' -f4)
+        if [ -n "$token" ]; then
+            show_credentials_flag=true
+        fi
+        is_new_user=false
+    fi
+
+    # Handle 2FA if needed
+    if [ "$token_type" = "totp" ]; then
+        MAX_RETRIES=3
+        for i in $(seq 1 $MAX_RETRIES); do
+            terminate_response=$(curl -s -X GET -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "authorization: Bearer $token" "$BASE_URL/user/2fa/terminate?skip_two_factor_auth=true")
+
+            new_token=$(echo "$terminate_response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+            if [ -n "$new_token" ]; then
+                token="$new_token"
+                break
+            else
+                if [ $i -lt $MAX_RETRIES ]; then
+                    sleep 1
+                fi
+            fi
+        done
+    fi
+
+    # Get user info
+    if [ -n "$token" ]; then
+        user_info_cmd="curl -s -X GET -H 'Content-Type: application/json' -H 'api-key: hyperswitch' -H 'authorization: Bearer $token' '$BASE_URL/user'"
+        user_info=$(eval "$user_info_cmd")
+    else
+        user_info="{}"
+    fi
+
+    merchant_id=$(echo "$user_info" | grep -o '"merchant_id":"[^"]*"' | cut -d'"' -f4 || echo "")
+    profile_id=$(echo "$user_info" | grep -o '"profile_id":"[^"]*"' | cut -d'"' -f4 || echo "")
+    
+    # Configure account for new users
+    if [ "$is_new_user" = true ] && [ -n "$merchant_id" ] && [ -n "$token" ]; then
+        # Create merchant account
+        merchant_payload="{\"merchant_id\":\"$merchant_id\",\"merchant_name\":\"Test\"}"
+        merchant_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "authorization: Bearer $token" -d "$merchant_payload" "$BASE_URL/accounts/$merchant_id")
+        
+        # Configure connector
+        connector_payload=$(cat <<EOF
+{
+    "connector_type": "payment_processor",
+    "profile_id": "$profile_id",
+    "connector_name": "paypal_test",
+    "connector_label": "paypal_test_default",
+    "disabled": false,
+    "test_mode": true,
+    "payment_methods_enabled": [
+        {
+            "payment_method": "card",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "debit",
+                    "card_networks": [
+                        "Mastercard"
+                    ],
+                    "minimum_amount": 0,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": false
+                },
+                {
+                    "payment_method_type": "credit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "minimum_amount": 0,
+                    "maximum_amount": 68607706,
+                    "recurring_enabled": true,
+                    "installment_payment_enabled": false
+                }
+            ]
+        }
+    ],
+    "metadata": {},
+    "connector_account_details": {
+        "api_key": "test_key",
+        "auth_type": "HeaderKey"
+    },
+    "status": "active"
+}
+EOF
+)
+        connector_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "authorization: Bearer $token" -d "$connector_payload" "$BASE_URL/account/$merchant_id/connectors")
+        
+        # Silently check if configuration was successful without printing messages
+        if [ -z "$(echo "$merchant_response" | grep -o 'merchant_id')" ] || [ -z "$(echo "$connector_response" | grep -o 'connector_id')" ]; then
+            # Only log to debug log if we want to troubleshoot later
+            : # No-op command
+        fi
+    fi
+
+    # Provide helpful information to the user regardless of success/failure
+    if [ "$show_credentials_flag" = true ]; then
+        printf "            Use the following credentials:\n"
+        printf "            Email:    $EMAIL\n"
+        printf "            Password: $PASSWORD\n"
+    fi
+    
+    # Restore strict error checking
+    set -e
+}
+
 print_access_info() {
-    echo ""
-    echo -e "${GREEN}${BOLD}Setup complete! You can access Hyperswitch services at:${NC}"
-    echo ""
+    printf "${BLUE}"
+    printf "╔════════════════════════════════════════════════════════════════╗\n"
+    printf "║             Welcome to Juspay Hyperswitch!                     ║\n"
+    printf "╚════════════════════════════════════════════════════════════════╝\n"
+    printf "${NC}\n"
+
+    printf "${GREEN}${BOLD}Setup complete! You can now access Hyperswitch services at:${NC}\n"
     
     if [ "$PROFILE" != "standalone" ]; then
-        echo -e "  • ${GREEN}${BOLD}Control Center${NC}: ${BLUE}${BOLD}http://localhost:9000${NC}"
+        printf "  • ${GREEN}${BOLD}Control Center${NC}: ${BLUE}${BOLD}http://localhost:9000${NC}\n"
+        configure_account || true
     fi
     
-    echo -e "  • ${GREEN}${BOLD}App Server${NC}: ${BLUE}${BOLD}http://localhost:8080${NC}"
-    
-    if [ "$PROFILE" != "standalone" ]; then
-        echo -e "  • ${GREEN}${BOLD}Unified Checkout${NC}: ${BLUE}${BOLD}http://localhost:9060${NC}"
-    fi
+    printf "  • ${GREEN}${BOLD}App Server${NC}: ${BLUE}${BOLD}http://localhost:8080${NC}\n"
     
     if [ "$PROFILE" = "full" ]; then
-        echo -e "  • ${GREEN}${BOLD}Monitoring (Grafana)${NC}: ${BLUE}${BOLD}http://localhost:3000${NC}"
+        printf "  • ${GREEN}${BOLD}Monitoring (Grafana)${NC}: ${BLUE}${BOLD}http://localhost:3000${NC}\n"
     fi
-    echo ""
+    printf "\n"
 
     # Provide the stop command based on the selected profile
     echo_info "To stop all services, run the following command:"
     case $PROFILE in
         standalone)
-            echo -e "${BLUE}$DOCKER_COMPOSE down${NC}"
+            printf "${BLUE}$DOCKER_COMPOSE down${NC}\n"
             ;;
         standard)
-            echo -e "${BLUE}$DOCKER_COMPOSE down${NC}"
+            printf "${BLUE}$DOCKER_COMPOSE down${NC}\n"
             ;;
         full)
-            echo -e "${BLUE}$DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap --profile full_setup down${NC}"
+            printf "${BLUE}$DOCKER_COMPOSE --profile scheduler --profile monitoring --profile olap --profile full_setup down${NC}\n"
             ;;
     esac
-    echo ""
-    echo -e "Reach out to us on ${BLUE}https://hyperswitch-io.slack.com${NC} in case you face any issues."
+    printf "\n"
+    printf "Reach out to us on ${BLUE}https://hyperswitch-io.slack.com${NC} in case you face any issues.\n"
 }
 
 # Main execution flow

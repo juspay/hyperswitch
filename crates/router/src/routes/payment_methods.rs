@@ -196,6 +196,7 @@ pub async fn payment_method_update_api(
             payment_methods_routes::update_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 req,
                 &payment_method_id,
             )
@@ -264,7 +265,7 @@ pub async fn payment_method_delete_api(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            payment_methods_routes::delete_payment_method(state, pm, merchant_context)
+            payment_methods_routes::delete_payment_method(state, pm, merchant_context, auth.profile)
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
@@ -1467,6 +1468,7 @@ pub async fn payment_method_session_update_saved_payment_method(
             payment_methods_routes::payment_methods_session_update_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 request.payment_method_session_id,
                 request.request,
             )
@@ -1512,6 +1514,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
             payment_methods_routes::payment_methods_session_delete_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 request.request.payment_method_id,
                 request.payment_method_session_id,
             )

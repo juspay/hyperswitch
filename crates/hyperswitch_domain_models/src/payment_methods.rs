@@ -99,6 +99,8 @@ pub struct PaymentMethod {
 
     /// The merchant id against which the payment method is saved
     pub merchant_id: id_type::MerchantId,
+    /// The merchant connector account id of the external vault where the payment method is saved
+    pub external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
@@ -479,6 +481,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            external_vault_source: self.external_vault_source,
         })
     }
 
@@ -571,6 +574,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .network_token_requestor_reference_id,
                 network_token_locker_id: storage_model.network_token_locker_id,
                 network_token_payment_method_data,
+                external_vault_source: storage_model.external_vault_source,
             })
         }
         .await

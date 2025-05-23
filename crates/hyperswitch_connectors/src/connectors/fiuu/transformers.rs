@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::{self, AdditionalPaymentData};
+use api_models::payments;
 use cards::CardNumber;
 use common_enums::{enums, BankNames, CaptureMethod, Currency};
 use common_utils::{
@@ -1073,8 +1073,6 @@ pub struct FiuuRefundRequest {
     pub signature: Secret<String>,
     #[serde(rename = "notify_url")]
     pub notify_url: Option<Url>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_code: Option<BankCode>,
 }
 #[derive(Debug, Serialize, Display)]
 pub enum RefundType {
@@ -1107,28 +1105,6 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
                 Url::parse(&item.router_data.request.get_webhook_url()?)
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ),
-            bank_code: item
-                .router_data
-                .request
-                .additional_payment_method_data
-                .as_ref()
-                .and_then(|data| {
-                    if let AdditionalPaymentData::BankRedirect { bank_name, .. } = data {
-                        bank_name.and_then(|name| {
-                            BankCode::try_from(name)
-                                .map_err(|e| {
-                                    router_env::logger::error!(
-                                        "Error converting bank name to BankCode: {:?}",
-                                        e
-                                    );
-                                    e
-                                })
-                                .ok()
-                        })
-                    } else {
-                        None
-                    }
-                }),
         })
     }
 }
@@ -1482,7 +1458,7 @@ impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
         match (sync_status.stat_code, sync_status.stat_name) {
             (StatCode::Success, StatName::Captured | StatName::Settled) => Ok(Self::Charged), // For Success as StatCode we can only expect Captured,Settled and Authorized as StatName.
             (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
-            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknow as StatName.
+            (StatCode::Pending, StatName::Pending) => Ok(Self::AuthenticationPending), // For Pending as StatCode we can only expect Pending and Unknown as StatName.
             (StatCode::Pending, StatName::Unknown) => Ok(Self::Pending),
             (StatCode::Failure, StatName::Cancelled) | (StatCode::Failure, StatName::ReqCancel) => {
                 Ok(Self::Voided)
@@ -1921,7 +1897,7 @@ pub enum FiuuWebhooksRefundType {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct FiuuWebhookSignauture {
+pub struct FiuuWebhookSignature {
     pub skey: Secret<String>,
 }
 

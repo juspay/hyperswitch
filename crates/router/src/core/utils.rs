@@ -19,6 +19,10 @@ use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
+};
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use masking::ExposeOptionInterface;
 #[cfg(feature = "payouts")]
@@ -32,6 +36,8 @@ use super::payments::helpers;
 use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payments::helpers as payment_helpers;
 use crate::{
     configs::Settings,
     consts,
@@ -2026,4 +2032,39 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
         .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
         (None, None) | (None, Some(_)) => Ok(()),
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn construct_vault_router_data<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+    payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
+    connector_vault_id: Option<String>,
+) -> RouterResult<VaultRouterDataV2<F>> {
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .unwrap_or_default(); // always get the connector name from the merchant_connector_account
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let resource_common_data = VaultConnectorFlowData {
+        merchant_id: merchant_account.get_id().to_owned(),
+    };
+
+    let router_data = types::RouterDataV2 {
+        flow: PhantomData,
+        resource_common_data,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector_auth_type,
+        request: types::VaultRequestData {
+            payment_method_vaulting_data,
+            connector_vault_id,
+        },
+        response: Ok(types::VaultResponseData::default()),
+    };
+
+    Ok(router_data)
 }
