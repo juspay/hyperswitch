@@ -299,7 +299,7 @@ merchant_secret="Source verification key"
 
 [amazonpay]
 [[amazonpay.wallet]]
-payment_method_type = "AmazonPay"
+payment_method_type = "amazon_pay"
 [amazonpay.connector_auth.BodyKey]
 api_key="Public Key"
 key1="Private Key"
