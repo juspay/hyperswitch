@@ -1282,6 +1282,65 @@ impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
     }
 }
 
+struct ErrorInputs {
+    encoded_data: Option<String>,
+    response_error_code: Option<String>,
+    response_error_desc: Option<String>,
+}
+
+struct ErrorDetails {
+    pub code: String,
+    pub message: String,
+    pub reason: Option<String>,
+}
+
+impl TryFrom<ErrorInputs> for ErrorDetails {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(value: ErrorInputs) -> Result<Self, Self::Error> {
+        let query_params = value
+            .encoded_data
+            .as_ref()
+            .map(|encoded_data| {
+                serde_urlencoded::from_str::<FiuuPaymentRedirectResponse>(encoded_data)
+            })
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("Failed to deserialize FiuuPaymentRedirectResponse")?;
+        let error_message = value
+            .response_error_desc
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .or_else(|| {
+                query_params
+                    .as_ref()
+                    .and_then(|qp| qp.error_desc.as_ref())
+                    .filter(|s| !s.is_empty())
+                    .cloned()
+            });
+        let error_code = value
+            .response_error_code
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .or_else(|| {
+                query_params
+                    .as_ref()
+                    .and_then(|qp| qp.error_code.as_ref())
+                    .filter(|s| !s.is_empty())
+                    .cloned()
+            })
+            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_owned());
+        Ok(Self {
+            code: error_code,
+            message: error_message
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
+            reason: error_message,
+        })
+    }
+}
+
 impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSyncRouterData {
     type Error = Report<errors::ConnectorError>;
     fn try_from(
@@ -1297,16 +1356,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     stat_code,
                 })?;
                 let error_response = if status == enums::AttemptStatus::Failure {
+                    let error_details = ErrorDetails::try_from(ErrorInputs {
+                        encoded_data: item.data.request.encoded_data.clone(),
+                        response_error_code: response.error_code.clone(),
+                        response_error_desc: response.error_desc.clone(),
+                    })?;
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response
-                            .error_code
-                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
-                        message: response
-                            .error_desc
-                            .clone()
-                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
-                        reason: response.error_desc,
+                        code: error_details.code,
+                        message: error_details.message,
+                        reason: error_details.reason,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
                         network_advice_code: None,
@@ -1364,17 +1423,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     }
                 });
                 let error_response = if status == enums::AttemptStatus::Failure {
+                    let error_details = ErrorDetails::try_from(ErrorInputs {
+                        encoded_data: item.data.request.encoded_data.clone(),
+                        response_error_code: response.error_code.clone(),
+                        response_error_desc: response.error_desc.clone(),
+                    })?;
                     Some(ErrorResponse {
                         status_code: item.http_code,
-                        code: response
-                            .error_code
-                            .clone()
-                            .unwrap_or(consts::NO_ERROR_CODE.to_owned()),
-                        message: response
-                            .error_desc
-                            .clone()
-                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
-                        reason: response.error_desc.clone(),
+                        code: error_details.code,
+                        message: error_details.message,
+                        reason: error_details.reason,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
                         network_advice_code: None,
@@ -1859,6 +1917,17 @@ pub struct FiuuWebhooksPaymentResponse {
     pub error_code: Option<String>,
     #[serde(rename = "extraP")]
     pub extra_parameters: Option<Secret<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct FiuuPaymentRedirectResponse {
+    pub skey: Secret<String>,
+    #[serde(rename = "tranID")]
+    pub tran_id: String,
+    pub status: FiuuPaymentWebhookStatus,
+    pub appcode: Option<String>,
+    pub error_code: Option<String>,
+    pub error_desc: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
