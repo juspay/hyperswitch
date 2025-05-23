@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.23.0
+
+### Features
+
+- **dynamic_routing:** Decision engine config API integration ([#8044](https://github.com/juspay/hyperswitch/pull/8044)) ([`d41f653`](https://github.com/juspay/hyperswitch/commit/d41f65381add66e84366c79d1adf1e3a52c44544))
+- **router:** Add support for Proxy api ([#7901](https://github.com/juspay/hyperswitch/pull/7901)) ([`8e9bad6`](https://github.com/juspay/hyperswitch/commit/8e9bad6457449ef2a435be03a9f97acc2dd2108a))
+
+### Bug Fixes
+
+- **connector:** Connector Feature Matrix Bugfix ([#8047](https://github.com/juspay/hyperswitch/pull/8047)) ([`8b0fd04`](https://github.com/juspay/hyperswitch/commit/8b0fd048ab92237bb07a06c7ea89a25d18e366d4))
+
+### Miscellaneous Tasks
+
+- **mintlify:** Fix mintlify api methods for endpoint ([#8112](https://github.com/juspay/hyperswitch/pull/8112)) ([`d1fe284`](https://github.com/juspay/hyperswitch/commit/d1fe2841c188a80b3bf46850540827844e1a426c))
+- **openapi:** Resolve openapi semantic inconsistency ([#8099](https://github.com/juspay/hyperswitch/pull/8099)) ([`fa4b552`](https://github.com/juspay/hyperswitch/commit/fa4b552a329bc7a9ad474ad27981c552f141e1fa))
+
+**Full Changelog:** [`2025.05.22.0...2025.05.23.0`](https://github.com/juspay/hyperswitch/compare/2025.05.22.0...2025.05.23.0)
+
+
+- - -
+
 ## 2025.05.22.0
 
 ### Features
