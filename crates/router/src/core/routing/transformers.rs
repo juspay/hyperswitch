@@ -1,5 +1,5 @@
 use api_models::routing::{
-    MerchantRoutingAlgorithm, DynamicRoutingAlgorithm, RoutingAlgorithmKind,
+    DynamicRoutingAlgorithm, MerchantRoutingAlgorithm, RoutingAlgorithmKind,
     RoutingAlgorithmWrapper, RoutingDictionaryRecord,
 };
 #[cfg(feature = "v1")]
@@ -60,18 +60,14 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
 
     fn foreign_try_from(value: RoutingAlgorithm) -> Result<Self, Self::Error> {
         let algorithm: RoutingAlgorithmWrapper = match value.kind {
-            diesel_models::enums::RoutingAlgorithmKind::Dynamic => {
-                value
-                    .algorithm_data
-                    .parse_value::<DynamicRoutingAlgorithm>("RoutingAlgorithmDynamic")
-                    .map(RoutingAlgorithmWrapper::Dynamic)?
-            }
-            _ => {
-                value
-                    .algorithm_data
-                    .parse_value::<api_models::routing::StaticRoutingAlgorithm>("RoutingAlgorithm")
-                    .map(RoutingAlgorithmWrapper::Static)?
-            }
+            diesel_models::enums::RoutingAlgorithmKind::Dynamic => value
+                .algorithm_data
+                .parse_value::<DynamicRoutingAlgorithm>("RoutingAlgorithmDynamic")
+                .map(RoutingAlgorithmWrapper::Dynamic)?,
+            _ => value
+                .algorithm_data
+                .parse_value::<api_models::routing::StaticRoutingAlgorithm>("RoutingAlgorithm")
+                .map(RoutingAlgorithmWrapper::Static)?,
         };
 
         Ok(Self {

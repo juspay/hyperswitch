@@ -918,7 +918,9 @@ impl Default for SuccessBasedRoutingConfig {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display,
+)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
