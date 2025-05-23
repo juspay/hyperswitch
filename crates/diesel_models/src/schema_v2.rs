@@ -222,6 +222,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         is_iframe_redirection_enabled -> Nullable<Bool>,
+        three_ds_decision_rule_algorithm -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,

@@ -19,6 +19,8 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
@@ -564,6 +566,24 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
+
+                // Call to DE here to update SR configs
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the success rate routing config in Decision Engine",
+                        )?;
+                    }
+                }
             } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
             {
                 dynamic_routing_ref.update_algorithm_id(
@@ -578,6 +598,22 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::EliminationRouting,
             );
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::EliminationRouting,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the elimination routing config in Decision Engine",
+                        )?;
+                    }
+                }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
@@ -1559,7 +1595,7 @@ pub async fn success_based_routing_update_configs(
         name: dynamic_routing_algo_to_update.name,
         description: dynamic_routing_algo_to_update.description,
         kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update),
+        algorithm_data: serde_json::json!(config_to_update.clone()),
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
@@ -1594,23 +1630,25 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    state
-        .grpc_client
-        .dynamic_routing
-        .success_rate_client
-        .as_ref()
-        .async_map(|sr_client| async {
-            sr_client
-                .invalidate_success_rate_routing_keys(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the routing keys")
-        })
-        .await
-        .transpose()?;
+    if !state.conf.open_router.enabled {
+        state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .async_map(|sr_client| async {
+                sr_client
+                    .invalidate_success_rate_routing_keys(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
@@ -1696,23 +1734,25 @@ pub async fn elimination_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    state
-        .grpc_client
-        .dynamic_routing
-        .elimination_based_client
-        .as_ref()
-        .async_map(|er_client| async {
-            er_client
-                .invalidate_elimination_bucket(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the elimination routing keys")
-        })
-        .await
-        .transpose()?;
+    if !state.conf.open_router.enabled {
+        state
+            .grpc_client
+            .dynamic_routing
+            .elimination_based_client
+            .as_ref()
+            .async_map(|er_client| async {
+                er_client
+                    .invalidate_elimination_bucket(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the elimination routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }

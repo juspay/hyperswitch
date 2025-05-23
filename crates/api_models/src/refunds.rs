@@ -382,6 +382,7 @@ pub struct RefundListRequest {
     #[schema(value_type = Option<String>)]
     pub payment_id: Option<common_utils::id_type::GlobalPaymentId>,
     /// The identifier for the refund
+    #[schema(value_type = String)]
     pub refund_id: Option<common_utils::id_type::GlobalRefundId>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
