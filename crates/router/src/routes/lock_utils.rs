@@ -44,6 +44,7 @@ pub enum ApiIdentifier {
     PaymentMethodSession,
     ProcessTracker,
     Authentication,
+    Proxy,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -343,6 +344,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
 
             Flow::AuthenticationCreate => Self::Authentication,
+            Flow::Proxy => Self::Proxy,
         }
     }
 }

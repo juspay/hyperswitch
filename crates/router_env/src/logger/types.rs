@@ -589,6 +589,8 @@ pub enum Flow {
     /// Clone Connector flow
     CloneConnector,
     AuthenticationCreate, // Added new flow
+    ///Proxy Flow
+    Proxy,
 }
 
 /// Trait for providing generic behaviour to flow metric
