@@ -287,14 +287,14 @@ pub struct RoutingPayloadWrapper {
     pub updated_config: Vec<RoutableConnectorChoice>,
     pub profile_id: common_utils::id_type::ProfileId,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(untagged)]
 pub enum RoutingAlgorithmWrapper {
     Static(StaticRoutingAlgorithm),
     Dynamic(DynamicRoutingAlgorithm),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(untagged)]
 pub enum DynamicRoutingAlgorithm {
     EliminationBasedAlgorithm(EliminationRoutingConfig),
@@ -317,7 +317,7 @@ pub enum StaticRoutingAlgorithm {
     Advanced(ast::Program<ConnectorSelection>),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
@@ -918,7 +918,9 @@ impl Default for SuccessBasedRoutingConfig {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display,
+)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
