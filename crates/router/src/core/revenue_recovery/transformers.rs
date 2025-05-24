@@ -25,7 +25,8 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::VoidFailed
             | AttemptStatus::RouterDeclined
             | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
+            | AttemptStatus::Failure
+            | AttemptStatus::IntegrityFailure => Self::Failed,
 
             AttemptStatus::Voided
             | AttemptStatus::ConfirmationAwaited

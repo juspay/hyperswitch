@@ -305,7 +305,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::RequiresPaymentMethod
                     | common_enums::IntentStatus::RequiresConfirmation
                     | common_enums::IntentStatus::RequiresCapture
-                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted=> None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
@@ -345,7 +345,8 @@ impl Capturable for PaymentsCaptureData {
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 }
@@ -381,14 +382,13 @@ impl Capturable for CompleteAuthorizeData {
                     common_enums::IntentStatus::Succeeded|
                     common_enums::IntentStatus::Failed|
                     common_enums::IntentStatus::Processing => Some(0),
-                    common_enums::IntentStatus::Cancelled
-                    | common_enums::IntentStatus::PartiallyCaptured
+                    common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
                     | common_enums::IntentStatus::RequiresPaymentMethod
                     | common_enums::IntentStatus::RequiresConfirmation
                     | common_enums::IntentStatus::RequiresCapture
-                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
@@ -436,7 +436,8 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 }

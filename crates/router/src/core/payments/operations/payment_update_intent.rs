@@ -49,7 +49,8 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
         match intent_status {
             // if the status is `Failed`` we would want to Update few intent fields to perform a Revenue Recovery retry
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Conflicted => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
