@@ -185,7 +185,7 @@ pub async fn merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| create_merchant_account(state, req),
+        |state, auth, req, _| create_merchant_account(state, req, auth),
         &auth::AdminApiAuthWithApiKeyFallback,
         api_locking::LockAction::NotApplicable,
     ))
@@ -223,7 +223,7 @@ pub async fn merchant_account_create(
         state,
         &req,
         new_request_payload_with_org_id,
-        |state, _, req, _| create_merchant_account(state, req),
+        |state, _, req, _| create_merchant_account(state, req, None),
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -348,7 +348,9 @@ pub async fn merchant_account_list(
         state,
         &req,
         query_params.into_inner(),
-        |state, _, request, _| list_merchant_account(state, request),
+        |state, auth: Option<auth::AuthenticationDataWithOrg>, request, _| {
+            list_merchant_account(state, request, auth)
+        },
         auth::auth_type(
             &auth::AdminApiAuthWithApiKeyFallback,
             &auth::JWTAuthMerchantFromHeader {
