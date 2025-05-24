@@ -232,6 +232,7 @@ impl PaymentAttemptInterface for MockDb {
             charges: None,
             issuer_error_code: None,
             issuer_error_message: None,
+            surcharge_algorithm_id: None,
             processor_merchant_id: payment_attempt.processor_merchant_id,
             created_by: payment_attempt.created_by,
             setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
