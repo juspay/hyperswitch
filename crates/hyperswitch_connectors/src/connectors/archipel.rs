@@ -281,6 +281,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
         let body = self.get_request_body(req, connectors)?;
@@ -291,6 +292,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .set_body(body)
                 .build(),
         ))
@@ -390,6 +392,7 @@ impl
         req: &PaymentsIncrementalAuthorizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
         let body = self.get_request_body(req, connectors)?;
@@ -400,6 +403,7 @@ impl
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .set_body(body)
                 .build(),
         ))
@@ -481,6 +485,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Arc
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
 
@@ -490,6 +495,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Arc
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .build(),
         ))
     }
@@ -582,6 +588,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
         let body = self.get_request_body(req, connectors)?;
@@ -592,6 +599,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .set_body(body)
                 .build(),
         ))
@@ -679,6 +687,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
         let body = self.get_request_body(req, connectors)?;
@@ -689,6 +698,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .set_body(body)
                 .build(),
         ))
@@ -782,6 +792,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Archipe
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
         let body = self.get_request_body(req, connectors)?;
@@ -792,6 +803,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Archipe
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .set_body(body)
                 .build(),
         ))
@@ -873,9 +885,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Archipel 
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
-        let body = self.get_request_body(req, connectors)?;
 
         Ok(Some(
             RequestBuilder::new()
@@ -883,7 +895,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Archipel 
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
-                .set_body(body)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .build(),
         ))
     }
@@ -993,6 +1005,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ar
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = archipel::ArchipelAuthType::try_from(&req.connector_auth_type)?;
         let url = &self.get_url(req, connectors)?;
         let headers = self.get_headers(req, connectors)?;
         let body = self.get_request_body(req, connectors)?;
@@ -1003,6 +1016,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ar
                 .url(url)
                 .attach_default_headers()
                 .headers(headers)
+                .add_ca_certificate_pem(auth_details.ca_certificate)
                 .set_body(body)
                 .build(),
         ))

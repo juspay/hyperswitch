@@ -25,7 +25,12 @@ pub async fn send_request(
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
 
-    let client = client::create_client(client_proxy, request.certificate, request.certificate_key)?;
+    let client = client::create_client(
+        client_proxy,
+        request.certificate,
+        request.certificate_key,
+        request.ca_certificate,
+    )?;
 
     let headers = request.headers.construct_header_map()?;
     let metrics_tag = router_env::metric_attributes!((

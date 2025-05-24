@@ -4396,6 +4396,8 @@ type="Text"
   key1="Username"
 
 [archipel]
+[archipel.connector_auth.HeaderKey]
+api_key="Enter CA Certificate PEM"
 [[archipel.credit]]
 payment_method_type = "Mastercard"
 [[archipel.credit]]
