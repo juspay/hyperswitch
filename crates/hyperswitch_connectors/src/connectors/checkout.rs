@@ -1298,13 +1298,12 @@ impl webhooks::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let amount_u64 = dispute_details.data.amount;
-        let amount_i64 = i64::from(amount_u64);
         let amount = utils::convert_amount(
             self.amount_converter_1,
-            MinorUnit::new(amount_i64),
+            MinorUnit::new(i64::from(dispute_details.data.amount)),
             dispute_details.data.currency,
         )?;
+
         Ok(DisputePayload {
             amount,
             currency: dispute_details.data.currency,

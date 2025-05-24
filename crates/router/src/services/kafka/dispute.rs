@@ -42,26 +42,26 @@ pub struct KafkaDispute<'a> {
 
 impl<'a> KafkaDispute<'a> {
     pub fn from_storage(dispute: &'a Dispute) -> Self {
+        let currency = dispute.dispute_currency.unwrap_or(
+            dispute
+                .currency
+                .to_uppercase()
+                .parse_enum("Currency")
+                .unwrap_or_default(),
+        );
         Self {
             dispute_id: &dispute.dispute_id,
-            // dispute_amount: dispute.amount.parse::<i64>().unwrap_or_default(),
             dispute_amount: StringMinorUnitForConnector::convert_back(
                 &StringMinorUnitForConnector,
                 dispute.amount.clone(),
-                common_enums::Currency::USD,
+                currency,
             )
             .map(MinorUnit::get_amount_as_i64)
             .unwrap_or_else(|e| {
                 router_env::logger::error!("Failed to convert dispute amount: {e:?}");
                 0
             }),
-            currency: dispute.dispute_currency.unwrap_or(
-                dispute
-                    .currency
-                    .to_uppercase()
-                    .parse_enum("Currency")
-                    .unwrap_or_default(),
-            ),
+            currency,
             dispute_stage: &dispute.dispute_stage,
             dispute_status: &dispute.dispute_status,
             payment_id: &dispute.payment_id,

@@ -1882,7 +1882,6 @@ impl IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        //amount in StringMinorUnit
         let amount = convert_amount(
             self.amount_converter_string_major_unit,
             notif.amount.value,

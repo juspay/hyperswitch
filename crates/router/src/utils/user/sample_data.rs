@@ -430,21 +430,18 @@ pub async fn generate_sample_data(
         let dispute =
             if disputes_count < number_of_disputes && !is_failed_payment && refund.is_none() {
                 disputes_count += 1;
+                let currency = payment_intent
+                    .currency
+                    .unwrap_or(common_enums::Currency::USD);
                 Some(DisputeNew {
                     dispute_id: common_utils::generate_id_with_default_len("test"),
-                    // amount: (amount * 100).to_string(),
                     amount: StringMinorUnitForConnector::convert(
                         &StringMinorUnitForConnector,
                         MinorUnit::new(amount * 100),
-                        payment_intent
-                            .currency
-                            .unwrap_or(common_enums::Currency::USD),
+                        payment_intent.currency.unwrap_or(currency),
                     )
                     .change_context(SampleDataError::InternalServerError)?,
-                    currency: payment_intent
-                        .currency
-                        .unwrap_or(common_enums::Currency::USD)
-                        .to_string(),
+                    currency: currency.to_string(),
                     dispute_stage: storage_enums::DisputeStage::Dispute,
                     dispute_status: storage_enums::DisputeStatus::DisputeOpened,
                     payment_id: payment_id.clone(),
