@@ -4,7 +4,7 @@ use api_models::{
 };
 use common_utils::{
     id_type,
-    types::{ConnectorTransactionId, MinorUnit},
+    types::{AmountConvertor, ConnectorTransactionId, MinorUnit, StringMinorUnitForConnector},
 };
 #[cfg(feature = "v1")]
 use diesel_models::user::sample_data::PaymentAttemptBatchNew;
@@ -432,7 +432,15 @@ pub async fn generate_sample_data(
                 disputes_count += 1;
                 Some(DisputeNew {
                     dispute_id: common_utils::generate_id_with_default_len("test"),
-                    amount: (amount * 100).to_string(),
+                    // amount: (amount * 100).to_string(),
+                    amount: StringMinorUnitForConnector::convert(
+                        &StringMinorUnitForConnector,
+                        MinorUnit::new(amount * 100),
+                        payment_intent
+                            .currency
+                            .unwrap_or(common_enums::Currency::USD),
+                    )
+                    .change_context(SampleDataError::InternalServerError)?,
                     currency: payment_intent
                         .currency
                         .unwrap_or(common_enums::Currency::USD)

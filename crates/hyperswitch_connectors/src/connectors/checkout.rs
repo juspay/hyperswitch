@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::sync::LazyLock;
+use std::{convert::TryFrom, sync::LazyLock};
 
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
@@ -7,7 +7,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -71,12 +74,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Checkout {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter_1: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Checkout {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
+            amount_converter_1: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1292,8 +1297,16 @@ impl webhooks::IncomingWebhook for Checkout {
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let amount_u64 = dispute_details.data.amount;
+        let amount_i64 = i64::from(amount_u64);
+        let amount = utils::convert_amount(
+            self.amount_converter_1,
+            MinorUnit::new(amount_i64),
+            dispute_details.data.currency,
+        )?;
         Ok(DisputePayload {
-            amount: dispute_details.data.amount.to_string(),
+            amount,
             currency: dispute_details.data.currency,
             dispute_stage: api_models::enums::DisputeStage::from(
                 dispute_details.transaction_type.clone(),

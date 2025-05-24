@@ -463,6 +463,8 @@ mod tests {
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
 
+        use common_enums::enums::Currency;
+        use common_utils::types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector};
         use diesel_models::{
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
@@ -486,7 +488,12 @@ mod tests {
         fn create_dispute_new(dispute_ids: DisputeNewIds) -> DisputeNew {
             DisputeNew {
                 dispute_id: dispute_ids.dispute_id,
-                amount: "amount".into(),
+                amount: StringMinorUnitForConnector::convert(
+                    &StringMinorUnitForConnector,
+                    MinorUnit::new(0),
+                    Currency::USD,
+                )
+                .expect("Amount Conversion Error"),
                 currency: "currency".into(),
                 dispute_stage: DisputeStage::Dispute,
                 dispute_status: DisputeStatus::DisputeOpened,
@@ -506,7 +513,7 @@ mod tests {
                 merchant_connector_id: None,
                 dispute_amount: 1040,
                 organization_id: common_utils::id_type::OrganizationId::default(),
-                dispute_currency: Some(common_enums::Currency::default()),
+                dispute_currency: Some(Currency::default()),
             }
         }
 

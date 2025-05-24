@@ -1,4 +1,7 @@
-use common_utils::ext_traits::StringExt;
+use common_utils::{
+    ext_traits::StringExt,
+    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
+};
 use diesel_models::enums as storage_enums;
 use masking::Secret;
 use time::OffsetDateTime;
@@ -41,7 +44,16 @@ impl<'a> KafkaDisputeEvent<'a> {
     pub fn from_storage(dispute: &'a Dispute) -> Self {
         Self {
             dispute_id: &dispute.dispute_id,
-            dispute_amount: dispute.amount.parse::<i64>().unwrap_or_default(),
+            dispute_amount: StringMinorUnitForConnector::convert_back(
+                &StringMinorUnitForConnector,
+                dispute.amount.clone(),
+                common_enums::Currency::USD,
+            )
+            .map(MinorUnit::get_amount_as_i64)
+            .unwrap_or_else(|e| {
+                router_env::logger::error!("Failed to convert dispute amount: {e:?}");
+                0
+            }),
             currency: dispute.dispute_currency.unwrap_or(
                 dispute
                     .currency

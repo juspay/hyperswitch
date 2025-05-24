@@ -7,7 +7,10 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    },
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -57,12 +60,16 @@ use crate::{
 #[derive(Clone)]
 pub struct Trustpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_1: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_2: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Trustpay {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_1: &FloatMajorUnitForConnector,
+            amount_converter_2: &StringMinorUnitForConnector,
         }
     }
 }
@@ -965,8 +972,17 @@ impl webhooks::IncomingWebhook for Trustpay {
             .references
             .payment_id
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let amount = utils::convert_back_amount_to_minor_units(
+            self.amount_converter_1,
+            payment_info.amount.amount,
+            payment_info.amount.currency,
+        )?;
         Ok(DisputePayload {
-            amount: payment_info.amount.amount.to_string(),
+            amount: utils::convert_amount(
+                self.amount_converter_2,
+                amount,
+                payment_info.amount.currency,
+            )?,
             currency: payment_info.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id,

@@ -1,4 +1,4 @@
-use common_utils::custom_serde;
+use common_utils::{custom_serde, types::StringMinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::Serialize;
@@ -11,7 +11,7 @@ use crate::{enums as storage_enums, schema::dispute};
 #[serde(deny_unknown_fields)]
 pub struct DisputeNew {
     pub dispute_id: String,
-    pub amount: String,
+    pub amount: StringMinorUnit,
     pub currency: String,
     pub dispute_stage: storage_enums::DisputeStage,
     pub dispute_status: storage_enums::DisputeStatus,
@@ -38,7 +38,7 @@ pub struct DisputeNew {
 #[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
     pub dispute_id: String,
-    pub amount: String,
+    pub amount: StringMinorUnit,
     pub currency: String,
     pub dispute_stage: storage_enums::DisputeStage,
     pub dispute_status: storage_enums::DisputeStatus,

@@ -334,7 +334,7 @@ impl ConnectorData {
                     connector::Adyenplatform::new(),
                 ))),
                 enums::Connector::Airwallex => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
                 // enums::Connector::Amazonpay => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
