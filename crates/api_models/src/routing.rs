@@ -96,7 +96,7 @@ pub struct RoutingRetrieveResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum LinkedRoutingConfigRetrieveResponse {
-    MerchantAccountBased(RoutingRetrieveResponse),
+    MerchantAccountBased(Box<RoutingRetrieveResponse>),
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
