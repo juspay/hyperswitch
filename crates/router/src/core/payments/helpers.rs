@@ -2008,9 +2008,11 @@ pub fn decide_payment_method_retrieval_action(
         )
     };
 
-    should_retry_with_pan
-        .then_some(VaultFetchAction::FetchCardDetailsFromLocker)
-        .unwrap_or_else(standard_flow)
+    if should_retry_with_pan {
+        VaultFetchAction::FetchCardDetailsFromLocker
+    } else {
+        standard_flow()
+    }
 }
 
 pub fn determine_standard_vault_action(
