@@ -359,6 +359,7 @@ impl ConnectorConfig {
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bamboraapac => Ok(connector_data.bamboraapac),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),
+            Connector::Barclaycard => Ok(connector_data.barclaycard),
             Connector::Billwerk => Ok(connector_data.billwerk),
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
