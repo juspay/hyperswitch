@@ -58,7 +58,7 @@ pub struct PayoutCreateRequest {
     pub currency: Option<api_enums::Currency>,
 
     /// Specifies routing algorithm for selecting a connector
-    #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
+    #[schema(value_type = Option<StaticRoutingAlgorithm>, example = json!({
         "type": "single",
         "data": "adyen"
     }))]
