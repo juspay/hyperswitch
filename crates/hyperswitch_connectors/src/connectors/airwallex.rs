@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -9,6 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -53,11 +54,21 @@ use transformers as airwallex;
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{AccessTokenRequestInfo, RefundsRequestData},
+    utils::{convert_amount, AccessTokenRequestInfo, RefundsRequestData},
 };
 
-#[derive(Debug, Clone)]
-pub struct Airwallex;
+#[derive(Clone)]
+pub struct Airwallex {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+}
+
+impl Airwallex {
+    pub const fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Airwallex
 where
@@ -1064,8 +1075,13 @@ impl IncomingWebhook for Airwallex {
             .object
             .parse_value("AirwallexDisputeObject")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            MinorUnit::new(dispute_details.dispute_amount),
+            dispute_details.dispute_currency,
+        )?;
         Ok(DisputePayload {
-            amount: dispute_details.dispute_amount.to_string(),
+            amount,
             currency: dispute_details.dispute_currency,
             dispute_stage: api_models::enums::DisputeStage::from(dispute_details.stage.clone()),
             connector_dispute_id: dispute_details.dispute_id,

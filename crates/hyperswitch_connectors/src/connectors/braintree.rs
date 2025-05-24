@@ -11,7 +11,10 @@ use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::{BytesExt, XmlExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -67,7 +70,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, is_mandate_supported, to_currency_lower_unit, PaymentMethodDataType,
+        self, convert_amount, is_mandate_supported, PaymentMethodDataType,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
     },
 };
@@ -75,12 +78,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Braintree {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Braintree {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1034,11 +1039,11 @@ impl IncomingWebhook for Braintree {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
-
         match response.dispute {
             Some(dispute_data) => Ok(DisputePayload {
-                amount: to_currency_lower_unit(
-                    dispute_data.amount_disputed.to_string(),
+                amount: convert_amount(
+                    self.amount_converter_webhooks,
+                    MinorUnit::new(dispute_data.amount_disputed),
                     dispute_data.currency_iso_code,
                 )?,
                 currency: dispute_data.currency_iso_code,

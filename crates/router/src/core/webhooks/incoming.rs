@@ -4,7 +4,12 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
+use common_utils::{
+    errors::ReportSwitchExt,
+    events::ApiEventsType,
+    ext_traits::AsyncExt,
+    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
+};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -1187,7 +1192,18 @@ async fn get_or_update_dispute_object(
                 profile_id: Some(business_profile.get_id().to_owned()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
+                dispute_amount: MinorUnit::get_amount_as_i64(
+                    StringMinorUnitForConnector::convert_back(
+                        &StringMinorUnitForConnector,
+                        dispute_details.amount,
+                        dispute_details.currency,
+                    )
+                    .change_context(
+                        errors::ApiErrorResponse::AmountConversionFailed {
+                            amount_type: "StringMinorUnit",
+                        },
+                    )?,
+                ),
                 organization_id: organization_id.clone(),
                 dispute_currency: Some(dispute_details.currency),
             };
