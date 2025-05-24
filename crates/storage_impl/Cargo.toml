@@ -18,6 +18,7 @@ v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "comm
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2"]
 payment_methods_v2 = ["diesel_models/payment_methods_v2", "api_models/payment_methods_v2", "hyperswitch_domain_models/payment_methods_v2"]
 refunds_v2 = ["diesel_models/refunds_v2"]
+tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2"]
 
 [dependencies]
 # First Party dependencies

@@ -36,7 +36,11 @@ use crate::{
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct VaultId(String);
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(any(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "tokenization_v2"
+))]
 impl VaultId {
     pub fn get_string_repr(&self) -> &String {
         &self.0
@@ -625,9 +629,11 @@ pub struct PaymentMethodSession {
     pub return_url: Option<common_utils::types::Url>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
+    pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
 
 #[cfg(feature = "v2")]
@@ -642,10 +648,12 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
             network_tokenization: self.network_tokenization,
+            tokenization_data: self.tokenization_data,
             expires_at: self.expires_at,
             associated_payment_methods: self.associated_payment_methods,
             associated_payment: self.associated_payment,
             return_url: self.return_url,
+            associated_token_id: self.associated_token_id,
         })
     }
 
@@ -694,10 +702,12 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 billing,
                 psp_tokenization: storage_model.psp_tokenization,
                 network_tokenization: storage_model.network_tokenization,
+                tokenization_data: storage_model.tokenization_data,
                 expires_at: storage_model.expires_at,
                 associated_payment_methods: storage_model.associated_payment_methods,
                 associated_payment: storage_model.associated_payment,
                 return_url: storage_model.return_url,
+                associated_token_id: storage_model.associated_token_id,
             })
         }
         .await
@@ -713,10 +723,12 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             billing: self.billing.map(|val| val.into()),
             psp_tokenization: self.psp_tokenization,
             network_tokenization: self.network_tokenization,
+            tokenization_data: self.tokenization_data,
             expires_at: self.expires_at,
             associated_payment_methods: self.associated_payment_methods,
             associated_payment: self.associated_payment,
             return_url: self.return_url,
+            associated_token_id: self.associated_token_id,
         })
     }
 }
@@ -878,6 +890,7 @@ pub enum PaymentMethodsSessionUpdateEnum {
         billing: Option<Encryptable<Address>>,
         psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
         network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+        tokenization_data: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -889,10 +902,12 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
                 billing,
                 psp_tokenization,
                 network_tokenization,
+                tokenization_data,
             } => Self {
                 billing,
                 psp_tokenization,
                 network_tokenization,
+                tokenization_data,
             },
         }
     }
@@ -907,10 +922,12 @@ impl PaymentMethodSession {
             billing,
             psp_tokenization,
             network_tokenization,
+            tokenization_data,
             expires_at,
             return_url,
             associated_payment_methods,
             associated_payment,
+            associated_token_id,
         } = self;
         Self {
             id,
@@ -918,10 +935,12 @@ impl PaymentMethodSession {
             billing: update_session.billing.or(billing),
             psp_tokenization: update_session.psp_tokenization.or(psp_tokenization),
             network_tokenization: update_session.network_tokenization.or(network_tokenization),
+            tokenization_data: update_session.tokenization_data.or(tokenization_data),
             expires_at,
             return_url,
             associated_payment_methods,
             associated_payment,
+            associated_token_id,
         }
     }
 }
@@ -931,6 +950,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub billing: Option<Encryptable<Address>>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(

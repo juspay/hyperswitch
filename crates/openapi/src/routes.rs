@@ -20,4 +20,5 @@ pub mod refunds;
 pub mod relay;
 pub mod revenue_recovery;
 pub mod routing;
+pub mod tokenization;
 pub mod webhook_events;

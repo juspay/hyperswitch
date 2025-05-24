@@ -9,6 +9,7 @@ use diesel::{
 };
 use masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {

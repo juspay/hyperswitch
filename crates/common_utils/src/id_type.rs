@@ -34,6 +34,7 @@ pub use self::global_id::{
     payment::{GlobalAttemptId, GlobalPaymentId},
     payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
     refunds::GlobalRefundId,
+    token::GlobalTokenId,
     CellId,
 };
 pub use self::{

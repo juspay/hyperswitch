@@ -2861,6 +2861,10 @@ pub struct PaymentMethodSessionRequest {
     /// If not provided, the session will expire in 15 minutes
     #[schema(example = 900, default = 900)]
     pub expires_in: Option<u32>,
+
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2877,6 +2881,10 @@ pub struct PaymentMethodsSessionUpdateRequest {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2941,6 +2949,10 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
+
     /// The iso timestamp when the session will expire
     /// Trying to retrieve the session or any operations on the session after this time will result in an error
     #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
@@ -2966,6 +2978,10 @@ pub struct PaymentMethodSessionResponse {
     /// The payment method that was created using this payment method session
     #[schema(value_type = Option<Vec<String>>)]
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+
+    /// The token-id created if there is tokenization_data present
+    #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
+    pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
 
 #[cfg(feature = "v2")]
