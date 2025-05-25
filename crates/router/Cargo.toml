@@ -93,6 +93,7 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.8"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
+rust-grpc-client = { path = "/Users/debarshi.gupta/unified-connector-service/sdk/rust-grpc-client", default-features = false }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -109,6 +110,7 @@ tera = "1.19.1"
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+tonic = "0.13.0"
 totp-rs = { version = "5.5.1", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.11.0"

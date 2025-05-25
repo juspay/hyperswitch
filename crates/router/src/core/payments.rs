@@ -65,6 +65,9 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
+use rust_grpc_client::payments::{
+    self as payments_grpc, payment_service_client::PaymentServiceClient, Address, PhoneDetails,
+};
 use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
@@ -3105,6 +3108,9 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    use api_models::admin::ConnectorAuthType;
+    use common_enums::AttemptStatus;
+
     let stime_connector = Instant::now();
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
@@ -3226,162 +3232,301 @@ where
     #[cfg(feature = "v2")]
     let merchant_recipient_data = None;
 
-    let mut router_data = payment_data
-        .construct_router_data(
-            state,
-            connector.connector.id(),
-            merchant_context,
-            customer,
-            &merchant_connector_account,
-            merchant_recipient_data,
-            None,
-        )
-        .await?;
+    if (true) {
+        println!("Connecting to payment service LALALALALALALALALALALALALALA");
 
-    let add_access_token_result = router_data
-        .add_access_token(
-            state,
-            &connector,
-            merchant_context,
-            payment_data.get_creds_identifier(),
-        )
-        .await?;
-
-    router_data = router_data.add_session_token(state, &connector).await?;
-
-    let should_continue_further = access_token::update_router_data_with_access_token_result(
-        &add_access_token_result,
-        &mut router_data,
-        &call_connector_action,
-    );
-
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_context,
-        &merchant_connector_account,
-        payment_data,
-        router_data.access_token.as_ref(),
-    )
-    .await?;
-
-    #[cfg(feature = "v1")]
-    if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
-        router_data.connector_customer = Some(connector_customer_id);
-    }
-
-    router_data.payment_method_token = if let Some(decrypted_token) =
-        add_decrypted_payment_method_token(tokenization_action.clone(), payment_data).await?
-    {
-        Some(decrypted_token)
-    } else {
-        router_data.payment_method_token
-    };
-
-    let payment_method_token_response = router_data
-        .add_payment_method_token(
-            state,
-            &connector,
-            &tokenization_action,
-            should_continue_further,
-        )
-        .await?;
-
-    let mut should_continue_further =
-        tokenization::update_router_data_with_payment_method_token_result(
-            payment_method_token_response,
-            &mut router_data,
-            is_retry_payment,
-            should_continue_further,
-        );
-
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
-
-    if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
-        session_token: Some(session_token),
-        ..
-    }) = router_data.response.to_owned()
-    {
-        payment_data.push_sessions_token(session_token);
-    };
-
-    // In case of authorize flow, pre-task and post-tasks are being called in build request
-    // if we do not want to proceed further, then the function will return Ok(None, false)
-    let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
-    } else {
-        (None, false)
-    };
-
-    if should_add_task_to_process_tracker(payment_data) {
-        operation
-            .to_domain()?
-            .add_task_to_process_tracker(
+        let mut router_data = payment_data
+            .construct_router_data(
                 state,
-                payment_data.get_payment_attempt(),
-                validate_result.requeue,
-                schedule_time,
+                connector.connector.id(),
+                merchant_context,
+                customer,
+                &merchant_connector_account,
+                merchant_recipient_data,
+                None,
             )
+            .await?;
+
+        let mut client = PaymentServiceClient::connect("http://127.0.0.1:8000")
             .await
-            .map_err(|error| logger::error!(process_tracker_error=?error))
-            .ok();
-    }
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to connect to payment service")?;
 
-    // Update the payment trackers just before calling the connector
-    // Since the request is already built in the previous step,
-    // there should be no error in request construction from hyperswitch end
-    (_, *payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
-            state,
-            req_state,
-            payment_data.clone(),
-            customer.clone(),
-            merchant_context.get_merchant_account().storage_scheme,
-            updated_customer,
-            merchant_context.get_merchant_key_store(),
-            frm_suggestion,
-            header_payload.clone(),
-        )
-        .await?;
+        let auth_type: ConnectorAuthType = merchant_connector_account
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let router_data = if should_continue_further {
-        // The status of payment_attempt and intent will be updated in the previous step
-        // update this in router_data.
-        // This is added because few connector integrations do not update the status,
-        // and rely on previous status set in router_data
-        router_data.status = payment_data.get_payment_attempt().status;
-        router_data
-            .decide_flows(
+        let request = payments_grpc::PaymentsAuthorizeRequest {
+            amount: 1000 as i64,
+            currency: payments_grpc::Currency::Usd as i32,
+            payment_method: payments_grpc::PaymentMethod::Card as i32,
+            payment_method_data: Some(payments_grpc::PaymentMethodData {
+                data: Some(payments_grpc::payment_method_data::Data::Card(
+                    payments_grpc::Card {
+                        card_number: "4166676667666746".to_string(), // Updated card number
+                        card_exp_month: "03".to_string(),
+                        card_exp_year: "2030".to_string(),
+                        card_cvc: "737".to_string(), // Updated CVC
+                        ..Default::default()
+                    },
+                )),
+            }),
+            connector_customer: Some("customer_12345".to_string()),
+            return_url: Some("www.google.com".to_string()),
+            address: Some(payments_grpc::PaymentAddress {
+                shipping: None,
+                billing: Some(Address {
+                    address: None,
+                    phone: Some(PhoneDetails {
+                        number: Some("1234567890".to_string()),
+                        country_code: Some("+1".to_string()),
+                    }),
+                    email: Some("sweta.sharma@juspay.in".to_string()),
+                }),
+                unified_payment_method_billing: None,
+                payment_method_billing: None,
+            }),
+            auth_type: payments_grpc::AuthenticationType::ThreeDs as i32,
+            connector_request_reference_id: "ref_12345".to_string(),
+            enrolled_for_3ds: true,
+            request_incremental_authorization: false,
+            minor_amount: 1000 as i64,
+            email: Some("sweta.sharma@juspay.in".to_string()),
+            browser_info: Some(payments_grpc::BrowserInformation {
+                // Added browser_info
+                user_agent: Some("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)".to_string()),
+                accept_header: Some(
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".to_string(),
+                ),
+                language: Some("en-US".to_string()),
+                color_depth: Some(24),
+                screen_height: Some(1080),
+                screen_width: Some(1920),
+                java_enabled: Some(false),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let mut request = tonic::Request::new(request);
+
+        let mut metadata = request.metadata_mut();
+
+        let connector_name = merchant_connector_account.get_connector_name().unwrap();
+
+        metadata.append("x-connector", connector_name.parse().unwrap());
+
+        match &auth_type {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => {
+                metadata.append("x-auth", "signature-key".parse().unwrap());
+                metadata.append("x-api-key", api_key.peek().parse().unwrap());
+                metadata.append("x-key1", key1.peek().parse().unwrap());
+                metadata.append("x-api-secret", api_secret.peek().parse().unwrap());
+            }
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
+                metadata.append("x-auth", "body-key".parse().unwrap());
+                metadata.append("x-api-key", api_key.peek().parse().unwrap());
+                metadata.append("x-key1", key1.peek().parse().unwrap());
+            }
+            ConnectorAuthType::HeaderKey { api_key } => {
+                metadata.append("x-auth", "header-key".parse().unwrap());
+                metadata.append("x-api-key", api_key.peek().parse().unwrap());
+            }
+            _ => {
+                return Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unsupported ConnectorAuthType for header injection")?;
+            }
+        }
+
+        let response = client
+            .payment_authorize(request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        router_data.status = AttemptStatus::Charged;
+        router_data.response = Ok(hyperswitch_domain_models::router_response_types::PaymentsResponseData::TransactionResponse { 
+            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(payment_authorize_response.connector_response_reference_id.clone().unwrap()), 
+            redirection_data: Box::new(None), 
+            mandate_reference: Box::new(None), 
+            connector_metadata: None, 
+            network_txn_id: None, 
+            connector_response_reference_id: payment_authorize_response.connector_response_reference_id, 
+            incremental_authorization_allowed: None, 
+            charges: None,
+        });
+
+        Ok((router_data, merchant_connector_account))
+    } else {
+        let mut router_data = payment_data
+            .construct_router_data(
+                state,
+                connector.connector.id(),
+                merchant_context,
+                customer,
+                &merchant_connector_account,
+                merchant_recipient_data,
+                None,
+            )
+            .await?;
+
+        let add_access_token_result = router_data
+            .add_access_token(
                 state,
                 &connector,
-                call_connector_action,
-                connector_request,
-                business_profile,
-                header_payload.clone(),
-                all_keys_required,
+                merchant_context,
+                payment_data.get_creds_identifier(),
             )
-            .await
-    } else {
-        Ok(router_data)
-    }?;
+            .await?;
 
-    let etime_connector = Instant::now();
-    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
-    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+        router_data = router_data.add_session_token(state, &connector).await?;
 
-    Ok((router_data, merchant_connector_account))
+        let should_continue_further = access_token::update_router_data_with_access_token_result(
+            &add_access_token_result,
+            &mut router_data,
+            &call_connector_action,
+        );
+
+        let updated_customer = call_create_connector_customer_if_required(
+            state,
+            customer,
+            merchant_context,
+            &merchant_connector_account,
+            payment_data,
+            router_data.access_token.as_ref(),
+        )
+        .await?;
+
+        #[cfg(feature = "v1")]
+        if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
+            router_data.connector_customer = Some(connector_customer_id);
+        }
+
+        router_data.payment_method_token = if let Some(decrypted_token) =
+            add_decrypted_payment_method_token(tokenization_action.clone(), payment_data).await?
+        {
+            Some(decrypted_token)
+        } else {
+            router_data.payment_method_token
+        };
+
+        let payment_method_token_response = router_data
+            .add_payment_method_token(
+                state,
+                &connector,
+                &tokenization_action,
+                should_continue_further,
+            )
+            .await?;
+
+        let mut should_continue_further =
+            tokenization::update_router_data_with_payment_method_token_result(
+                payment_method_token_response,
+                &mut router_data,
+                is_retry_payment,
+                should_continue_further,
+            );
+
+        (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
+            state,
+            &connector,
+            payment_data,
+            router_data,
+            operation,
+            should_continue_further,
+        )
+        .await?;
+
+        if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
+            session_token: Some(session_token),
+            ..
+        }) = router_data.response.to_owned()
+        {
+            payment_data.push_sessions_token(session_token);
+        };
+
+        // In case of authorize flow, pre-task and post-tasks are being called in build request
+        // if we do not want to proceed further, then the function will return Ok(None, false)
+        let (connector_request, should_continue_further) = if should_continue_further {
+            // Check if the actual flow specific request can be built with available data
+            router_data
+                .build_flow_specific_connector_request(
+                    state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, false)
+        };
+
+        if should_add_task_to_process_tracker(payment_data) {
+            operation
+                .to_domain()?
+                .add_task_to_process_tracker(
+                    state,
+                    payment_data.get_payment_attempt(),
+                    validate_result.requeue,
+                    schedule_time,
+                )
+                .await
+                .map_err(|error| logger::error!(process_tracker_error=?error))
+                .ok();
+        }
+
+        // Update the payment trackers just before calling the connector
+        // Since the request is already built in the previous step,
+        // there should be no error in request construction from hyperswitch end
+        (_, *payment_data) = operation
+            .to_update_tracker()?
+            .update_trackers(
+                state,
+                req_state,
+                payment_data.clone(),
+                customer.clone(),
+                merchant_context.get_merchant_account().storage_scheme,
+                updated_customer,
+                merchant_context.get_merchant_key_store(),
+                frm_suggestion,
+                header_payload.clone(),
+            )
+            .await?;
+
+        let router_data = if should_continue_further {
+            // The status of payment_attempt and intent will be updated in the previous step
+            // update this in router_data.
+            // This is added because few connector integrations do not update the status,
+            // and rely on previous status set in router_data
+            router_data.status = payment_data.get_payment_attempt().status;
+            router_data
+                .decide_flows(
+                    state,
+                    &connector,
+                    call_connector_action,
+                    connector_request,
+                    business_profile,
+                    header_payload.clone(),
+                    all_keys_required,
+                )
+                .await
+        } else {
+            Ok(router_data)
+        }?;
+
+        let etime_connector = Instant::now();
+        let duration_connector = etime_connector.saturating_duration_since(stime_connector);
+        tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+
+        Ok((router_data, merchant_connector_account))
+    }
 }
 
 #[cfg(feature = "v2")]
