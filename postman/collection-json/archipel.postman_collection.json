@@ -4881,7 +4881,7 @@
 													"   console.log('INFO - Unable to assign variable {{payment_token}}, as jsonData.customer_payment_methods[0].payment_token is undefined.');",
 													"}",
 													"",
-													"// Response body should have at least one card payment mehod\"",
+													"// Response body should have at least one card payment method\"",
 													"pm.test(",
 													"\"[GET]::/payment_methods/:customer_id  - Content check body has at least one customer_payment_methods\",",
 													"function () {",
@@ -5426,7 +5426,7 @@
 													"let jsonData = {};",
 													"try {jsonData = pm.response.json();}catch(e){}",
 													"",
-													"// Response body should have at least one card payment mehod\"",
+													"// Response body should have at least one card payment method\"",
 													"pm.test(",
 													"\"[GET]::/payment_methods/:customer_id  - Content check body has at least one customer_payment_methods\",",
 													"function () {",
@@ -5555,7 +5555,7 @@
 									"response": []
 								},
 								{
-									"name": "Payments - Confirm secod and use saved card",
+									"name": "Payments - Confirm second and use saved card",
 									"event": [
 										{
 											"listen": "test",
@@ -9843,7 +9843,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\"amount\":9000,\"currency\":\"EUR\",\"confirm\":true,\"profile_id\":\"{{profile_id}}\",\"capture_method\":\"automatic\",\"capture_on\":\"{{$isoTimestamp}}\",\"customer_id\":\"{{customer_id}}\",\"description\":\"[Archipel Connector][Variation Cases][Scenario6] - Create recurring payment greather than mandate amount\",\"authentication_type\":\"no_three_ds\",\"mandate_id\":\"{{mandate_id}}\",\"off_session\":true,\"billing\":{\"address\":{\"line1\":\"2 ter\",\"line2\":\"rue du château\",\"line3\":\"\",\"city\":\"Neuilly-sur-Seine\",\"state\":\"France\",\"zip\":\"92200\",\"country\":\"FR\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}}}",
+											"raw": "{\"amount\":9000,\"currency\":\"EUR\",\"confirm\":true,\"profile_id\":\"{{profile_id}}\",\"capture_method\":\"automatic\",\"capture_on\":\"{{$isoTimestamp}}\",\"customer_id\":\"{{customer_id}}\",\"description\":\"[Archipel Connector][Variation Cases][Scenario6] - Create recurring payment greater than mandate amount\",\"authentication_type\":\"no_three_ds\",\"mandate_id\":\"{{mandate_id}}\",\"off_session\":true,\"billing\":{\"address\":{\"line1\":\"2 ter\",\"line2\":\"rue du château\",\"line3\":\"\",\"city\":\"Neuilly-sur-Seine\",\"state\":\"France\",\"zip\":\"92200\",\"country\":\"FR\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}}}",
 											"options": {
 												"raw": {
 													"language": "json"
