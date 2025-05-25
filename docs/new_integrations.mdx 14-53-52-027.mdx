@@ -1,0 +1,109 @@
+# Learnings from Integrating a New Connector (Xsolla Example)
+
+This document captures the step-by-step process and learnings from integrating the Xsolla payment connector into Hyperswitch.
+
+## 1. Initial Understanding and Information Gathering
+
+*   **Objective**: Add a new payment connector, "Xsolla".
+*   **Key Information Required**:
+    *   Connector Name (snake_case): `xsolla`
+    *   Base API URL: `https://api.xsolla.com`
+    *   Authentication Method: Basic Authentication (Merchant ID as username, API Key as password).
+    *   Primary API Endpoints:
+        *   Authorize (Create Payment Token): `POST /api/pay-station/operation/create-token/`
+        *   Capture (Charge Saved Account): `POST /api/pay-station/operation/charge-with-saved-account/`
+        *   Sync (Get Transaction Details): `GET /merchants/{merchant_id}/reports/transactions/simple_search`
+    *   Currency Unit: Major units (e.g., dollars).
+    *   Idempotency: `external_id` field in request bodies.
+
+## 2. Using the `add_connector.sh` Script
+
+*   The script `sh scripts/add_connector.sh xsolla https://api.xsolla.com` was executed.
+*   **Observations**:
+    *   The script output showed several errors related to `git pathspec`, `sed` commands failing to find files (e.g., `connector_integration_v2_impls.rs`), and `mv` failing for the test file initially.
+    *   Despite these errors, the script successfully performed several crucial setup tasks:
+        *   Created the main connector logic file: `crates/hyperswitch_connectors/src/connectors/xsolla.rs`.
+        *   Created the transformers file: `crates/hyperswitch_connectors/src/connectors/xsolla/transformers.rs`.
+        *   Created a test file (initially at `crates/hyperswitch_connectors/src/connectors/xsolla/test.rs`).
+        *   Added `Xsolla` to the `Connector` and `RoutableConnectors` enums in `crates/common_enums/src/connector_enums.rs`.
+        *   Added `pub mod xsolla;` and `xsolla::Xsolla` to the `pub use` list in `crates/hyperswitch_connectors/src/connectors.rs`.
+*   **Learning**: The `add_connector.sh` script automates many boilerplate tasks. Even if some non-critical parts of the script show errors (possibly due to recent refactoring or changes in file paths it expects), the core file generation and enum modifications might still succeed. It's important to verify the created/modified files.
+
+## 3. File Structure and Corrections
+
+*   **Main Logic File**: The script correctly created `crates/hyperswitch_connectors/src/connectors/xsolla.rs`. An initial assumption that it would be `connectors/xsolla/mod.rs` was incorrect for this project's structure.
+*   **Test File**: The generated `test.rs` was initially in `crates/hyperswitch_connectors/src/connectors/xsolla/`. It was manually moved to the correct location: `crates/router/tests/connectors/xsolla.rs` using the command:
+    ```bash
+    mkdir -p crates/router/tests/connectors && mv crates/hyperswitch_connectors/src/connectors/xsolla/test.rs crates/router/tests/connectors/xsolla.rs
+    ```
+
+## 4. Implementing `transformers.rs`
+
+This file (`crates/hyperswitch_connectors/src/connectors/xsolla/transformers.rs`) is central for defining connector-specific data structures and transformations.
+
+*   **Amount Type**: Defined `pub type XsollaAmount = common_utils::types::StringMajorUnit;` as Xsolla uses major currency units.
+*   **Authentication (`XsollaAuthType`)**:
+    *   Struct defined to hold `merchant_id` and `api_key`.
+    *   `TryFrom<&ConnectorAuthType>` implemented to parse `BodyKey` (mapping `key1` to `merchant_id`).
+*   **Request Structs**:
+    *   `XsollaTokenRequest`: For the "Create Payment Token" (Authorize) flow. Includes nested structs for `settings` (with `payment_method_options`, `ui`, `return_url`) and `purchase`.
+    *   `XsollaChargeRequest`: For the "Charge with Saved Account" (Capture) flow. Includes `user_id`, `account_id` (saved payment method token), and `digital_content_purchase` (with amount and currency).
+*   **Response Structs**:
+    *   `XsollaTokenResponse`: For Authorize flow, containing `token` and `order_id`.
+    *   `XsollaChargeResponse`: For Capture flow, containing transaction `id` and `status`.
+*   **Error Handling (`XsollaErrorResponse`, `XsollaError`)**:
+    *   Structs defined to match Xsolla's error JSON structure.
+    *   Implemented `TryFrom<XsollaErrorResponse> for ErrorResponse` to map Xsolla errors to Hyperswitch's generic `ErrorResponse`.
+*   **Status Enum (`XsollaPaymentStatus`)**:
+    *   Defined an enum for Xsolla's payment statuses (e.g., `New`, `Paid`, `Done`, `Canceled`).
+    *   Implemented `From<XsollaPaymentStatus> for common_enums::AttemptStatus` for mapping.
+*   **`TryFrom` for Request/Response Data**:
+    *   Implemented `TryFrom<&XsollaRouterData<&PaymentsAuthorizeData>> for XsollaTokenRequest`.
+    *   Implemented `TryFrom<&XsollaRouterData<&PaymentsCaptureData>> for XsollaChargeRequest`.
+    *   Implemented `TryFrom<RouterDataV2<F, PaymentsAuthorizeData, XsollaTokenResponse, PaymentsResponseData>> for RouterDataV2<F, PaymentsAuthorizeData, (), PaymentsResponseData>`. This handles the Authorize response, setting up redirection to Xsolla's Pay Station.
+    *   Implemented `TryFrom<RouterDataV2<F, PaymentsCaptureData, XsollaChargeResponse, PaymentsResponseData>> for RouterDataV2<F, PaymentsCaptureData, (), PaymentsResponseData>`. This handles the Capture response.
+*   **Learning**: The `transformers.rs` file encapsulates all direct interactions with the connector's data formats. The `TryFrom` implementations are key for mapping between Hyperswitch's generic `RouterData` and the connector-specific structs. Careful attention to field names, nesting, and data types (like `Secret` for sensitive data) is crucial.
+
+## 5. Implementing `xsolla.rs` (Main Connector Logic)
+
+This file (`crates/hyperswitch_connectors/src/connectors/xsolla.rs`) contains the implementation of Hyperswitch traits.
+
+*   **`Xsolla` Struct**:
+    *   Defined with an `amount_converter` field, initialized to `&StringMajorUnitForConnector`.
+*   **`ConnectorCommon` Trait**:
+    *   `id()`: Returns `"xsolla"`.
+    *   `get_currency_unit()`: Returns `api::CurrencyUnit::Base`.
+    *   `common_get_content_type()`: Returns `"application/json"`.
+    *   `base_url()`: Retrieves from `connectors.xsolla.base_url`.
+    *   `get_auth_header()`: Implemented Basic Authentication using `merchant_id` and `api_key` from `XsollaAuthType`. Base64 encodes `merchant_id:api_key`.
+    *   `build_error_response()`: Parses `XsollaErrorResponse` from `transformers.rs`.
+*   **`ConnectorIntegration<Authorize, ...>` Trait**:
+    *   `get_url()`: Returns `/api/pay-station/operation/create-token/`.
+    *   `get_request_body()`: Converts `PaymentsAuthorizeRouterData` to `XsollaTokenRequest`.
+    *   `handle_response()`: Parses `XsollaTokenResponse` and sets up redirection data for Pay Station, adapting logic from the `RouterDataV2` `TryFrom` implementation in `transformers.rs`.
+*   **`ConnectorIntegration<Capture, ...>` Trait**:
+    *   `get_url()`: Returns `/api/pay-station/operation/charge-with-saved-account/`.
+    *   `get_request_body()`: Converts `PaymentsCaptureData` to `XsollaChargeRequest`.
+    *   `handle_response()`: Parses `XsollaChargeResponse` and maps status, adapting logic from `RouterDataV2` `TryFrom`.
+*   **`ConnectorIntegration<PSync, ...>` Trait**:
+    *   `get_url()`: Returns `/merchants/{merchant_id}/reports/transactions/simple_search?external_id={...}`.
+    *   `handle_response()`: Parses an array of transactions from `XsollaSyncResponseData` and maps status.
+*   **`ConnectorSpecifications` Trait**:
+    *   `get_connector_details()`: Provides basic connector info.
+    *   `get_supported_payment_methods()`: Returns `vec![common_enums::PaymentMethod::Card]`.
+*   **Learning**: The main connector file wires together the transformers with Hyperswitch's flow traits. It defines how to make API calls (URL, headers, body) and how to process responses for each flow. The boilerplate provided by `add_connector.sh` is a good starting point but needs careful adaptation to the specific connector's API and the structs defined in `transformers.rs`.
+
+## 6. Current Status and Next Steps (for Xsolla)
+
+*   Core Authorize and Capture flows have their basic structures implemented.
+*   PSync for payments is partially implemented.
+*   Refunds, Webhooks, and ConnectorValidation are placeholders or not yet fully implemented.
+*   Compilation of the `hyperswitch_connectors` crate is the immediate next step to identify and fix any type mismatches or other errors.
+*   Further implementation would involve:
+    *   Defining request/response structs for Refunds in `transformers.rs`.
+    *   Implementing `RefundExecute` and `RefundSync` in `xsolla.rs`.
+    *   Implementing webhook signature verification and event handling.
+    *   Adding detailed `ConnectorValidation` rules.
+    *   Writing comprehensive integration tests.
+
+This document should serve as a useful reference for future connector integrations.

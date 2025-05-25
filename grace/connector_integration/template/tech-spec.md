@@ -63,6 +63,7 @@ After your analysis, generate the technical specification using the following ma
 # {{CONNECTOR_NAME}} Technical Specification
 
 ## 1. Connector Overview
+- **Instruction**: Provide the following overview details for {{CONNECTOR_NAME}}.
 - **Connector Name**: {{CONNECTOR_NAME}} (e.g., "AwesomePay")
 - **Connector PascalCase Name**: {{CONNECTOR_PASCAL_CASE}} (e.g., "Awesomepay")
 - **Connector Lowercase Name**: {{connector-name-lowercase}} (e.g., "awesomepay")
@@ -72,6 +73,7 @@ After your analysis, generate the technical specification using the following ma
 - **Key Workflows to be Implemented**: (e.g., Authorize, Capture, Full Refund for Cards)
 
 ## 2. Integration Project Structure
+- **Instruction**: Confirm or update the standard file paths for the {{CONNECTOR_NAME}} integration.
 - **Main Logic File**: `crates/hyperswitch_connectors/src/connectors/{{connector-name-lowercase}}.rs`
 - **Transformers File**: `crates/hyperswitch_connectors/src/connectors/{{connector-name-lowercase}}/transformers.rs`
 - **Test File**: `crates/router/tests/connectors/{{connector-name-lowercase}}.rs`
@@ -84,170 +86,364 @@ After your analysis, generate the technical specification using the following ma
     - `hyperswitch-control-center/public/hyperswitch/Gateway/{{CONNECTOR_PASCAL_CASE_UPPERCASE}}.SVG`
 
 ## 3. Authentication Mechanism
+- **Instruction**: Detail the authentication mechanism for {{CONNECTOR_NAME}}.
 - **Authentication Type**: (e.g., API Key in Header, Bearer Token, Basic Auth)
-- **Credentials Required**: (e.g., `api_key`, `secret_key`, `merchant_id`)
+- **Credentials Required**: (e.g., `api_key`, `secret_key`, `merchant_id` - list all fields needed for authentication)
 - **`{{CONNECTOR_PASCAL_CASE}}AuthType` Struct Definition (`transformers.rs`):**
+  - **Instruction**: Provide the full Rust struct definition for `{{CONNECTOR_PASCAL_CASE}}AuthType`. Ensure all fields listed in "Credentials Required" are included with appropriate types (e.g., `masking::Secret<String>`). Also, provide the full implementation for `TryFrom<&ConnectorAuthType> for {{CONNECTOR_PASCAL_CASE}}AuthType`.
   ```rust
-  // pub struct {{CONNECTOR_PASCAL_CASE}}AuthType { ... }
-  // impl TryFrom<&ConnectorAuthType> for {{CONNECTOR_PASCAL_CASE}}AuthType { ... }
+  // pub struct {{CONNECTOR_PASCAL_CASE}}AuthType {
+  //   // api_key: masking::Secret<String>,
+  //   // secret_key: masking::Secret<String>,
+  // }
+  //
+  // impl TryFrom<&ConnectorAuthType> for {{CONNECTOR_PASCAL_CASE}}AuthType {
+  //   type Error = error_stack::Report<errors::ConnectorError>;
+  //   fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+  //     // match auth_type { ... }
+  //   }
+  // }
   ```
 - **`get_auth_header()` Implementation Sketch (`{{connector-name-lowercase}}.rs`):**
+  - **Instruction**: Provide a detailed sketch or pseudo-code for the `get_auth_header` method. Show how credentials from `{{CONNECTOR_PASCAL_CASE}}AuthType` are used to construct the necessary HTTP header(s) for authentication.
   ```rust
-  // fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> { ... }
+  // fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+  //   // let auth: {{CONNECTOR_PASCAL_CASE}}AuthType = auth_type.try_into()?;
+  //   // Ok(vec![(
+  //   //   "Authorization".to_string(),
+  //   //   format!("Bearer {}", auth.api_key.expose()).into_masked()
+  //   // )])
+  // }
   ```
 
 ## 4. Error Handling
+- **Instruction**: Detail the error handling mechanism for {{CONNECTOR_NAME}}.
 - **Connector Error Response Structure (`transformers.rs`):**
+  - **Instruction**: Provide the Rust struct definition for `{{CONNECTOR_PASCAL_CASE}}ErrorResponse`, representing the error structure returned by {{CONNECTOR_NAME}}'s API. Include all relevant fields (e.g., error code, message, details).
   ```rust
-  // pub struct {{CONNECTOR_PASCAL_CASE}}ErrorResponse { ... }
+  // #[derive(Debug, Deserialize, Serialize)]
+  // pub struct {{CONNECTOR_PASCAL_CASE}}ErrorResponse {
+  //   // code: String,
+  //   // message: String,
+  //   // details: Option<serde_json::Value>,
+  // }
   ```
 - **`build_error_response()` Implementation Sketch (`{{connector-name-lowercase}}.rs`):**
+  - **Instruction**: Provide a detailed sketch or pseudo-code for the `build_error_response` method. Show how `{{CONNECTOR_PASCAL_CASE}}ErrorResponse` is parsed and mapped to Hyperswitch's `types::ErrorResponse`.
   ```rust
-  // fn build_error_response(&self, res: types::Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<types::ErrorResponse, errors::ConnectorError> { ... }
+  // fn build_error_response(&self, res: types::Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+  //   // let response: {{CONNECTOR_PASCAL_CASE}}ErrorResponse = res
+  //   //     .response
+  //   //     .parse_struct("{{CONNECTOR_PASCAL_CASE}}ErrorResponse")
+  //   //     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+  //   // Ok(types::ErrorResponse {
+  //   //   status_code: res.status_code,
+  //   //   code: response.code,
+  //   //   message: response.message,
+  //   //   reason: None, // Or map from response.details
+  //   //   attempt_status: None, // Potentially map based on error code
+  //   //   connector_transaction_id: None,
+  //   // })
+  // }
   ```
-- **Key Error Code Mappings**: (List a few important connector error codes and how they'll map to Hyperswitch error messages/codes, if known)
+- **Key Error Code Mappings**: (List a few important connector error codes and how they'll map to Hyperswitch error messages/codes, if known. E.g., "INVALID_API_KEY" -> "CONNECTOR_AUTH_ERROR", "INSUFFICIENT_FUNDS" -> "CARD_DECLINED")
 
 ## 5. Common Connector Details (`ConnectorCommon` in `{{connector-name-lowercase}}.rs`)
+- **Instruction**: Specify the values for `ConnectorCommon` trait methods.
 - **`id()`**: `"{{connector-name-lowercase}}"`
-- **`get_currency_unit()`**: (e.g., `api::CurrencyUnit::Minor` or `api::CurrencyUnit::Base` - specify based on API docs)
+- **`get_currency_unit()`**: (e.g., `api::CurrencyUnit::Minor` or `api::CurrencyUnit::Base` - specify based on API docs for amounts)
 - **`common_get_content_type()`**: (e.g., `"application/json"`)
-- **`base_url()`**: (e.g., `connectors.{{connector-name-lowercase}}.base_url`)
-- **(If applicable) `secondary_base_url()`**: (e.g., `connectors.{{connector-name-lowercase}}.secondary_base_url`)
+- **`base_url()`**: (e.g., `connectors.{{connector-name-lowercase}}.base_url` - this will be the config key)
+- **(If applicable) `secondary_base_url()`**: (e.g., `connectors.{{connector-name-lowercase}}.secondary_base_url` - specify if needed)
 
 ## 6. Feature Specification: Payment Flows
 
 (Repeat this section for each payment flow to be implemented, e.g., Authorize, Capture, PSync, Refund Execute, Refund Sync, Void, PaymentMethodToken)
 
 ### 6.X Flow: {{FLOW_NAME}} (e.g., "Authorize" for "Cards")
+- **Instruction**: Detail the specifications for the {{FLOW_NAME}} flow.
 - **Hyperswitch Trait**: `ConnectorIntegration<{{FLOW_TYPE}}, {{REQUEST_DATA_TYPE}}, {{RESPONSE_DATA_TYPE}}>`
   (e.g., `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`)
 - **Connector API Endpoint(s)**:
-  - Method: (e.g., POST)
-  - URL Path: (e.g., `/v1/payments`)
-- **Amount Handling**: (Specify if conversion is needed, refer to `get_currency_unit`)
+  - Method: (e.g., POST, GET)
+  - URL Path: (e.g., `/v1/payments`, `/charges/{charge_id}/capture`)
+- **Amount Handling**: (Specify if conversion is needed, refer to `get_currency_unit`. E.g., "Connector expects amount in minor units. No conversion needed if Hyperswitch provides MinorUnit." or "Connector expects amount as float in major units. Convert from MinorUnit using `to_major_unit_as_f64`.")
 
 #### 6.X.1 Request Transformation (`transformers.rs`)
+- **Instruction**: Define the request struct and its `TryFrom` implementation for the {{FLOW_NAME}} flow.
 - **`{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request` Struct Definition**:
+  - **Instruction**: Provide the full Rust struct definition for `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request`. Include all fields required by the connector's API for this flow. Adhere to `TYPE_DISCOVERY` rules (Hyperswitch types like `pii::Email`, `masking::Secret`, `cards::CardNumber`, appropriate amount types, enums, serde attributes for field renaming and case conventions).
   ```rust
-  // #[derive(Debug, Serialize)]
-  // pub struct {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request { ... }
-  // (Include fields, Hyperswitch types, masking, serde attributes)
+  // #[derive(Debug, Serialize)] // Potentially also Clone, Deserialize if needed elsewhere
+  // #[serde(rename_all = "camelCase")] // Or snake_case, etc.
+  // pub struct {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request {
+  //   // amount: StringMinorUnit, // Or other amount type
+  //   // currency: String,
+  //   // card: {{CONNECTOR_PASCAL_CASE}}CardDetails, // Example nested struct
+  //   // #[serde(skip_serializing_if = "Option::is_none")]
+  //   // description: Option<String>,
+  // }
   ```
 - **`TryFrom<&{{CONNECTOR_PASCAL_CASE}}RouterData<&{{REQUEST_DATA_TYPE}}>> for {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request` Implementation**:
+  - **Instruction**: Provide the full `TryFrom` implementation. Show how fields from Hyperswitch's `{{REQUEST_DATA_TYPE}}` (e.g., `PaymentsAuthorizeData`) are mapped to `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request`. Include any necessary data transformations (e.g., amount conversion, date formatting).
   ```rust
-  // impl TryFrom<&{{CONNECTOR_PASCAL_CASE}}RouterData<&{{REQUEST_DATA_TYPE}}>> for {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request { ... }
+  // impl TryFrom<&{{CONNECTOR_PASCAL_CASE}}RouterData<&{{REQUEST_DATA_TYPE}}>> for {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request {
+  //   type Error = error_stack::Report<errors::ConnectorError>;
+  //   fn try_from(item: &{{CONNECTOR_PASCAL_CASE}}RouterData<&{{REQUEST_DATA_TYPE}}>) -> Result<Self, Self::Error> {
+  //     // let request_data = item.router_data.request;
+  //     // Ok(Self {
+  //     //   amount: request_data.get_amount()?, // Example
+  //     //   currency: request_data.get_currency()?.to_string(), // Example
+  //     //   ...
+  //     // })
+  //   }
+  // }
   ```
 
 #### 6.X.2 Response Transformation (`transformers.rs`)
+- **Instruction**: Define the response struct, status enum (if applicable), and their `TryFrom` / `From` implementations for the {{FLOW_NAME}} flow.
 - **`{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status` Enum Definition (if applicable)**:
+  - **Instruction**: If the connector uses specific string/enum values for statuses in this flow's response, define a `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status` Rust enum. Provide the `From<{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status> for common_enums::AttemptStatus` implementation, ensuring all connector status values are mapped.
   ```rust
-  // #[derive(Debug, Deserialize, Serialize)]
-  // pub enum {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status { ... }
-  // impl From<{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status> for common_enums::AttemptStatus { ... }
+  // #[derive(Debug, Deserialize, Serialize)] // Potentially Clone
+  // #[serde(rename_all = "snake_case")] // Or as per connector API
+  // pub enum {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status {
+  //   // Succeeded,
+  //   // Failed,
+  //   // Pending,
+  //   // #[serde(other)] // To catch unknown statuses
+  //   // Unknown,
+  // }
+  //
+  // impl From<{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status> for common_enums::AttemptStatus {
+  //   fn from(item: {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status) -> Self {
+  //     // match item {
+  //     //   {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status::Succeeded => Self::Charged, // Or Authorized, etc.
+  //     //   {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status::Failed => Self::Failure,
+  //     //   _ => Self::Pending,
+  //     // }
+  //   }
+  // }
   ```
 - **`{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response` Struct Definition**:
+  - **Instruction**: Provide the full Rust struct definition for `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response`. Include all relevant fields from the connector's API response for this flow. Use appropriate types and serde attributes.
   ```rust
-  // #[derive(Debug, Deserialize, Serialize)]
-  // pub struct {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response { ... }
+  // #[derive(Debug, Deserialize, Serialize)] // Potentially Clone
+  // pub struct {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response {
+  //   // id: String,
+  //   // status: {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Status, // Or String if no enum
+  //   // amount: Option<i64>, // Or other amount type
+  //   // error_code: Option<String>,
+  //   // error_message: Option<String>,
+  //   // redirect_url: Option<String>,
+  // }
   ```
-- **`TryFrom<ResponseRouterData<{{FLOW_TYPE}}, {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response, {{REQUEST_DATA_TYPE}}, {{RESPONSE_DATA_TYPE}}>> for {{REQUEST_DATA_TYPE}}` Implementation**:
+- **`TryFrom<ResponseRouterData<{{FLOW_TYPE}}, {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response, {{REQUEST_DATA_TYPE}}, {{RESPONSE_DATA_TYPE}}>> for {{RESPONSE_DATA_TYPE_PASCAL_CASE}}RouterData` Implementation**:
+  (Note: The target type is often a type alias like `PaymentsAuthorizeRouterData`, which is `RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`)
+  - **Instruction**: Provide the full `TryFrom` implementation. Show how fields from `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response` are mapped to Hyperswitch's `{{RESPONSE_DATA_TYPE}}` (e.g., `PaymentsResponseData`) and how the overall `RouterData` status is updated.
   ```rust
-  // impl TryFrom<ResponseRouterData<...>> for {{REQUEST_DATA_TYPE}} { ... }
+  // impl TryFrom<ResponseRouterData<{{FLOW_TYPE}}, {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response, {{REQUEST_DATA_TYPE}}, {{RESPONSE_DATA_TYPE}}>>
+  //   for types::{{RESPONSE_DATA_TYPE_PASCAL_CASE}}RouterData { // e.g. types::PaymentsAuthorizeRouterData
+  //   type Error = error_stack::Report<errors::ConnectorError>;
+  //   fn try_from(item: ResponseRouterData<{{FLOW_TYPE}}, {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response, {{REQUEST_DATA_TYPE}}, {{RESPONSE_DATA_TYPE}}>) -> Result<Self, Self::Error> {
+  //     // let connector_response = item.response;
+  //     // let hyperswitch_status = common_enums::AttemptStatus::from(connector_response.status);
+  //     //
+  //     // let redirection_data = connector_response.redirect_url.map(|url| {
+  //     //   hyperswitch_domain_models::router_response_types::RedirectForm::Form {
+  //     //     endpoint: url,
+  //     //     method: common_utils::request::Method::Get,
+  //     //     form_fields: std::collections::HashMap::new(),
+  //     //   }
+  //     // });
+  //     //
+  //     // Ok(Self {
+  //     //   status: hyperswitch_status,
+  //     //   response: Ok(hyperswitch_domain_models::router_response_types::PaymentsResponseData::TransactionResponse {
+  //     //     resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(connector_response.id),
+  //     //     redirection_data: redirection_data.map(Box::new),
+  //     //     mandate_reference: None,
+  //     //     connector_metadata: None,
+  //     //     network_txn_id: None,
+  //     //     connector_response_reference_id: None,
+  //     //     incremental_authorization_allowed: None,
+  //     //     charges: None,
+  //     //   }),
+  //     //   ..item.data
+  //     // })
+  //   }
+  // }
   ```
 
 #### 6.X.3 Main Logic (`{{connector-name-lowercase}}.rs`)
+- **Instruction**: Provide implementation sketches for the main logic methods for the {{FLOW_NAME}} flow.
 - **`get_url()` Implementation**:
+  - **Instruction**: Show how the full API endpoint URL for this flow is constructed (e.g., by joining `base_url` with the path, potentially including path parameters like a charge ID).
   ```rust
-  // fn get_url(&self, req: &{{REQUEST_DATA_TYPE}}, connectors: &Connectors) -> CustomResult<String, errors::ConnectorError> { ... }
+  // fn get_url(&self, req: &types::{{REQUEST_DATA_TYPE_PASCAL_CASE}}RouterData, connectors: &Connectors) -> CustomResult<String, errors::ConnectorError> {
+  //   // Ok(format!("{}{}", self.base_url(connectors), "/v1/payments")) // Example
+  //   // For capture: Ok(format!("{}{}/charges/{}/capture", self.base_url(connectors), req.request.connector_transaction_id))
+  // }
   ```
 - **`get_request_body()` Implementation**:
+  - **Instruction**: Show how the request body is constructed using the `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request` struct (defined in 6.X.1) and its `TryFrom` implementation.
   ```rust
-  // fn get_request_body(&self, req: &{{REQUEST_DATA_TYPE}}, connectors: &Connectors) -> CustomResult<RequestContent, errors::ConnectorError> { ... }
+  // fn get_request_body(&self, req: &types::{{REQUEST_DATA_TYPE_PASCAL_CASE}}RouterData, connectors: &Connectors) -> CustomResult<RequestContent, errors::ConnectorError> {
+  //   // let connector_router_data = {{CONNECTOR_PASCAL_CASE}}RouterData::try_from((&self.get_currency_unit(), connectors.{{connector-name-lowercase}}.country_alpha2.clone(), req))?;
+  //   // let connector_req = {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Request::try_from(&connector_router_data)?;
+  //   // Ok(RequestContent::Json(Box::new(connector_req)))
+  // }
   ```
-- **`build_request()` Implementation**: (Often uses default from template, verify)
+- **`build_request()` Implementation**: (Often uses default from template, verify if any customization is needed, e.g., specific headers beyond auth and content-type).
 - **`handle_response()` Implementation**:
+  - **Instruction**: Show how the raw HTTP response (`types::Response`) is parsed into `{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response` and then converted to `types::{{RESPONSE_DATA_TYPE_PASCAL_CASE}}RouterData` using the `TryFrom` implementation from 6.X.2. Include logic for handling both successful responses and connector-specific errors that might not be caught by `build_error_response`.
   ```rust
-  // fn handle_response(&self, data: &{{REQUEST_DATA_TYPE}}, event_builder: Option<&mut ConnectorEvent>, res: types::Response) -> CustomResult<{{REQUEST_DATA_TYPE}}, errors::ConnectorError> { ... }
+  // fn handle_response(&self, data: &types::{{REQUEST_DATA_TYPE_PASCAL_CASE}}RouterData, event_builder: Option<&mut ConnectorEvent>, res: types::Response) -> CustomResult<types::{{RESPONSE_DATA_TYPE_PASCAL_CASE}}RouterData, errors::ConnectorError> {
+  //   // if res.status_code indicates success (e.g. 200-299)
+  //   //   let response: {{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response = res.response.parse_struct("{{CONNECTOR_PASCAL_CASE}}{{FLOW_NAME}}Response")?;
+  //   //   event_builder.map(|i| i.set_response_body(&response));
+  //   //   ResponseRouterData {
+  //   //       response,
+  //   //       data: data.clone(),
+  //   //       http_code: res.status_code,
+  //   //   }
+  //   //   .try_into()
+  //   // else
+  //   //   Err(error_stack::report!(errors::ConnectorError::UnexpectedResponseError(res.response.to_vec()))) // Or call build_error_response
+  // }
   ```
 
 ## 7. Connector Specifications (`ConnectorSpecifications` in `{{connector-name-lowercase}}.rs`)
+- **Instruction**: Detail the metadata for {{CONNECTOR_NAME}}.
 - **`get_connector_about()`**:
   ```rust
-  // fn get_connector_about(&self) -> types::ConnectorAbout { ConnectorInfo { name: "{{CONNECTOR_NAME}}", description: "..." } }
+  // fn get_connector_about(&self) -> types::ConnectorAbout {
+  //   types::ConnectorAbout {
+  //     name: "{{connector-name-lowercase}}", // or {{CONNECTOR_NAME}}
+  //     description: "Brief description of {{CONNECTOR_NAME}} and its services.",
+  //     // url: Some("https://{{connector-name-lowercase}}.com"),
+  //     // logo: None, // Or Some("URL_to_logo_if_available_publicly")
+  //     // developer_docs: Some("{{CONNECTOR_API_DOCS_URL}}"),
+  //     // display_name: "{{CONNECTOR_NAME}}",
+  //   }
+  // }
   ```
-- **`get_supported_payment_methods()`**: (List payment methods, card networks, features like refunds, mandates)
+- **`get_supported_payment_methods()`**: (List payment methods (e.g., "card", "wallet"), card networks (e.g., "Visa", "Mastercard"), features like "Refund", "Capture", "MandateOnPayment").
   ```rust
-  // fn get_supported_payment_methods(&self) -> types::SupportedPaymentMethods { ... }
+  // fn get_supported_payment_methods(&self) -> types::SupportedPaymentMethods {
+  //   types::SupportedPaymentMethods {
+  //     // payment_methods: vec![String::from("card")],
+  //     // card_networks: vec![
+  //     //   common_enums::CardNetwork::Visa,
+  //     //   common_enums::CardNetwork::Mastercard,
+  //     // ],
+  //     // features: vec![
+  //     //   types::ConnectorFeature::Capture,
+  //     //   types::ConnectorFeature::Refund { fully: true, partially: true },
+  //     // ],
+  //     // mandate_on_payment: false,
+  //     // ..types::SupportedPaymentMethods::default()
+  //   }
+  // }
   ```
-- **`get_supported_webhook_flows()`**: (List `common_enums::EventClass` if webhooks are supported)
+- **`get_supported_webhook_flows()`**: (List `common_enums::EventClass` if webhooks are supported, e.g., `common_enums::EventClass::Payment`).
 
 ## 8. Webhook Handling (If Applicable)
-- **Webhook Endpoints on Connector Side**:
-- **Events to Handle**: (e.g., `payment.succeeded`, `refund.processed`)
+- **Instruction**: If {{CONNECTOR_NAME}} supports webhooks and they will be integrated, detail the webhook handling. Otherwise, state "Not Applicable".
+- **Webhook Endpoints on Connector Side**: (List URLs or patterns if {{CONNECTOR_NAME}} calls Hyperswitch webhooks)
+- **Events to Handle**: (e.g., `payment.succeeded`, `refund.processed` - list specific event types from {{CONNECTOR_NAME}})
 - **`webhooks::IncomingWebhook` Implementation Sketch (`{{connector-name-lowercase}}.rs`):**
-  - `get_webhook_object_reference_id()`
-  - `get_webhook_event_type()`
-  - `get_webhook_resource_object()`
-  - `get_webhook_api_response()`
-- **Security/Verification**: (e.g., Signature verification details)
+  - `get_webhook_object_reference_id()`: (Show how to extract a reference ID, like payment ID, from the webhook payload)
+  - `get_webhook_event_type()`: (Show how to map connector's event type to `common_enums::WebhookEventType`)
+  - `get_webhook_resource_object()`: (Show how to deserialize the webhook payload into a relevant struct, e.g., `{{CONNECTOR_PASCAL_CASE}}WebhookObject`)
+  - `get_webhook_api_response()`: (Show how to construct the API response to the webhook sender, if needed)
+- **Security/Verification**: (e.g., Signature verification details: header name, algorithm, how to construct the signed payload)
 
 ## 9. Configuration Details
 ### 9.1 Backend (`development.toml`)
+- **Instruction**: Specify the exact TOML configuration structure for {{CONNECTOR_NAME}}.
 ```toml
 [{{connector-name-lowercase}}]
-base_url = "https://api.{{connector-name-lowercase}}.com" # Replace with actual
-# secondary_base_url = "..." # If needed
-# other_specific_configs = "..."
+base_url = "https://api.{{connector-name-lowercase}}.com" # Replace with actual base URL
+# secondary_base_url = "..." # If needed for specific operations (e.g., tokenization)
+# other_specific_configs = "..." # Any other connector-specific config values
 
-[{{connector-name-lowercase}}.connector_auth.HeaderKey] # Or .BodyKey, .SignatureKey etc.
-# api_key = "env_var_for_api_key" # Example, map to actual auth fields
+# Define the authentication block exactly as it should appear in development.toml
+# This must match the fields expected by {{CONNECTOR_PASCAL_CASE}}AuthType
+# Example for HeaderKey:
+[{{connector-name-lowercase}}.connector_auth.HeaderKey]
+# api_key = "env_var_for_api_key" # Example, map to actual auth fields from Section 3
+# secret_key = "env_var_for_secret_key"
+
+# Example for BodyKey:
+# [{{connector-name-lowercase}}.connector_auth.BodyKey]
+# client_id = "env_var_for_client_id"
+# client_secret = "env_var_for_client_secret"
+
+# Example for SignatureKey:
+# [{{connector-name-lowercase}}.connector_auth.SignatureKey]
+# api_login_id = "env_var_for_api_login_id"
+# api_transaction_key = "env_var_for_api_transaction_key"
+# merchant_id = "env_var_for_merchant_id" # If needed for signature
 ```
 ### 9.2 Test Authentication (`sample_auth.toml`)
+- **Instruction**: Specify the TOML structure for `sample_auth.toml` for {{CONNECTOR_NAME}}.
 ```toml
 [{{connector-name-lowercase}}]
-# api_key = "your_sandbox_api_key" # Example, map to actual auth fields
+# api_key = "your_sandbox_api_key" # Example, map to actual auth fields from Section 3
+# secret_key = "your_sandbox_secret_key"
+# client_id = "your_sandbox_client_id"
+# client_secret = "your_sandbox_client_secret"
+# api_login_id = "your_sandbox_api_login_id"
+# api_transaction_key = "your_sandbox_api_transaction_key"
+# merchant_id = "your_sandbox_merchant_id"
 ```
 ### 9.3 Core Enums (`connector_enums.rs`)
+- **Instruction**: Confirm the enum additions.
 - Add `{{CONNECTOR_PASCAL_CASE}}` to `Connector` and `RoutableConnectors` enums.
-- Update `From` and `TryFrom` implementations.
+- Update `From` and `TryFrom` implementations for these enums.
 
 ### 9.4 (Optional) Control Center UI
+- **Instruction**: If UI changes are needed, specify them. Otherwise, state "No UI changes planned initially."
 - **`ConnectorTypes.res`**: Add `| {{CONNECTOR_PASCAL_CASE}}` to `connectorName` type.
 - **`ConnectorUtils.res`**: Update `connectorList`, `getConnectorNameString`, `getConnectorNameTypeFromString`, `getConnectorInfo`, `getDisplayNameForConnectors`.
 - **Icon**: Add `{{CONNECTOR_PASCAL_CASE_UPPERCASE}}.SVG` to `public/hyperswitch/Gateway/`.
-- **Wasm Rebuild Command**: (Include if UI changes are made)
+- **Wasm Rebuild Command**: (Include if UI changes are made: `wasm-pack build --target web --out-dir /path/to/hyperswitch-control-center/public/hyperswitch/wasm --out-name euclid /path/to/hyperswitch/crates/euclid_wasm -- --features dummy_connector`)
 
 ## 10. Testing Strategy
+- **Instruction**: Detail the testing strategy for {{CONNECTOR_NAME}}.
 - **General Tests**:
   - Boilerplate tests from template should pass for each implemented flow.
 - **Specific Test Cases for {{CONNECTOR_NAME}}**:
   - **Authorize Flow**:
-    - Successful authorization.
-    - Authorization declined by connector.
+    - Successful authorization (with and without 3DS if applicable).
+    - Authorization declined by connector (e.g., insufficient funds, invalid card).
     - Invalid API key / auth failure.
     - Missing required fields in request.
-    - (If applicable) 3DS flow.
+    - Invalid field values (e.g., incorrect currency, malformed card number).
   - **Capture Flow**:
     - Successful capture of an authorized payment.
-    - Attempt to capture an unauthorized payment.
-    - Capture with amount mismatch.
+    - Attempt to capture an unauthorized or already captured payment.
+    - Capture with amount mismatch (if connector supports partial capture and it's implemented).
   - **Refund Flow (Execute & Sync)**:
     - Full refund of a captured payment.
-    - Partial refund.
-    - Refund for a non-refundable transaction.
+    - Partial refund (if supported and implemented).
+    - Refund for a non-refundable transaction or already refunded transaction.
   - **PSync Flow**:
     - Sync status for a pending transaction.
-    - Sync status for a completed transaction.
-  - (Add more test cases for other implemented flows and edge cases specific to the connector)
+    - Sync status for a completed (authorized, captured, failed) transaction.
+  - **(Add more test cases for other implemented flows like Void, PaymentMethodTokenization, Webhooks, and any edge cases specific to the connector's behavior or error responses)**
 
 ## 11. Optional: OpenAPI/JSON Schema Generation
+- **Instruction**: If {{CONNECTOR_NAME}} provides an OpenAPI spec or JSON schema that will be used for type generation, provide details. Otherwise, state "Not applicable" or "Manual type definition will be used."
 - If {{CONNECTOR_NAME}} provides an OpenAPI spec or JSON schema:
   - **Schema URL/Path**: [Link or path to schema file]
-  - **Generation Command**: (Include the `openapi-generator` command from Hyperswitch docs, customized for this connector)
-  - **Refinement Notes**: (Mention that generated types in `temp_generated_types.rs` will need manual review and adaptation)
+  - **Generation Command**: (Include the `openapi-generator` command from Hyperswitch docs, customized for this connector: `export CONNECTOR_NAME="{{connector-name-lowercase}}" && export SCHEMA_PATH="<path-to-schema>" && openapi-generator generate -g rust -i ${SCHEMA_PATH} -o temp && cat temp/src/models/* > crates/hyperswitch_connectors/src/connectors/${CONNECTOR_NAME}/temp_generated_types.rs && rm -rf temp && sed -i'' -r "s/^pub use.*//;s/^pub mod.*//;s/^\/.*//;s/^.\*.*//;s/crate::models:://g;" crates/hyperswitch_connectors/src/connectors/${CONNECTOR_NAME}/temp_generated_types.rs && cargo +nightly fmt -- crates/hyperswitch_connectors/src/connectors/${CONNECTOR_NAME}/temp_generated_types.rs`)
+  - **Refinement Notes**: (Mention that generated types in `temp_generated_types.rs` will need manual review, adaptation to Hyperswitch types like `masking::Secret`, `pii::Email`, addition of `serde` attributes, and integration into `transformers.rs`.)
 
 ## 12. Open Questions / Areas for Clarification
-- (List any ambiguities found during API review or mapping that need further discussion or investigation)
+- **Instruction**: List any ambiguities found during API review or mapping that need further discussion or investigation before or during implementation.
+- (E.g., "Clarify if 'transaction_fee' field in response should be stored.", "Confirm exact meaning of status 'XYZ'.")
 ```
 
 Ensure that your specification is extremely detailed, providing specific implementation guidance wherever possible. Include concrete examples for complex features and clearly define interfaces between components.

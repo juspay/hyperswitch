@@ -2,6 +2,241 @@
 
 This document outlines the key data types and transformations used in the connector `transformers.rs` files for mapping Hyperswitch's generic payment models to connector-specific request and response formats.
 
+## Common Patterns and Best Practices
+
+This section highlights essential patterns, common pitfalls, and best practices for implementing type mappings in Hyperswitch connectors.
+
+### Core Type Pattern: The Router Data Wrapper
+
+Almost every connector implements a router data wrapper to bundle Hyperswitch's generic data with connector-specific amount formatting:
+
+```rust
+#[derive(Debug, Serialize)]
+pub struct ConnectorRouterData<T> {
+    pub amount: AmountType, // e.g., MinorUnit, StringMinorUnit, StringMajorUnit
+    pub router_data: T,     // The Hyperswitch data
+}
+```
+
+**Best Practices:**
+- Choose the appropriate amount type based on the connector's API requirements:
+  - `MinorUnit` (i64): For connectors expecting integer amounts in minor units (cents, pence, etc.)
+  - `StringMinorUnit`: For connectors expecting string amounts in minor units
+  - `StringMajorUnit`: For connectors expecting string amounts in major units (dollars, euros, etc.)
+  - `FloatMajorUnit`: For connectors expecting floating-point amounts in major units
+
+- Initialize the connector struct with the correct `amount_converter`:
+  ```rust
+  pub fn new() -> &'static Self {
+      &Self {
+          amount_converter: &MinorUnitForConnector, // Or StringMajorUnitForConnector, etc.
+      }
+  }
+  ```
+
+### Authentication Type Patterns
+
+Connectors implement an authentication type to extract and format credentials:
+
+```rust
+#[derive(Debug, Clone)]
+pub struct ConnectorAuthType {
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
+    // Other connector-specific auth fields
+}
+
+impl TryFrom<&ConnectorAuthType> for ConnectorAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
+                // Map to connector-specific auth fields
+                Ok(Self {
+                    api_key: api_key.to_owned(),
+                    merchant_id: key1.to_owned(),
+                })
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+```
+
+**Best Practices:**
+- Always handle all applicable `ConnectorAuthType` variants (usually at least one of `HeaderKey`, `BodyKey`, or `SignatureKey`)
+- Use appropriate error messages when an unsupported auth type is provided
+- For sensitive data, always use `masking::Secret<String>` to prevent accidental logging
+
+### Payment Method Handling
+
+Most connectors branch based on payment method data type:
+
+```rust
+fn try_from(item: &ConnectorRouterData<&PaymentsAuthorizeData>) -> Result<Self, Self::Error> {
+    match &item.router_data.request.payment_method_data {
+        PaymentMethodData::Card(card) => {
+            // Handle card payments
+            Ok(Self {
+                // Map card fields
+            })
+        },
+        PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            WalletData::GooglePay(_) => {
+                // Handle Google Pay
+            },
+            WalletData::ApplePay(_) => {
+                // Handle Apple Pay
+            },
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "This wallet is not supported".to_string()
+            ).into())
+        },
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "This payment method is not supported".to_string()
+        ).into())
+    }
+}
+```
+
+**Best Practices:**
+- Use granular error messages specifying which payment method isn't supported
+- For payment methods you don't plan to implement, use `errors::ConnectorError::NotImplemented`
+- For branching wallet types, check the specific wallet variant before attempting to extract data
+
+### Status Mapping
+
+Status mapping is critical for consistent behavior across connectors:
+
+```rust
+impl From<ConnectorPaymentStatus> for common_enums::AttemptStatus {
+    fn from(status: ConnectorPaymentStatus) -> Self {
+        match status {
+            ConnectorPaymentStatus::Succeeded => Self::Charged,
+            ConnectorPaymentStatus::Failed => Self::Failure,
+            ConnectorPaymentStatus::Pending => Self::Pending,
+            ConnectorPaymentStatus::RequiresAction => Self::AuthenticationPending,
+        }
+    }
+}
+```
+
+**Best Practices:**
+- Consider capture method when mapping statuses:
+  ```rust
+  match (status, is_auto_capture) {
+      (ConnectorStatus::Approved, true) => AttemptStatus::Charged,
+      (ConnectorStatus::Approved, false) => AttemptStatus::Authorized,
+      // ...
+  }
+  ```
+- Define exhaustive matches to avoid unexpected status mappings
+- Include an "unknown" or "other" variant in your status enum to handle unexpected values from the connector
+
+### Response Transformation
+
+Implement `TryFrom` for transforming connector responses to Hyperswitch router data:
+
+```rust
+impl<F, T> TryFrom<ResponseRouterData<F, ConnectorResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    
+    fn try_from(item: ResponseRouterData<F, ConnectorResponse, T, PaymentsResponseData>) 
+        -> Result<Self, Self::Error> 
+    {
+        let connector_response = item.response;
+        
+        // Map connector status to Hyperswitch status
+        let status = common_enums::AttemptStatus::from(connector_response.status);
+        
+        // Handle redirection if needed
+        let redirection_data = connector_response.redirect_url.map(|url| {
+            Box::new(RedirectForm::Form {
+                endpoint: url,
+                method: Method::Get,
+                form_fields: std::collections::HashMap::new(),
+            })
+        });
+        
+        // Create PaymentsResponseData
+        Ok(Self {
+            status,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_response.id),
+                redirection_data: redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+```
+
+**Best Practices:**
+- Always populate `resource_id` with the connector's transaction ID
+- Handle redirection properly when needed for 3DS or off-site payment methods
+- Store any data needed for future operations (capture, refund) in `connector_metadata`
+- For refunds, use the correct enum for refund status and include the `connector_refund_id`
+
+### Common Mistakes to Avoid
+
+1. **Incorrect Amount Formatting:**
+   - Not matching the connector's expected amount format (minor vs. major, integer vs. string)
+   - Not handling currency decimal places correctly (e.g., JPY has 0 decimal places)
+
+2. **Improper Error Handling:**
+   - Discarding connector error information when mapping to Hyperswitch errors
+   - Not providing specific error messages that help with debugging
+
+3. **Inconsistent Status Mapping:**
+   - Not considering capture method when mapping status
+   - Using inconsistent status mapping between synchronous and webhook responses
+
+4. **Missing Required Fields:**
+   - Not checking if conditional fields are present before accessing them
+   - Not setting required fields in requests even when they're optional in Hyperswitch
+
+5. **Insecure Handling of Sensitive Data:**
+   - Using `String` instead of `Secret<String>` for sensitive data
+   - Unwrapping `Secret` data unnecessarily with `.expose()` when `.peek()` would suffice
+
+6. **Inefficient Transformations:**
+   - Complex nested matches that could be simplified
+   - Redundant cloning of data
+
+### Type Discovery Checklist
+
+When implementing a new connector, ensure you're using appropriate Hyperswitch types:
+
+✅ **For PII data:**
+- `pii::Email` for email addresses
+- `pii::IpAddress` for IP addresses
+- `cards::CardNumber` for card numbers
+- `masking::Secret<String>` for any sensitive data
+
+✅ **For standardized values:**
+- `common_enums::Currency` for currency codes
+- `common_enums::CountryAlpha2` for country codes
+- Custom enums for payment status, refund status, etc.
+
+✅ **For amounts:**
+- Use the correct amount type based on connector requirements
+- Handle conversion in `try_from()` implementations
+
+✅ **For serialization:**
+- Add `#[serde(rename_all = "camelCase")]` (or appropriate case) for structs
+- Use `#[serde(rename = "field_name")]` for individual fields
+- Add `#[serde(skip_serializing_if = "Option::is_none")]` for optional fields
+- Consider `#[serde(default)]` for fields with default values
+
 ---
 
 # ACI Connector Type Mappings
