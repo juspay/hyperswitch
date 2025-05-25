@@ -267,93 +267,105 @@ This implementation follows the pattern established by other connectors in Hyper
 
 ## Phase 5: Payment Capture Implementation
 
-- [ ] Step 32: Create capture request structure
+- [x] Step 32: Create capture request structure
   - **Task**: Define SpreedlyCaptureRequest struct with amount field
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add SpreedlyCaptureRequest struct
   - **Step Dependencies**: Step 31
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Created SpreedlyCaptureRequest struct with transaction field containing amount and currency_code
 
-- [ ] Step 33: Implement capture request conversion
+- [x] Step 33: Implement capture request conversion
   - **Task**: Implement TryFrom for SpreedlyCaptureRequest from router data
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add capture request conversion
   - **Step Dependencies**: Step 32
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Implemented TryFrom<&SpreedlyRouterData<&PaymentsCaptureRouterData>> for SpreedlyCaptureRequest
 
-- [ ] Step 34: Create capture response structure
+- [x] Step 34: Create capture response structure
   - **Task**: Define SpreedlyCaptureResponse struct reusing SpreedlyTransactionResponse
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add type alias or struct
   - **Step Dependencies**: Step 33
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Created type alias SpreedlyCaptureResponse = SpreedlyPaymentsResponse
 
-- [ ] Step 35: Implement PaymentCapture trait methods
+- [x] Step 35: Implement PaymentCapture trait methods
   - **Task**: Implement all required methods for PaymentCapture trait
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly.rs`: Implement PaymentCapture methods
   - **Step Dependencies**: Step 34
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Implemented get_url() and get_request_body() methods for PaymentCapture trait
 
 ## Phase 6: Payment Sync Implementation
 
-- [ ] Step 36: Implement PaymentSync get_url
+- [x] Step 36: Implement PaymentSync get_url
   - **Task**: Implement get_url() method for PaymentSync using transaction token
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly.rs`: Implement PaymentSync get_url()
   - **Step Dependencies**: Step 35
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Implemented get_url() to construct URL with format "/v1/transactions/{transaction_token}.json"
 
-- [ ] Step 37: Implement PaymentSync remaining methods
+- [x] Step 37: Implement PaymentSync remaining methods
   - **Task**: Implement handle_response() and error handling methods for PaymentSync
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly.rs`: Complete PaymentSync implementation
   - **Step Dependencies**: Step 36
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - All PaymentSync methods were already implemented (handle_response() and get_error_response())
 
 ## Phase 7: Refund Implementation
 
-- [ ] Step 38: Define refund status enum
+- [x] Step 38: Define refund status enum
   - **Task**: Create SpreedlyRefundStatus enum and implement conversion to RefundStatus
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add SpreedlyRefundStatus enum
   - **Step Dependencies**: Step 37
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Created SpreedlyRefundStatus enum with succeeded, failed, processing, and pending states
 
-- [ ] Step 39: Create refund request structures
+- [x] Step 39: Create refund request structures
   - **Task**: Define SpreedlyRefundTransaction and SpreedlyRefundRequest structs
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add refund request structs
   - **Step Dependencies**: Step 38
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Created SpreedlyRefundRequest with transaction field containing SpreedlyRefundTransaction
 
-- [ ] Step 40: Implement refund request conversion
+- [x] Step 40: Implement refund request conversion
   - **Task**: Implement TryFrom for SpreedlyRefundRequest
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add refund conversion
   - **Step Dependencies**: Step 39
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - TryFrom implementation converts amount and currency for refund request
 
-- [ ] Step 41: Create refund response structure
+- [x] Step 41: Create refund response structure
   - **Task**: Define SpreedlyRefundResponse struct
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add SpreedlyRefundResponse
   - **Step Dependencies**: Step 40
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Created SpreedlyRefundResponse with transaction field containing SpreedlyRefundTransactionResponse
 
-- [ ] Step 42: Implement RefundExecute trait
+- [x] Step 42: Implement RefundExecute trait
   - **Task**: Implement all methods for RefundExecute trait
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly.rs`: Implement RefundExecute methods
   - **Step Dependencies**: Step 41
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Implemented get_url() to construct "/v1/transactions/{token}/credit.json" endpoint
 
-- [ ] Step 43: Implement RefundSync trait
+- [x] Step 43: Implement RefundSync trait
   - **Task**: Implement all methods for RefundSync trait
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly.rs`: Implement RefundSync methods
   - **Step Dependencies**: Step 42
   - **User Instructions**: Run `cargo build` to verify compilation
+  - **Status**: ✅ Completed - Implemented get_url() using refund_id, imported RefundsRequestData trait
 
 ## Phase 8: Testing and Final Integration
 

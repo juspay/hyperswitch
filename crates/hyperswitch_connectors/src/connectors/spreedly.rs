@@ -40,7 +40,7 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface};
 use transformers as spreedly;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{self, RefundsRequestData}};
 
 #[derive(Clone)]
 pub struct Spreedly {
@@ -293,10 +293,16 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = self.base_url(connectors);
+        let transaction_token = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!("{}/v1/transactions/{}.json", base_url, transaction_token))
     }
 
     fn build_request(
@@ -357,18 +363,28 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = self.base_url(connectors);
+        let transaction_token = req.request.connector_transaction_id.clone();
+        Ok(format!("{}/v1/transactions/{}/capture.json", base_url, transaction_token))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = spreedly::SpreedlyRouterData::from((amount, req));
+        let connector_req = spreedly::SpreedlyCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -436,10 +452,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = self.base_url(connectors);
+        let transaction_token = req.request.connector_transaction_id.clone();
+        Ok(format!("{}/v1/transactions/{}/credit.json", base_url, transaction_token))
     }
 
     fn get_request_body(
@@ -483,7 +501,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: spreedly::RefundResponse = res
+        let response: spreedly::SpreedlyRefundResponse = res
             .response
             .parse_struct("spreedly RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -520,10 +538,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = self.base_url(connectors);
+        let refund_id = req
+            .request
+            .get_connector_refund_id()
+            .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
+        Ok(format!("{}/v1/transactions/{}.json", base_url, refund_id))
     }
 
     fn build_request(
@@ -550,7 +573,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: spreedly::RefundResponse = res
+        let response: spreedly::SpreedlyRefundResponse = res
             .response
             .parse_struct("spreedly RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
