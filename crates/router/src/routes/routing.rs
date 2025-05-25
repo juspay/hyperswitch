@@ -22,7 +22,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -38,8 +38,10 @@ pub async fn routing_create_config(
                 state,
                 merchant_context,
                 auth.profile_id,
-                payload,
-                transaction_type,
+                payload.clone(),
+                transaction_type
+                    .or(payload.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         #[cfg(not(feature = "release"))]
@@ -114,7 +116,8 @@ pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::RoutingId>,
-    transaction_type: &enums::TransactionType,
+    json_payload: web::Json<routing_types::RoutingActivatePayload>,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -131,7 +134,9 @@ pub async fn routing_link_config(
                 merchant_context,
                 auth.profile_id,
                 algorithm,
-                transaction_type,
+                transaction_type
+                    .or(json_payload.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         #[cfg(not(feature = "release"))]
@@ -304,7 +309,7 @@ pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingRetrieveDictionary;
     Box::pin(oss_api::server_wrap(
@@ -320,8 +325,10 @@ pub async fn list_routing_configs(
                 state,
                 merchant_context,
                 None,
-                query_params,
-                transaction_type,
+                query_params.clone(),
+                transaction_type
+                    .or(query_params.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         #[cfg(not(feature = "release"))]
@@ -350,7 +357,7 @@ pub async fn list_routing_configs_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingRetrieveDictionary;
     Box::pin(oss_api::server_wrap(
@@ -366,8 +373,10 @@ pub async fn list_routing_configs_for_profile(
                 state,
                 merchant_context,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
-                query_params,
-                transaction_type,
+                query_params.clone(),
+                transaction_type
+                    .or(query_params.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         #[cfg(not(feature = "release"))]
@@ -444,7 +453,7 @@ pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingUnlinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -459,9 +468,11 @@ pub async fn routing_unlink_config(
             routing::unlink_routing_config(
                 state,
                 merchant_context,
-                payload_req,
+                payload_req.clone(),
                 auth.profile_id,
-                transaction_type,
+                transaction_type
+                    .or(payload_req.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         #[cfg(not(feature = "release"))]
@@ -969,7 +980,7 @@ pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<routing_types::RoutingRetrieveLinkQuery>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
     let flow = Flow::RoutingRetrieveActiveConfig;
@@ -989,7 +1000,9 @@ pub async fn routing_retrieve_linked_config(
                     merchant_context,
                     auth.profile_id,
                     query_params,
-                    transaction_type,
+                    transaction_type
+                        .or(query.transaction_type)
+                        .unwrap_or(enums::TransactionType::Payment),
                 )
             },
             #[cfg(not(feature = "release"))]
@@ -1027,7 +1040,9 @@ pub async fn routing_retrieve_linked_config(
                     merchant_context,
                     auth.profile_id,
                     query_params,
-                    transaction_type,
+                    transaction_type
+                        .or(query.transaction_type)
+                        .unwrap_or(enums::TransactionType::Payment),
                 )
             },
             #[cfg(not(feature = "release"))]

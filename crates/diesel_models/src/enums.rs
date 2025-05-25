@@ -54,6 +54,7 @@ pub enum RoutingAlgorithmKind {
     VolumeSplit,
     Advanced,
     Dynamic,
+    ThreeDsDecisionRule,
 }
 
 #[derive(

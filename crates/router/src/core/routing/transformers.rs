@@ -83,6 +83,7 @@ impl ForeignFrom<storage_enums::RoutingAlgorithmKind> for RoutingAlgorithmKind {
             storage_enums::RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             storage_enums::RoutingAlgorithmKind::Advanced => Self::Advanced,
             storage_enums::RoutingAlgorithmKind::Dynamic => Self::Dynamic,
+            storage_enums::RoutingAlgorithmKind::ThreeDsDecisionRule => Self::ThreeDsDecisionRule,
         }
     }
 }
@@ -95,6 +96,7 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
             RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             RoutingAlgorithmKind::Advanced => Self::Advanced,
             RoutingAlgorithmKind::Dynamic => Self::Dynamic,
+            RoutingAlgorithmKind::ThreeDsDecisionRule => Self::ThreeDsDecisionRule,
         }
     }
 }

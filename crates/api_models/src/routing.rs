@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use common_utils::{errors::ParsingError, ext_traits::ValueExt, pii};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
@@ -48,6 +49,7 @@ pub struct RoutingConfigRequest {
     pub algorithm: Option<RoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -61,11 +63,18 @@ pub struct ProfileDefaultRoutingConfig {
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
+    pub transaction_type: Option<TransactionType>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingActivatePayload {
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -280,6 +289,7 @@ pub enum RoutingAlgorithmKind {
     VolumeSplit,
     Advanced,
     Dynamic,
+    ThreeDsDecisionRule,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -302,6 +312,16 @@ pub enum RoutingAlgorithm {
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
     Advanced(ast::Program<ConnectorSelection>),
+    ThreeDsDecisionRule(ast::Program<ThreeDSDecisionRule>),
+}
+
+impl RoutingAlgorithm {
+    pub fn should_validate_connectors_in_routing_config(&self) -> bool {
+        match self {
+            Self::Single(_) | Self::Priority(_) | Self::VolumeSplit(_) | Self::Advanced(_) => true,
+            Self::ThreeDsDecisionRule(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -311,6 +331,7 @@ pub enum RoutingAlgorithmSerde {
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     Advanced(ast::Program<ConnectorSelection>),
+    ThreeDsDecisionRule(ast::Program<ThreeDSDecisionRule>),
 }
 
 impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
@@ -335,6 +356,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
             RoutingAlgorithmSerde::Priority(i) => Self::Priority(i),
             RoutingAlgorithmSerde::VolumeSplit(i) => Self::VolumeSplit(i),
             RoutingAlgorithmSerde::Advanced(i) => Self::Advanced(i),
+            RoutingAlgorithmSerde::ThreeDsDecisionRule(i) => Self::ThreeDsDecisionRule(i),
         })
     }
 }
@@ -437,6 +459,7 @@ impl RoutingAlgorithm {
             Self::Priority(_) => RoutingAlgorithmKind::Priority,
             Self::VolumeSplit(_) => RoutingAlgorithmKind::VolumeSplit,
             Self::Advanced(_) => RoutingAlgorithmKind::Advanced,
+            Self::ThreeDsDecisionRule(_) => RoutingAlgorithmKind::ThreeDsDecisionRule,
         }
     }
 }
