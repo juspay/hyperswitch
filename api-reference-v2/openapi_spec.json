@@ -4610,9 +4610,7 @@
             "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
           },
           {
-            "type": "object",
-            "default": null,
-            "nullable": true
+            "$ref": "#/components/schemas/NullObject"
           }
         ]
       },
