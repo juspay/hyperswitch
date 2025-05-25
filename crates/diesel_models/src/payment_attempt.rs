@@ -826,7 +826,7 @@ pub enum PaymentAttemptUpdate {
 
 // TODO: uncomment fields as and when required
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
     pub status: Option<storage_enums::AttemptStatus>,
@@ -873,6 +873,68 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_error_message: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+impl PaymentAttemptUpdateInternal {
+    pub fn apply_changeset(self, source: PaymentAttempt) -> PaymentAttempt {
+        let Self {
+            status,
+            authentication_type,
+            error_message,
+            connector_payment_id,
+            modified_at,
+            browser_info,
+            error_code,
+            connector_metadata,
+            error_reason,
+            amount_capturable,
+            amount_to_capture,
+            updated_by,
+            merchant_connector_id,
+            connector,
+            redirection_data,
+            unified_code,
+            unified_message,
+            connector_token_details,
+            feature_metadata,
+            network_decline_code,
+            network_advice_code,
+            network_error_message,
+        } = self;
+
+        PaymentAttempt {
+            status: status.unwrap_or(source.status),
+            authentication_type: authentication_type.unwrap_or(source.authentication_type),
+            error_message: error_message.or(source.error_message),
+            // FIX : how to populate connector_payment_id
+            // connector_payment_id: connector_payment_id
+            //     .map(ConnectorTransactionId::new_id)
+            //     .or(source.connector_payment_id),
+            modified_at : common_utils::date_time::now(),
+            browser_info: browser_info
+                .and_then(|val| {
+                    serde_json::from_value::<common_utils::types::BrowserInformation>(val).ok()
+                })
+                .or(source.browser_info),
+            error_code: error_code.or(source.error_code),
+            connector_metadata: connector_metadata.or(source.connector_metadata),
+            error_reason: error_reason.or(source.error_reason),
+            amount_capturable: amount_capturable.unwrap_or(source.amount_capturable),
+            amount_to_capture: amount_to_capture.or(source.amount_to_capture),
+            updated_by,
+            merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
+            connector: connector.or(source.connector),
+            redirection_data: redirection_data.or(source.redirection_data),
+            unified_code: unified_code.flatten().or(source.unified_code),
+            unified_message: unified_message.flatten().or(source.unified_message),
+            connector_token_details: connector_token_details.or(source.connector_token_details),
+            feature_metadata: feature_metadata.or(source.feature_metadata),
+            network_decline_code: network_decline_code.or(source.network_decline_code),
+            network_advice_code: network_advice_code.or(source.network_advice_code),
+            network_error_message: network_error_message.or(source.network_error_message),
+            ..source
+        }
+    }
+}
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]

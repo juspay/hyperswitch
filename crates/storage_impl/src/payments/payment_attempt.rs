@@ -48,6 +48,9 @@ use crate::{
 #[cfg(feature = "v2")]
 use label::*;
 
+#[cfg(feature ="v2")]
+use crate::kv_router_store::UpdateResourceParams;
+
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     type Error = errors::StorageError;
@@ -975,19 +978,65 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         this: PaymentAttempt,
-        payment_attempt: PaymentAttemptUpdate,
+        payment_attempt_update: PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        // Ignoring storage scheme for v2 implementation
-        self.router_store
-            .update_payment_attempt(
-                key_manager_state,
-                merchant_key_store,
-                this,
-                payment_attempt,
-                storage_scheme,
-            )
+
+        let payment_attempt = Conversion::convert(this.clone())
             .await
+            .change_context(errors::StorageError::DecryptionError)?;
+
+        let key = PartitionKey::GlobalPaymentId {
+                    id: &this.payment_id,
+        };
+        
+        let field = format!("{}_{}", label::CLUSTER_LABEL, this.id.get_string_repr()); 
+        let conn = pg_connection_write(self).await?;
+
+        let payment_attempt_internal =
+            diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt_update);
+        let updated_payment_attempt =
+            payment_attempt_internal
+                .clone()
+                .apply_changeset(payment_attempt.clone());
+
+        let updated_by = (&updated_payment_attempt).updated_by.to_owned();
+
+        self.update_resource(
+            key_manager_state,
+            merchant_key_store,
+            storage_scheme,
+            payment_attempt.clone().update_with_attempt_id(
+                &conn,
+                payment_attempt_internal.clone()
+            ),
+            updated_payment_attempt,
+            UpdateResourceParams {
+                updateable : kv::Updateable::PaymentAttemptUpdate(
+                    Box::new(
+                        kv::PaymentAttemptUpdateMems {
+                            orig : payment_attempt,
+                            update_data : payment_attempt_internal
+                        }
+                    )
+                ),
+                operation : Op::Update(
+                    key.clone(),
+                    &field,
+                    Some(updated_by.as_str()),
+                )
+            }
+        ).await
+        // Ignoring storage scheme for v2 implementation
+        // self.router_store
+        //     .update_payment_attempt(
+        //         key_manager_state,
+        //         merchant_key_store,
+        //         this,
+        //         payment_attempt,
+        //         storage_scheme,
+        //     )
+        //     .await
     }
 
     #[cfg(feature = "v1")]
