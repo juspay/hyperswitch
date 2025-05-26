@@ -258,6 +258,26 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    // Call to DE here
+    // Check if creation should be based on default profile
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
@@ -1171,6 +1191,25 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
+    // Call to DE here
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled && is_deleted {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -1650,6 +1689,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Tokenio => {
+            //     tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Tsys => {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -4387,7 +4430,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
                 force_3ds_challenge: self.force_3ds_challenge, //
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
@@ -4523,7 +4566,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: self.is_external_vault_enabled,

@@ -8295,7 +8295,7 @@ pub trait OperationSessionSetters<F> {
     fn set_card_network(&mut self, card_network: enums::CardNetwork);
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     );
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
@@ -8546,11 +8546,11 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         let co_badged_card_data =
-            api_models::payment_methods::CoBadgedCardData::from(debit_routing_ouput);
-        let card_type = debit_routing_ouput
+            api_models::payment_methods::CoBadgedCardData::from(debit_routing_output);
+        let card_type = debit_routing_output
             .card_type
             .clone()
             .to_string()
@@ -8801,7 +8801,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
@@ -9060,7 +9060,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
@@ -9291,7 +9291,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
@@ -9532,7 +9532,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }

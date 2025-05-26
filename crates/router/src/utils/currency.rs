@@ -381,7 +381,7 @@ pub async fn fetch_forex_rates_from_fallback_api(
         .await
         .change_context(ForexError::ParsingError)
         .attach_printable(
-            "Unable to parse response received from falback api into ForexResponse",
+            "Unable to parse response received from fallback api into ForexResponse",
         )?;
 
     logger::info!(fallback_forex_response=?fallback_forex_response,"forex_log");
