@@ -3610,7 +3610,7 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     // The wallet data for Mifinity Ewallet
     Mifinity(MifinityData),
-    // The wallet data for Mifinity RevolutPay
+    // The wallet data for RevolutPay
     RevolutPay(RevolutPayData),
 }
 
