@@ -37,7 +37,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
       fail-fast: true
       matrix:
         runner:
-          - ubuntu-24.04
+          - ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -163,7 +163,7 @@ jobs:
       fail-fast: true
       matrix:
         runner:
-          - ubuntu-24.04
+          - ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -234,7 +234,7 @@ jobs:
 
   typos:
     name: Spell check
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -244,7 +244,7 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
