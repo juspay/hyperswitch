@@ -18948,7 +18948,8 @@
           "mifinity",
           "open_banking_pis",
           "direct_carrier_billing",
-          "instant_bank_transfer"
+          "instant_bank_transfer",
+          "revolut_pay"
         ]
       },
       "PaymentMethodUpdate": {
@@ -28677,6 +28678,17 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
               }
             }
           }
