@@ -148,11 +148,11 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      - name: Cargo check release features
+      - name: Cargo hack
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: cargo check --features "release"
+        run: just ci_hack
 
   # cargo-deny:
   #   name: Run cargo-deny
