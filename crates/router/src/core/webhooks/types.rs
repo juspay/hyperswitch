@@ -88,9 +88,27 @@ impl WebhookResponse {
     pub async fn get_outgoing_webhook_response_content(
         self,
     ) -> webhook_events::OutgoingWebhookResponseContent {
-        let status_code = self.response.status();
-        let response_headers = self
-            .response
+        webhook_events::OutgoingWebhookResponseContent {
+            status_code: Some(self.response.status().as_u16()),
+            headers: Some(self.get_header()),
+            body: Some(self.get_body().await),
+            error_message: None,
+        }
+    }
+
+    async fn get_body(self) -> Secret<String> {
+        self.response
+            .text()
+            .await
+            .map(Secret::from)
+            .unwrap_or_else(|error| {
+                logger::warn!("Response contains non-UTF-8 characters: {error:?}");
+                Secret::from(String::from("Non-UTF-8 response body"))
+            })
+    }
+
+    fn get_header(&self) -> Vec<(String, Secret<String>)> {
+        self.response
             .headers()
             .iter()
             .map(|(name, value)| {
@@ -108,21 +126,6 @@ impl WebhookResponse {
                         }),
                 )
             })
-            .collect::<Vec<_>>();
-        let response_body = self
-            .response
-            .text()
-            .await
-            .map(Secret::from)
-            .unwrap_or_else(|error| {
-                logger::warn!("Response contains non-UTF-8 characters: {error:?}");
-                Secret::from(String::from("Non-UTF-8 response body"))
-            });
-        webhook_events::OutgoingWebhookResponseContent {
-            body: Some(response_body),
-            headers: Some(response_headers),
-            status_code: Some(status_code.as_u16()),
-            error_message: None,
-        }
+            .collect::<Vec<_>>()
     }
 }
