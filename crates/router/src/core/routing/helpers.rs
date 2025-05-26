@@ -457,6 +457,12 @@ impl RoutingAlgorithmHelpers<'_> {
                     check_connector_selection(&rule.connector_selection)?;
                 }
             }
+
+            routing_types::RoutingAlgorithm::ThreeDsDecisionRule(_) => {
+                return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid routing algorithm three_ds decision rule received",
+                )?;
+            }
         }
 
         Ok(())

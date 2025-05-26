@@ -326,6 +326,7 @@ pub enum RoutingAlgorithm {
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
     Advanced(ast::Program<ConnectorSelection>),
+    #[schema(value_type=ProgramConnectorSelection)]
     ThreeDsDecisionRule(ast::Program<ThreeDSDecisionRule>),
 }
 

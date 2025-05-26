@@ -26124,6 +26124,24 @@
                 "$ref": "#/components/schemas/ProgramConnectorSelection"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_decision_rule"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramConnectorSelection"
+              }
+            }
           }
         ],
         "description": "Routing Algorithm kind",
@@ -26138,7 +26156,8 @@
           "priority",
           "volume_split",
           "advanced",
-          "dynamic"
+          "dynamic",
+          "three_ds_decision_rule"
         ]
       },
       "RoutingConfigRequest": {
@@ -26162,6 +26181,14 @@
           },
           "profile_id": {
             "type": "string",
+            "nullable": true
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -27839,7 +27866,8 @@
         "type": "string",
         "enum": [
           "payment",
-          "payout"
+          "payout",
+          "three_ds_authentication"
         ]
       },
       "TriggeredBy": {

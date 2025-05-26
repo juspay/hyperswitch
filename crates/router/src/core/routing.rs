@@ -818,6 +818,8 @@ pub async fn unlink_routing_config_under_profile(
         enums::TransactionType::Payment => business_profile.routing_algorithm_id.clone(),
         #[cfg(feature = "payouts")]
         enums::TransactionType::Payout => business_profile.payout_routing_algorithm_id.clone(),
+        // TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
+        enums::TransactionType::ThreeDsAuthentication => todo!(),
     };
 
     if let Some(algorithm_id) = routing_algo_id {
