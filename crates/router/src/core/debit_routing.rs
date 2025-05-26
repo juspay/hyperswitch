@@ -49,10 +49,17 @@ where
         let debit_routing_config = state.conf.debit_routing_config.clone();
         let debit_routing_supported_connectors = debit_routing_config.supported_connectors.clone();
 
-        if let Some((call_connector_type, acquirer_country)) = connector
-            .clone()
-            .zip(business_profile.merchant_business_country)
-        {
+        // If the business profile does not have a country set, we cannot perform debit routing,
+        // because the merchant_business_country will be treated as the acquirer_country,
+        // which is used to determine whether a transaction is local or global in the open router.
+        // For now, since debit routing is only implemented for USD, we can safely assume the
+        // acquirer_country is US if not provided by the merchant.
+
+        let acquirer_country = business_profile
+            .merchant_business_country
+            .unwrap_or_default();
+
+        if let Some(call_connector_type) = connector.clone() {
             debit_routing_output = match call_connector_type {
                 ConnectorCallType::PreDetermined(connector_data) => {
                     logger::info!("Performing debit routing for PreDetermined connector");
@@ -117,7 +124,6 @@ where
 {
     if business_profile.is_debit_routing_enabled
         && state.conf.open_router.enabled
-        && business_profile.merchant_business_country.is_some()
     {
         logger::info!("Debit routing is enabled for the profile");
 
