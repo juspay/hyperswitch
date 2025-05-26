@@ -16,6 +16,7 @@ mod bambora;
 mod bamboraapac;
 #[cfg(feature = "dummy_connector")]
 mod bankofamerica;
+mod barclaycard;
 #[cfg(feature = "dummy_connector")]
 mod billwerk;
 mod bitpay;
@@ -61,6 +62,7 @@ mod nexixpay;
 mod nmi;
 mod nomupay;
 mod noon;
+mod nordea;
 mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
@@ -88,6 +90,7 @@ mod stax;
 mod stripe;
 mod stripebilling;
 mod taxjar;
+mod tokenio;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;

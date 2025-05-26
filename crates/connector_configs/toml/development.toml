@@ -977,24 +977,6 @@ merchant_secret="Source verification key"
   payment_method_type = "CartesBancaires"
 [[bluesnap.credit]]
   payment_method_type = "UnionPay"
-[[bluesnap.debit]]
-  payment_method_type = "Mastercard"
-[[bluesnap.debit]]
-  payment_method_type = "Visa"
-[[bluesnap.debit]]
-  payment_method_type = "Interac"
-[[bluesnap.debit]]
-  payment_method_type = "AmericanExpress"
-[[bluesnap.debit]]
-  payment_method_type = "JCB"
-[[bluesnap.debit]]
-  payment_method_type = "DinersClub"
-[[bluesnap.debit]]
-  payment_method_type = "Discover"
-[[bluesnap.debit]]
-  payment_method_type = "CartesBancaires"
-[[bluesnap.debit]]
-  payment_method_type = "UnionPay"
 [[bluesnap.wallet]]
   payment_method_type = "google_pay"
 [[bluesnap.wallet]]
@@ -5836,6 +5818,8 @@ api_secret="Secret Key"
   key1="Username"
 
 [archipel]
+[archipel.connector_auth.HeaderKey]
+api_key="Enter CA Certificate PEM"
 [[archipel.credit]]
 payment_method_type = "Mastercard"
 [[archipel.credit]]

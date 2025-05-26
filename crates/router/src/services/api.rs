@@ -122,6 +122,8 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
         Req,
         Res,
     >;
+pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
 
 fn store_full_response_if_required<
     T,
