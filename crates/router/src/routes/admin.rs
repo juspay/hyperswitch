@@ -695,7 +695,7 @@ pub async fn connector_list(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
-    operation_id = "List all Merchant Connectors",
+    operation_id = "List all Merchant Connectors Admin",
     security(("admin_api_key" = []))
 )]
 #[cfg(feature = "v1")]
