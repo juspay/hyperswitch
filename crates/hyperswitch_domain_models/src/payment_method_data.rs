@@ -949,7 +949,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                     language_preference: mifinity_data.language_preference,
                 })
             }
-            api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPay {}),
+            api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
         }
     }
 }
