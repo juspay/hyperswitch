@@ -438,7 +438,7 @@ pub async fn generate_sample_data(
                     amount: StringMinorUnitForConnector::convert(
                         &StringMinorUnitForConnector,
                         MinorUnit::new(amount * 100),
-                        payment_intent.currency.unwrap_or(currency),
+                        currency,
                     )
                     .change_context(SampleDataError::InternalServerError)?,
                     currency: currency.to_string(),

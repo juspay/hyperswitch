@@ -1300,7 +1300,7 @@ impl webhooks::IncomingWebhook for Checkout {
 
         let amount = utils::convert_amount(
             self.amount_converter_webhooks,
-            MinorUnit::new(i64::from(dispute_details.data.amount)),
+            dispute_details.data.amount,
             dispute_details.data.currency,
         )?;
 

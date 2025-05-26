@@ -93,14 +93,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Stripe {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    amount_converter_1: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Stripe {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
-            amount_converter_1: &StringMinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -2264,7 +2264,7 @@ impl IncomingWebhook for Stripe {
 
         Ok(DisputePayload {
             amount: utils::convert_amount(
-                self.amount_converter_1,
+                self.amount_converter_webhooks,
                 MinorUnit::new(amt),
                 details.event_data.event_object.currency,
             )?,

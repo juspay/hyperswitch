@@ -60,16 +60,18 @@ use crate::{
 #[derive(Clone)]
 pub struct Trustpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_1: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
-    amount_converter_2: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_to_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_to_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Trustpay {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
-            amount_converter_1: &FloatMajorUnitForConnector,
-            amount_converter_2: &StringMinorUnitForConnector,
+            amount_converter_to_float_major_unit: &FloatMajorUnitForConnector,
+            amount_converter_to_string_minor_unit: &StringMinorUnitForConnector,
         }
     }
 }
@@ -973,13 +975,13 @@ impl webhooks::IncomingWebhook for Trustpay {
             .payment_id
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let amount = utils::convert_back_amount_to_minor_units(
-            self.amount_converter_1,
+            self.amount_converter_to_float_major_unit,
             payment_info.amount.amount,
             payment_info.amount.currency,
         )?;
         Ok(DisputePayload {
             amount: utils::convert_amount(
-                self.amount_converter_2,
+                self.amount_converter_to_string_minor_unit,
                 amount,
                 payment_info.amount.currency,
             )?,

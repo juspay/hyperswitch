@@ -89,14 +89,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Paypal {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_1: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Paypal {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
-            amount_converter_1: &StringMinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -2036,7 +2036,7 @@ impl IncomingWebhook for Paypal {
                 )?;
                 Ok(disputes::DisputePayload {
                     amount: connector_utils::convert_amount(
-                        self.amount_converter_1,
+                        self.amount_converter_webhooks,
                         amt,
                         payload.dispute_amount.currency_code,
                     )?,
