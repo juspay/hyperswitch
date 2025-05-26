@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 
-use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
+use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisionRule};
 use common_utils::{
     errors::{ParsingError, ValidationError},
     ext_traits::ValueExt,
     pii,
 };
+use euclid::frontend::ast::Program;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -325,9 +326,28 @@ pub enum RoutingAlgorithm {
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
-    Advanced(ast::Program<ConnectorSelection>),
-    #[schema(value_type=ProgramConnectorSelection)]
-    ThreeDsDecisionRule(ast::Program<ThreeDSDecisionRule>),
+    Advanced(Program<ConnectorSelection>),
+    #[schema(value_type=ProgramThreeDsDecisionRule)]
+    ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgramThreeDsDecisionRule {
+    pub default_selection: ThreeDSDecisionRule,
+    #[schema(value_type = RuleThreeDsDecisionRule)]
+    pub rules: Vec<ast::Rule<ThreeDSDecisionRule>>,
+    #[schema(value_type = HashMap<String, serde_json::Value>)]
+    pub metadata: std::collections::HashMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleThreeDsDecisionRule {
+    pub name: String,
+    pub connector_selection: ThreeDSDecision,
+    #[schema(value_type = Vec<IfStatement>)]
+    pub statements: Vec<ast::IfStatement>,
 }
 
 impl RoutingAlgorithm {
@@ -345,8 +365,8 @@ pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    Advanced(ast::Program<ConnectorSelection>),
-    ThreeDsDecisionRule(ast::Program<ThreeDSDecisionRule>),
+    Advanced(Program<ConnectorSelection>),
+    ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
 }
 
 impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
