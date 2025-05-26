@@ -123,6 +123,26 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
         Res,
     >;
 
+fn store_full_response_if_required<
+    T,
+    Req: Debug + Clone + 'static,
+    Resp: Debug + Clone + 'static,
+>(
+    all_keys_required: Option<bool>,
+    response: &[u8],
+    data: &mut types::RouterData<T, Req, Resp>,
+) -> Result<(), Report<errors::ConnectorError>> {
+    if all_keys_required == Some(true) {
+        let mut decoded = String::from_utf8(response.to_vec())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if decoded.starts_with('\u{feff}') {
+            decoded = decoded.trim_start_matches('\u{feff}').to_string();
+        }
+        data.whole_connector_response = Some(decoded);
+    }
+    Ok(())
+}
+
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
@@ -300,16 +320,11 @@ where
                                                         val + external_latency
                                                     }),
                                             );
-                                            if all_keys_required == Some(true) {
-                                                let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
-                                                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                                                if decoded.starts_with('\u{feff}') {
-                                                    decoded = decoded
-                                                        .trim_start_matches('\u{feff}')
-                                                        .to_string();
-                                                }
-                                                data.whole_connector_response = Some(decoded);
-                                            }
+                                            let _ = store_full_response_if_required(
+                                                all_keys_required,
+                                                body.response.as_ref(),
+                                                &mut data,
+                                            );
                                             Ok(data)
                                         }
                                         Err(err) => {
@@ -334,6 +349,12 @@ where
                                             "connector",
                                             req.connector.clone(),
                                         )),
+                                    );
+
+                                    let _ = store_full_response_if_required(
+                                        all_keys_required,
+                                        body.response.as_ref(),
+                                        &mut router_data,
                                     );
 
                                     let error = match body.status_code {
