@@ -1,4 +1,7 @@
-use common_utils::{custom_serde, types::StringMinorUnit};
+use common_utils::{
+    custom_serde,
+    types::{MinorUnit, StringMinorUnit},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::Serialize;
@@ -29,7 +32,7 @@ pub struct DisputeNew {
     pub evidence: Option<Secret<serde_json::Value>>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub dispute_amount: i64,
+    pub dispute_amount: MinorUnit,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub dispute_currency: Option<storage_enums::Currency>,
 }
@@ -60,7 +63,7 @@ pub struct Dispute {
     pub evidence: Secret<serde_json::Value>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub dispute_amount: i64,
+    pub dispute_amount: MinorUnit,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub dispute_currency: Option<storage_enums::Currency>,
 }

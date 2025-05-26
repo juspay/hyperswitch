@@ -99,15 +99,14 @@ const ADYEN_API_VERSION: &str = "v68";
 #[derive(Clone)]
 pub struct Adyen {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    amount_converter_string_major_unit:
-        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Adyen {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
-            amount_converter_string_major_unit: &StringMinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1883,7 +1882,7 @@ impl IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         let amount = convert_amount(
-            self.amount_converter_string_major_unit,
+            self.amount_converter_webhooks,
             notif.amount.value,
             notif.amount.currency,
         )?;

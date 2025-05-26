@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -969,13 +969,10 @@ impl webhooks::IncomingWebhook for Novalnet {
 
         let dispute_status =
             novalnet::get_novalnet_dispute_status(notif.event.event_type).to_string();
-        let amount_u64 = novalnet::option_to_result(amount)?;
-        let amt = i64::try_from(amount_u64)
-            .map_err(|_| errors::ConnectorError::AmountConversionFailed)?;
         Ok(disputes::DisputePayload {
             amount: utils::convert_amount(
                 self.amount_converter,
-                MinorUnit::new(amt),
+                amount.ok_or(errors::ConnectorError::AmountConversionFailed)?,
                 novalnet::option_to_result(currency)?,
             )?,
             currency: novalnet::option_to_result(currency)?,

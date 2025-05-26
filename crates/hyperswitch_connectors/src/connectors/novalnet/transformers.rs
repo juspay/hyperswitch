@@ -4,7 +4,11 @@ use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
-    consts, ext_traits::OptionExt, pii::Email, request::Method, types::StringMinorUnit,
+    consts,
+    ext_traits::OptionExt,
+    pii::Email,
+    request::Method,
+    types::{MinorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -560,7 +564,7 @@ pub struct ResultData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponseTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
@@ -732,7 +736,7 @@ pub struct NovalnetAuthorizationResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetSyncResponseTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
@@ -898,7 +902,7 @@ pub struct NovalnetRefundSyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundsTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
@@ -1097,7 +1101,7 @@ impl<F>
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub capture: CaptureData,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,

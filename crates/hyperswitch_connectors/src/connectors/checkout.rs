@@ -74,14 +74,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Checkout {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-    amount_converter_1: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Checkout {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
-            amount_converter_1: &StringMinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1299,7 +1299,7 @@ impl webhooks::IncomingWebhook for Checkout {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         let amount = utils::convert_amount(
-            self.amount_converter_1,
+            self.amount_converter_webhooks,
             MinorUnit::new(i64::from(dispute_details.data.amount)),
             dispute_details.data.currency,
         )?;

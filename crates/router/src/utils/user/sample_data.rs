@@ -461,7 +461,7 @@ pub async fn generate_sample_data(
                     evidence: None,
                     profile_id: payment_intent.profile_id.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                    dispute_amount: amount * 100,
+                    dispute_amount: MinorUnit::new(amount * 100),
                     organization_id: org_id.clone(),
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                 })

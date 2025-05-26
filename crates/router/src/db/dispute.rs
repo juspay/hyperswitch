@@ -511,7 +511,7 @@ mod tests {
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
                 profile_id: Some(common_utils::generate_profile_id_of_default_length()),
                 merchant_connector_id: None,
-                dispute_amount: 1040,
+                dispute_amount: MinorUnit::new(1040),
                 organization_id: common_utils::id_type::OrganizationId::default(),
                 dispute_currency: Some(Currency::default()),
             }

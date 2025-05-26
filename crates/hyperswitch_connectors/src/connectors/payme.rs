@@ -63,7 +63,7 @@ pub struct Payme {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
     apple_pay_google_pay_amount_converter:
         &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_1: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Payme {
@@ -71,7 +71,7 @@ impl Payme {
         &Self {
             amount_converter: &MinorUnitForConnector,
             apple_pay_google_pay_amount_converter: &StringMajorUnitForConnector,
-            amount_converter_1: &StringMinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1245,8 +1245,8 @@ impl webhooks::IncomingWebhook for Payme {
 
         Ok(DisputePayload {
             amount: utils::convert_amount(
-                self.amount_converter_1,
-                MinorUnit::new(webhook_object.price),
+                self.amount_converter_webhooks,
+                webhook_object.price,
                 webhook_object.currency,
             )?,
             currency: webhook_object.currency,

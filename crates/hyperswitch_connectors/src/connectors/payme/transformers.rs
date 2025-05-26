@@ -1229,7 +1229,7 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
     pub status_error_details: Option<String>,
     pub status_error_code: Option<u32>,
-    pub price: i64,
+    pub price: MinorUnit,
     pub currency: enums::Currency,
 }
 

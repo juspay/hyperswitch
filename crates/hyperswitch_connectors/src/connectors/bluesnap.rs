@@ -76,16 +76,18 @@ pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not foun
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_1: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_to_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Bluesnap {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
-            amount_converter_1: &StringMinorUnitForConnector,
-            amount_converter_webhooks: &FloatMajorUnitForConnector,
+            amount_converter_to_string_minor_unit: &StringMinorUnitForConnector,
+            amount_converter_float_major_unit: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -1169,12 +1171,16 @@ impl IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let amount = convert_back_amount_to_minor_units(
-            self.amount_converter_webhooks,
+            self.amount_converter_float_major_unit,
             dispute_details.invoice_charge_amount,
             dispute_details.currency,
         )?;
         Ok(DisputePayload {
-            amount: convert_amount(self.amount_converter_1, amount, dispute_details.currency)?,
+            amount: convert_amount(
+                self.amount_converter_to_string_minor_unit,
+                amount,
+                dispute_details.currency,
+            )?,
             currency: dispute_details.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: dispute_details.reversal_ref_num,

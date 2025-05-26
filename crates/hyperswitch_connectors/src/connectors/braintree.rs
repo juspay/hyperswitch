@@ -12,7 +12,7 @@ use common_utils::{
     ext_traits::{BytesExt, XmlExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
-        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
         StringMinorUnitForConnector,
     },
 };
@@ -1043,7 +1043,7 @@ impl IncomingWebhook for Braintree {
             Some(dispute_data) => Ok(DisputePayload {
                 amount: convert_amount(
                     self.amount_converter_webhooks,
-                    MinorUnit::new(dispute_data.amount_disputed),
+                    dispute_data.amount_disputed,
                     dispute_data.currency_iso_code,
                 )?,
                 currency: dispute_data.currency_iso_code,

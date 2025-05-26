@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -1077,7 +1077,7 @@ impl IncomingWebhook for Airwallex {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let amount = convert_amount(
             self.amount_converter,
-            MinorUnit::new(dispute_details.dispute_amount),
+            dispute_details.dispute_amount,
             dispute_details.dispute_currency,
         )?;
         Ok(DisputePayload {

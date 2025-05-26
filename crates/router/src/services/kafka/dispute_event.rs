@@ -12,7 +12,7 @@ use crate::types::storage::dispute::Dispute;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaDisputeEvent<'a> {
     pub dispute_id: &'a String,
-    pub dispute_amount: i64,
+    pub dispute_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
@@ -56,10 +56,9 @@ impl<'a> KafkaDisputeEvent<'a> {
                 dispute.amount.clone(),
                 currency,
             )
-            .map(MinorUnit::get_amount_as_i64)
             .unwrap_or_else(|e| {
                 router_env::logger::error!("Failed to convert dispute amount: {e:?}");
-                0
+                MinorUnit::new(0)
             }),
             currency,
             dispute_stage: &dispute.dispute_stage,
