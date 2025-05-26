@@ -245,7 +245,7 @@ pub enum WalletData {
     CashappQr(Box<CashappQr>),
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
-    RevolutPay(RevolutPay),
+    RevolutPay(RevolutPayData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -303,7 +303,7 @@ pub struct GooglePayWalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayRedirectData {}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct RevolutPay {}
+pub struct RevolutPayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GooglePayRedirectData {}
