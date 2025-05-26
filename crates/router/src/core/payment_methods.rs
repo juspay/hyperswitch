@@ -214,7 +214,7 @@ pub async fn initiate_pm_collect_link(
         )
         .await?;
 
-    // Create DB entrie
+    // Create DB entry
     let pm_collect_link = create_pm_collect_db_entry(
         &state,
         &merchant_context,
