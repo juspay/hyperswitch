@@ -876,3 +876,119 @@ Based on our experience with connector integrations (such as HiPay), here are ke
 - Test synchronization endpoints separately
 
 By keeping these lessons in mind, you can avoid common pitfalls and accelerate connector integrations.
+
+## Spreedly Integration Learnings (Session - 2025-05-26)
+
+### Authentication
+- **HTTP Basic Auth Pattern**: Spreedly uses standard HTTP Basic Auth with environment key as username and access secret as password.
+  ```rust
+  let auth_string = format!("{}:{}", auth.environment_key.expose(), auth.access_secret.expose());
+  let encoded_auth = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, auth_string.as_bytes());
+  Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Basic {}", encoded_auth).into_masked())])
+  ```
+- **Key Learning**: Use the standard base64 engine for encoding. Format header as `Basic <encoded_credentials>`.
+
+### Gateway Token Management
+- **Connector Metadata Usage**: Spreedly requires a gateway token for routing transactions to the appropriate processor.
+- **Extraction Pattern**:
+  ```rust
+  let gateway_token = req.connector_meta_data.as_ref()
+      .and_then(|meta| meta.peek().as_object())
+      .and_then(|obj| obj.get("gateway_token"))
+      .and_then(|token| token.as_str())
+      .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "gateway_token in connector_meta_data" })?;
+  ```
+- **Key Learning**: Use `connector_meta_data` for merchant-specific configuration beyond standard auth credentials.
+
+### Transaction Token Flow
+- **Token Management**: Spreedly returns transaction tokens that must be tracked for subsequent operations:
+  - Authorize → Returns `transaction.token`
+  - Capture → Uses token in URL: `/v1/transactions/{transaction_token}/capture.json`
+  - Refund → Uses token in URL: `/v1/transactions/{transaction_token}/credit.json`
+  - Sync → Uses token in URL: `/v1/transactions/{transaction_token}.json`
+- **Key Learning**: Store connector-specific transaction identifiers as `ConnectorTransactionId` and use them consistently in subsequent API calls.
+
+### Request/Response Simplicity
+- **Flat Structure Preference**: Unlike some connectors with deeply nested structures, Spreedly uses relatively flat request/response formats.
+- **Example**:
+  ```rust
+  pub struct SpreedlyPaymentsRequest {
+      transaction: SpreedlyTransaction,
+  }
+  pub struct SpreedlyTransaction {
+      credit_card: SpreedlyCreditCard,
+      amount: StringMinorUnit,
+      currency_code: String,
+  }
+  ```
+- **Key Learning**: Don't over-engineer. Keep structures as simple as the API allows.
+
+### Name Splitting Requirements
+- **Cardholder Name Parsing**: Spreedly requires separate first/last name fields.
+- **Implementation Pattern**:
+  ```rust
+  first_name: name.peek().split_whitespace().collect::<Vec<_>>().first().map(|s| Secret::new(s.to_string())).unwrap_or_else(|| Secret::new("".to_string())),
+  last_name: name.peek().split_whitespace().collect::<Vec<_>>().get(1..).map(|parts| Secret::new(parts.join(" "))).unwrap_or_else(|| Secret::new("".to_string())),
+  ```
+- **Key Learning**: Handle edge cases (single names, multiple spaces) gracefully with sensible defaults.
+
+### Webhook Verification
+- **HMAC-SHA256 Pattern**: Spreedly uses straightforward HMAC-SHA256 verification.
+- **Implementation**:
+  ```rust
+  let expected_signature = crypto::HmacSha256::sign_message(
+      webhook_secret.expose().as_bytes(),
+      request.body.as_bytes(),
+  ).change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+  let expected_signature_str = hex::encode(expected_signature);
+  ```
+- **Key Learning**: Most webhook verifications involve computing HMAC over raw request body with shared secret and comparing against header value.
+
+### Status Mapping Strategy
+- **Multi-field Status Determination**: Spreedly uses transaction type + success flag rather than single status field.
+- **Pattern**:
+  ```rust
+  match transaction_type.as_str() {
+      "Authorize" => if succeeded { Authorized } else { Failure }
+      "Capture" => if succeeded { Charged } else { CaptureFailed }
+      _ => if succeeded { Pending } else { Failure }
+  }
+  ```
+- **Key Learning**: Status mapping may require examining multiple response fields.
+
+### Common Pitfalls Avoided
+
+1. **Type Alias Issues**: 
+   - Problem: `type SpreedlySyncResponse = SpreedlyPaymentsResponse` caused trait implementation conflicts.
+   - Solution: Keep type aliases but don't implement duplicate traits for them.
+
+2. **Import Management in Tests**:
+   - Required imports: `cards`, `common_utils`, `api_models`, `std::str::FromStr`
+   - Key Learning: Test files often need additional imports for type conversions.
+
+3. **Optional Field Handling**:
+   - Spreedly's transaction token is required for some operations but generic type system treats it as optional.
+   - Solution: Proper error handling with meaningful error messages.
+
+4. **Test Implementation Requirements**:
+   - Mock gateway token in `connector_meta_data`
+   - Test card: 4111111111111111
+   - Complete address/email data for coverage
+   - Some negative test expectations may not match actual behavior
+
+### Architecture Insights
+
+- **Separation of Concerns**: Clean separation between main logic (spreedly.rs) and data transformation (transformers.rs)
+- **Minimal Boilerplate**: Standard operations require minimal custom code
+- **Reusable Patterns**: Basic Auth and HMAC webhook verification patterns can be reused for similar connectors
+- **Clear Token Management**: Transaction token pattern is clear and consistent
+
+### Summary
+
+The Spreedly integration demonstrates that effective connector implementations don't always require complex architectures. Key to success:
+- Match the simplicity of the API with simple code structures
+- Use established patterns (Basic Auth, HMAC verification) without reinventing
+- Focus on clear error messages and proper error handling
+- Test thoroughly with realistic data
+
+This implementation serves as a good template for other payment orchestration platforms with similar authentication patterns and API structures.

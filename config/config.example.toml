@@ -268,6 +268,7 @@ recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
+spreedly.base_url = "https://core.spreedly.com/v1"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
@@ -349,6 +350,7 @@ cards = [
   "paypal",
     "paystack",
   "shift4",
+    "spreedly",
   "square",
   "stax",
   "stripe",

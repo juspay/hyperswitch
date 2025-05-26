@@ -462,6 +462,323 @@ Connector-specific data structures often need to be serialized (e.g., for loggin
 *   `Serialize` allows the struct/enum to be converted into formats like JSON.
 *   `Default` allows for easy creation of default instances, which is often required by other derives or generic code.
 
+## Pattern: HTTP Basic Authentication
+
+### Context:
+Some connectors use HTTP Basic Authentication with username and password credentials that need to be base64 encoded.
+
+### Standard Implementation:
+```rust
+// In connector's get_auth_header method
+fn get_auth_header(
+    &self,
+    auth_type: &ConnectorAuthType,
+) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    let auth = connector_name::ConnectorNameAuthType::try_from(auth_type)
+        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    
+    // Format: username:password
+    let auth_string = format!(
+        "{}:{}",
+        auth.username.expose(),
+        auth.password.expose()
+    );
+    
+    // Base64 encode using standard engine
+    let encoded_auth = base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        auth_string.as_bytes()
+    );
+    
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        format!("Basic {}", encoded_auth).into_masked(),
+    )])
+}
+```
+
+### Why It Works:
+- Uses the standard base64 engine for encoding
+- Properly formats the header as `Basic <encoded_credentials>`
+- Handles sensitive data with `expose()` only when necessary
+
+### Example: Spreedly Implementation
+```rust
+let auth_string = format!(
+    "{}:{}",
+    auth.environment_key.expose(),
+    auth.access_secret.expose()
+);
+let encoded_auth = base64::Engine::encode(
+    &base64::engine::general_purpose::STANDARD,
+    auth_string.as_bytes()
+);
+```
+
+## Pattern: Merchant-Specific Configuration via Connector Metadata
+
+### Context:
+When a connector requires merchant-specific configuration beyond standard authentication credentials (e.g., gateway tokens, merchant IDs, endpoint prefixes).
+
+### Standard Implementation:
+```rust
+// Extracting configuration from connector_meta_data
+let config_value = req
+    .connector_meta_data
+    .as_ref()
+    .and_then(|meta| meta.peek().as_object())
+    .and_then(|obj| obj.get("config_key"))
+    .and_then(|value| value.as_str())
+    .ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "config_key in connector_meta_data",
+    })?;
+```
+
+### Why It Works:
+- Uses `connector_meta_data` for configuration that varies per merchant
+- Provides clear error messages when configuration is missing
+- Follows the chain of Option operations with proper error handling
+
+### Example: Spreedly Gateway Token
+```rust
+// Spreedly requires a gateway token to route transactions
+let gateway_token = req
+    .connector_meta_data
+    .as_ref()
+    .and_then(|meta| meta.peek().as_object())
+    .and_then(|obj| obj.get("gateway_token"))
+    .and_then(|token| token.as_str())
+    .ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "gateway_token in connector_meta_data",
+    })?;
+```
+
+## Pattern: Transaction Token Management
+
+### Context:
+When a connector returns transaction-specific tokens that must be used for subsequent operations (capture, refund, sync).
+
+### Standard Implementation:
+```rust
+// Store transaction token in response
+PaymentsResponseData::TransactionResponse {
+    resource_id: ResponseId::ConnectorTransactionId(
+        connector_response.transaction.token.clone()
+    ),
+    // ... other fields
+}
+
+// Retrieve for subsequent operations
+// For Capture:
+let transaction_token = req.request.connector_transaction_id.clone();
+
+// For Sync:
+let transaction_token = req.request
+    .get_connector_transaction_id()
+    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+// For Refund:
+let transaction_token = req.request.connector_transaction_id.clone();
+```
+
+### URL Construction Pattern:
+```rust
+// Capture: /transactions/{token}/capture
+// Refund: /transactions/{token}/credit  
+// Sync: /transactions/{token}
+Ok(format!(
+    "{}/v1/transactions/{}/capture.json",
+    self.base_url(connectors),
+    transaction_token
+))
+```
+
+### Why It Works:
+- Consistently stores connector-specific identifiers
+- Uses appropriate retrieval methods for different flows
+- Maintains clear URL patterns for token-based operations
+
+## Pattern: Flat Request/Response Structures
+
+### Context:
+Some connectors have simple, flat API structures rather than deeply nested objects.
+
+### Standard Implementation:
+```rust
+// Simple, flat request structure
+#[derive(Debug, Serialize)]
+pub struct ConnectorPaymentsRequest {
+    transaction: ConnectorTransaction,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConnectorTransaction {
+    amount: StringMinorUnit,
+    currency_code: String,
+    // Direct fields, not nested objects
+    card_number: cards::CardNumber,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+}
+```
+
+### Why It Works:
+- Reduces complexity when the API doesn't require it
+- Easier to maintain and understand
+- Faster serialization/deserialization
+
+### Anti-Pattern to Avoid:
+```rust
+// Overly complex structure when not needed
+pub struct Request {
+    data: RequestData {
+        payment: PaymentData {
+            card: CardData {
+                details: CardDetails { /* ... */ }
+            }
+        }
+    }
+}
+```
+
+## Pattern: Name Splitting for Separate First/Last Fields
+
+### Context:
+When a connector requires separate first and last name fields but Hyperswitch provides a combined cardholder name.
+
+### Standard Implementation:
+```rust
+// Split cardholder name into first and last
+first_name: card_holder_name.clone()
+    .and_then(|name| {
+        let parts: Vec<&str> = name.peek().split_whitespace().collect();
+        parts.first().map(|s| Secret::new(s.to_string()))
+    })
+    .unwrap_or_else(|| Secret::new("".to_string())),
+
+last_name: card_holder_name
+    .and_then(|name| {
+        let parts: Vec<&str> = name.peek().split_whitespace().collect();
+        if parts.len() > 1 {
+            Some(Secret::new(parts[1..].join(" ")))
+        } else {
+            None
+        }
+    })
+    .unwrap_or_else(|| Secret::new("".to_string())),
+```
+
+### Why It Works:
+- Handles single names gracefully (empty last name)
+- Handles multiple spaces (joins remaining parts for last name)
+- Provides sensible defaults (empty string) when name is missing
+- Maintains Secret wrapper for sensitive data
+
+## Pattern: HMAC-SHA256 Webhook Verification
+
+### Context:
+Many connectors use HMAC-SHA256 for webhook signature verification with a straightforward pattern.
+
+### Standard Implementation:
+```rust
+fn verify_webhook_source(
+    &self,
+    request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+) -> CustomResult<(), errors::ConnectorError> {
+    // Extract signature from header
+    let signature_header = request
+        .headers
+        .get("x-connector-signature") // Connector-specific header name
+        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    
+    // Get webhook secret
+    let webhook_secret = connector_webhook_secrets
+        .secret
+        .as_ref()
+        .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+    
+    // Compute expected signature
+    let expected_signature = crypto::HmacSha256::sign_message(
+        webhook_secret.expose().as_bytes(),
+        request.body.as_bytes(), // Raw request body
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    
+    // Encode to hex string
+    let expected_signature_str = hex::encode(expected_signature);
+    
+    // Compare signatures
+    if signature_header.as_bytes() != expected_signature_str.as_bytes() {
+        return Err(errors::ConnectorError::WebhookSourceVerificationFailed.into());
+    }
+    
+    Ok(())
+}
+```
+
+### Why It Works:
+- Uses raw request body for signature computation
+- Handles hex encoding of the signature
+- Provides clear error messages for missing headers/secrets
+- Uses constant-time comparison (though as_bytes() comparison may not be)
+
+## Pattern: Multi-Field Status Determination
+
+### Context:
+When a connector's status depends on multiple response fields rather than a single status field.
+
+### Standard Implementation:
+```rust
+// Determine status based on transaction type + success flag
+let status = match response.transaction_type.as_str() {
+    "Authorize" => {
+        if response.succeeded {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Failure
+        }
+    }
+    "Capture" => {
+        if response.succeeded {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::CaptureFailed
+        }
+    }
+    "Void" => {
+        if response.succeeded {
+            common_enums::AttemptStatus::Voided
+        } else {
+            common_enums::AttemptStatus::VoidFailed
+        }
+    }
+    _ => {
+        if response.succeeded {
+            common_enums::AttemptStatus::Pending
+        } else {
+            common_enums::AttemptStatus::Failure
+        }
+    }
+};
+```
+
+### Why It Works:
+- Provides precise status mapping based on operation context
+- Handles unknown transaction types with a fallback
+- Clearly separates success and failure cases for each operation
+
+### Alternative Pattern (Single Field):
+```rust
+// When connector has a single status field
+let status = match response.status.as_str() {
+    "AUTHORIZED" => common_enums::AttemptStatus::Authorized,
+    "CAPTURED" => common_enums::AttemptStatus::Charged,
+    "FAILED" => common_enums::AttemptStatus::Failure,
+    _ => common_enums::AttemptStatus::Pending,
+};
+```
+
 # Active Context
 
 ## Current Focus

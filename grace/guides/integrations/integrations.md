@@ -784,3 +784,214 @@ The `adyen/transformers.rs` file defines numerous request structs. The most cent
     *   `validate_file_upload`: Checks file type (JPEG, PNG, PDF) and size limits for `DisputeEvidence`.
 
 This deep dive should provide a solid foundation for understanding the Adyen connector's type system and data flow, aiding in the integration of new connectors with similar characteristics.
+
+---
+
+## Connector Implementation Case Study: Spreedly
+
+This section documents the implementation of the Spreedly connector, highlighting unique patterns and considerations that emerged during development.
+
+### Overview
+
+Spreedly is a payment orchestration platform that acts as a gateway to multiple payment processors. The integration required handling:
+- HTTP Basic Authentication
+- Gateway token management for routing transactions
+- Minor unit (cents) amount handling
+- Standard payment flows (authorize, capture, refund, sync)
+- Webhook signature verification using HMAC-SHA256
+
+### Key Implementation Details
+
+#### 1. Authentication Pattern
+
+Spreedly uses HTTP Basic Authentication with environment key and access secret:
+
+```rust
+pub struct SpreedlyAuthType {
+    pub(super) environment_key: Secret<String>,
+    pub(super) access_secret: Secret<String>,
+}
+
+// In get_auth_header:
+let auth_string = format!(
+    "{}:{}",
+    auth.environment_key.expose(),
+    auth.access_secret.expose()
+);
+let encoded_auth = base64::Engine::encode(
+    &base64::engine::general_purpose::STANDARD,
+    auth_string.as_bytes()
+);
+Ok(vec![(
+    headers::AUTHORIZATION.to_string(),
+    format!("Basic {}", encoded_auth).into_masked(),
+)])
+```
+
+**Key Learning**: When implementing Basic Auth, ensure proper base64 encoding using the standard engine and format as `Basic <encoded_credentials>`.
+
+#### 2. Gateway Token Management
+
+Spreedly requires a gateway token for authorization requests, which must be passed via connector metadata:
+
+```rust
+// Extract gateway token from merchant connector account details
+let gateway_token = req
+    .connector_meta_data
+    .as_ref()
+    .and_then(|meta| meta.peek().as_object())
+    .and_then(|obj| obj.get("gateway_token"))
+    .and_then(|token| token.as_str())
+    .ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "gateway_token in connector_meta_data",
+    })?;
+```
+
+**Key Learning**: When a connector requires merchant-specific configuration beyond standard auth credentials, use `connector_meta_data` for storage and retrieval.
+
+#### 3. Transaction Token Flow
+
+Spreedly returns transaction tokens that must be used for subsequent operations:
+
+- **Authorize** → Returns `transaction.token`
+- **Capture** → Uses transaction token in URL: `/v1/transactions/{transaction_token}/capture.json`
+- **Refund** → Uses transaction token in URL: `/v1/transactions/{transaction_token}/credit.json`
+- **Sync** → Uses transaction token in URL: `/v1/transactions/{transaction_token}.json`
+
+**Key Learning**: Track connector-specific transaction identifiers carefully and use them in subsequent API calls. Store these as `ConnectorTransactionId` in responses.
+
+#### 4. Request/Response Type Simplification
+
+Unlike some connectors with complex nested structures, Spreedly uses relatively flat request/response formats:
+
+```rust
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct SpreedlyPaymentsRequest {
+    transaction: SpreedlyTransaction,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct SpreedlyTransaction {
+    credit_card: SpreedlyCreditCard,
+    amount: StringMinorUnit,
+    currency_code: String,
+}
+```
+
+**Key Learning**: Not all connectors require complex type hierarchies. Keep structures as simple as the API allows.
+
+#### 5. Cardholder Name Splitting
+
+Spreedly requires separate first and last name fields, requiring parsing of the combined cardholder name:
+
+```rust
+first_name: req_card.card_holder_name.clone()
+    .and_then(|name| {
+        let parts: Vec<&str> = name.peek().split_whitespace().collect();
+        parts.first().map(|s| Secret::new(s.to_string()))
+    })
+    .unwrap_or_else(|| Secret::new("".to_string())),
+last_name: req_card.card_holder_name
+    .and_then(|name| {
+        let parts: Vec<&str> = name.peek().split_whitespace().collect();
+        if parts.len() > 1 {
+            Some(Secret::new(parts[1..].join(" ")))
+        } else {
+            None
+        }
+    })
+    .unwrap_or_else(|| Secret::new("".to_string())),
+```
+
+**Key Learning**: When splitting names, handle edge cases (single names, multiple spaces) gracefully and provide defaults.
+
+#### 6. Webhook Implementation
+
+Spreedly webhooks use HMAC-SHA256 verification with a straightforward pattern:
+
+```rust
+fn verify_webhook_source(
+    &self,
+    request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+) -> CustomResult<(), errors::ConnectorError> {
+    let signature_header = request
+        .headers
+        .get("x-spreedly-signature")
+        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    
+    let expected_signature = crypto::HmacSha256::sign_message(
+        webhook_secret.expose().as_bytes(),
+        request.body.as_bytes(),
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    
+    let expected_signature_str = hex::encode(expected_signature);
+    
+    if signature_header.as_bytes() != expected_signature_str.as_bytes() {
+        return Err(errors::ConnectorError::WebhookSourceVerificationFailed.into());
+    }
+    
+    Ok(())
+}
+```
+
+**Key Learning**: Webhook verification often involves computing HMAC over the raw request body with a shared secret and comparing against a header value.
+
+#### 7. Status Mapping Strategy
+
+Spreedly uses transaction types combined with success flags for status determination:
+
+```rust
+let status = match item.response.transaction.transaction_type.as_str() {
+    "Authorize" => {
+        if item.response.transaction.succeeded {
+            common_enums::AttemptStatus::Authorized
+        } else {
+            common_enums::AttemptStatus::Failure
+        }
+    }
+    "Capture" => {
+        if item.response.transaction.succeeded {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::CaptureFailed
+        }
+    }
+    _ => {
+        if item.response.transaction.succeeded {
+            common_enums::AttemptStatus::Pending
+        } else {
+            common_enums::AttemptStatus::Failure
+        }
+    }
+};
+```
+
+**Key Learning**: Status mapping may require examining multiple fields (transaction type + success flag) rather than a single status field.
+
+### Common Pitfalls Avoided
+
+1. **Type Alias Confusion**: Initially used `type SpreedlySyncResponse = SpreedlyPaymentsResponse` which caused trait implementation conflicts. Solution: Keep type aliases but don't implement duplicate traits.
+
+2. **Import Management**: Required careful management of imports (cards, common_utils, api_models) in test files to avoid compilation errors.
+
+3. **Optional Field Handling**: Spreedly's transaction token is required for some operations but the generic type system treats it as optional. Proper error handling ensures graceful failures.
+
+### Testing Considerations
+
+The test implementation required:
+- Mock gateway token in `connector_meta_data`
+- Proper card test data (4111111111111111 for test cards)
+- Email and address data for complete test coverage
+- Understanding that some negative test cases (void on auto-captured payment) won't match actual Spreedly behavior
+
+### Summary
+
+The Spreedly integration demonstrates that not all connectors require complex architectures. Key successes:
+- Clean separation between main logic and transformers
+- Minimal boilerplate for standard operations
+- Reusable patterns for Basic Auth and HMAC webhook verification
+- Clear transaction token management pattern
+
+This implementation can serve as a template for other connectors with similar authentication patterns and straightforward API structures.
