@@ -1,13 +1,12 @@
 pub mod transformers;
 
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -37,21 +36,16 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
-use transformers as spreedly;
+use transformers as maxpay;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Spreedly {
+pub struct Maxpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Spreedly {
+impl Maxpay {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -59,26 +53,123 @@ impl Spreedly {
     }
 }
 
-impl api::Payment for Spreedly {}
-impl api::PaymentSession for Spreedly {}
-impl api::ConnectorAccessToken for Spreedly {}
-impl api::MandateSetup for Spreedly {}
-impl api::PaymentAuthorize for Spreedly {}
-impl api::PaymentSync for Spreedly {}
-impl api::PaymentCapture for Spreedly {}
-impl api::PaymentVoid for Spreedly {}
-impl api::Refund for Spreedly {}
-impl api::RefundExecute for Spreedly {}
-impl api::RefundSync for Spreedly {}
-impl api::PaymentToken for Spreedly {}
+impl api::Payment for Maxpay {}
+impl api::PaymentSession for Maxpay {}
+impl api::ConnectorAccessToken for Maxpay {}
+impl api::MandateSetup for Maxpay {}
+impl api::PaymentAuthorize for Maxpay {}
+impl api::PaymentSync for Maxpay {}
+impl api::PaymentCapture for Maxpay {}
+impl api::PaymentVoid for Maxpay {}
+impl api::Refund for Maxpay {}
+impl api::RefundExecute for Maxpay {}
+impl api::RefundSync for Maxpay {}
+impl api::PaymentToken for Maxpay {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Spreedly
+    for Maxpay
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &RouterData<
+            PaymentMethodToken,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<
+            PaymentMethodToken,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/api/cc", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<
+            PaymentMethodToken,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = maxpay::MaxpayTokenizeRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<
+            PaymentMethodToken,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::TokenizationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::TokenizationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<
+            PaymentMethodToken,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: maxpay::MaxpayTokenizeResponse = res
+            .response
+            .parse_struct("Maxpay TokenizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Spreedly
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Maxpay
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -97,13 +188,14 @@ where
     }
 }
 
-impl ConnectorCommon for Spreedly {
+impl ConnectorCommon for Maxpay {
     fn id(&self) -> &'static str {
-        "spreedly"
+        "maxpay"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        // Maxpay expects amounts in major units (e.g., 10.50 for $10.50)
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -111,29 +203,15 @@ impl ConnectorCommon for Spreedly {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.spreedly.base_url.as_ref()
+        connectors.maxpay.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = spreedly::SpreedlyAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        // Create HTTP Basic Auth header
-        let auth_string = format!(
-            "{}:{}",
-            auth.environment_key.peek(),
-            auth.access_secret.peek()
-        );
-        let encoded = common_utils::consts::BASE64_ENGINE.encode(auth_string.as_bytes());
-        let auth_header = format!("Basic {}", encoded);
-
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth_header.into_masked(),
-        )])
+        // Maxpay sends authentication credentials in the request body, not in headers
+        Ok(vec![])
     }
 
     fn build_error_response(
@@ -141,34 +219,19 @@ impl ConnectorCommon for Spreedly {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: spreedly::SpreedlyErrorResponse = res
+        let response: maxpay::MaxpayErrorResponse = res
             .response
-            .parse_struct("SpreedlyErrorResponse")
+            .parse_struct("MaxpayErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        // Combine all error messages from the errors array
-        let message = response
-            .errors
-            .iter()
-            .map(|e| e.message.clone())
-            .collect::<Vec<_>>()
-            .join("; ");
-
-        // Use the first error's key as the code, or "UNKNOWN" if no errors
-        let code = response
-            .errors
-            .first()
-            .map(|e| e.key.clone())
-            .unwrap_or_else(|| "UNKNOWN".to_string());
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code,
-            message,
-            reason: None,
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -178,22 +241,19 @@ impl ConnectorCommon for Spreedly {
     }
 }
 
-impl ConnectorValidation for Spreedly {
+impl ConnectorValidation for Maxpay {
     //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Maxpay {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Spreedly {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Maxpay {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Spreedly
-{
-}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Maxpay {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Maxpay {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -208,15 +268,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
+        _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let gateway_token = spreedly::get_gateway_token(&req.connector_meta_data)?;
-        Ok(format!(
-            "{}/v1/gateways/{}/authorize.json",
-            base_url, gateway_token
-        ))
+        Ok(format!("{}/api/cc", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -230,8 +285,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = spreedly::SpreedlyRouterData::from((amount, req));
-        let connector_req = spreedly::SpreedlyPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = maxpay::MaxpayRouterData::from((amount, req));
+        let connector_req = maxpay::MaxpayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -263,9 +318,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyPaymentsResponse = res
+        let response: maxpay::MaxpayPaymentsResponse = res
             .response
-            .parse_struct("Spreedly PaymentsAuthorizeResponse")
+            .parse_struct("Maxpay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -285,7 +340,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Maxpay {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -300,19 +355,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
 
     fn get_url(
         &self,
-        req: &PaymentsSyncRouterData,
+        _req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let transaction_token = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}/v1/transactions/{}.json",
-            base_url, transaction_token
-        ))
+        Ok(format!("{}/api/cc", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = maxpay::MaxpaySyncRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -322,10 +377,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -336,9 +394,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyPaymentsResponse = res
+        let response: maxpay::MaxpayPaymentsResponse = res
             .response
-            .parse_struct("spreedly PaymentsSyncResponse")
+            .parse_struct("maxpay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -358,7 +416,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Maxpay {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -373,15 +431,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        req: &PaymentsCaptureRouterData,
+        _req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let transaction_token = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}/v1/transactions/{}/capture.json",
-            base_url, transaction_token
-        ))
+        Ok(format!("{}/api/cc", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -389,14 +442,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount_to_capture,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = spreedly::SpreedlyRouterData::from((amount, req));
-        let connector_req = spreedly::SpreedlyCaptureRequest::try_from(&connector_router_data)?;
+        let connector_req = maxpay::MaxpayCaptureRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -426,9 +472,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyPaymentsResponse = res
+        let response: maxpay::MaxpayPaymentsResponse = res
             .response
-            .parse_struct("Spreedly PaymentsCaptureResponse")
+            .parse_struct("Maxpay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -448,9 +494,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Spreedly {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Maxpay {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedly {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Maxpay {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -465,15 +511,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
 
     fn get_url(
         &self,
-        req: &RefundsRouterData<Execute>,
+        _req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let transaction_token = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}/v1/transactions/{}/credit.json",
-            base_url, transaction_token
-        ))
+        Ok(format!("{}/api/refund", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -487,8 +528,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
             req.request.currency,
         )?;
 
-        let connector_router_data = spreedly::SpreedlyRouterData::from((refund_amount, req));
-        let connector_req = spreedly::SpreedlyRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = maxpay::MaxpayRouterData::from((refund_amount, req));
+        let connector_req = maxpay::MaxpayRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -517,10 +558,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: spreedly::SpreedlyRefundResponse = res
-            .response
-            .parse_struct("spreedly RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: maxpay::RefundResponse =
+            res.response
+                .parse_struct("maxpay RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -539,7 +580,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Maxpay {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -554,15 +595,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
 
     fn get_url(
         &self,
-        req: &RefundSyncRouterData,
+        _req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let refund_id = req
-            .request
-            .get_connector_refund_id()
-            .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
-        Ok(format!("{}/v1/transactions/{}.json", base_url, refund_id))
+        // Maxpay doesn't have a specific refund sync endpoint, we check via payment sync
+        Ok(format!("{}/api/cc", self.base_url(connectors)))
     }
 
     fn build_request(
@@ -589,9 +626,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyRefundResponse = res
+        let response: maxpay::RefundResponse = res
             .response
-            .parse_struct("spreedly RefundSyncResponse")
+            .parse_struct("maxpay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -612,27 +649,165 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Spreedly {
+impl webhooks::IncomingWebhook for Maxpay {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook = self.parse_webhook(request)?;
+        
+        let reference = match webhook {
+            maxpay::MaxpayWebhook::V1(webhook_v1) => webhook_v1.reference,
+            maxpay::MaxpayWebhook::V2(webhook_v2) => webhook_v2.reference,
+        };
+        
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(reference),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook = self.parse_webhook(request)?;
+        
+        let status = match &webhook {
+            maxpay::MaxpayWebhook::V1(webhook_v1) => &webhook_v1.status,
+            maxpay::MaxpayWebhook::V2(webhook_v2) => &webhook_v2.status,
+        };
+        
+        match status {
+            maxpay::MaxpayStatus::Success => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
+            maxpay::MaxpayStatus::Decline => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
+            maxpay::MaxpayStatus::Error => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
+            maxpay::MaxpayStatus::Unknown => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook = self.parse_webhook(request)?;
+        
+        match webhook {
+            maxpay::MaxpayWebhook::V1(webhook_v1) => Ok(Box::new(webhook_v1)),
+            maxpay::MaxpayWebhook::V2(webhook_v2) => Ok(Box::new(webhook_v2)),
+        }
+    }
+    
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_account_details: common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        // Get the webhook secrets using the parent implementation
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_name,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        // Try to determine webhook version based on content type and headers
+        if request.headers.get("X_SIGNATURE").is_some() {
+            // Version 2.0 webhook - JSON with X_SIGNATURE header
+            self.verify_webhook_v2(request, &connector_webhook_secrets, connector_account_details)
+        } else {
+            // Version 1.0 webhook - form-urlencoded with checkSum field
+            self.verify_webhook_v1(request, &connector_webhook_secrets, connector_account_details)
+        }
     }
 }
 
-impl ConnectorSpecifications for Spreedly {}
+// Add helper methods for webhook parsing and verification
+impl Maxpay {
+    fn parse_webhook(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<maxpay::MaxpayWebhook, errors::ConnectorError> {
+        // Try to parse as v2.0 first (JSON)
+        if let Ok(webhook_v2) = serde_json::from_slice::<maxpay::MaxpayWebhookV2>(request.body) {
+            return Ok(maxpay::MaxpayWebhook::V2(webhook_v2));
+        }
+        
+        // Try to parse as v1.0 (form-urlencoded)
+        if let Ok(webhook_v1) = serde_urlencoded::from_bytes::<maxpay::MaxpayWebhookV1>(request.body) {
+            return Ok(maxpay::MaxpayWebhook::V1(webhook_v1));
+        }
+        
+        Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
+    }
+    
+    fn verify_webhook_v1(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        _connector_account_details: common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let webhook_v1 = serde_urlencoded::from_bytes::<maxpay::MaxpayWebhookV1>(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        
+        // Use the secret from webhook secrets (which should be the merchant password/private key)
+        let private_key = std::str::from_utf8(&connector_webhook_secrets.secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        
+        // Build the string to hash (all parameters except checkSum, sorted alphabetically)
+        let hash_string = format!(
+            "code={}|reference={}|status={}|transactionId={}|{}",
+            webhook_v1.code,
+            webhook_v1.reference,
+            serde_json::to_string(&webhook_v1.status)
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+                .trim_matches('"'),
+            webhook_v1.transaction_id,
+            private_key
+        );
+        
+        // Calculate SHA256 hash
+        use ring::digest;
+        let hash = digest::digest(&digest::SHA256, hash_string.as_bytes());
+        let calculated_checksum = hex::encode(hash.as_ref());
+        
+        Ok(calculated_checksum == webhook_v1.check_sum)
+    }
+    
+    fn verify_webhook_v2(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        _connector_account_details: common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let x_signature = request
+            .headers
+            .get("X_SIGNATURE")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        
+        // Use the secret from webhook secrets (which should be the merchant password/private key)
+        let private_key = std::str::from_utf8(&connector_webhook_secrets.secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        
+        // For v2.0, the signature is calculated on the raw JSON body + private key
+        let hash_string = format!(
+            "{}{}",
+            std::str::from_utf8(request.body)
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+            private_key
+        );
+        
+        // Calculate SHA256 hash
+        use ring::digest;
+        let hash = digest::digest(&digest::SHA256, hash_string.as_bytes());
+        let calculated_signature = hex::encode(hash.as_ref());
+        
+        Ok(&calculated_signature == x_signature)
+    }
+}
+
+impl ConnectorSpecifications for Maxpay {}

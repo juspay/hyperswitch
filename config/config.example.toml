@@ -234,6 +234,7 @@ jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
 jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
+maxpay.base_url = "https://sbx.maxpay.com"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 moneris.base_url = "https://api.sb.moneris.io"
@@ -322,7 +323,8 @@ stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,ba
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna", "mifinity", "braintree", "applepay"]
+wallets = ["klarna",
+    "maxpay", "mifinity", "braintree", "applepay"]
 rewards = ["cashtocode", "zen"]
 cards = [
   "adyen",

@@ -369,26 +369,29 @@ This implementation follows the pattern established by other connectors in Hyper
 
 ## Phase 8: Testing and Final Integration
 
-- [ ] Step 44: Add unit tests for auth parsing
+- [x] Step 44: Add unit tests for auth parsing
   - **Task**: Create test module and add unit test for SpreedlyAuthType parsing
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add #[cfg(test)] module
   - **Step Dependencies**: Step 43
   - **User Instructions**: Run `cargo test` to verify tests pass
+  - **Status**: ✅ Completed - Added tests for successful and failed auth type parsing
 
-- [ ] Step 45: Add unit tests for status mappings
+- [x] Step 45: Add unit tests for status mappings
   - **Task**: Add tests for payment and refund status conversions
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add status mapping tests
   - **Step Dependencies**: Step 44
   - **User Instructions**: Run `cargo test` to verify tests pass
+  - **Status**: ✅ Completed - Added comprehensive tests for all payment and refund status mappings
 
-- [ ] Step 46: Add unit tests for amount conversion
+- [x] Step 46: Add unit tests for amount conversion
   - **Task**: Add tests for amount conversion using the existing utilities
   - **Files**: 
     - `crates/hyperswitch_connectors/src/connectors/spreedly/transformers.rs`: Add amount conversion tests
   - **Step Dependencies**: Step 45
   - **User Instructions**: Run `cargo test` to verify tests pass
+  - **Status**: ✅ Completed - Added tests for SpreedlyRouterData conversion, Amount struct, and gateway token extraction
 
 - [ ] Step 47: Create integration test file
   - **Task**: Create the integration test file with basic structure

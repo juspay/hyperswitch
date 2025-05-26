@@ -211,6 +211,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
         Ok(match from {
             api_enums::Connector::Aci => Self::Aci,
             // PRAGMA: transformers
+            api_enums::Connector::Maxpay => Self::Maxpay,
             api_enums::Connector::Spreedly => Self::Spreedly,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,

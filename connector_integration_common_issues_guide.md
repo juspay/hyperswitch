@@ -453,3 +453,169 @@ While this guide covers common patterns, each connector may have unique requirem
 - **Metadata handling**: Custom fields and their limitations
 
 Always refer to the specific connector's API documentation for these variations.
+
+## Real-World Example: Maxpay Connector Issues and Solutions
+
+Here are actual issues encountered during the Maxpay connector implementation:
+
+### 1. StringMinorUnit Field Access
+**Issue**: Attempted to access private field directly
+```rust
+// ❌ Wrong - private field
+let amount_str = item.amount.0.clone();
+```
+
+**Solution**: Use JSON serialization as workaround
+```rust
+// ✅ Correct - serialize to get string value
+let amount_str = serde_json::to_string(&item.amount)
+    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+    .trim_matches('"')
+    .to_string();
+```
+
+### 2. Missing PeekInterface Import
+**Issue**: Method `peek()` not found on Email, Secret fields
+```rust
+// ❌ Error: no method named `peek` found
+user_email: payment_data.email.as_ref().map(|email| email.peek().to_string()),
+```
+
+**Solution**: Import the trait
+```rust
+// ✅ Add to imports
+use masking::{ExposeInterface, PeekInterface, Secret};
+```
+
+### 3. Secret Field Move Errors
+**Issue**: Using `expose()` moves the value causing borrow checker errors
+```rust
+// ❌ Wrong - moves the value
+user_first_name: billing_address.first_name.as_ref()
+    .map(|name| name.expose().to_string()),
+```
+
+**Solution**: Use `peek()` for borrowing
+```rust
+// ✅ Correct - borrows the value
+user_first_name: billing_address.first_name.as_ref()
+    .map(|name| name.peek().to_string()),
+```
+
+### 4. Card Number Type Mismatch
+**Issue**: Type mismatch between CardNumber and Secret<String>
+```rust
+// ❌ Wrong - type mismatch
+card_number: card.card_number.clone(),
+```
+
+**Solution**: Use peek() and wrap in Secret
+```rust
+// ✅ Correct
+card_number: Secret::new(card.card_number.peek().to_string()),
+```
+
+### 5. Authentication Placement
+**Issue**: Initially assumed auth goes in headers
+```rust
+// ❌ Wrong assumption
+fn get_auth_header(...) -> ... {
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        auth.api_key.expose().into_masked(),
+    )])
+}
+```
+
+**Solution**: Maxpay sends auth in request body
+```rust
+// ✅ Correct - no auth headers, credentials in body
+fn get_auth_header(...) -> ... {
+    Ok(vec![])  // Empty headers
+}
+
+// Auth fields included in request struct
+pub struct MaxpayAuthRequest {
+    pub merchant_account: Secret<String>,
+    pub merchant_password: Secret<String>,
+    // ... other fields
+}
+```
+
+### 6. Missing Trait for Helper Methods
+**Issue**: Method not found even though it should exist
+```rust
+// ❌ Error: no method named `get_connector_transaction_id`
+let reference = item.request.get_connector_transaction_id()
+```
+
+**Solution**: Import the trait that provides the method
+```rust
+// ✅ Add to imports
+use crate::utils::PaymentsSyncRequestData;
+```
+
+### 7. Reference vs Value in TryFrom
+**Issue**: Passing wrong reference level
+```rust
+// ❌ Wrong - double reference
+let connector_req = maxpay::MaxpayCaptureRequest::try_from(&req)?;
+```
+
+**Solution**: Check the trait implementation signature
+```rust
+// ✅ Correct - matches TryFrom<&PaymentsCaptureRouterData>
+let connector_req = maxpay::MaxpayCaptureRequest::try_from(req)?;
+```
+
+### 8. Amount Conversion Complexity
+**Issue**: Complex conversion from StringMinorUnit to f64 major units
+```rust
+// The full conversion chain needed:
+// StringMinorUnit -> String (via JSON) -> i64 -> major unit string -> f64
+let amount_str = serde_json::to_string(&item.amount)?
+    .trim_matches('"').to_string();
+let amount_i64: i64 = amount_str.parse::<i64>()?;
+let amount_str = utils::to_currency_base_unit(amount_i64, currency)?;
+let amount: f64 = amount_str.parse::<f64>()?;
+```
+
+**Lesson**: Some connectors have complex amount requirements requiring multiple conversions.
+
+### 9. Build Command Feature Flags
+**Issue**: Using unnecessary feature flags
+```bash
+# ❌ Overcomplicated
+cargo build --features="maxpay,v1"
+```
+
+**Solution**: Use simple build command
+```bash
+# ✅ Simple
+cargo build
+```
+
+### 10. Phone Number Access Pattern
+**Issue**: Not using the provided helper method
+```rust
+// ❌ Wrong - trying to access directly
+user_phone: billing_address.phone.as_ref().map(|p| p.expose()),
+```
+
+**Solution**: Use the router data helper
+```rust
+// ✅ Correct - using helper method
+user_phone: item.router_data.get_optional_billing_phone_number()
+    .map(|phone| phone.expose()),
+```
+
+### Key Learnings from Maxpay Implementation
+
+1. **Always check field visibility**: Many types have private fields requiring special access methods
+2. **Import traits for methods**: Rust requires traits in scope to use their methods
+3. **Prefer peek() over expose()**: Use `peek()` when you need to borrow Secret values
+4. **Check authentication patterns**: Not all connectors use header-based auth
+5. **Verify type conversions**: Amount conversions can be complex with multiple steps
+6. **Use helper methods**: RouterData provides many helper methods for common operations
+7. **Start simple with builds**: Don't add feature flags unless specifically needed
+8. **Read error messages carefully**: They often hint at the solution (like suggesting trait imports)
