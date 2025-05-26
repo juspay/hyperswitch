@@ -29059,6 +29059,11 @@
         "name": "api-key",
         "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
       },
+      "jwt_key": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
       "publishable_key": {
         "type": "apiKey",
         "in": "header",

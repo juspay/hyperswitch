@@ -759,7 +759,7 @@ struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+        use utoipa::openapi::security::{Http, HttpAuthScheme, ApiKey, ApiKeyValue, SecurityScheme};
 
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_schemes_from_iter([
@@ -794,6 +794,18 @@ impl utoipa::Modify for SecurityAddon {
                         to a single customer object for a short period of time."
                     ))),
                 ),
+                (
+                    "jwt_key",
+                    SecurityScheme::Http({
+                        let mut http = Http::new(HttpAuthScheme::Bearer);
+                        // You can set `bearer_format` directly if it's public.
+                        // Based on the `libelektra.org` Utoipa docs, it is public.
+                        http.bearer_format = Some("JWT".to_string());
+                        // You can also set a description similarly if needed:
+                        // http.description = Some("JWT authentication".to_string());
+                        http
+                    })
+                )
             ]);
         }
     }
