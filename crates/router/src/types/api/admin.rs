@@ -300,8 +300,7 @@ pub async fn create_profile_from_merchant_account(
 
     // Generate a unique profile id
     let profile_id = common_utils::generate_profile_id_of_default_length();
-    let merchant_id = merchant_account.get_id().to_owned();
-
+    let merchant_id = (merchant_account.get_id().to_owned()).clone();
     let current_time = common_utils::date_time::now();
 
     let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
@@ -354,7 +353,7 @@ pub async fn create_profile_from_merchant_account(
 
     Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,
-        merchant_id,
+        merchant_id: merchant_id.clone(),
         profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: current_time,
         modified_at: current_time,
