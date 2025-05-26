@@ -54,6 +54,7 @@ async fn should_only_authorize_payment() {
                     bank_code: None,
                     nick_name: Some(Secret::new("nick_name".into())),
                     card_holder_name: Some(Secret::new("card holder name".into())),
+                    co_badged_card_data: None,
                 }),
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
@@ -82,6 +83,7 @@ async fn should_authorize_and_capture_payment() {
                     bank_code: None,
                     nick_name: Some(Secret::new("nick_name".into())),
                     card_holder_name: Some(Secret::new("card holder name".into())),
+                    co_badged_card_data: None,
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),

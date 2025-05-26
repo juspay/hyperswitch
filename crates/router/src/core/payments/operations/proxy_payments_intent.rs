@@ -318,7 +318,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
                 merchant_connector_id,
             )?;
 
-            Ok(ConnectorCallType::PreDetermined(connector_data))
+            Ok(ConnectorCallType::PreDetermined(connector_data.into()))
         } else {
             Err(error_stack::Report::new(
                 errors::ApiErrorResponse::InternalServerError,

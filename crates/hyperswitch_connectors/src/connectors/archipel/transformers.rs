@@ -62,13 +62,17 @@ impl<T> From<(MinorUnit, ArchipelTenantId, T)> for ArchipelRouterData<T> {
     }
 }
 
-pub struct ArchipelAuthType {}
+pub struct ArchipelAuthType {
+    pub(super) ca_certificate: Option<Secret<String>>,
+}
 
 impl TryFrom<&ConnectorAuthType> for ArchipelAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::NoKey => Ok(Self {}),
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                ca_certificate: Some(api_key.to_owned()),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -173,7 +177,7 @@ impl From<AuthenticationData> for Archipel3DS {
             three_ds_auth_status: None,
             three_ds_max_supported_version: THREE_DS_MAX_SUPPORTED_VERSION.into(),
             three_ds_version: three_ds_data.message_version,
-            authentication_value: Secret::new(three_ds_data.cavv),
+            authentication_value: three_ds_data.cavv,
             authentication_method: None,
             eci: three_ds_data.eci.map(Secret::new),
         }

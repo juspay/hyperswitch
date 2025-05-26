@@ -258,6 +258,26 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    // Call to DE here
+    // Check if creation should be based on default profile
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
@@ -1171,6 +1191,25 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
+    // Call to DE here
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled && is_deleted {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -1340,6 +1379,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bankofamerica::transformers::BankOfAmericaAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Barclaycard => {
+            //     barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // },
             api_enums::Connector::Billwerk => {
                 billwerk::transformers::BillwerkAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1550,6 +1593,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Nordea => {
+            //     nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Novalnet => {
                 novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1642,6 +1689,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Tokenio => {
+            //     tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Tsys => {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -2994,14 +3045,15 @@ pub async fn create_connector(
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
-        update_revenue_recovery_algorithm_under_profile(
-            business_profile.clone(),
-            store,
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            common_enums::RevenueRecoveryAlgorithmType::Monitoring,
-        )
-        .await?;
+        let profile_wrapper = ProfileWrapper::new(business_profile.clone());
+        profile_wrapper
+            .update_revenue_recovery_algorithm_under_profile(
+                store,
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                common_enums::RevenueRecoveryAlgorithmType::Monitoring,
+            )
+            .await?;
     }
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
@@ -3929,6 +3981,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: self
+                .is_pre_network_tokenization_enabled
+                .unwrap_or_default(),
         }))
     }
 
@@ -4375,9 +4430,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
                 force_3ds_challenge: self.force_3ds_challenge, //
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+                is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
             },
         )))
     }
@@ -4510,7 +4566,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: self.is_external_vault_enabled,
@@ -4698,33 +4754,35 @@ impl ProfileWrapper {
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
         Ok(())
     }
-}
-#[cfg(feature = "v2")]
-pub async fn update_revenue_recovery_algorithm_under_profile(
-    profile: domain::Profile,
-    db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
-) -> RouterResult<()> {
-    let recovery_algorithm_data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-        monitoring_configured_timestamp: date_time::now(),
-    };
-    let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
-        revenue_recovery_retry_algorithm_type,
-        revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
-    };
+    pub async fn update_revenue_recovery_algorithm_under_profile(
+        self,
+        db: &dyn StorageInterface,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+    ) -> RouterResult<()> {
+        let recovery_algorithm_data =
+            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                monitoring_configured_timestamp: date_time::now(),
+            };
+        let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+            revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
+        };
 
-    db.update_profile_by_profile_id(
-        key_manager_state,
-        merchant_key_store,
-        profile,
-        profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update revenue recovery retry algorithm in business profile")?;
-    Ok(())
+        db.update_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update revenue recovery retry algorithm in business profile",
+        )?;
+        Ok(())
+    }
 }
 
 pub async fn extended_card_info_toggle(

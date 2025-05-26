@@ -495,6 +495,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: card_info.card_network,
                             card_type: card_info.card_type,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 })
@@ -515,6 +516,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: None,
                             card_type: None,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 });
@@ -847,7 +849,7 @@ pub async fn decide_payout_connector(
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
-        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
+        return Ok(api::ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
     // Validate and get the business_profile from payout_attempt
@@ -897,6 +899,7 @@ pub async fn decide_payout_connector(
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -947,6 +950,7 @@ pub async fn decide_payout_connector(
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
