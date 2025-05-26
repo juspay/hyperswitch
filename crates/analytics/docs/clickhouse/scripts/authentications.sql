@@ -170,7 +170,7 @@ CREATE MATERIALIZED VIEW authentication_mv TO authentications (
     `directory_server_id` Nullable(String),
     `acquirer_country_code` Nullable(String),
     `organization_id` String,
-    `sign_flag` Int8
+    `sign_flag` Int8,
     `mcc` Nullable(String),
     `amount` Nullable(UInt32),
     `currency` LowCardinality(Nullable(String)),
