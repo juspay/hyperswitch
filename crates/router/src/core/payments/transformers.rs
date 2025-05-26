@@ -1909,7 +1909,7 @@ where
         profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
-        let payment_attempt = self.payment_attempt.clone();
+        let payment_attempt = &self.payment_attempt;
 
         let amount = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
             &payment_intent.amount_details,
@@ -1922,7 +1922,6 @@ where
 
         let error = payment_attempt
             .error
-            .clone()
             .as_ref()
             .map(api_models::payments::ErrorDetails::foreign_from);
         let attempts = self.attempts.as_ref().map(|attempts| {
@@ -1964,16 +1963,16 @@ where
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
             created: payment_intent.created_at,
             payment_method_data,
-            payment_method_type: Some(self.payment_attempt.payment_method_type),
-            payment_method_subtype: Some(self.payment_attempt.payment_method_subtype),
-            connector_transaction_id: self.payment_attempt.connector_payment_id.clone(),
+            payment_method_type: Some(payment_attempt.payment_method_type),
+            payment_method_subtype: Some(payment_attempt.payment_method_subtype),
+            connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             merchant_connector_id,
             browser_info: None,
             connector_token_details,
-            payment_method_id: self.payment_attempt.payment_method_id.clone(),
+            payment_method_id: payment_attempt.payment_method_id.clone(),
             error,
-            authentication_type_applied: self.payment_attempt.authentication_applied,
+            authentication_type_applied: payment_attempt.authentication_applied,
             authentication_type: payment_intent.authentication_type,
             next_action: None,
             attempts,

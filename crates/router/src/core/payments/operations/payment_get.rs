@@ -30,9 +30,41 @@ impl ValidateStatusForOperation for PaymentGet {
     /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,
-        _intent_status: common_enums::IntentStatus,
+        intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
-        Ok(())
+        match intent_status {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Cancelled => Ok(()),
+            // These statuses are not valid for this operation
+            common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresPaymentMethod => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: format!("{self:?}"),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: [
+                        common_enums::IntentStatus::RequiresCapture,
+                        common_enums::IntentStatus::RequiresCustomerAction,
+                        common_enums::IntentStatus::RequiresMerchantAction,
+                        common_enums::IntentStatus::Processing,
+                        common_enums::IntentStatus::Succeeded,
+                        common_enums::IntentStatus::Failed,
+                        common_enums::IntentStatus::PartiallyCapturedAndCapturable,
+                        common_enums::IntentStatus::PartiallyCaptured,
+                        common_enums::IntentStatus::Cancelled,
+                    ]
+                    .map(|enum_value| enum_value.to_string())
+                    .join(", "),
+                })
+            }
+        }
     }
 }
 
@@ -137,6 +169,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        self.validate_status_for_operation(payment_intent.status)?;
+
         let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: ("active_attempt_id"),
@@ -169,8 +203,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                 .map(|address| address.into_inner()),
             payment_attempt
                 .payment_method_billing_address
-                .as_ref()
-                .cloned()
+                .clone()
                 .map(|address| address.into_inner()),
             Some(true),
         );
@@ -294,7 +327,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received")?;
 
-            Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+            Ok(ConnectorCallType::PreDetermined(
+                api::ConnectorRoutingData::from(connector_data),
+            ))
         } else {
             Ok(ConnectorCallType::Skip)
         }
