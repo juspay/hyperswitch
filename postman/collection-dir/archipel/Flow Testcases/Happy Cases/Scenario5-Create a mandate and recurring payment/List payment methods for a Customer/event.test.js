@@ -1,4 +1,4 @@
-// Validate status 2xx 
+// Validate status 2xx
 pm.test("[GET]::/payment_methods/:customer_id - Status code is 2xx", function () {
    pm.response.to.be.success;
 });
@@ -19,7 +19,7 @@ if (jsonData?.customer_payment_methods[0]?.payment_token) {
    console.log('INFO - Unable to assign variable {{payment_token}}, as jsonData.customer_payment_methods[0].payment_token is undefined.');
 }
 
-// Response body should have at least one card payment mehod"
+// Response body should have at least one card payment method"
 pm.test(
 "[GET]::/payment_methods/:customer_id  - Content check body has at least one customer_payment_methods",
 function () {

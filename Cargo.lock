@@ -6586,6 +6586,7 @@ dependencies = [
  "serde_json",
  "strum 0.26.3",
  "syn 2.0.100",
+ "url",
  "utoipa",
 ]
 
