@@ -368,7 +368,7 @@ pub async fn routing_retrieve_default_config() {}
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Business Profile",
-    operation_id = "List all Merchant Connectors",
+    operation_id = "List all Merchant Connectors for Profile",
     security(("admin_api_key" = []))
 )]
 #[cfg(feature = "v2")]

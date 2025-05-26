@@ -62,13 +62,17 @@ impl<T> From<(MinorUnit, ArchipelTenantId, T)> for ArchipelRouterData<T> {
     }
 }
 
-pub struct ArchipelAuthType {}
+pub struct ArchipelAuthType {
+    pub(super) ca_certificate: Option<Secret<String>>,
+}
 
 impl TryFrom<&ConnectorAuthType> for ArchipelAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::NoKey => Ok(Self {}),
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                ca_certificate: Some(api_key.to_owned()),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
