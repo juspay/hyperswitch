@@ -72,24 +72,20 @@ pub fn get_gateway_token(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let metadata = connector_meta
         .as_ref()
-        .ok_or(errors::ConnectorError::InvalidConnectorConfig {
-            config: "metadata",
-        })?;
-    
+        .ok_or(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+
     let parsed_metadata = metadata
         .clone()
         .parse_value::<serde_json::Value>("ConnectorMetadata")
-        .change_context(errors::ConnectorError::InvalidConnectorConfig {
-            config: "metadata",
-        })?;
-    
+        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+
     let gateway_token = parsed_metadata
         .get("gateway_token")
         .and_then(|token| token.as_str())
         .ok_or(errors::ConnectorError::InvalidConnectorConfig {
             config: "gateway_token",
         })?;
-    
+
     Ok(gateway_token.to_string())
 }
 
@@ -117,7 +113,7 @@ impl TryFrom<&SpreedlyRouterData<&PaymentsAuthorizeRouterData>> for SpreedlyPaym
                     }
                     None => (None, None),
                 };
-                
+
                 let credit_card = SpreedlyCreditCard {
                     number: req_card.card_number,
                     verification_value: req_card.card_cvc,
@@ -127,13 +123,13 @@ impl TryFrom<&SpreedlyRouterData<&PaymentsAuthorizeRouterData>> for SpreedlyPaym
                     last_name,
                     complete: item.router_data.request.is_auto_capture()?,
                 };
-                
+
                 let transaction = SpreedlyTransaction {
                     credit_card,
                     amount: item.amount.clone(),
                     currency_code: item.router_data.request.currency.to_string(),
                 };
-                
+
                 Ok(Self { transaction })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -155,11 +151,11 @@ impl TryFrom<&ConnectorAuthType> for SpreedlyAuthType {
                 // Parse "environment_key:access_secret" format
                 let api_key_str = api_key.peek();
                 let parts: Vec<&str> = api_key_str.split(':').collect();
-                
+
                 if parts.len() != 2 {
                     return Err(errors::ConnectorError::FailedToObtainAuthType.into());
                 }
-                
+
                 Ok(Self {
                     environment_key: Secret::new(parts[0].to_string()),
                     access_secret: Secret::new(parts[1].to_string()),
@@ -228,7 +224,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, SpreedlyPaymentsResponse, T, PaymentsRe
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.transaction.state.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.transaction.token.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction.token.clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -264,7 +262,7 @@ impl TryFrom<&SpreedlyRouterData<&PaymentsCaptureRouterData>> for SpreedlyCaptur
             amount: item.amount.clone(),
             currency_code: item.router_data.request.currency.to_string(),
         };
-        
+
         Ok(Self { transaction })
     }
 }
@@ -292,7 +290,7 @@ impl<F> TryFrom<&SpreedlyRouterData<&RefundsRouterData<F>>> for SpreedlyRefundRe
             amount: item.amount.clone(),
             currency_code: item.router_data.request.currency.to_string(),
         };
-        
+
         Ok(Self { transaction })
     }
 }
@@ -334,7 +332,9 @@ pub struct SpreedlyRefundResponse {
     pub transaction: SpreedlyRefundTransactionResponse,
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, SpreedlyRefundResponse>> for RefundsRouterData<Execute> {
+impl TryFrom<RefundsResponseRouterData<Execute, SpreedlyRefundResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, SpreedlyRefundResponse>,
@@ -349,7 +349,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, SpreedlyRefundResponse>> for Ref
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, SpreedlyRefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, SpreedlyRefundResponse>>
+    for RefundsRouterData<RSync>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<RSync, SpreedlyRefundResponse>,
@@ -378,9 +380,10 @@ pub struct SpreedlyError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use hyperswitch_domain_models::router_data::ConnectorAuthType;
     use masking::Secret;
+
+    use super::*;
 
     #[test]
     fn test_spreedly_auth_type_parsing() {
@@ -388,39 +391,39 @@ mod tests {
         let auth_type = ConnectorAuthType::HeaderKey {
             api_key: Secret::new("env_key_123:secret_456".to_string()),
         };
-        
+
         let result = SpreedlyAuthType::try_from(&auth_type);
         assert!(result.is_ok());
-        
+
         let auth = result.unwrap();
         assert_eq!(auth.environment_key.peek(), "env_key_123");
         assert_eq!(auth.access_secret.peek(), "secret_456");
     }
-    
+
     #[test]
     fn test_spreedly_auth_type_parsing_failure() {
         // Test parsing failure - no colon separator
         let auth_type = ConnectorAuthType::HeaderKey {
             api_key: Secret::new("invalid_format".to_string()),
         };
-        
+
         let result = SpreedlyAuthType::try_from(&auth_type);
         assert!(result.is_err());
-        
+
         // Test parsing failure - wrong auth type
         let auth_type = ConnectorAuthType::BodyKey {
             api_key: Secret::new("key".to_string()),
             key1: Secret::new("value".to_string()),
         };
-        
+
         let result = SpreedlyAuthType::try_from(&auth_type);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_payment_status_mapping() {
         use common_enums::AttemptStatus;
-        
+
         // Test all payment status mappings
         assert_eq!(
             AttemptStatus::from(SpreedlyPaymentStatus::Succeeded),
@@ -451,7 +454,7 @@ mod tests {
             AttemptStatus::Authorized
         );
     }
-    
+
     #[test]
     fn test_refund_status_mapping() {
         // Test all refund status mappings
@@ -472,55 +475,55 @@ mod tests {
             enums::RefundStatus::Pending
         );
     }
-    
+
     #[test]
     fn test_amount_conversion() {
         use common_utils::types::MinorUnit;
-        
+
         // Test SpreedlyRouterData conversion
         let minor_amount = MinorUnit::new(1099); // $10.99
         let test_data = "test_data";
-        
+
         // Convert to StringMinorUnit for testing
         let string_minor_unit = StringMinorUnit::new(minor_amount.get_amount_as_i64());
         let router_data = SpreedlyRouterData::from((string_minor_unit.clone(), test_data));
-        
+
         assert_eq!(router_data.amount, string_minor_unit);
         assert_eq!(router_data.router_data, &test_data);
-        
+
         // Test Amount struct
         let amount = Amount {
             value: StringMinorUnit::new(2500), // $25.00
             currency: "USD".to_string(),
         };
-        
+
         assert_eq!(amount.value, StringMinorUnit::new(2500));
         assert_eq!(amount.currency, "USD");
     }
-    
+
     #[test]
     fn test_gateway_token_extraction() {
         use common_utils::pii::SecretSerdeValue;
-        
+
         // Test successful extraction
         let metadata_json = serde_json::json!({
             "gateway_token": "test_gateway_token_123"
         });
         let metadata = Some(SecretSerdeValue::from(metadata_json.to_string()));
-        
+
         let result = get_gateway_token(&metadata);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test_gateway_token_123");
-        
+
         // Test missing gateway_token
         let metadata_json = serde_json::json!({
             "other_field": "value"
         });
         let metadata = Some(SecretSerdeValue::from(metadata_json.to_string()));
-        
+
         let result = get_gateway_token(&metadata);
         assert!(result.is_err());
-        
+
         // Test None metadata
         let result = get_gateway_token(&None);
         assert!(result.is_err());

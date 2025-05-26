@@ -25,6 +25,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    Monex,
     Spreedly,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -177,6 +178,7 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    Monex,
     Spreedly,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -385,6 +387,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			| Self::Monex
 			| Self::Spreedly
             | Self::Adyen
             | Self::Adyenplatform
@@ -523,6 +526,7 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::Monex => Self::Monex,
             RoutableConnectors::Spreedly => Self::Spreedly,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
@@ -638,6 +642,7 @@ impl TryFrom<Connector> for RoutableConnectors {
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
             // PRAGMA: connector_enums
+            Connector::Monex => Ok(Self::Monex),
             Connector::Spreedly => Ok(Self::Spreedly),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]

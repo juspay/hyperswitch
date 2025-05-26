@@ -305,6 +305,9 @@ impl ConnectorData {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 // PRAGMA: api
+                enums::Connector::Monex => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Monex::new())))
+                }
                 enums::Connector::Spreedly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Spreedly::new())))
                 }

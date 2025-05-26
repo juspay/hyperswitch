@@ -1,6 +1,13 @@
 pub mod transformers;
 
-use base64::Engine;
+// Constants
+pub const BASE_URL: &str = "https://api.monexgroup.com/v1";
+pub const SANDBOX_URL: &str = "https://sandbox.api.monexgroup.com/v1";
+pub const PAYMENTS_URL: &str = "/payments/authorize";
+pub const CAPTURES_URL: &str = "/payments/capture";
+pub const PAYMENTS_SYNC_URL: &str = "/payments";
+pub const REFUNDS_URL: &str = "/payments/refund";
+
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -37,21 +44,17 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
-use transformers as spreedly;
+use masking::{ExposeInterface, Mask};
+use transformers as monex;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Spreedly {
+pub struct Monex {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Spreedly {
+impl Monex {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -59,26 +62,26 @@ impl Spreedly {
     }
 }
 
-impl api::Payment for Spreedly {}
-impl api::PaymentSession for Spreedly {}
-impl api::ConnectorAccessToken for Spreedly {}
-impl api::MandateSetup for Spreedly {}
-impl api::PaymentAuthorize for Spreedly {}
-impl api::PaymentSync for Spreedly {}
-impl api::PaymentCapture for Spreedly {}
-impl api::PaymentVoid for Spreedly {}
-impl api::Refund for Spreedly {}
-impl api::RefundExecute for Spreedly {}
-impl api::RefundSync for Spreedly {}
-impl api::PaymentToken for Spreedly {}
+impl api::Payment for Monex {}
+impl api::PaymentSession for Monex {}
+impl api::ConnectorAccessToken for Monex {}
+impl api::MandateSetup for Monex {}
+impl api::PaymentAuthorize for Monex {}
+impl api::PaymentSync for Monex {}
+impl api::PaymentCapture for Monex {}
+impl api::PaymentVoid for Monex {}
+impl api::Refund for Monex {}
+impl api::RefundExecute for Monex {}
+impl api::RefundSync for Monex {}
+impl api::PaymentToken for Monex {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Spreedly
+    for Monex
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Spreedly
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Monex
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -97,12 +100,13 @@ where
     }
 }
 
-impl ConnectorCommon for Spreedly {
+impl ConnectorCommon for Monex {
     fn id(&self) -> &'static str {
-        "spreedly"
+        "monex"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
+        // Based on Monex documentation, it processes amount in minor units (cents for USD)
         api::CurrencyUnit::Minor
     }
 
@@ -111,28 +115,27 @@ impl ConnectorCommon for Spreedly {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.spreedly.base_url.as_ref()
+        connectors.monex.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = spreedly::SpreedlyAuthType::try_from(auth_type)
+        // First check if we have a stored access token
+        if let ConnectorAuthType::BodyKey { api_key, .. } = auth_type {
+            return Ok(vec![(
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", api_key.clone().expose()).into_masked(),
+            )]);
+        }
+        
+        // Fall back to API key if access token not available
+        let auth = monex::MonexAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        // Create HTTP Basic Auth header
-        let auth_string = format!(
-            "{}:{}",
-            auth.environment_key.peek(),
-            auth.access_secret.peek()
-        );
-        let encoded = common_utils::consts::BASE64_ENGINE.encode(auth_string.as_bytes());
-        let auth_header = format!("Basic {}", encoded);
-
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth_header.into_masked(),
+            format!("Bearer {}", auth.api_key.clone().expose()).into_masked(),
         )])
     }
 
@@ -141,59 +144,174 @@ impl ConnectorCommon for Spreedly {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: spreedly::SpreedlyErrorResponse = res
-            .response
-            .parse_struct("SpreedlyErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        // Try to parse as detailed error response first
+        let detailed_response = res.response.parse_struct::<monex::MonexDetailedErrorResponse>("MonexDetailedErrorResponse");
+        
+        let response = match detailed_response {
+            Ok(detailed) if !detailed.errors.is_empty() => {
+                // Use the first error from the detailed error response
+                event_builder.map(|i| i.set_response_body(&detailed));
+                router_env::logger::info!(connector_response=?detailed);
+                
+                let first_error = &detailed.errors[0];
+                ErrorResponse {
+                    status_code: res.status_code,
+                    code: first_error.code.clone(),
+                    message: first_error.message.clone(),
+                    reason: first_error.reason.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }
+            },
+            _ => {
+                // Try to parse as standard error response
+                let standard_response = res.response
+                    .parse_struct::<monex::MonexErrorResponse>("MonexErrorResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                
+                event_builder.map(|i| i.set_response_body(&standard_response));
+                router_env::logger::info!(connector_response=?standard_response);
+                
+                // Map status code to appropriate attempt status
+                let attempt_status = match res.status_code {
+                    400..=499 => match standard_response.code.as_str() {
+                        "card_declined" => Some(common_enums::AttemptStatus::Failure),
+                        "insufficient_funds" => Some(common_enums::AttemptStatus::Failure),
+                        "invalid_card" => Some(common_enums::AttemptStatus::Failure),
+                        _ => None
+                    },
+                    500..=599 => Some(common_enums::AttemptStatus::Pending),
+                    _ => None,
+                };
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+                ErrorResponse {
+                    status_code: res.status_code,
+                    code: standard_response.code,
+                    message: standard_response.message,
+                    reason: standard_response.reason,
+                    attempt_status,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }
+            }
+        };
 
-        // Combine all error messages from the errors array
-        let message = response
-            .errors
-            .iter()
-            .map(|e| e.message.clone())
-            .collect::<Vec<_>>()
-            .join("; ");
-
-        // Use the first error's key as the code, or "UNKNOWN" if no errors
-        let code = response
-            .errors
-            .first()
-            .map(|e| e.key.clone())
-            .unwrap_or_else(|| "UNKNOWN".to_string());
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-        })
+        Ok(response)
     }
 }
 
-impl ConnectorValidation for Spreedly {
+impl ConnectorValidation for Monex {
     //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Monex {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Spreedly {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Monex {
+    fn get_headers(
+        &self,
+        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            ),
+        ])
+    }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Spreedly
-{
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/oauth/token", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        router_env::logger::debug!("Creating OAuth token request for Monex");
+        let auth = monex::MonexAuthType::try_from(&req.connector_auth_type)?;
+        let connector_req = monex::MonexOAuthRequest {
+            grant_type: "client_credentials".to_string(),
+            client_id: auth.client_id,
+            client_secret: auth.client_secret,
+        };
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::RefreshTokenType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::RefreshTokenType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>, errors::ConnectorError> {
+        let response: monex::MonexOAuthResponse = res
+            .response
+            .parse_struct("MonexOAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        // Calculate expiry time
+        let expires_in = response.expires_in;
+        let expiry_time = time::OffsetDateTime::now_utc().unix_timestamp() + expires_in;
+
+        Ok(RouterData {
+            response: Ok(AccessToken {
+                token: response.access_token,
+                expires: expiry_time,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Monex {}
+
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Monex {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -208,15 +326,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
+        _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let gateway_token = spreedly::get_gateway_token(&req.connector_meta_data)?;
-        Ok(format!(
-            "{}/v1/gateways/{}/authorize.json",
-            base_url, gateway_token
-        ))
+        Ok(format!("{}{}", self.base_url(connectors), PAYMENTS_URL))
     }
 
     fn get_request_body(
@@ -224,14 +337,26 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        router_env::logger::debug!(
+            payment_id=?req.payment_id,
+            "Creating payment authorization request for Monex"
+        );
+        
         let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
+        
+        router_env::logger::debug!(
+            payment_id=?req.payment_id,
+            amount=?amount,
+            currency=?req.request.currency,
+            "Payment amount converted for Monex"
+        );
 
-        let connector_router_data = spreedly::SpreedlyRouterData::from((amount, req));
-        let connector_req = spreedly::SpreedlyPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = monex::MonexRouterData::from((amount, req));
+        let connector_req = monex::MonexPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -263,12 +388,27 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyPaymentsResponse = res
+        router_env::logger::debug!(
+            payment_id=?data.payment_id,
+            status_code=?res.status_code,
+            "Received payment authorization response from Monex"
+        );
+        
+        let response: monex::MonexPaymentsResponse = res
             .response
-            .parse_struct("Spreedly PaymentsAuthorizeResponse")
+            .parse_struct("Monex PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
+        router_env::logger::info!(
+            payment_id=?data.payment_id,
+            connector_response=?response,
+            connector_payment_id=?response.id,
+            status=?response.status,
+            "Payment authorization processed"
+        );
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -285,7 +425,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Monex {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -303,16 +443,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let transaction_token = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}/v1/transactions/{}.json",
-            base_url, transaction_token
-        ))
+        let payment_id = req.request.connector_transaction_id.clone();
+        let payment_id_str = match payment_id {
+            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id) => id,
+            _ => Err(errors::ConnectorError::RequestEncodingFailed)?,
+        };
+        Ok(format!("{}{}/{}", self.base_url(connectors), PAYMENTS_SYNC_URL, payment_id_str))
     }
 
     fn build_request(
@@ -336,9 +472,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyPaymentsResponse = res
+        let response: monex::MonexPaymentsResponse = res
             .response
-            .parse_struct("spreedly PaymentsSyncResponse")
+            .parse_struct("monex PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -358,7 +494,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Spr
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Spreedly {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Monex {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -376,12 +512,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let transaction_token = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}/v1/transactions/{}/capture.json",
-            base_url, transaction_token
-        ))
+        // Format the URL with the payment ID from the connector transaction ID
+        let payment_id = &req.request.connector_transaction_id;
+        Ok(format!("{}{}/{}", self.base_url(connectors), CAPTURES_URL, payment_id))
     }
 
     fn get_request_body(
@@ -389,14 +522,17 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // Convert amount_to_capture to MinorUnit
+        let minor_amount = common_utils::types::MinorUnit::new(req.request.amount_to_capture);
+            
         let amount = utils::convert_amount(
             self.amount_converter,
-            req.request.minor_amount_to_capture,
+            minor_amount,
             req.request.currency,
         )?;
 
-        let connector_router_data = spreedly::SpreedlyRouterData::from((amount, req));
-        let connector_req = spreedly::SpreedlyCaptureRequest::try_from(&connector_router_data)?;
+        let connector_router_data = monex::MonexRouterData::from((amount, req));
+        let connector_req = monex::MonexPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -426,9 +562,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyPaymentsResponse = res
+        let response: monex::MonexPaymentsResponse = res
             .response
-            .parse_struct("Spreedly PaymentsCaptureResponse")
+            .parse_struct("Monex PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -448,9 +584,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Spreedly {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Monex {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedly {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Monex {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -468,12 +604,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let transaction_token = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}/v1/transactions/{}/credit.json",
-            base_url, transaction_token
-        ))
+        // Format the URL with the payment ID
+        let payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!("{}{}/{}", self.base_url(connectors), REFUNDS_URL, payment_id))
     }
 
     fn get_request_body(
@@ -481,14 +614,28 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        router_env::logger::debug!(
+            payment_id=?req.payment_id,
+            refund_id=?req.request.refund_id,
+            "Creating refund request for Monex"
+        );
+        
         let refund_amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
+        
+        router_env::logger::debug!(
+            payment_id=?req.payment_id,
+            refund_id=?req.request.refund_id,
+            amount=?refund_amount,
+            currency=?req.request.currency,
+            "Refund amount converted for Monex"
+        );
 
-        let connector_router_data = spreedly::SpreedlyRouterData::from((refund_amount, req));
-        let connector_req = spreedly::SpreedlyRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = monex::MonexRouterData::from((refund_amount, req));
+        let connector_req = monex::MonexRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -517,12 +664,29 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: spreedly::SpreedlyRefundResponse = res
+        router_env::logger::debug!(
+            payment_id=?data.payment_id,
+            refund_id=?data.request.refund_id,
+            status_code=?res.status_code,
+            "Received refund response from Monex"
+        );
+        
+        let response: monex::MonexRefundResponse = res
             .response
-            .parse_struct("spreedly RefundResponse")
+            .parse_struct("Monex RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
+        router_env::logger::info!(
+            payment_id=?data.payment_id,
+            refund_id=?data.request.refund_id,
+            connector_response=?response,
+            connector_refund_id=?response.id,
+            status=?response.status,
+            "Refund processed"
+        );
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -539,7 +703,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Spreedl
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Monex {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -557,12 +721,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
-        let refund_id = req
-            .request
-            .get_connector_refund_id()
-            .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
-        Ok(format!("{}/v1/transactions/{}.json", base_url, refund_id))
+        // Extract the refund ID from the connector_refund_id
+        let refund_id = req.request.connector_refund_id.clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+            
+        // Format the URL with the refund ID
+        Ok(format!("{}/refunds/{}", self.base_url(connectors), refund_id))
     }
 
     fn build_request(
@@ -576,9 +740,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -589,9 +750,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: spreedly::SpreedlyRefundResponse = res
+        let response: monex::MonexRefundResponse = res
             .response
-            .parse_struct("spreedly RefundSyncResponse")
+            .parse_struct("Monex RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -612,7 +773,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Spreedly 
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Spreedly {
+impl webhooks::IncomingWebhook for Monex {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -635,4 +796,4 @@ impl webhooks::IncomingWebhook for Spreedly {
     }
 }
 
-impl ConnectorSpecifications for Spreedly {}
+impl ConnectorSpecifications for Monex {}
