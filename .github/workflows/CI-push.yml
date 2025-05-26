@@ -65,7 +65,7 @@ jobs:
       fail-fast: true
       matrix:
         runner:
-          - ubuntu-22.04
+          - ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository
@@ -163,7 +163,7 @@ jobs:
       fail-fast: true
       matrix:
         runner:
-          - ubuntu-latest
+          - ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository

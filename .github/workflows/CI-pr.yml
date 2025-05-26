@@ -92,7 +92,7 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-          - ubuntu-22.04
+          - ubuntu-24.04-arm
           - hyperswitch-runners
 
     steps:
@@ -188,7 +188,7 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-          - ubuntu-latest
+          - ubuntu-24.04-arm
           - hyperswitch-runners
 
     steps:
