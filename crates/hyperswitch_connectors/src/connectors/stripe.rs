@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{collections::HashMap, convert::TryFrom};
+use std::collections::HashMap;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{
@@ -2253,19 +2253,16 @@ impl IncomingWebhook for Stripe {
             .body
             .parse_struct("WebhookEvent")
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
-        let amt = details
-            .event_data
-            .event_object
-            .amount
-            .map(i64::from)
-            .ok_or_else(|| ConnectorError::MissingRequiredField {
+        let amt = details.event_data.event_object.amount.ok_or_else(|| {
+            ConnectorError::MissingRequiredField {
                 field_name: "amount",
-            })?;
+            }
+        })?;
 
         Ok(DisputePayload {
             amount: utils::convert_amount(
                 self.amount_converter_webhooks,
-                MinorUnit::new(amt),
+                amt,
                 details.event_data.event_object.currency,
             )?,
             currency: details.event_data.event_object.currency,
