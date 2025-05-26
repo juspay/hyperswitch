@@ -1209,7 +1209,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             status,
             amount_captured,
             customer_id,
-            return_url: None, // depricated
+            return_url: None, // deprecated
             setup_future_usage,
             off_session,
             metadata,
@@ -1957,7 +1957,7 @@ impl behaviour::Conversion for PaymentIntent {
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
-            return_url: None, // depricated
+            return_url: None, // deprecated
             metadata: self.metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
@@ -2129,7 +2129,7 @@ impl behaviour::Conversion for PaymentIntent {
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
-            return_url: None, // depricated
+            return_url: None, // deprecated
             metadata: self.metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
