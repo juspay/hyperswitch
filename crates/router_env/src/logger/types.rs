@@ -586,6 +586,10 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Tokenization flow
+    TokenizationCreate,
+    /// Tokenization retrieve flow
+    TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
     ///Proxy Flow

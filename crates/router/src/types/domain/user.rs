@@ -36,7 +36,10 @@ use crate::{
     },
     db::GlobalStorageInterface,
     routes::SessionState,
-    services::{self, authentication::UserFromToken},
+    services::{
+        self,
+        authentication::{AuthenticationDataWithOrg, UserFromToken},
+    },
     types::{domain, transformers::ForeignFrom},
     utils::{self, user::password},
 };
@@ -518,13 +521,21 @@ impl NewUserMerchant {
         let merchant_account_create_request = self
             .create_merchant_account_request()
             .attach_printable("unable to construct merchant account create request")?;
-
-        let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?
+        let org_id = merchant_account_create_request
+            .clone()
+            .organization_id
+            .ok_or(UserErrors::InternalServerError)?;
+        let ApplicationResponse::Json(merchant_account_response) =
+            Box::pin(admin::create_merchant_account(
+                state.clone(),
+                merchant_account_create_request,
+                Some(AuthenticationDataWithOrg {
+                    organization_id: org_id,
+                }),
+            ))
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while creating a merchant")?
         else {
             return Err(UserErrors::InternalServerError.into());
         };
@@ -566,7 +577,7 @@ impl NewUserMerchant {
             .attach_printable("unable to construct merchant account create request")?;
 
         let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
+            admin::create_merchant_account(state.clone(), merchant_account_create_request, None),
         )
         .await
         .change_context(UserErrors::InternalServerError)

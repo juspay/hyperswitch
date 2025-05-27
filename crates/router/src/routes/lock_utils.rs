@@ -45,6 +45,7 @@ pub enum ApiIdentifier {
     ProcessTracker,
     Proxy,
     MerchantAcquirer,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -345,6 +346,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::Proxy => Self::Proxy,
 
             Flow::MerchantAcquirerCreate => Self::MerchantAcquirer,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }
