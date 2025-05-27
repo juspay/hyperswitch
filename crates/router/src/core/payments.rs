@@ -7458,21 +7458,22 @@ where
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    connectors = routing::perform_eligibility_analysis_with_fallback(
+    connectors = routing::perform_eligibility_analysis(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
         connectors,
-        &TransactionData::Payment(transaction_data),
-        eligible_connectors,
-        business_profile,
+        &TransactionData::Payment(transaction_data.clone()),
+        eligible_connectors.as_ref(),
+        business_profile.get_id(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("failed eligibility analysis and fallback")?;
+    .attach_printable("failed eligibility analysis")?;
 
     // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let connectors = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+    let mut final_selection = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone()
+    {
         let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
             .parse_value("DynamicRoutingAlgorithmRef")
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7557,7 +7558,27 @@ where
         connectors
     };
 
-    let connector_data = connectors
+    let fallback_selection = routing::perform_fallback_routing(
+        &state.clone(),
+        merchant_context.get_merchant_key_store(),
+        &TransactionData::Payment(transaction_data.clone()),
+        eligible_connectors.as_ref(),
+        &business_profile,
+    )
+    .await;
+
+    final_selection.append(
+        &mut fallback_selection
+            .unwrap_or_default()
+            .iter()
+            .filter(|&routable_connector_choice| {
+                !final_selection.contains(routable_connector_choice)
+            })
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
+
+    let connector_data = final_selection
         .into_iter()
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
