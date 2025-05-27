@@ -327,7 +327,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::LocalBankRedirect
                 | PaymentMethodType::OpenBankingPIS
                 | PaymentMethodType::InstantBankTransfer
-                | PaymentMethodType::SepaBankTransfer => {
+                | PaymentMethodType::SepaBankTransfer
+                | PaymentMethodType::RevolutPay => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

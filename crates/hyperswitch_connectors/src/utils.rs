@@ -5492,6 +5492,7 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    RevolutPay,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5542,6 +5543,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
                 payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
                 payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
+                payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
