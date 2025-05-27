@@ -65,6 +65,7 @@ pub struct Connectors {
     pub klarna: ConnectorParams,
     pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
+    pub monei: ConnectorParams,
     pub moneris: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,

@@ -236,6 +236,7 @@ jpmorgan.secondary_base_url= "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+monei.base_url = "https://api.monei.com/v1"
 moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
@@ -347,6 +348,7 @@ cards = [
   "helcim",
   "hipay",
   "mollie",
+    "monei",
     "moneris",
   "paypal",
     "paystack",

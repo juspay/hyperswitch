@@ -162,6 +162,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub monei: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -404,6 +405,7 @@ impl ConnectorConfig {
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Moneris => Ok(connector_data.moneris),
+            Connector::Monei => Ok(connector_data.monei),
             Connector::Multisafepay => Ok(connector_data.multisafepay),
             Connector::Nexinets => Ok(connector_data.nexinets),
             Connector::Nexixpay => Ok(connector_data.nexixpay),

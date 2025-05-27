@@ -25,6 +25,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+	Monei,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -178,6 +179,7 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+	Monei,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -375,6 +377,7 @@ impl Connector {
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
+      
             #[cfg(feature = "dummy_connector")]
             Self::DummyBillingConnector => false,
             #[cfg(feature = "dummy_connector")]
@@ -386,6 +389,7 @@ impl Connector {
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
             Self::Aci
+            | Self::Monei
             // Add Separate authentication support for connectors
             | Self::Adyen
             | Self::Adyenplatform
@@ -526,6 +530,7 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::Monei => Self::Monei,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
@@ -701,6 +706,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
+            Connector::Monei => Ok(Self::Monei),
             Connector::Multisafepay => Ok(Self::Multisafepay),
             Connector::Nexinets => Ok(Self::Nexinets),
             Connector::Nexixpay => Ok(Self::Nexixpay),

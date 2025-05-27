@@ -493,9 +493,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
                 enums::Connector::Mollie => {
-                    // enums::Connector::Moneris => Ok(ConnectorEnum::Old(Box::new(connector::Moneris))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
                 }
+                enums::Connector::Monei => Ok(ConnectorEnum::Old(Box::new(connector::Monei::new()))),
                 enums::Connector::Moneris => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Moneris::new())))
                 }
