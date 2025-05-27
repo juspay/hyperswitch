@@ -1,3 +1,8 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Drainer Crate Overview
 
 The `drainer` crate is a critical background processing component of the Hyperswitch payment orchestration platform. It is responsible for reading database operations from Redis streams and executing them against the database, essentially acting as an asynchronous job processor that ensures data consistency and handles high-throughput database operations.
@@ -210,6 +215,12 @@ The drainer is designed for concurrent operation:
 - **Thread Safety**: All shared data structures are thread-safe
 - **Tokio Integration**: Built on the Tokio runtime for efficient async execution
 - **Concurrency Control**: Controls the level of concurrency to prevent overload
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |
 
 ## Conclusion
 

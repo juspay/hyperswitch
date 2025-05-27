@@ -1,3 +1,8 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Common Utils Crate Overview
 
 The `common_utils` crate provides a comprehensive set of utility functions, traits, and types that are shared across the Hyperswitch payment orchestration platform. It serves as a foundational crate that offers common functionality required by multiple components of the system, promoting code reuse and maintaining consistency across the platform.
@@ -263,6 +268,12 @@ The crate is designed for concurrent usage:
 - **Async Support**: Provides async versions of functions that might block
 - **No Global State**: Avoids global state that could cause concurrency issues
 - **Immutable Data**: Prefers immutable data structures to avoid synchronization overhead
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |
 
 ## Conclusion
 

@@ -1,5 +1,10 @@
 # Hyperswitch Product Context
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 ## Product Overview
 
 Hyperswitch is an open-source payments orchestration platform that provides a single API to access the payments ecosystem. It serves as a middleware between merchants and payment service providers (PSPs), enabling businesses to manage their payment stack efficiently without being locked into a single provider.
@@ -115,8 +120,15 @@ Based on the project documentation and structure, Hyperswitch appears to be evol
 
 ## Links to Detailed Documentation
 
-- [Payment Flows](./thematic/payment_flows/overview.md)
-- [Connector Integration](./thematic/connectors/overview.md)
-- [Routing Strategies](./thematic/routing/strategies.md)
-- [User Experience Guidelines](./thematic/ux/guidelines.md)
-- [Business Integration Guide](./thematic/business/integration_guide.md)
+- [Payment Flows](./thematic/crates/router/flows/payment_flows.md)
+- [Refund Flows](./thematic/crates/router/flows/refund_flows.md)
+- [Webhook Flows](./thematic/crates/router/flows/webhook_flows.md)
+- [Connector Integration](./thematic/crates/hyperswitch_interfaces/connector_integration.md)
+- [Routing Strategies](./thematic/crates/router/configuration/routing_strategies.md)
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated documentation links to point to existing files, added metadata |
+| Prior | Initial version |

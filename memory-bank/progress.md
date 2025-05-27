@@ -1,5 +1,10 @@
 # Hyperswitch Project Progress
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 ## Documentation Progress: Memory Bank Finalization
 
 The Hyperswitch Memory Bank is currently undergoing a finalization phase. The goal is to ensure all core and thematic documents are accurate, consistent, and provide a complete, up-to-date snapshot of the project.
@@ -37,6 +42,13 @@ Each crate documentation aims to cover:
 **Additional Progress**: 
 - Documentation has been completed for `hyperswitch_domain_models`, `common_enums`, `common_types`, `router_derive`, `cards`, `payment_methods`, and `currency_conversion` crates (2025-05-20), following the same comprehensive structure as the original 11 crates.
 - Documentation has been added for `events`, `pm_auth`, and `external_services` crates (2025-05-20), covering their purpose, architecture, key components, implementation details, and integration with other crates.
+- Documentation has been completed for the `connector_configs` crate (2025-05-27), providing comprehensive details on connector configuration management, authentication types, and integration with payment processors.
+- Documentation has been completed for the `euclid` crate (2025-05-27), detailing the Domain-Specific Language (DSL) for payment routing rules, including parsing, validation, compilation, and execution components.
+- Documentation has been completed for the `hyperswitch_constraint_graph` crate (2025-05-27), explaining the framework for modeling and validating domain-specific constraints using a graph-based approach.
+- Documentation has been completed for the `euclid_macros` crate (2025-05-27), describing the procedural macros that enhance the Euclid DSL functionality, including the EnumNums derive macro and knowledge procedural macro.
+- Documentation has been completed for the `euclid_wasm` crate (2025-05-27), providing details on the WebAssembly bindings for the Euclid DSL that enable browser-based interactions with the payment routing rules engine.
+- Documentation has been completed for the `kgraph_utils` crate (2025-05-27), covering utilities for constructing and working with knowledge graphs with a focus on payment routing validation.
+- Documentation has been completed for the `test_utils` crate (2025-05-27), describing the Postman collection runner and utilities for testing connector integrations using Newman.
 - Implemented proactive file size management for the `router` crate documentation (2025-05-20), splitting the monolithic overview into a hierarchical structure with dedicated sections for modules, flows, architecture, and configuration. This implementation serves as a template for future documentation organization of complex crates.
 - Work continues on documenting the remaining crates as identified in the finalization review.
 
@@ -138,11 +150,16 @@ Key performance indicators:
 4.  Error Rate
 5.  Connector Coverage
 
-## Links to Detailed Documentation (Illustrative - verify actual paths)
+## Links to Detailed Documentation
 
-- [Release History](./thematic/project_management/releases.md)
-- [Known Issues Tracker](./thematic/project_management/issues.md)
-- [Roadmap Details](./thematic/project_management/roadmap_details.md)
-- [Performance Metrics](./thematic/performance/metrics.md)
-- [Community Guidelines](./thematic/community/guidelines.md)
-- [Crate Index](../crateIndex.md)
+- [File Size Management Guide](./thematic/project_management/file_size_management_guide.md)
+- [Implementation Tracker](./thematic/project_management/implementation_tracker.md)
+- [Task Transition Template](./thematic/project_management/task_transition_template.md)
+- [Crate Index](./crateIndex.md)
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated documentation links to point to existing files, added metadata |
+| Prior | Initial version |

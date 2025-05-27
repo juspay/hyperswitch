@@ -2,7 +2,8 @@
 
 ---
 **Parent:** [Router Overview](../overview.md)  
-**Last Updated:** 2025-05-20  
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete  
 **Related Files:**
 - [Routes Module](./routes.md)
 - [Payment Flows](../flows/payment_flows.md)
@@ -126,3 +127,10 @@ The core module interacts with several other crates:
 - [Refund Flows Documentation](../flows/refund_flows.md)
 - [Webhook Flows Documentation](../flows/webhook_flows.md)
 - [Routes Module Documentation](./routes.md)
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated metadata to include documentation status |
+| 2025-05-20 | Initial version |

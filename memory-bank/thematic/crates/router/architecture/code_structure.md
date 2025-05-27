@@ -1,8 +1,12 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Router Code Structure
 
 ---
 **Parent:** [Router Overview](../overview.md)  
-**Last Updated:** 2025-05-20  
 **Related Files:**
 - [Entry Points](./entry_points.md)
 - [Dependencies](./dependencies.md)
@@ -211,6 +215,13 @@ routes → core → services → db/external services
 ```
 
 This ensures a clean separation between API interfaces and business logic.
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated to new documentation standard format |
+| 2025-05-20 | Last content update before standardization |
+| Prior | Initial version |
 
 ## See Also
 

@@ -287,22 +287,48 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - strum
 
 ### config_importer
-**Purpose**: TBD
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
-**Dependencies**: TBD
+**Purpose**: Utility to convert a TOML configuration file to a list of environment variables.
+**Key Components**:
+- TOML parsing and transformation
+- Environment variable generation
+- Kubernetes integration
+**Links**: [Detailed Documentation](./thematic/crates/config_importer/overview.md) - Reviewed 2025-05-27
+**Dependencies**:
+- anyhow
+- clap
+- indexmap (optional)
+- serde
+- serde_json
+- toml
 
 ### connector_configs
-**Purpose**: TBD
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
-**Dependencies**: TBD
+**Purpose**: Manages payment connector configurations and settings for Hyperswitch.
+**Key Components**:
+- Connector configuration structures
+- Authentication types for different connector integrations
+- Configuration loading based on environment
+- Payment method configuration management
+- Support for different connector types (payment, payout, authentication)
+**Links**: [Detailed Documentation](./thematic/crates/connector_configs/overview.md) - Reviewed 2025-05-27
+**Dependencies**:
+- api_models
+- common_utils
+- serde
+- toml
 
 ### hsdev
-**Purpose**: TBD
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
-**Dependencies**: TBD
+**Purpose**: A simple diesel postgres migrator that uses TOML files.
+**Key Components**:
+- TOML configuration parsing
+- Diesel migration integration
+- Command-line interface
+**Links**: [Detailed Documentation](./thematic/crates/hsdev/overview.md) - Reviewed 2025-05-27
+**Dependencies**:
+- clap
+- diesel
+- diesel_migrations
+- serde
+- toml
 
 ## Feature-Specific Crates
 
@@ -346,7 +372,7 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - Token exchange and credential retrieval
 - Connector integrations (e.g., Plaid)
 - Secure handling of payment method details
-**Links**: [Detailed Documentation](./thematic/crates/pm_auth/overview.md)
+**Links**: [Detailed Documentation](./thematic/crates/pm_auth/overview.md) - Reviewed 2025-05-20
 **Dependencies**:
 - api_models
 - common_enums
@@ -407,7 +433,7 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - Event publishing
 - Event context management
 - Actix Web integration
-**Links**: [Detailed Documentation](./thematic/crates/events/overview.md)
+**Links**: [Detailed Documentation](./thematic/crates/events/overview.md) - Reviewed 2025-05-20
 **Dependencies**:
 - masking
 - router_env
@@ -429,7 +455,7 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - gRPC client functionality
 - CRM integrations (HubSpot)
 - Secrets management
-**Links**: [Detailed Documentation](./thematic/crates/external_services/overview.md)
+**Links**: [Detailed Documentation](./thematic/crates/external_services/overview.md) - Reviewed 2025-05-20
 **Dependencies**:
 - api_models
 - common_enums
@@ -454,7 +480,7 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - Webhook handling interfaces
 - Authentication and dispute handling interfaces
 - Error handling mechanisms
-**Links**: [Detailed Documentation](./thematic/crates/hyperswitch_interfaces/overview.md)
+**Links**: [Detailed Documentation](./thematic/crates/hyperswitch_interfaces/overview.md) - Reviewed 2025-05-20
 **Dependencies**:
 - api_models
 - common_enums
@@ -474,38 +500,44 @@ This document provides an overview of all the crates in the Hyperswitch project,
 ## Documentation and Testing Crates
 
 ### openapi
-**Purpose**: Generates OpenAPI specifications.
+**Purpose**: Generates OpenAPI specifications for the Hyperswitch API.
 **Key Components**:
-- API documentation
+- API documentation and routes
 - Schema generation
-**Links**: [Detailed Documentation - MISSING]
+- Security scheme definitions
+- API categorization by tags
+**Links**: [Detailed Documentation](./thematic/crates/openapi/overview.md) - Reviewed 2025-05-27
 **Dependencies**:
 - api_models
 - common_enums
 - common_types
-- hyperswitch_domain_models
-- serde
+- common_utils
+- router_env
+- serde_json
 - utoipa
 
 ### test_utils
-**Purpose**: Provides utilities for testing.
+**Purpose**: Provides testing utilities for the Hyperswitch project, with a primary focus on running Postman collections using the Newman runner.
 **Key Components**:
-- Mock implementations
-- Test helpers
-- Fixtures
-**Links**: [Detailed Documentation - MISSING]
+- Postman collection runner using Newman
+- Connector authentication management
+- Runtime collection modification
+- CLI interface for test execution
+- Module-specific test commands (connectors, users)
+**Links**: [Detailed Documentation](./thematic/crates/test_utils/overview.md) - Reviewed 2025-05-27
 **Dependencies**:
-- api_models
-- common_enums
-- common_types
-- diesel
-- diesel_models
-- hyperswitch_domain_models
+- anyhow
+- async-trait
+- base64
+- clap
+- masking
 - rand
-- router_env
+- regex
+- reqwest
 - serde
-- sqlx
+- time
 - tokio
+- toml
 
 ## Analytics and Monitoring Crates
 
@@ -515,7 +547,7 @@ This document provides an overview of all the crates in the Hyperswitch project,
 - Data collection
 - Reporting
 - Metrics
-**Links**: [Detailed Documentation - MISSING]
+**Links**: [Detailed Documentation](./thematic/crates/analytics/overview.md) - Reviewed 2025-05-27
 **Dependencies**:
 - api_models
 - common_enums
@@ -528,36 +560,97 @@ This document provides an overview of all the crates in the Hyperswitch project,
 
 ### euclid
 **Purpose**: Provides a Domain Specific Language (DSL) library for writing and evaluating dynamic payment routing rules.
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
+**Key Components**:
+- DSL for expressing payment routing rules
+- Parsing and validation of rule expressions
+- Rule compilation and optimization
+- Rule execution and evaluation engines
+- Integration with constraint graphs
+**Links**: [Detailed Documentation](./thematic/crates/euclid/overview.md) - Reviewed 2025-05-27
 **Dependencies**:
+- nom (optional)
+- once_cell
+- rustc-hash
 - serde
+- strum
+- thiserror
+- common_enums
+- common_utils
+- euclid_macros
+- hyperswitch_constraint_graph
 
 ### kgraph_utils
-**Purpose**: Utilities for knowledge graph operations.
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
+**Purpose**: Provides utilities for constructing and working with knowledge graphs, with a primary focus on payment routing validation.
+**Key Components**:
+- Knowledge graph construction from merchant connector accounts
+- Payment method type transformation
+- Constraint configuration for routing rules
+- Validation and testing for payment scenarios
+**Links**: [Detailed Documentation](./thematic/crates/kgraph_utils/overview.md) - Reviewed 2025-05-27
 **Dependencies**:
-- petgraph
+- api_models
+- common_enums
+- common_types
+- common_utils
+- euclid
+- hyperswitch_constraint_graph
+- masking
 - serde
+- strum
+- thiserror
 
 ### euclid_macros
-**Purpose**: TBD
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
-**Dependencies**: TBD
+**Purpose**: Provides procedural macros that enhance the Euclid Domain-Specific Language (DSL) for payment routing rules.
+**Key Components**:
+- EnumNums derive macro for numeric conversion of enum variants
+- Knowledge procedural macro for domain-specific knowledge representation
+- Code generation for routing rule expressions
+- Compile-time validation of DSL syntax
+**Links**: [Detailed Documentation](./thematic/crates/euclid_macros/overview.md) - Reviewed 2025-05-27
+**Dependencies**:
+- proc-macro2
+- quote
+- rustc-hash
+- strum
+- syn
 
 ### euclid_wasm
-**Purpose**: TBD
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
-**Dependencies**: TBD
+**Purpose**: Provides WebAssembly (WASM) bindings for the Euclid Domain-Specific Language (DSL), enabling browser-based interactions with the payment routing rules engine.
+**Key Components**:
+- JavaScript binding layer for Euclid DSL functionality
+- Routing rule validation and execution in web environments
+- Currency conversion capabilities for frontend use
+- Metadata access for payment routing components
+- Connector configuration retrieval functions
+**Links**: [Detailed Documentation](./thematic/crates/euclid_wasm/overview.md) - Reviewed 2025-05-27
+**Dependencies**:
+- api_models
+- common_enums
+- common_types
+- connector_configs
+- currency_conversion
+- euclid
+- hyperswitch_constraint_graph
+- kgraph_utils
+- wasm-bindgen
+- serde-wasm-bindgen
 
 ### hyperswitch_constraint_graph
-**Purpose**: TBD
-**Key Components**: TBD
-**Links**: [Detailed Documentation - MISSING]
-**Dependencies**: TBD
+**Purpose**: Framework for modeling and validating domain-specific constraints using a graph-based approach.
+**Key Components**:
+- Constraint graph model with nodes, edges, domains, and relations
+- Node types including value nodes and various aggregators
+- Graph construction with builder pattern
+- Constraint validation and detailed error traces
+- Visualization capabilities (optional feature)
+**Links**: [Detailed Documentation](./thematic/crates/hyperswitch_constraint_graph/overview.md) - Reviewed 2025-05-27
+**Dependencies**:
+- erased-serde
+- graphviz-rust (optional)
+- rustc-hash
+- serde
+- strum
+- thiserror
 
 ## Crate Dependency Graph
 

@@ -1,5 +1,10 @@
 # Hyperswitch System Architecture and Patterns
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 ## High-Level Architecture
 
 Hyperswitch comprises two distinct app services: **Router** and **Scheduler**, along with supporting components like databases, a secure storage component (Locker), and monitoring services.
@@ -120,7 +125,7 @@ Hyperswitch is organized into multiple crates, each with specific responsibiliti
 
 Hyperswitch uses a standardized approach for integrating payment processors:
 
-1.  **Connector Trait** (e.g., `trait Connector`): Defines the standard Rust trait that all specific payment processor integrations must implement.
+1.  **Connector Trait**: Defines the standard Rust trait (`trait Connector` in `hyperswitch_connectors/src/traits.rs`) that all specific payment processor integrations must implement.
 2.  **Transformers**: Convert between Hyperswitch's internal models and connector-specific data formats.
 3.  **Routing Logic**: Determines which connector to use based on various criteria (rules, cost, success rate).
 4.  **Fallback Mechanism**: Handles failures by attempting transactions with alternative connectors if configured.
@@ -164,8 +169,18 @@ Hyperswitch uses a standardized approach for integrating payment processors:
 
 ## Links to Detailed Documentation
 
-- [Router Architecture](./thematic/crates/router/architecture.md)
-- [Scheduler Architecture](./thematic/crates/scheduler/architecture.md)
-- [Database Schema](./thematic/database/schema.md)
-- [Connector Integration Guide](./thematic/connectors/integration_guide.md)
-- [Payment Flows](./thematic/payment_flows/overview.md)
+- [Router Architecture - Code Structure](./thematic/crates/router/architecture/code_structure.md)
+- [Router Architecture - Dependencies](./thematic/crates/router/architecture/dependencies.md)
+- [Router Architecture - Entry Points](./thematic/crates/router/architecture/entry_points.md)
+- [Scheduler Overview](./thematic/crates/scheduler/overview.md)
+- [Connector Integration](./thematic/crates/hyperswitch_interfaces/connector_integration.md)
+- [Payment Flows](./thematic/crates/router/flows/payment_flows.md)
+- [Refund Flows](./thematic/crates/router/flows/refund_flows.md)
+- [Webhook Flows](./thematic/crates/router/flows/webhook_flows.md)
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated documentation links to point to existing files, added metadata |
+| Prior | Initial version |

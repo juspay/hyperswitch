@@ -1,3 +1,8 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Masking Crate Overview
 
 The `masking` crate is a critical security component of the Hyperswitch payment orchestration platform. It provides specialized wrapper types and traits for protecting Personal Identifiable Information (PII) and other sensitive data. This crate ensures that secrets aren't accidentally copied, logged, or otherwise exposed, and also ensures that sensitive data is securely wiped from memory when no longer needed.
@@ -254,6 +259,12 @@ As a security-focused crate, it incorporates several best practices:
 - **Type Safety**: Compile-time checks to prevent misuse
 - **Serialization Control**: Prevents accidental plain-text serialization
 - **Defensive Programming**: Assumes worst-case scenarios for exposure
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |
 
 ## Conclusion
 

@@ -1,5 +1,10 @@
 # Hyperswitch Domain Models Crate Overview
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 The `hyperswitch_domain_models` crate provides the core domain model definitions for the Hyperswitch payment orchestration platform. It serves as the bridge between the API layer (defined in `api_models`) and the database layer (defined in `diesel_models`), encapsulating business logic, validation rules, and data transformations.
 
 ## Purpose
@@ -179,3 +184,10 @@ The crate is designed for use in an async context:
 ## Conclusion
 
 The `hyperswitch_domain_models` crate is a critical component of the Hyperswitch platform, serving as the domain layer that encapsulates business logic and provides a bridge between the API and database layers. It enforces business rules, manages data transformations, and ensures data integrity throughout the payment processing lifecycle.
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |

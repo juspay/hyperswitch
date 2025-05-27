@@ -1,3 +1,8 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Router Environment Crate Overview
 
 The `router_env` crate provides essential environment management, logging, and metrics collection for the Hyperswitch payment orchestration platform. It serves as the central infrastructure component for operational awareness and observability, ensuring consistent logging, metrics collection, and environment detection across the system.
@@ -202,6 +207,12 @@ The crate is designed for concurrent and async usage:
 - **Async-Compatible**: Works with async code and futures
 - **Context Propagation**: Properly propagates context across async boundaries
 - **Minimal Overhead**: Designed for minimal impact on performance
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |
 
 ## Conclusion
 

@@ -1,8 +1,12 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Router Webhook Flows
 
 ---
 **Parent:** [Router Overview](../overview.md)  
-**Last Updated:** 2025-05-20  
 **Related Files:**
 - [Core Module](../modules/core.md)
 - [Payment Flows](./payment_flows.md)
@@ -75,6 +79,105 @@ The incoming webhook flow processes notifications from payment processors:
 
 This flow is implemented in the `webhooks` module of the core component.
 
+#### Incoming Webhook Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Processor as Payment Processor
+    participant API as API Routes
+    participant WebhookHandler as Webhook Handler
+    participant Auth as Authentication Service
+    participant Parser as Payload Parser
+    participant DB as Database
+    participant OutgoingQueue as Outgoing Webhook Queue
+    
+    Processor->>API: POST /webhooks/{connector_name}
+    Note over Processor,API: Includes connector-specific payload and signature
+    
+    API->>WebhookHandler: process_incoming_webhook()
+    
+    WebhookHandler->>WebhookHandler: Identify connector
+    Note over WebhookHandler: Extract connector from URL path
+    
+    WebhookHandler->>Auth: Verify webhook authenticity
+    Note over WebhookHandler,Auth: Verify signature, source IP, etc.
+    
+    alt Authentication Failed
+        Auth-->>WebhookHandler: Authentication failed
+        WebhookHandler-->>API: Authentication error response
+        API-->>Processor: 401 Unauthorized
+    else Authentication Successful
+        Auth-->>WebhookHandler: Authentication successful
+        
+        WebhookHandler->>Parser: Parse webhook payload
+        Parser-->>WebhookHandler: Parsed event data
+        
+        WebhookHandler->>WebhookHandler: Determine event type
+        Note over WebhookHandler: Map to internal event type
+        
+        WebhookHandler->>DB: Retrieve associated resource
+        DB-->>WebhookHandler: Resource data
+        
+        alt Resource Not Found
+            WebhookHandler-->>API: Resource not found error
+            API-->>Processor: 404 Not Found
+        else Resource Found
+            WebhookHandler->>DB: Check webhook idempotency
+            
+            alt Already Processed
+                DB-->>WebhookHandler: Webhook already processed
+                WebhookHandler-->>API: Success response (idempotent)
+                API-->>Processor: 200 OK
+            else New Webhook
+                DB-->>WebhookHandler: Webhook not yet processed
+                
+                WebhookHandler->>DB: Update resource state
+                DB-->>WebhookHandler: Update successful
+                
+                WebhookHandler->>DB: Record webhook processing
+                DB-->>WebhookHandler: Recorded
+                
+                WebhookHandler->>OutgoingQueue: Queue merchant notification
+                OutgoingQueue-->>WebhookHandler: Queued
+                
+                WebhookHandler-->>API: Success response
+                API-->>Processor: 200 OK
+            end
+        end
+    end
+```
+
+#### Error Handling in Incoming Webhooks
+
+- **Authentication Failures**: If signature verification fails, the webhook is rejected with a 401 Unauthorized response
+- **Malformed Payloads**: If the payload cannot be parsed, an appropriate error response is returned (400 Bad Request)
+- **Unknown Event Types**: If the event type cannot be determined, the webhook is logged for investigation and a 422 Unprocessable Entity response is returned
+- **Resource Not Found**: If the referenced resource (payment, refund, etc.) cannot be found, a 404 Not Found response is returned
+- **Concurrent Updates**: Database locking mechanisms prevent race conditions when multiple webhooks arrive simultaneously
+- **Processing Failures**: If resource state cannot be updated, the error is logged and an appropriate error response is returned
+
+#### Edge Cases and Special Scenarios
+
+- **Test Webhooks**: Some processors send test webhooks that should be acknowledged but not processed
+- **Delayed Webhooks**: Webhooks may arrive out of order or significantly delayed, requiring careful state transition validation
+- **Duplicate Webhooks**: Many processors send duplicate webhooks for reliability, requiring robust idempotency handling
+- **Partial Updates**: Some webhooks contain only partial resource data, requiring merging with existing data
+- **Webhook Replay Attacks**: Defense mechanisms are in place to detect and prevent malicious webhook replay
+- **Webhook Format Changes**: Versioning and fallback mechanisms handle changes in processor webhook formats
+
+#### Implementation Details
+
+The incoming webhook flow is primarily implemented in:
+- `crates/router/src/core/webhooks/incoming.rs` and `crates/router/src/core/webhooks/incoming_v2.rs`
+- `crates/router/src/routes/webhooks.rs`
+
+Key interfaces include:
+- `WebhookProcessor` trait: Defines the core webhook processing operations
+- `ConnectorWebhookFlow` trait: Contains connector-specific webhook handling logic
+- `WebhookEventInterface` trait: Manages webhook event mapping and routing
+
+The implementation includes specialized handling for each connector's unique webhook format and authentication requirements. Webhook processing is designed to be non-blocking, with potential use of background processing for time-consuming operations.
+
 ### Outgoing Webhook Flow
 
 The outgoing webhook flow delivers notifications to merchants:
@@ -125,6 +228,99 @@ The outgoing webhook flow delivers notifications to merchants:
    - May be used for auditing or troubleshooting
 
 This flow is implemented using a combination of the `webhooks` module and potentially the scheduler crate for retry management.
+
+#### Outgoing Webhook Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Source as Event Source
+    participant EventProcessor as Event Processor
+    participant Config as Merchant Config
+    participant Queue as Webhook Queue
+    participant Signer as Payload Signer
+    participant HttpClient as HTTP Client
+    participant Merchant as Merchant Endpoint
+    participant RetryService as Retry Service
+    participant DB as Database
+    
+    Source->>EventProcessor: Trigger event (payment/refund update)
+    EventProcessor->>EventProcessor: Determine notification type
+    
+    EventProcessor->>Config: Get merchant webhook config
+    Config-->>EventProcessor: Webhook configuration
+    
+    alt Merchant Subscribed to Event
+        EventProcessor->>Queue: Queue webhook delivery
+        Queue-->>EventProcessor: Webhook queued
+        
+        Queue->>EventProcessor: Process webhook from queue
+        
+        EventProcessor->>EventProcessor: Construct webhook payload
+        
+        EventProcessor->>Signer: Generate signature
+        Signer-->>EventProcessor: Signed payload & headers
+        
+        EventProcessor->>HttpClient: Send webhook
+        Note over EventProcessor,HttpClient: Include signature in headers
+        
+        HttpClient->>Merchant: POST webhook to merchant endpoint
+        
+        alt Delivery Success (2xx)
+            Merchant-->>HttpClient: 200 OK
+            HttpClient-->>EventProcessor: Delivery success
+            EventProcessor->>DB: Record successful delivery
+            DB-->>EventProcessor: Recorded
+        else Delivery Failure (Non-2xx or Timeout)
+            Merchant-->>HttpClient: Error response / Timeout
+            HttpClient-->>EventProcessor: Delivery failure
+            
+            EventProcessor->>DB: Record failed attempt
+            DB-->>EventProcessor: Recorded
+            
+            EventProcessor->>RetryService: Schedule retry
+            Note over EventProcessor,RetryService: Apply exponential backoff
+            
+            RetryService-->>EventProcessor: Retry scheduled
+            
+            RetryService->>Queue: Re-queue for retry (later)
+            Note over RetryService,Queue: After backoff period
+        end
+    else Merchant Not Subscribed
+        EventProcessor->>DB: Record skipped delivery
+        DB-->>EventProcessor: Recorded
+    end
+```
+
+#### Error Handling in Outgoing Webhooks
+
+- **Network Failures**: When the merchant endpoint is unreachable, the system schedules retries with exponential backoff
+- **Timeout Errors**: When the merchant endpoint takes too long to respond, the delivery is considered failed and scheduled for retry
+- **Authentication Failures**: If signature or authentication is rejected, errors are logged for investigation
+- **Configuration Errors**: Invalid webhook URLs or configurations trigger alerts and error logging
+- **Payload Size Limits**: Large payloads may be truncated or split according to configurable limits
+- **Rate Limiting**: If merchants impose rate limits, the system adapts delivery frequency accordingly
+
+#### Edge Cases and Special Scenarios
+
+- **Endpoint Unavailability**: If a merchant endpoint is consistently unavailable, the system may implement circuit breaking
+- **Retry Exhaustion**: After configured maximum retries, webhooks are marked as permanently failed and stored for manual review
+- **Event Coalescence**: Multiple rapid events of the same type may be combined into a single notification in some cases
+- **Event Ordering**: For ordered events, the system ensures delivery order matches event order through queuing mechanisms
+- **Webhook Versioning**: The system supports multiple webhook payload formats for backward compatibility
+- **Critical vs. Non-Critical**: Events are categorized by criticality, with different retry policies for each category
+
+#### Implementation Details
+
+The outgoing webhook flow is primarily implemented in:
+- `crates/router/src/core/webhooks/outgoing.rs` and `crates/router/src/core/webhooks/outgoing_v2.rs`
+- `crates/router/src/workflows/outgoing_webhook_retry.rs`
+
+Key components include:
+- `WebhookDeliveryService`: Manages the actual delivery of webhooks to merchant endpoints
+- `WebhookRetryManager`: Handles the retry logic for failed webhook deliveries
+- `WebhookLogService`: Records detailed logs of webhook delivery attempts
+
+The implementation uses a queue-based architecture to ensure reliable delivery, with a scheduler for managing retries. Critical webhooks may use a separate priority queue to ensure timely delivery. The system is designed to be horizontally scalable, allowing for high-volume webhook processing across multiple instances.
 
 ## Webhook Types
 
@@ -210,6 +406,13 @@ Webhook flows depend on several key components:
 - **Database Services**: Stores and retrieves resource state
 - **HTTP Client**: For outgoing webhook delivery
 - **Scheduler**: For managing webhook delivery retries
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated to new documentation standard format |
+| 2025-05-20 | Last content update before standardization |
+| Prior | Initial version |
 
 ## See Also
 

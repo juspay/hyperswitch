@@ -1,5 +1,10 @@
 # Redis Interface Crate Overview
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 The `redis_interface` crate provides a comprehensive Redis client implementation for the Hyperswitch payment orchestration platform. It serves as an abstraction layer over the underlying Redis library, providing connection pooling, configuration management, error handling, and a rich set of Redis commands tailored to the needs of a payment processing system.
 
 ## Purpose
@@ -266,3 +271,10 @@ The crate is designed for async Rust:
 ## Conclusion
 
 The `redis_interface` crate is a critical infrastructure component of the Hyperswitch platform. It provides a high-level, feature-rich Redis client that supports the complex needs of a distributed payment processing system, including robust error handling, connection management, and support for advanced Redis features like streams and consumer groups.
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |

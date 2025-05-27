@@ -1,5 +1,10 @@
 # Connector Integration Details
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 ## Connector Integration Architecture
 
 The `hyperswitch_interfaces` crate implements a multi-layered architecture for connector integration, providing flexibility, version compatibility, and standardized interaction patterns.
@@ -302,3 +307,10 @@ fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventCla
 ## Summary
 
 The connector integration architecture in Hyperswitch provides a powerful, flexible system for integrating with diverse payment processors. Through well-defined interfaces, version compatibility mechanisms, and standardized processing flows, it enables a modular, extensible payment orchestration platform.
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Added metadata and document history section |
+| Prior | Initial version |

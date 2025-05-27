@@ -1,8 +1,12 @@
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 # Router Entry Points
 
 ---
 **Parent:** [Router Overview](../overview.md)  
-**Last Updated:** 2025-05-20  
 **Related Files:**
 - [Code Structure](./code_structure.md)
 - [Dependencies](./dependencies.md)
@@ -225,6 +229,13 @@ When deploying to production, several considerations apply:
 - **Monitoring**: Both binaries expose health check and metrics endpoints
 - **Resource Allocation**: Router typically needs more CPU, scheduler may need more memory
 - **Networking**: Router needs public access, scheduler typically internal only
+
+## Document History
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated to new documentation standard format |
+| 2025-05-20 | Last content update before standardization |
+| Prior | Initial version |
 
 ## See Also
 

@@ -1,5 +1,10 @@
 # Hyperswitch Technical Context
 
+---
+**Last Updated:** 2025-05-27  
+**Documentation Status:** Complete
+---
+
 ## Technology Stack
 
 ### Programming Language
@@ -165,5 +170,12 @@ The project uses feature flags extensively in `Cargo.toml` to control functional
 - [Connectors Crate](./thematic/crates/hyperswitch_connectors/overview.md)
 - [Database Models](./thematic/crates/diesel_models/overview.md)
 - [API Models](./thematic/crates/api_models/overview.md)
-- [Development Setup Guide](./thematic/development/setup.md)
-- [Deployment Guide (including Kubernetes & Helm)](./thematic/deployment/guide.md)
+- [Development Setup in docs](../docs/try_local_system.md)
+- [Deployment on AWS in docs](../docs/one_click_setup.md)
+
+## Document History
+
+| Date | Changes |
+|------|---------|
+| 2025-05-27 | Updated documentation links to point to existing files, added metadata |
+| Prior | Initial version |
