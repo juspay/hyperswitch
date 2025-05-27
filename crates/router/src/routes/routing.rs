@@ -1502,3 +1502,44 @@ pub async fn set_dynamic_routing_volume_split(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn get_dynamic_routing_volume_split(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
+) -> impl Responder {
+    let flow = Flow::VolumeSplitOnRoutingType;
+
+    let payload = path.into_inner();
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::retrieve_dynamic_routing_volume_split(
+                state,
+                merchant_context,
+                payload.profile_id,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: payload.profile_id,
+                required_permission: Permission::ProfileRoutingRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

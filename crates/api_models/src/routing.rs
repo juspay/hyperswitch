@@ -857,6 +857,11 @@ pub struct ToggleDynamicRoutingPath {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct RoutingVolumeSplitResponse {
+    pub split: u8,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EliminationRoutingConfig {
