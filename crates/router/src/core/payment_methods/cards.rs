@@ -2019,8 +2019,13 @@ pub async fn decode_and_decrypt_locker_data(
     enc_card_data: String,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
     // Fetch key
+
     let key = key_store.key.get_inner().peek();
     // Decode
+    // Check if this is already plain JSON (for mock mode)
+    if enc_card_data.starts_with('{') && enc_card_data.ends_with('}') {
+        return Ok(Secret::new(enc_card_data));
+    }
     let decoded_bytes = hex::decode(&enc_card_data)
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
