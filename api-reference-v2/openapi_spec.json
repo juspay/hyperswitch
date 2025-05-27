@@ -8148,6 +8148,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenio",
           "trustpay",
           "tsys",
           "vgs",
@@ -12564,6 +12565,176 @@
                     "type": "string"
                   },
                   "sort_code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "faster_payments"
+            ],
+            "properties": {
+              "faster_payments": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "sort_code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_instant"
+            ],
+            "properties": {
+              "sepa_instant": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "elixir"
+            ],
+            "properties": {
+              "elixir": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bankgiro"
+            ],
+            "properties": {
+              "bankgiro": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "name"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plusgiro"
+            ],
+            "properties": {
+              "plusgiro": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "name"
+                ],
+                "properties": {
+                  "number": {
                     "type": "string"
                   },
                   "name": {
@@ -21784,6 +21955,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "tokenio",
           "tsys",
           "volt",
           "wellsfargo",

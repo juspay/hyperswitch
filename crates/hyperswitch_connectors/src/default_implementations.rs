@@ -5191,6 +5191,7 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
+    connectors::Tokenio,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,

@@ -378,7 +378,7 @@ impl
         &self,
         req: &auth_types::RecipientCreateRouterData,
     ) -> errors::CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = plaid::PlaidRecipientCreateRequest::from(req);
+        let req_obj = plaid::PlaidRecipientCreateRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 

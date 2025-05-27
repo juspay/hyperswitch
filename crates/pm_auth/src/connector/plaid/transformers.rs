@@ -152,21 +152,32 @@ pub enum PlaidRecipientAccountData {
     },
 }
 
-impl From<&types::RecipientAccountData> for PlaidRecipientAccountData {
-    fn from(item: &types::RecipientAccountData) -> Self {
+impl TryFrom<&types::RecipientAccountData> for PlaidRecipientAccountData {
+    type Error = errors::ConnectorError;
+
+    fn try_from(item: &types::RecipientAccountData) -> Result<Self, Self::Error> {
         match item {
-            types::RecipientAccountData::Iban(iban) => Self::Iban(iban.clone()),
+            types::RecipientAccountData::Iban(iban) => Ok(Self::Iban(iban.clone())),
             types::RecipientAccountData::Bacs {
                 sort_code,
                 account_number,
-            } => Self::Bacs {
+            } => Ok(Self::Bacs {
                 sort_code: sort_code.clone(),
                 account: account_number.clone(),
-            },
+            }),
+            types::RecipientAccountData::FasterPayments { .. }
+            | types::RecipientAccountData::Sepa(_)
+            | types::RecipientAccountData::SepaInstant(_)
+            | types::RecipientAccountData::Elixir { .. }
+            | types::RecipientAccountData::Bankgiro(_)
+            | types::RecipientAccountData::Plusgiro(_) => {
+                Err(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "Invalid payment method selected. Only Iban, Bacs Supported",
+                })
+            }
         }
     }
 }
-
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PlaidRecipientCreateAddress {
     pub street: String,
@@ -186,17 +197,19 @@ impl From<&types::RecipientCreateAddress> for PlaidRecipientCreateAddress {
     }
 }
 
-impl From<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
-    fn from(item: &types::RecipientCreateRouterData) -> Self {
-        Self {
+impl TryFrom<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
+    type Error = errors::ConnectorError;
+
+    fn try_from(item: &types::RecipientCreateRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
             name: item.request.name.clone(),
-            account_data: PlaidRecipientAccountData::from(&item.request.account_data),
+            account_data: PlaidRecipientAccountData::try_from(&item.request.account_data)?,
             address: item
                 .request
                 .address
                 .as_ref()
                 .map(PlaidRecipientCreateAddress::from),
-        }
+        })
     }
 }
 

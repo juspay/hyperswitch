@@ -3861,6 +3861,8 @@ dependencies = [
  "masking",
  "mime",
  "num-traits",
+ "once_cell",
+ "openssl",
  "qrcode",
  "quick-xml",
  "rand",
