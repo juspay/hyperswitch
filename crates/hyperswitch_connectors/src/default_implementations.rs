@@ -593,7 +593,6 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
-    connectors::Tokenio,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,

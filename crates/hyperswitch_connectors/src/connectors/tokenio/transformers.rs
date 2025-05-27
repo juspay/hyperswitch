@@ -3,9 +3,8 @@ use api_models::admin::MerchantAccountData;
 use api_models::admin::MerchantRecipientData;
 use common_enums::enums;
 use common_utils::id_type::MerchantId;
+use common_utils::request::Method;
 use common_utils::types::StringMajorUnit;
-use common_utils::{pii, request::Method};
-use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ErrorResponse;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,

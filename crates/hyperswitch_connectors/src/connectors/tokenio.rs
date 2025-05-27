@@ -1,13 +1,12 @@
 pub mod transformers;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use common_utils::{
-    crypto,
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -22,8 +21,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -34,7 +33,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::Response,
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
@@ -541,11 +540,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Tokenio {
-   
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
@@ -558,8 +556,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Tokenio {
     fn build_request(
         &self,
-        req: &VoidRouterData<Execute>,
-        connectors: &Connectors,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
@@ -570,11 +568,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for To
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tokenio {
-   
     fn build_request(
         &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
@@ -585,12 +582,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tokenio
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tokenio {
-    
-
     fn build_request(
         &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refund Sync".to_string(),
@@ -648,32 +643,29 @@ impl webhooks::IncomingWebhook for Tokenio {
                     .parse_struct("TokenioWebhookPayload")
                     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-                if let tokenio::TokenioWebhookEventData::PaymentV2 { payment } =
-                    &webhook_payload.event_data
-                {
-                    match payment.status.as_str() {
-                        "INITIATION_COMPLETED" => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
-                        }
-                        "PAYMENT_COMPLETED" => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
-                        }
-                        "PAYMENT_FAILED" => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
-                        }
-                        "PAYMENT_CANCELLED" => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
-                        }
-                        "INITIATION_REJECTED" => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
-                        }
-                        "INITIATION_PROCESSING" => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
-                        }
-                        _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
+                let tokenio::TokenioWebhookEventData::PaymentV2 { payment } =
+                    &webhook_payload.event_data;
+
+                match payment.status.as_str() {
+                    "INITIATION_COMPLETED" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
                     }
-                } else {
-                    Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
+                    "PAYMENT_COMPLETED" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                    }
+                    "PAYMENT_FAILED" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                    "PAYMENT_CANCELLED" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
+                    }
+                    "INITIATION_REJECTED" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                    "INITIATION_PROCESSING" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
+                    }
+                    _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
                 }
             }
             _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
