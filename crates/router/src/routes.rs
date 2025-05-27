@@ -28,6 +28,8 @@ pub mod lock_utils;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandates;
+#[cfg(feature = "olap")]
+pub mod merchant_acquirer;
 pub mod metrics;
 #[cfg(feature = "v1")]
 pub mod payment_link;
@@ -81,9 +83,9 @@ pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
-    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
-    Webhooks,
+    Mandates, MerchantAccount, MerchantAcquirer, MerchantConnectorAccount, PaymentLink,
+    PaymentMethods, Payments, Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay,
+    RelayWebhooks, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

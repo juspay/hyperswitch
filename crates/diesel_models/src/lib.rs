@@ -28,6 +28,7 @@ pub mod kv;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
+pub mod merchant_acquirer;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod organization;

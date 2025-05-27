@@ -60,6 +60,7 @@ pub mod verification;
 pub mod verify_connector;
 pub mod webhooks;
 
+pub mod merchant_acquirer;
 pub mod unified_authentication_service;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

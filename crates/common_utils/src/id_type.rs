@@ -7,6 +7,7 @@ mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
 mod merchant;
+mod merchant_acquirer;
 mod merchant_connector_account;
 mod organization;
 mod payment;
@@ -41,6 +42,7 @@ pub use self::{
     client_secret::ClientSecretId,
     customer::CustomerId,
     merchant::MerchantId,
+    merchant_acquirer::MerchantAcquirerId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId},

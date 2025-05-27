@@ -122,6 +122,9 @@ pub enum ApiEventsType {
         payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     },
     ProcessTracker,
+    MerchantAcquirer {
+        merchant_acquirer_id: id_type::MerchantAcquirerId,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}

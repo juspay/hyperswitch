@@ -76,6 +76,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub merchant_acquirer_ids: Option<Vec<common_utils::id_type::MerchantAcquirerId>>,
 }
 
 #[cfg(feature = "v1")]
@@ -188,6 +189,7 @@ impl From<ProfileSetter> for Profile {
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
+            merchant_acquirer_ids: None, // merchant_acquirer_ids is not yet created during profile creation
         }
     }
 }
@@ -273,6 +275,9 @@ pub enum ProfileUpdate {
     },
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
+    },
+    MerchantAcquirerUpdate {
+        merchant_acquirer_ids: Option<Vec<common_utils::id_type::MerchantAcquirerId>>,
     },
 }
 
@@ -373,6 +378,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
                     three_ds_decision_rule_algorithm: None,
+                    merchant_acquirer_ids: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -425,6 +431,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm,
+                merchant_acquirer_ids: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -474,6 +481,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                merchant_acquirer_ids: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -523,6 +531,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                merchant_acquirer_ids: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -572,6 +581,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                merchant_acquirer_ids: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -621,6 +631,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                merchant_acquirer_ids: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -670,6 +681,57 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                merchant_acquirer_ids: None,
+            },
+            ProfileUpdate::MerchantAcquirerUpdate {
+                merchant_acquirer_ids,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
+                merchant_acquirer_ids,
             },
         }
     }
@@ -739,6 +801,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
+            merchant_acquirer_ids: self.merchant_acquirer_ids,
         })
     }
 
@@ -834,6 +897,7 @@ impl super::behaviour::Conversion for Profile {
                     .is_pre_network_tokenization_enabled
                     .unwrap_or(false),
                 three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
+                merchant_acquirer_ids: item.merchant_acquirer_ids,
             })
         }
         .await
@@ -897,6 +961,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
+            merchant_acquirer_ids: self.merchant_acquirer_ids,
         })
     }
 }

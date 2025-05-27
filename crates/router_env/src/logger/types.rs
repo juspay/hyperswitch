@@ -590,6 +590,8 @@ pub enum Flow {
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    /// Merchant Acquirer Create Flow
+    MerchantAcquirerCreate,
 }
 
 /// Trait for providing generic behaviour to flow metric

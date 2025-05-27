@@ -24,6 +24,7 @@ pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
+pub mod merchant_acquirer;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod organization;
@@ -139,6 +140,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + merchant_acquirer::MerchantAcquirerInterface // Added
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

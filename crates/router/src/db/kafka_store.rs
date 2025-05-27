@@ -10,9 +10,9 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
-    enums,
-    enums::ProcessTrackerStatus,
+    enums::{self, ProcessTrackerStatus},
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
@@ -43,6 +43,7 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
+    merchant_acquirer::MerchantAcquirerInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -4232,5 +4233,28 @@ impl CallbackMapperInterface for KafkaStore {
         id: &str,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         self.diesel_store.find_call_back_mapper_by_id(id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl MerchantAcquirerInterface for KafkaStore {
+    #[instrument(skip_all)]
+    async fn insert_merchant_acquirer(
+        &self,
+        new_acquirer: MerchantAcquirerNew,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        self.diesel_store
+            .insert_merchant_acquirer(new_acquirer)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_merchant_acquirer_based_on_profile_id(
+        &self,
+        profile_id: &id_type::ProfileId,
+    ) -> CustomResult<Vec<MerchantAcquirer>, errors::StorageError> {
+        self.diesel_store
+            .list_merchant_acquirer_based_on_profile_id(profile_id)
+            .await
     }
 }

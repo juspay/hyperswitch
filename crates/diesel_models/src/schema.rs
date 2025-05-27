@@ -228,6 +228,7 @@ diesel::table! {
         is_iframe_redirection_enabled -> Nullable<Bool>,
         is_pre_network_tokenization_enabled -> Nullable<Bool>,
         three_ds_decision_rule_algorithm -> Nullable<Jsonb>,
+        merchant_acquirer_ids -> Nullable<Array<Nullable<Text>>>,
     }
 }
 
@@ -755,6 +756,35 @@ diesel::table! {
         product_type -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_account_type -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    merchant_acquirer (merchant_acquirer_id) {
+        #[max_length = 64]
+        merchant_acquirer_id -> Varchar,
+        #[max_length = 64]
+        acquirer_assigned_merchant_id -> Varchar,
+        #[max_length = 255]
+        merchant_name -> Varchar,
+        #[max_length = 64]
+        mcc -> Varchar,
+        #[max_length = 64]
+        merchant_country_code -> Varchar,
+        #[max_length = 64]
+        network -> Varchar,
+        #[max_length = 64]
+        acquirer_bin -> Varchar,
+        #[max_length = 64]
+        acquirer_ica -> Nullable<Varchar>,
+        acquirer_fraud_rate -> Float8,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 
@@ -1586,6 +1616,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     locker_mock_up,
     mandate,
     merchant_account,
+    merchant_acquirer,
     merchant_connector_account,
     merchant_key_store,
     organization,
