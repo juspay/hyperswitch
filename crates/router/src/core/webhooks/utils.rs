@@ -137,22 +137,41 @@ pub async fn construct_webhook_router_data(
     Ok(router_data)
 }
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use sha2::{Digest, Sha256};
+
 #[inline]
 pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
-    _event_type: types::storage::enums::EventType,
+    event_type: types::storage::enums::EventType,
     delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
-    webhook_endpoint_id: &str,
+    webhook_endpoint_id: Option<&str>,
 ) -> String {
     use crate::types::storage::enums::WebhookDeliveryAttempt;
 
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
+    const MAX_PREFIX_LEN: usize = 64 - EVENT_ID_SUFFIX_LENGTH;
 
-    let common_prefix = format!("{primary_object_id}_{webhook_endpoint_id}");
+    let input = match webhook_endpoint_id {
+        Some(id) => format!("{primary_object_id}_{event_type}_{id}"),
+        None => format!("{primary_object_id}_{event_type}"),
+    };
+
+    // Hash and encode the input using SHA-256 and URL-safe base64 (without padding)
+    let hash = Sha256::digest(input.as_bytes());
+    let encoded = URL_SAFE_NO_PAD.encode(hash);
+
+    // Truncate to MAX_PREFIX_LEN (56) if needed
+    let common_prefix = if encoded.len() > MAX_PREFIX_LEN {
+        &encoded[..MAX_PREFIX_LEN]
+    } else {
+        &encoded
+    };
+
     match delivery_attempt {
-        WebhookDeliveryAttempt::InitialAttempt => common_prefix,
+        WebhookDeliveryAttempt::InitialAttempt => common_prefix.to_string(),
         WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
-            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
+            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, common_prefix)
         }
     }
 }

@@ -697,8 +697,8 @@ pub struct WebhookDetails {
 #[serde(deny_unknown_fields)]
 pub struct MultipleWebhookDetail {
     pub webhook_endpoint_id: Option<id_type::WebhookEndpointId>,
-    pub webhook_url: Option<Secret<String>>,
-    pub events: Vec<common_enums::EventType>,
+    pub webhook_url: Secret<String>,
+    pub events: HashSet<common_enums::EventType>,
     pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
 }
 

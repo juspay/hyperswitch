@@ -12,7 +12,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use masking::PeekInterface;
-use router_env::tracing::{self, instrument};
+use router_env::tracing::{self, instrument, Instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     types::process_data,
@@ -23,8 +23,12 @@ use scheduler::{
 use crate::core::payouts;
 use crate::{
     core::{
-        payments,
-        webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
+        errors::utils::StorageErrorExt,
+        payments, utils,
+        webhooks::{
+            self as webhooks_core, types::OutgoingWebhookTrackingData, OUTGOING_WEBHOOK_BULK_TASK,
+            OUTGOING_WEBHOOK_RETRY_TASK,
+        },
     },
     db::StorageInterface,
     errors, logger,
@@ -38,29 +42,33 @@ pub struct OutgoingWebhookRetryWorkflow;
 #[instrument(skip_all)]
 pub async fn start_outgoing_webhook_workflow(
     state: &SessionState,
-    refund_tracker: &storage::ProcessTracker,
+    process_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    match refund_tracker.name.as_deref() {
-        Some("OUTGOING_WEBHOOK_BULK") => {
+    match process_tracker.name.as_deref() {
+        Some(OUTGOING_WEBHOOK_BULK_TASK) => {
             Box::pin(trigger_outgoing_webhook_bulk_workflow(
                 state,
-                refund_tracker,
+                process_tracker,
             ))
             .await
         }
-        Some("OUTGOING_WEBHOOK_RETRY") => {
+        Some(OUTGOING_WEBHOOK_RETRY_TASK) => {
             Box::pin(trigger_outgoing_webhook_retry_workflow(
                 state,
-                refund_tracker,
+                process_tracker,
             ))
             .await
         }
+        Some(unexpected_job) => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable(format!(
+                "Unexpected task name encountered: `{}`",
+                unexpected_job
+            ))?,
         _ => Err(errors::ProcessTrackerError::JobNotFound),
     }
 }
 
-use crate::core::{errors::utils::StorageErrorExt, utils::validate_and_get_business_profile};
-
+#[instrument(skip_all)]
 #[cfg(feature = "v1")]
 pub async fn trigger_outgoing_webhook_bulk_workflow(
     state: &SessionState,
@@ -72,7 +80,7 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
         .parse_value("OutgoingWebhookTrackingData")?;
     let merchant_id = tracking_data.merchant_id.clone();
     let profile_id = tracking_data.business_profile_id.clone();
-    let payment_id = tracking_data.primary_object_id.clone();
+    let primary_object_id = tracking_data.primary_object_id.clone();
     let primary_object_created_at = tracking_data.primary_object_created_at;
     let event_type = tracking_data.event_type;
     let event_class = tracking_data.event_class;
@@ -92,7 +100,7 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let business_profile = validate_and_get_business_profile(
+    let business_profile = utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &merchant_key_store,
@@ -113,22 +121,22 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
         &tracking_data,
     ))
     .await?;
-    let webhook_details = match webhooks_core::get_webhook_details_for_event_type(
+    let webhook_details = webhooks_core::get_webhook_details_for_event_type(
         &business_profile,
         event_type,
     )
-    .await
-    {
-        Ok(details) => details,
-        Err(_) => {
-            logger::debug!("No webhook details found for event type `{}`", event_type);
-            return Ok(());
+    .map_err(|err| {
+        logger::error!(original_webhook_error=?err, business_profile_id=?business_profile.get_id(), "Failed to get webhook details for event type");
+        errors::ProcessTrackerError::ResourceFetchingFailed {
+            resource_name: "webhook_details".to_string(),
         }
-    };
+    })?;
+
     if webhook_details.is_empty() {
         logger::debug!(
-            business_profile_id=?business_profile.get_id(),
-            "No webhook details available for event type; skipping outgoing webhooks"
+            business_profile_id = ?business_profile.get_id(),
+            event_type = ?event_type,
+            "No active webhook details found for event type or list is empty"
         );
         return Ok(());
     }
@@ -146,27 +154,30 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
         let merchant_account = merchant_account.clone();
         let business_profile = business_profile.clone();
         let content = content.clone();
-        let payment_id = payment_id.to_string().to_owned().clone();
+        let payment_id = primary_object_id.clone();
         let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
             merchant_account.clone(),
             key_store.clone(),
         )));
-        tokio::spawn(async move {
-            webhooks_core::create_event_and_trigger_outgoing_webhook(
-                cloned_state,
-                merchant_context,
-                business_profile,
-                event_type,
-                event_class,
-                payment_id,
-                primary_object_type,
-                content,
-                primary_object_created_at,
-                webhook_detail_clone,
-            )
-            .await
-            .unwrap_or(())
-        });
+        tokio::spawn(
+            async move {
+                webhooks_core::create_event_and_trigger_outgoing_webhook(
+                    cloned_state,
+                    merchant_context,
+                    business_profile,
+                    event_type,
+                    event_class,
+                    payment_id,
+                    primary_object_type,
+                    content,
+                    primary_object_created_at,
+                    webhook_detail_clone,
+                )
+                .await
+                .unwrap_or(())
+            }
+            .in_current_span(),
+        );
     }
     let _ = state
         .store
@@ -207,15 +218,18 @@ pub async fn trigger_outgoing_webhook_retry_workflow(
         .await?;
 
     let event_id = webhooks_core::utils::generate_event_id();
-    let webhook_endpoint_id = tracking_data
-        .webhook_endpoint_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::WebhookBadRequest)?;
+    // let webhook_endpoint_id = tracking_data
+    //     .webhook_endpoint_id
+    //     .as_ref()
+    //     .ok_or(errors::ApiErrorResponse::WebhookBadRequest)?;
     let idempotent_event_id = webhooks_core::utils::get_idempotent_event_id(
         &tracking_data.primary_object_id,
         tracking_data.event_type,
         delivery_attempt,
-        webhook_endpoint_id.get_string_repr(),
+        tracking_data
+            .webhook_endpoint_id
+            .as_ref()
+            .map(|id| id.get_string_repr()),
     );
 
     let initial_event = match &tracking_data.initial_attempt_id {
@@ -266,8 +280,9 @@ pub async fn trigger_outgoing_webhook_retry_workflow(
         webhook_endpoint_id: initial_event.webhook_endpoint_id,
         is_overall_delivery_successful: Some(false),
     };
+    let webhook_id = new_event.webhook_endpoint_id.clone();
     let event = db
-        .insert_event(key_manager_state, new_event.clone(), &key_store)
+        .insert_event(key_manager_state, new_event, &key_store)
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to insert event in events table");
@@ -275,10 +290,8 @@ pub async fn trigger_outgoing_webhook_retry_workflow(
 
     let webhook_detail = match webhooks_core::get_webhook_detail_by_webhook_endpoint_id(
         &business_profile,
-        &new_event.webhook_endpoint_id,
-    )
-    .await
-    {
+        &webhook_id,
+    ) {
         Ok(detail) => detail,
         Err(_e) => {
             return Err(errors::ProcessTrackerError::UnexpectedFlow);

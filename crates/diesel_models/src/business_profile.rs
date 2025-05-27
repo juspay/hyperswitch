@@ -705,13 +705,12 @@ pub struct WebhookDetails {
     pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Json)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MultipleWebhookDetail {
-    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
-    pub webhook_url: Option<Secret<String>>,
-    pub events: Vec<common_enums::EventType>,
-    pub status: Option<common_enums::OutgoingWebhookEndpointStatus>,
+    pub webhook_endpoint_id: common_utils::id_type::WebhookEndpointId,
+    pub webhook_url: Secret<String>,
+    pub events: HashSet<common_enums::EventType>,
+    pub status: common_enums::OutgoingWebhookEndpointStatus,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);

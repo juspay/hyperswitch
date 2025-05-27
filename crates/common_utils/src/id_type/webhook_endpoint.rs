@@ -5,8 +5,8 @@ crate::id_type!(
     "A type for webhook_endpoint_id that can be used for unique identifier for a webhook_endpoint"
 );
 crate::impl_id_type_methods!(WebhookEndpointId, "webhook_endpoint_id");
-crate::impl_generate_id_id_type!(WebhookEndpointId, "web");
-crate::impl_default_id_type!(WebhookEndpointId, "web");
+crate::impl_generate_id_id_type!(WebhookEndpointId, "whe");
+crate::impl_default_id_type!(WebhookEndpointId, "whe");
 
 // This is to display the `WebhookEndpointId` as WebhookEndpointId(abcd)
 crate::impl_debug_id_type!(WebhookEndpointId);

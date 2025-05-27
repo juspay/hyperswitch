@@ -239,7 +239,7 @@ pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
     id_type::ProfileId::generate()
 }
 
-/// Generate a webhook id with default length, with prefix as `web`
+/// Generate a webhook id with default length, with prefix as `whe`
 pub fn generate_webhook_endpoint_id_of_default_length() -> id_type::WebhookEndpointId {
     use id_type::GenerateId;
 

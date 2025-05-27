@@ -4,8 +4,9 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
+use common_enums::EventClass;
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
-use diesel_models::ConnectorMandateReferenceId;
+use diesel_models::{enums::EventObjectType, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
@@ -727,14 +728,12 @@ async fn payments_incoming_webhook_flow(
                     &business_profile,
                     payment_id.get_string_repr(),
                     outgoing_event_type,
-                    diesel_models::enums::EventClass::Payments,
-                    diesel_models::enums::EventObjectType::PaymentDetails,
+                    EventClass::Payments,
+                    EventObjectType::PaymentDetails,
                     primary_object_created_at,
                 ))
                 .await
-                .map_err(|e| {
-                    e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                })?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
             };
 
             let response = WebhookResponseTracker::Payment { payment_id, status };
@@ -847,12 +846,12 @@ async fn payouts_incoming_webhook_flow(
                 &business_profile,
                 &payout_attempt.payout_id,
                 outgoing_event_type,
-                diesel_models::enums::EventClass::Payouts,
-                diesel_models::enums::EventObjectType::PayoutDetails,
+                EventClass::Payouts,
+                EventObjectType::PayoutDetails,
                 Some(payout_attempt.created_at),
             ))
             .await
-            .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
         }
 
         Ok(WebhookResponseTracker::Payout {
@@ -1044,12 +1043,12 @@ async fn refunds_incoming_webhook_flow(
             &business_profile,
             &refund_id,
             outgoing_event_type,
-            diesel_models::enums::EventClass::Refunds,
-            diesel_models::enums::EventObjectType::RefundDetails,
+            EventClass::Refunds,
+            EventObjectType::RefundDetails,
             Some(refund.created_at),
         ))
         .await
-        .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
     }
 
     Ok(WebhookResponseTracker::Refund {
@@ -1183,7 +1182,7 @@ async fn get_or_update_dispute_object(
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
-            let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
+            let dispute_status = enums::DisputeStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
@@ -1363,14 +1362,12 @@ async fn external_authentication_incoming_webhook_flow(
                                 &business_profile,
                                 payment_id.get_string_repr(),
                                 outgoing_event_type,
-                                diesel_models::enums::EventClass::Payments,
-                                diesel_models::enums::EventObjectType::PaymentDetails,
+                                EventClass::Payments,
+                                EventObjectType::PaymentDetails,
                                 primary_object_created_at,
                             ))
                             .await
-                            .map_err(|e| {
-                                e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                            })?;
+                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
                         };
                         let response = WebhookResponseTracker::Payment { payment_id, status };
                         Ok(response)
@@ -1454,12 +1451,12 @@ async fn mandates_incoming_webhook_flow(
                 &business_profile,
                 &mandate_id,
                 outgoing_event_type,
-                diesel_models::enums::EventClass::Mandates,
-                diesel_models::enums::EventObjectType::MandateDetails,
+                EventClass::Mandates,
+                EventObjectType::MandateDetails,
                 primary_object_created_at,
             ))
             .await
-            .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
         }
         Ok(WebhookResponseTracker::Mandate {
             mandate_id: updated_mandate.mandate_id,
@@ -1557,14 +1554,12 @@ async fn frm_incoming_webhook_flow(
                         &business_profile,
                         payment_id.get_string_repr(),
                         outgoing_event_type,
-                        diesel_models::enums::EventClass::Payments,
-                        diesel_models::enums::EventObjectType::PaymentDetails,
+                        EventClass::Payments,
+                        EventObjectType::PaymentDetails,
                         primary_object_created_at,
                     ))
                     .await
-                    .map_err(|e| {
-                        e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    })?;
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
                 };
                 let response = WebhookResponseTracker::Payment { payment_id, status };
                 Ok(response)
@@ -1628,14 +1623,14 @@ async fn disputes_incoming_webhook_flow(
         Box::pin(super::add_bulk_outgoing_webhook_task_to_process_tracker(
             state,
             &business_profile,
-            &dispute_object.dispute_id.clone(),
+            &dispute_object.dispute_id,
             event_type,
-            diesel_models::enums::EventClass::Disputes,
-            diesel_models::enums::EventObjectType::DisputeDetails,
+            EventClass::Disputes,
+            EventObjectType::DisputeDetails,
             Some(dispute_object.created_at),
         ))
         .await
-        .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
 
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
         Ok(WebhookResponseTracker::Dispute {
@@ -1716,14 +1711,12 @@ async fn bank_transfer_webhook_flow(
                     &business_profile,
                     payment_id.get_string_repr(),
                     outgoing_event_type,
-                    diesel_models::enums::EventClass::Payments,
-                    diesel_models::enums::EventObjectType::PaymentDetails,
+                    EventClass::Payments,
+                    EventObjectType::PaymentDetails,
                     primary_object_created_at,
                 ))
                 .await
-                .map_err(|e| {
-                    e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                })?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
             }
 
             Ok(WebhookResponseTracker::Payment { payment_id, status })

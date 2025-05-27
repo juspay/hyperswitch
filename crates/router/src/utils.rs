@@ -1217,28 +1217,6 @@ where
                     }
                     .in_current_span(),
                 );
-            // if let Some(event_type) = event_type {
-            //     tokio::spawn(
-            //         async move {
-            //             let primary_object_created_at = payments_response_json.created;
-            //             Box::pin(
-            //                 webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
-            //                     cloned_state,
-            //                     &business_profile,
-            //                     payment_id.get_string_repr(),
-            //                     event_type,
-            //                     diesel_models::enums::EventClass::Payments,
-            //                     diesel_models::enums::EventObjectType::PaymentDetails,
-            //                     primary_object_created_at,
-            //                 ),
-            //             )
-            //             .await
-            //             .map_err(|e| {
-            //                 e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            //             })?;
-            //         }
-            //         .in_current_span(),
-            //     );
             } else {
                 logger::warn!(
                     "Outgoing webhook not sent because of missing event type status mapping"
@@ -1311,26 +1289,6 @@ pub async fn trigger_refund_outgoing_webhook(
                 }
                 .in_current_span(),
             );
-        // if let Some(outgoing_event_type) = event_type {
-        //     tokio::spawn(
-        //         async move {
-        //             Box::pin(
-        //                 webhooks_core::add_bulk_outgoing_webhook_task_to_process_tracker(
-        //                     cloned_state,
-        //                     &business_profile,
-        //                     &refund_id,
-        //                     outgoing_event_type,
-        //                     diesel_models::enums::EventClass::Refunds,
-        //                     diesel_models::enums::EventObjectType::RefundDetails,
-        //                     primary_object_created_at,
-        //                 ),
-        //             )
-        //             .await
-        //             .map_err(|e| e.change_context(errors::ApiErrorResponse::WebhookProcessingFailure))?;
-
-        //         }
-        //         .in_current_span(),
-        //     );
         } else {
             logger::warn!("Outgoing webhook not sent because of missing event type status mapping");
         };

@@ -1,21 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
     webhooks,
 };
-use common_enums::EventType;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     request::RequestContent,
     type_name,
     types::keymanager::{Identifier, KeyManagerState},
 };
-use diesel_models::{
-    business_profile::MultipleWebhookDetail, enums::EventObjectType,
-    process_tracker::business_status,
-};
-use error_stack::{report, ResultExt};
+use diesel_models::{business_profile::MultipleWebhookDetail, process_tracker::business_status};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
@@ -51,10 +47,12 @@ use crate::{
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
+pub const OUTGOING_WEBHOOK_BULK_TASK: &str = "OUTGOING_WEBHOOK_BULK";
+pub const OUTGOING_WEBHOOK_RETRY_TASK: &str = "OUTGOING_WEBHOOK_RETRY";
 
-pub(crate) async fn get_webhook_details_for_event_type(
+pub(crate) fn get_webhook_details_for_event_type(
     business_profile: &domain::Profile,
-    event_type: EventType,
+    event_type: enums::EventType,
 ) -> CustomResult<Vec<MultipleWebhookDetail>, errors::WebhooksFlowError> {
     let webhook_details = business_profile
         .webhook_details
@@ -62,27 +60,32 @@ pub(crate) async fn get_webhook_details_for_event_type(
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    let multiple_webhooks = webhook_details
-        .multiple_webhooks_list
-        .clone()
-        .get_required_value("multiple_webhooks_list")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+    let webhook_list =
+        if let Some(multiple_webhooks) = webhook_details.multiple_webhooks_list.clone() {
+            multiple_webhooks
+        } else if let Some(webhook_url) = webhook_details.webhook_url.clone() {
+            vec![MultipleWebhookDetail {
+                webhook_endpoint_id: common_utils::id_type::WebhookEndpointId::default(),
+                webhook_url: webhook_url,
+                events: HashSet::from([event_type]), // legacy data might not have events specified
+                status: common_enums::OutgoingWebhookEndpointStatus::Active,
+            }]
+        } else {
+            return Ok(vec![]);
+        };
 
-    let matching_details: Vec<MultipleWebhookDetail> = multiple_webhooks
+    let matching_details: Vec<MultipleWebhookDetail> = webhook_list
         .into_iter()
-        .filter(|webhook_detail| {
-            webhook_detail.events.contains(&event_type)
-                && webhook_detail.status
-                    == Some(common_enums::OutgoingWebhookEndpointStatus::Active)
+        .filter(|detail| {
+            detail.events.contains(&event_type)
+                && detail.status == common_enums::OutgoingWebhookEndpointStatus::Active
         })
         .collect();
 
-    match matching_details.is_empty() {
-        true => Err(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound.into()),
-        false => Ok(matching_details),
-    }
+    Ok(matching_details)
 }
-pub(crate) async fn get_webhook_detail_by_webhook_endpoint_id(
+
+pub(crate) fn get_webhook_detail_by_webhook_endpoint_id(
     business_profile: &domain::Profile,
     webhook_endpoint_id: &Option<common_utils::id_type::WebhookEndpointId>,
 ) -> CustomResult<MultipleWebhookDetail, errors::WebhooksFlowError> {
@@ -91,36 +94,47 @@ pub(crate) async fn get_webhook_detail_by_webhook_endpoint_id(
         .clone()
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-    let multiple_webhooks = webhook_details
-        .multiple_webhooks_list
-        .clone()
-        .get_required_value("multiple_webhooks_list")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
     match webhook_endpoint_id {
-        Some(endpoint_id) => multiple_webhooks
-            .into_iter()
-            .find(|d| d.webhook_endpoint_id == Some(endpoint_id.clone()))
-            .ok_or_else(|| errors::WebhooksFlowError::MerchantWebhookDetailsNotFound.into()),
+        // Legacy case: no endpoint ID, fall back to single `webhook_url`
+        None => {
+            if let Some(webhook_url) = webhook_details.webhook_url.clone() {
+                Ok(MultipleWebhookDetail {
+                    webhook_endpoint_id: common_utils::id_type::WebhookEndpointId::default(),
+                    webhook_url: webhook_url,
+                    events: HashSet::new(), // legacy data might not have events specified
+                    status: common_enums::OutgoingWebhookEndpointStatus::Active,
+                })
+            } else {
+                Err(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound.into())
+            }
+        }
 
-        None => multiple_webhooks
-            .into_iter()
-            .next()
-            .ok_or_else(|| errors::WebhooksFlowError::MerchantWebhookDetailsNotFound.into()),
+        // Modern case: look up by ID from the multiple list
+        Some(endpoint_id) => {
+            let webhooks = webhook_details
+                .multiple_webhooks_list
+                .clone()
+                .ok_or(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+
+            webhooks
+                .into_iter()
+                .find(|d| d.webhook_endpoint_id == *endpoint_id)
+                .ok_or(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound.into())
+        }
     }
 }
 
-use error_stack::Report;
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
-    event_type: EventType,
+    event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
-    primary_object_type: EventObjectType,
+    primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
     primary_object_created_at: Option<PrimitiveDateTime>,
     webhook_detail: MultipleWebhookDetail,
@@ -178,16 +192,13 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
         let event_metadata = storage::EventMetadata::foreign_from(&content);
 
-        let webhook_endpoint_id = webhook_detail
-            .webhook_endpoint_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::WebhookBadRequest)?;
+        let webhook_endpoint_id = webhook_detail.webhook_endpoint_id.clone();
 
         let idempotent_event_id = utils::get_idempotent_event_id(
             &primary_object_id,
             event_type,
             delivery_attempt,
-            webhook_endpoint_id.get_string_repr(),
+            Some(webhook_detail.webhook_endpoint_id.get_string_repr()),
         );
 
         let new_event = domain::Event {
@@ -204,7 +215,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             idempotent_event_id: Some(idempotent_event_id.clone()),
             initial_attempt_id: Some(event_id.clone()),
             webhook_endpoint_id: Some(webhook_endpoint_id.clone()),
-            request: request.clone(),
+            request,
             response: None,
             delivery_attempt: Some(delivery_attempt),
             metadata: Some(event_metadata),
@@ -250,7 +261,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             .store
             .insert_event(
                 key_manager_state,
-                new_event.clone(),
+                new_event,
                 merchant_context.get_merchant_key_store(),
             )
             .await;
@@ -288,22 +299,9 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         .ok();
 
         let cloned_key_store = merchant_context.get_merchant_key_store().clone();
-        let webhook_detail = match get_webhook_detail_by_webhook_endpoint_id(
-            &business_profile,
-            &new_event.webhook_endpoint_id,
-        )
-        .await
-        {
-            Ok(detail) => detail,
-            Err(e) => {
-                return Err(e
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable(
-                        "Failed to fetch webhook details for the given webhook endpoint ID",
-                    ));
-            }
-        };
 
+        // Using a tokio spawn here and not arbiter because not all caller of this function
+        // may have an actix arbiter
         tokio::spawn(
             async move {
                 Box::pin(trigger_webhook_and_raise_event(
@@ -326,6 +324,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     } else {
         logger::debug!(
             business_profile_id=?business_profile.get_id(),
+            webhook_endpoint_id=?webhook_detail.webhook_endpoint_id,
+            events=?webhook_detail.events,
             "Webhook detail doesn't match the event type; skipping outgoing webhook"
         );
         Ok(())
@@ -379,11 +379,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
 fn get_webhook_url_from_webhook_detail(
     webhook_detail: MultipleWebhookDetail,
 ) -> CustomResult<String, errors::WebhooksFlowError> {
-    webhook_detail
-        .webhook_url
-        .get_required_value("webhook_url")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
-        .map(ExposeInterface::expose)
+    Ok(webhook_detail.webhook_url.peek().clone())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -634,7 +630,7 @@ async fn raise_webhooks_analytics_event(
     let outgoing_webhook_event_content = content
         .as_ref()
         .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
-        .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata.clone()));
+        .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
     // Fetch updated_event from db
     let updated_event = state
         .store
@@ -652,6 +648,7 @@ async fn raise_webhooks_analytics_event(
         })
         .ok();
 
+    // Get status_code from webhook response
     let status_code = updated_event.and_then(|updated_event| {
         let webhook_response: Option<OutgoingWebhookResponseContent> =
             updated_event.response.and_then(|res| {
@@ -680,27 +677,19 @@ async fn raise_webhooks_analytics_event(
     state.event_handler().log_event(&webhook_event);
 }
 
+#[instrument(skip_all)]
 pub(crate) async fn add_bulk_outgoing_webhook_task_to_process_tracker(
     state: SessionState,
     business_profile: &domain::Profile,
     primary_object_id: &str,
-    event_type: EventType,
+    event_type: enums::EventType,
     event_class: enums::EventClass,
-    primary_object_type: EventObjectType,
+    primary_object_type: enums::EventObjectType,
     primary_object_created_at: Option<PrimitiveDateTime>,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let db: &dyn StorageInterface = state.store.as_ref();
 
-    let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
-        db,
-        &business_profile.merchant_id,
-        0,
-    )
-    .await
-    .ok_or(errors::StorageError::ValueNotFound(
-        "Process tracker schedule time".into(),
-    ))
-    .attach_printable("Failed to obtain initial process tracker schedule time")?;
+    let schedule_time = common_utils::date_time::now();
 
     let tracking_data = types::OutgoingWebhookTrackingData {
         merchant_id: business_profile.merchant_id.clone(),
@@ -715,7 +704,7 @@ pub(crate) async fn add_bulk_outgoing_webhook_task_to_process_tracker(
     };
 
     let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
-    let task = "OUTGOING_WEBHOOK_BULK";
+    let task = OUTGOING_WEBHOOK_BULK_TASK;
     let tag = ["OUTGOING_WEBHOOKS"];
 
     let process_tracker_id = scheduler::utils::get_process_tracker_id(
@@ -762,7 +751,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     )
     .await
     .ok_or(errors::StorageError::ValueNotFound(
-        "Process tracker schedule time".into(),
+        "Process tracker schedule time".into(), // Can raise a better error here
     ))
     .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
@@ -779,7 +768,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     };
 
     let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
-    let task = "OUTGOING_WEBHOOK_RETRY";
+    let task = OUTGOING_WEBHOOK_RETRY_TASK;
     let tag = ["OUTGOING_WEBHOOKS"];
     let process_tracker_id = scheduler::utils::get_process_tracker_id(
         runner,

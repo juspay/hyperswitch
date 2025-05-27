@@ -71,6 +71,10 @@ pub struct EventListItemResponse {
     #[schema(max_length = 64, value_type = String, example = "SqB0zwDGR5wHppWf0bx7GKr1f2")]
     pub profile_id: common_utils::id_type::ProfileId,
 
+    /// The identifier for the webhook endpoint.
+    #[schema(max_length = 64, example = "whe_018e31720d1b7a2b82677d3032cab959")]
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
+
     /// The identifier for the object (Payment Intent ID, Refund ID, etc.)
     #[schema(max_length = 64, example = "QHrfd5LUDdZaKtAjdJmMu0dMa1")]
     pub object_id: String,
@@ -93,9 +97,6 @@ pub struct EventListItemResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
-
-    #[schema(max_length = 64, example = "web_018e31720d1b7a2b82677d3032cab959")]
-    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
 }
 
 /// The response body of list initial delivery attempts api call.

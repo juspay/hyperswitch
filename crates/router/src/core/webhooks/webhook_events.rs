@@ -266,15 +266,15 @@ pub async fn retry_delivery_attempt(
 
     let delivery_attempt = storage::enums::WebhookDeliveryAttempt::ManualRetry;
     let new_event_id = super::utils::generate_event_id();
-    let webhook_endpoint_id = event_to_retry
-        .webhook_endpoint_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::WebhookBadRequest)?;
+
     let idempotent_event_id = super::utils::get_idempotent_event_id(
         &event_to_retry.primary_object_id,
         event_to_retry.event_type,
         delivery_attempt,
-        webhook_endpoint_id.get_string_repr(),
+        event_to_retry
+            .webhook_endpoint_id
+            .as_ref()
+            .map(|id| id.get_string_repr()),
     );
 
     let now = common_utils::date_time::now();
@@ -299,8 +299,10 @@ pub async fn retry_delivery_attempt(
         webhook_endpoint_id: event_to_retry.webhook_endpoint_id,
     };
 
+    let webhook_endpoint_id = new_event.webhook_endpoint_id.clone();
+
     let event = store
-        .insert_event(key_manager_state, new_event.clone(), &key_store)
+        .insert_event(key_manager_state, new_event, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert event")?;
@@ -318,10 +320,8 @@ pub async fn retry_delivery_attempt(
 
     let webhook_detail = match super::get_webhook_detail_by_webhook_endpoint_id(
         &business_profile,
-        &new_event.webhook_endpoint_id,
-    )
-    .await
-    {
+        &webhook_endpoint_id,
+    ) {
         Ok(detail) => detail,
         Err(e) => {
             return Err(e

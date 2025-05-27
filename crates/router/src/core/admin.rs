@@ -4215,11 +4215,11 @@ pub async fn retrieve_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let profile_response = api_models::admin::ProfileResponse::foreign_try_from(business_profile)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse business profile details")?;
-
-    Ok(service_api::ApplicationResponse::Json(profile_response))
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")?,
+    ))
 }
 
 pub async fn delete_profile(
