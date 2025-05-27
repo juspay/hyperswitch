@@ -981,7 +981,6 @@ pub enum DynamicRoutingConfigParams {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfigBody {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,
