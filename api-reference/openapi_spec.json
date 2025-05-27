@@ -27389,8 +27389,7 @@
             "format": "double",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "SuccessRateSpecificityLevel": {
         "type": "string",
