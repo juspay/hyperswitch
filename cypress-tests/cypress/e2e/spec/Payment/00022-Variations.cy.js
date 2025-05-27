@@ -164,7 +164,9 @@ describe("Corner cases", () => {
     // });
 
     it("[Payment] return_url - invalid format", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["return_url_variations"]["return_url_invalid_format"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "return_url_variations"
+      ]["return_url_invalid_format"];
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
         data,
@@ -175,7 +177,9 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] mandate_id - too long", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["mandate_id_too_long"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "mandate_id_too_long"
+      ];
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
         data,
