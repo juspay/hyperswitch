@@ -13,7 +13,6 @@ v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyper
 revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
 
 [dependencies]
-actix-http = "3.11.0"
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 base64 = "0.22.1"
