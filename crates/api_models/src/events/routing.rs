@@ -6,9 +6,10 @@ use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
     RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
-    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplitResponse,
-    RoutingVolumeSplitWrapper, SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper,
-    ToggleDynamicRoutingPath, ToggleDynamicRoutingQuery, ToggleDynamicRoutingWrapper,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplit,
+    RoutingVolumeSplitResponse, RoutingVolumeSplitWrapper, SuccessBasedRoutingConfig,
+    SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingPath, ToggleDynamicRoutingQuery,
+    ToggleDynamicRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -142,6 +143,12 @@ impl ApiEventMetric for ToggleDynamicRoutingPath {
 }
 
 impl ApiEventMetric for RoutingVolumeSplitResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingVolumeSplit {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
