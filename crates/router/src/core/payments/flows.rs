@@ -37,6 +37,7 @@ use hyperswitch_interfaces::api::{
     UasPreAuthentication, UnifiedAuthenticationService,
 };
 
+use super::helpers::MerchantConnectorAccountType;
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
 use crate::{
@@ -196,6 +197,18 @@ pub trait Feature<F, T> {
         _call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
+    }
+
+    async fn call_ucs_service<'a>(
+        &mut self,
+        _merchant_connector_account: MerchantConnectorAccountType,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
     }
 }
 

@@ -1,9 +1,13 @@
+use api_models::admin::ConnectorAuthType;
 use async_trait::async_trait;
-use common_enums as enums;
+use common_enums::{self as enums, AttemptStatus};
+use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
+use rust_grpc_client::payments::payment_service_client::PaymentServiceClient;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -12,8 +16,11 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers,
+            helpers::{self, MerchantConnectorAccountType},
+            tokenization, transformers, PaymentData,
         },
+        unified_connector_service::utils::{construct_ucs_authorize_request, construct_ucs_authorize_response, construct_ucs_request_metadata, convert_ucs_attempt_status},
     },
     logger,
     routes::{metrics, SessionState},
@@ -414,6 +421,36 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             }
             _ => Ok((None, true)),
         }
+    }
+
+    async fn call_ucs_service<'a>(
+        &mut self,
+        merchant_connector_account: MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        let mut client = PaymentServiceClient::connect("http://127.0.0.1:8000")
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to connect to payment service")?;
+
+        let request = construct_ucs_authorize_request(&self)?;
+
+        let mut request = tonic::Request::new(request);
+
+        let metadata = request.metadata_mut();
+
+        construct_ucs_request_metadata(metadata, merchant_connector_account)?;
+
+        let response = client
+            .payment_authorize(request)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        construct_ucs_authorize_response(payment_authorize_response, self)?;
+
+        Ok(())
     }
 }
 

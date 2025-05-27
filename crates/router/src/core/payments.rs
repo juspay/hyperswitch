@@ -3108,9 +3108,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    use api_models::admin::ConnectorAuthType;
-    use common_enums::AttemptStatus;
-
     let stime_connector = Instant::now();
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
@@ -3232,8 +3229,11 @@ where
     #[cfg(feature = "v2")]
     let merchant_recipient_data = None;
 
+    //TODO: Create Staggering Logic
+    //TODO: Create Flow Specific Implementation of creating Request, Response
+
     if (true) {
-        println!("Connecting to payment service LALALALALALALALALALALALALALA");
+        println!("Connecting to UCS..");
 
         let mut router_data = payment_data
             .construct_router_data(
@@ -3247,122 +3247,9 @@ where
             )
             .await?;
 
-        let mut client = PaymentServiceClient::connect("http://127.0.0.1:8000")
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to connect to payment service")?;
-
-        let auth_type: ConnectorAuthType = merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while parsing value for ConnectorAuthType")?;
-
-        let request = payments_grpc::PaymentsAuthorizeRequest {
-            amount: 1000 as i64,
-            currency: payments_grpc::Currency::Usd as i32,
-            payment_method: payments_grpc::PaymentMethod::Card as i32,
-            payment_method_data: Some(payments_grpc::PaymentMethodData {
-                data: Some(payments_grpc::payment_method_data::Data::Card(
-                    payments_grpc::Card {
-                        card_number: "4166676667666746".to_string(), // Updated card number
-                        card_exp_month: "03".to_string(),
-                        card_exp_year: "2030".to_string(),
-                        card_cvc: "737".to_string(), // Updated CVC
-                        ..Default::default()
-                    },
-                )),
-            }),
-            connector_customer: Some("customer_12345".to_string()),
-            return_url: Some("www.google.com".to_string()),
-            address: Some(payments_grpc::PaymentAddress {
-                shipping: None,
-                billing: Some(Address {
-                    address: None,
-                    phone: Some(PhoneDetails {
-                        number: Some("1234567890".to_string()),
-                        country_code: Some("+1".to_string()),
-                    }),
-                    email: Some("sweta.sharma@juspay.in".to_string()),
-                }),
-                unified_payment_method_billing: None,
-                payment_method_billing: None,
-            }),
-            auth_type: payments_grpc::AuthenticationType::ThreeDs as i32,
-            connector_request_reference_id: "ref_12345".to_string(),
-            enrolled_for_3ds: true,
-            request_incremental_authorization: false,
-            minor_amount: 1000 as i64,
-            email: Some("sweta.sharma@juspay.in".to_string()),
-            browser_info: Some(payments_grpc::BrowserInformation {
-                // Added browser_info
-                user_agent: Some("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)".to_string()),
-                accept_header: Some(
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".to_string(),
-                ),
-                language: Some("en-US".to_string()),
-                color_depth: Some(24),
-                screen_height: Some(1080),
-                screen_width: Some(1920),
-                java_enabled: Some(false),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        let mut request = tonic::Request::new(request);
-
-        let mut metadata = request.metadata_mut();
-
-        let connector_name = merchant_connector_account.get_connector_name().unwrap();
-
-        metadata.append("x-connector", connector_name.parse().unwrap());
-
-        match &auth_type {
-            ConnectorAuthType::SignatureKey {
-                api_key,
-                key1,
-                api_secret,
-            } => {
-                metadata.append("x-auth", "signature-key".parse().unwrap());
-                metadata.append("x-api-key", api_key.peek().parse().unwrap());
-                metadata.append("x-key1", key1.peek().parse().unwrap());
-                metadata.append("x-api-secret", api_secret.peek().parse().unwrap());
-            }
-            ConnectorAuthType::BodyKey { api_key, key1 } => {
-                metadata.append("x-auth", "body-key".parse().unwrap());
-                metadata.append("x-api-key", api_key.peek().parse().unwrap());
-                metadata.append("x-key1", key1.peek().parse().unwrap());
-            }
-            ConnectorAuthType::HeaderKey { api_key } => {
-                metadata.append("x-auth", "header-key".parse().unwrap());
-                metadata.append("x-api-key", api_key.peek().parse().unwrap());
-            }
-            _ => {
-                return Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unsupported ConnectorAuthType for header injection")?;
-            }
-        }
-
-        let response = client
-            .payment_authorize(request)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to authorize payment")?;
-
-        let payment_authorize_response = response.into_inner();
-
-        router_data.status = AttemptStatus::Charged;
-        router_data.response = Ok(hyperswitch_domain_models::router_response_types::PaymentsResponseData::TransactionResponse { 
-            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(payment_authorize_response.connector_response_reference_id.clone().unwrap()), 
-            redirection_data: Box::new(None), 
-            mandate_reference: Box::new(None), 
-            connector_metadata: None, 
-            network_txn_id: None, 
-            connector_response_reference_id: payment_authorize_response.connector_response_reference_id, 
-            incremental_authorization_allowed: None, 
-            charges: None,
-        });
+        let _ = router_data
+            .call_ucs_service(merchant_connector_account.clone())
+            .await;
 
         Ok((router_data, merchant_connector_account))
     } else {

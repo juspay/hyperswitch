@@ -61,6 +61,7 @@ pub mod verify_connector;
 pub mod webhooks;
 
 pub mod unified_authentication_service;
+pub mod unified_connector_service;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod proxy;
