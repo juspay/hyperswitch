@@ -3229,42 +3229,30 @@ where
     #[cfg(feature = "v2")]
     let merchant_recipient_data = None;
 
-    //TODO: Create Staggering Logic
-    //TODO: Create Flow Specific Implementation of creating Request, Response
+    let mut router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            merchant_context,
+            customer,
+            &merchant_connector_account,
+            merchant_recipient_data,
+            None,
+        )
+        .await?;
+
+    //TODO: Staggering Logic
+    //TODO: Redirection Form for 3DS
 
     if (true) {
         println!("Connecting to UCS..");
 
-        let mut router_data = payment_data
-            .construct_router_data(
-                state,
-                connector.connector.id(),
-                merchant_context,
-                customer,
-                &merchant_connector_account,
-                merchant_recipient_data,
-                None,
-            )
-            .await?;
-
         let _ = router_data
-            .call_ucs_service(merchant_connector_account.clone())
+            .call_ucs_service(state, merchant_connector_account.clone())
             .await;
 
         Ok((router_data, merchant_connector_account))
     } else {
-        let mut router_data = payment_data
-            .construct_router_data(
-                state,
-                connector.connector.id(),
-                merchant_context,
-                customer,
-                &merchant_connector_account,
-                merchant_recipient_data,
-                None,
-            )
-            .await?;
-
         let add_access_token_result = router_data
             .add_access_token(
                 state,

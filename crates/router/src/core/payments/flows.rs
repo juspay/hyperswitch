@@ -201,6 +201,7 @@ pub trait Feature<F, T> {
 
     async fn call_ucs_service<'a>(
         &mut self,
+        _state: &SessionState,
         _merchant_connector_account: MerchantConnectorAccountType,
     ) -> RouterResult<()>
     where

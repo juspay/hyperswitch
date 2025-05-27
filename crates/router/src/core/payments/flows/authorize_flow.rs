@@ -20,7 +20,10 @@ use crate::{
             helpers::{self, MerchantConnectorAccountType},
             tokenization, transformers, PaymentData,
         },
-        unified_connector_service::utils::{construct_ucs_authorize_request, construct_ucs_authorize_response, construct_ucs_request_metadata, convert_ucs_attempt_status},
+        unified_connector_service::utils::{
+            construct_router_data_from_ucs_authorize_response, construct_ucs_authorize_request,
+            construct_ucs_request_metadata, convert_ucs_attempt_status,
+        },
     },
     logger,
     routes::{metrics, SessionState},
@@ -425,12 +428,20 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn call_ucs_service<'a>(
         &mut self,
+        state: &SessionState,
         merchant_connector_account: MerchantConnectorAccountType,
     ) -> RouterResult<()> {
-        let mut client = PaymentServiceClient::connect("http://127.0.0.1:8000")
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to connect to payment service")?;
+        let mut client = PaymentServiceClient::connect(
+            state
+                .conf
+                .connectors
+                .unified_connector_service
+                .base_url
+                .clone(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to connect to payment service")?;
 
         let request = construct_ucs_authorize_request(&self)?;
 
@@ -448,7 +459,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         let payment_authorize_response = response.into_inner();
 
-        construct_ucs_authorize_response(payment_authorize_response, self)?;
+        construct_router_data_from_ucs_authorize_response(payment_authorize_response, self)?;
 
         Ok(())
     }

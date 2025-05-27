@@ -4,8 +4,10 @@ use common_utils::{consts, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse, router_data::{ErrorResponse, RouterData},
-    router_flow_types::payments::Authorize, router_request_types::PaymentsAuthorizeData,
+    errors::api_error_response::ApiErrorResponse,
+    router_data::{ErrorResponse, RouterData},
+    router_flow_types::payments::Authorize,
+    router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface};
@@ -361,17 +363,24 @@ pub fn construct_ucs_request_metadata(
 }
 
 pub fn convert_ucs_attempt_status(
-    grpc_status: payments_grpc::AttemptStatus
+    grpc_status: payments_grpc::AttemptStatus,
 ) -> RouterResult<AttemptStatus> {
-
     match grpc_status {
         payments_grpc::AttemptStatus::Started => Ok(AttemptStatus::Started),
-        payments_grpc::AttemptStatus::AuthenticationFailed => Ok(AttemptStatus::AuthenticationFailed),
+        payments_grpc::AttemptStatus::AuthenticationFailed => {
+            Ok(AttemptStatus::AuthenticationFailed)
+        }
         payments_grpc::AttemptStatus::RouterDeclined => Ok(AttemptStatus::RouterDeclined),
-        payments_grpc::AttemptStatus::AuthenticationPending => Ok(AttemptStatus::AuthenticationPending),
-        payments_grpc::AttemptStatus::AuthenticationSuccessful => Ok(AttemptStatus::AuthenticationSuccessful),
+        payments_grpc::AttemptStatus::AuthenticationPending => {
+            Ok(AttemptStatus::AuthenticationPending)
+        }
+        payments_grpc::AttemptStatus::AuthenticationSuccessful => {
+            Ok(AttemptStatus::AuthenticationSuccessful)
+        }
         payments_grpc::AttemptStatus::Authorized => Ok(AttemptStatus::Authorized),
-        payments_grpc::AttemptStatus::AuthorizationFailed => Ok(AttemptStatus::AuthenticationFailed),
+        payments_grpc::AttemptStatus::AuthorizationFailed => {
+            Ok(AttemptStatus::AuthenticationFailed)
+        }
         payments_grpc::AttemptStatus::Charged => Ok(AttemptStatus::Charged),
         payments_grpc::AttemptStatus::Authorizing => Ok(AttemptStatus::Authorizing),
         payments_grpc::AttemptStatus::CodInitiated => Ok(AttemptStatus::CodInitiated),
@@ -382,29 +391,34 @@ pub fn convert_ucs_attempt_status(
         payments_grpc::AttemptStatus::VoidFailed => Ok(AttemptStatus::VoidFailed),
         payments_grpc::AttemptStatus::AutoRefunded => Ok(AttemptStatus::AutoRefunded),
         payments_grpc::AttemptStatus::PartialCharged => Ok(AttemptStatus::PartialCharged),
-        payments_grpc::AttemptStatus::PartialChargedAndChargeable => Ok(AttemptStatus::PartialChargedAndChargeable),
+        payments_grpc::AttemptStatus::PartialChargedAndChargeable => {
+            Ok(AttemptStatus::PartialChargedAndChargeable)
+        }
         payments_grpc::AttemptStatus::Unresolved => Ok(AttemptStatus::Unresolved),
         payments_grpc::AttemptStatus::Pending => Ok(AttemptStatus::Pending),
         payments_grpc::AttemptStatus::Failure => Ok(AttemptStatus::Failure),
-        payments_grpc::AttemptStatus::PaymentMethodAwaited => Ok(AttemptStatus::PaymentMethodAwaited),
+        payments_grpc::AttemptStatus::PaymentMethodAwaited => {
+            Ok(AttemptStatus::PaymentMethodAwaited)
+        }
         payments_grpc::AttemptStatus::ConfirmationAwaited => Ok(AttemptStatus::ConfirmationAwaited),
-        payments_grpc::AttemptStatus::DeviceDataCollectionPending => Ok(AttemptStatus::DeviceDataCollectionPending),
+        payments_grpc::AttemptStatus::DeviceDataCollectionPending => {
+            Ok(AttemptStatus::DeviceDataCollectionPending)
+        }
     }
 }
 
-pub fn construct_ucs_authorize_response(
+pub fn construct_router_data_from_ucs_authorize_response(
     response: payments_grpc::PaymentsAuthorizeResponse,
     router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
 ) -> RouterResult<()> {
-
     let status = convert_ucs_attempt_status(response.status())?;
 
     let router_data_response = match status {
-        AttemptStatus::Charged | 
+        AttemptStatus::Charged |
         AttemptStatus::Authorized |
-        AttemptStatus::AuthenticationPending | 
+        AttemptStatus::AuthenticationPending |
         AttemptStatus::DeviceDataCollectionPending => Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(response.connector_response_reference_id.clone().unwrap()),
+            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(response.connector_response_reference_id().to_owned()),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
