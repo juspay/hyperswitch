@@ -5899,3 +5899,47 @@ label = "Acquirer Merchant ID"
 placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
+
+
+[worldpayxml]
+[[worldpayxml.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml.credit]]
+  payment_method_type = "Visa"
+[[worldpayxml.credit]]
+  payment_method_type = "Interac"
+[[worldpayxml.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml.credit]]
+  payment_method_type = "JCB"
+[[worldpayxml.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml.credit]]
+  payment_method_type = "Discover"
+[[worldpayxml.credit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml.credit]]
+  payment_method_type = "UnionPay"
+[[worldpayxml.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml.debit]]
+  payment_method_type = "Visa"
+[[worldpayxml.debit]]
+  payment_method_type = "Interac"
+[[worldpayxml.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml.debit]]
+  payment_method_type = "JCB"
+[[worldpayxml.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml.debit]]
+  payment_method_type = "Discover"
+[[worldpayxml.debit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml.debit]]
+  payment_method_type = "UnionPay"
+
+[worldpayxml.connector_auth.SignatureKey]
+api_secret="Merchant Code"
+api_key="API Username"
+key1="API Password"
