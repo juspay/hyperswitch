@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.27.0
+
+### Miscellaneous Tasks
+
+- Update the docker for wasm ([#8080](https://github.com/juspay/hyperswitch/pull/8080)) ([`5642080`](https://github.com/juspay/hyperswitch/commit/5642080025524ed2dee363984359aa9275036035))
+
+**Full Changelog:** [`2025.05.26.0...2025.05.27.0`](https://github.com/juspay/hyperswitch/compare/2025.05.26.0...2025.05.27.0)
+
+
+- - -
+
+## 2025.05.26.0
+
+### Features
+
+- **connector:** [XENDIT] Added Integrity Check for Authorize, Capture, Refund & RSync flows ([#8049](https://github.com/juspay/hyperswitch/pull/8049)) ([`caa0723`](https://github.com/juspay/hyperswitch/commit/caa07235029a012af4f7106515f64025cf68d12d))
+- **core:** Add one-way TLS support with CA certificate for ArchiPEL UAT environment ([#8128](https://github.com/juspay/hyperswitch/pull/8128)) ([`e655832`](https://github.com/juspay/hyperswitch/commit/e655832908c5a30187195c4564bddaede079bd63))
+- **router:** Add three_ds_decision_rule_algorithm to the domain and diesel models of business_profile ([#8106](https://github.com/juspay/hyperswitch/pull/8106)) ([`c0cda41`](https://github.com/juspay/hyperswitch/commit/c0cda41bd0792da72ac6a8121a4c2b7672a88b58))
+- **tokenio:** Add Template PR ([#8095](https://github.com/juspay/hyperswitch/pull/8095)) ([`9f9fef4`](https://github.com/juspay/hyperswitch/commit/9f9fef492b775e22b2d489c3eb89ba3409fbd4ce))
+
+### Bug Fixes
+
+- **connector:** [Fiuu] populate error_code and error_desc for redirection flows if they're not present in PSync ([#8124](https://github.com/juspay/hyperswitch/pull/8124)) ([`e272e7a`](https://github.com/juspay/hyperswitch/commit/e272e7ab23845b664857ee729bb0eb7d05faac36))
+- **router:** Make `is_debit_routing_enabled` optional in profile general update ([#8104](https://github.com/juspay/hyperswitch/pull/8104)) ([`1fe6955`](https://github.com/juspay/hyperswitch/commit/1fe6955a0bfb9c9d7e1116155c8bd591a725ff66))
+
+### Refactors
+
+- **api:** Remove max_length validation for return_url in PaymentsRequest ([#8125](https://github.com/juspay/hyperswitch/pull/8125)) ([`0465886`](https://github.com/juspay/hyperswitch/commit/0465886f0720f567976c844a92e24e1b8ae2899a))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`a2a2660`](https://github.com/juspay/hyperswitch/commit/a2a266049fc534781e70775976f2d477075b2a72))
+- Fix typos in the repo ([#8063](https://github.com/juspay/hyperswitch/pull/8063)) ([`6fc50b6`](https://github.com/juspay/hyperswitch/commit/6fc50b67295a5682b9433b17399c09a57be664f2))
+
+**Full Changelog:** [`2025.05.23.0...2025.05.26.0`](https://github.com/juspay/hyperswitch/compare/2025.05.23.0...2025.05.26.0)
+
+
+- - -
+
 ## 2025.05.23.0
 
 ### Features

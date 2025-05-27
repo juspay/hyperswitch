@@ -389,6 +389,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::WeChatPayQr(_)
                 | WalletDataPaymentMethod::CashappQr(_)
                 | WalletDataPaymentMethod::SwishQr(_)
+                | WalletDataPaymentMethod::RevolutPay(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("amazonpay"),

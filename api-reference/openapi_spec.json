@@ -11129,7 +11129,7 @@
             ],
             "nullable": true
           },
-          "encypted_payload": {
+          "encrypted_payload": {
             "type": "string",
             "description": "Encrypted payload",
             "nullable": true
@@ -19107,7 +19107,8 @@
           "mifinity",
           "open_banking_pis",
           "direct_carrier_billing",
-          "instant_bank_transfer"
+          "instant_bank_transfer",
+          "revolut_pay"
         ]
       },
       "PaymentMethodUpdate": {
@@ -19478,8 +19479,7 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true,
-            "maxLength": 255
+            "nullable": true
           },
           "setup_future_usage": {
             "allOf": [
@@ -19888,8 +19888,7 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true,
-            "maxLength": 255
+            "nullable": true
           },
           "setup_future_usage": {
             "allOf": [
@@ -21156,8 +21155,7 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true,
-            "maxLength": 255
+            "nullable": true
           },
           "setup_future_usage": {
             "allOf": [
@@ -22377,8 +22375,7 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true,
-            "maxLength": 255
+            "nullable": true
           },
           "setup_future_usage": {
             "allOf": [
@@ -26073,6 +26070,9 @@
           }
         }
       },
+      "RevolutPayData": {
+        "type": "object"
+      },
       "RewardData": {
         "type": "object",
         "required": [
@@ -28873,6 +28873,17 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
               }
             }
           }

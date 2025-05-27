@@ -132,7 +132,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
                 .into()),
@@ -387,7 +388,8 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
             },

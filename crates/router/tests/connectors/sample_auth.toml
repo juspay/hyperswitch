@@ -15,6 +15,7 @@ api_key="Private Key"
 key1="Public Key"
 
 [archipel]
+api_key="CA Certificate PEM"
 
 [authorizedotnet]
 api_key = "MyMerchantName"

@@ -3532,6 +3532,67 @@
           }
         ]
       }
+    },
+    "/v2/tokenize": {
+      "post": {
+        "tags": [
+          "Tokenization"
+        ],
+        "operationId": "create_token_vault_api",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericTokenizationRequest"
+              },
+              "examples": {
+                "Create a token with customer_id": {
+                  "value": {
+                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "token_request": {
+                      "payment_method_data": {
+                        "card": {
+                          "card_holder_name": "test name"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericTokenizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -9176,7 +9237,7 @@
             ],
             "nullable": true
           },
-          "encypted_payload": {
+          "encrypted_payload": {
             "type": "string",
             "description": "Encrypted payload",
             "nullable": true
@@ -11188,6 +11249,50 @@
             "example": "#4285F4",
             "nullable": true,
             "maxLength": 255
+          }
+        }
+      },
+      "GenericTokenizationRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "token_request"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "token_request": {
+            "type": "object",
+            "description": "Request for tokenization which contains the data to be tokenized"
+          }
+        }
+      },
+      "GenericTokenizationResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "flag"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Created time of the tokenization id",
+            "example": "2024-02-24T11:04:09.922Z"
+          },
+          "flag": {
+            "type": "string",
+            "description": "Status of the tokenization id created",
+            "example": "enabled"
           }
         }
       },
@@ -16754,6 +16859,10 @@
             "example": 900,
             "nullable": true,
             "minimum": 0
+          },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
+            "nullable": true
           }
         }
       },
@@ -16799,6 +16908,10 @@
             ],
             "nullable": true
           },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
+            "nullable": true
+          },
           "expires_at": {
             "type": "string",
             "format": "date-time",
@@ -16836,6 +16949,12 @@
               "type": "string"
             },
             "description": "The payment method that was created using this payment method session",
+            "nullable": true
+          },
+          "associated_token_id": {
+            "type": "string",
+            "description": "The token-id created if there is tokenization_data present",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         }
@@ -17013,7 +17132,8 @@
           "mifinity",
           "open_banking_pis",
           "direct_carrier_billing",
-          "instant_bank_transfer"
+          "instant_bank_transfer",
+          "revolut_pay"
         ]
       },
       "PaymentMethodUpdate": {
@@ -17099,6 +17219,10 @@
                 "$ref": "#/components/schemas/NetworkTokenization"
               }
             ],
+            "nullable": true
+          },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
             "nullable": true
           }
         }
@@ -21693,6 +21817,9 @@
           }
         }
       },
+      "RevolutPayData": {
+        "type": "object"
+      },
       "RewardData": {
         "type": "object",
         "required": [
@@ -24488,6 +24615,17 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
               }
             }
           }

@@ -157,6 +157,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for proxy
         routes::proxy::proxy_core,
+
+        // Route for tokenization
+        routes::tokenization::create_token_vault_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -386,6 +389,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaylaterResponse,
         api_models::payments::KlarnaSdkPaymentMethodResponse,
         api_models::payments::SwishQrData,
+        api_models::payments::RevolutPayData,
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
@@ -744,6 +748,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::proxy::ProxyResponse,
         api_models::proxy::TokenType,
         routes::payments::ForceSync,
+        api_models::tokenization::GenericTokenizationRequest,
+        api_models::tokenization::GenericTokenizationResponse,
     )),
     modifiers(&SecurityAddon)
 )]
