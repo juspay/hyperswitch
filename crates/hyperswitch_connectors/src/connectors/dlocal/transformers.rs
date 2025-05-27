@@ -1,366 +1,234 @@
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method};
-use error_stack::ResultExt;
+use common_utils::pii::Email;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{refunds::Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types,
+    router_data::ConnectorAuthType,
+    router_flow_types::{
+        payments::{Authorize as AuthorizeFlow, Capture as CaptureFlow, PSync as PSyncFlow},
+        refunds::{Execute as RefundExecuteFlow, RSync as RefundSyncFlow},
+    },
+    router_request_types::{self as router_req_types, ResponseId},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
+    },
 };
-use hyperswitch_interfaces::{api::CurrencyUnit, errors};
-use masking::{PeekInterface, Secret};
+use hyperswitch_interfaces::errors;
+// Duplicate imports of enums and serde removed by only having them once.
+use masking::Secret;
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as _},
+    types::ResponseRouterData,
+    // PaymentsSyncRequestData was already removed, ensure other utils are correctly used.
+    utils::{
+        AddressDetailsData, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        RefundsRequestData, RouterData as _,
+    }, // Added PaymentsCaptureRequestData
 };
 
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
-pub struct Payer {
-    pub name: Option<Secret<String>>,
-    pub email: Option<Email>,
-    pub document: Secret<String>,
-}
-
-#[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Card {
-    pub holder_name: Secret<String>,
-    pub number: cards::CardNumber,
-    pub cvv: Secret<String>,
-    pub expiration_month: Secret<String>,
-    pub expiration_year: Secret<String>,
-    pub capture: String,
-    pub installments_id: Option<String>,
-    pub installments: Option<String>,
-}
-
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
-pub struct ThreeDSecureReqData {
-    pub force: bool,
-}
-
-#[derive(Debug, Serialize, Default, Deserialize, Clone, Eq, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum PaymentMethodId {
-    #[default]
-    Card,
-}
-
-#[derive(Debug, Serialize, Default, Deserialize, Clone, Eq, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum PaymentMethodFlow {
-    #[default]
-    Direct,
-    ReDirect,
-}
-
-#[derive(Debug, Serialize)]
 pub struct DlocalRouterData<T> {
     pub amount: i64,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (&CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(i64, T)> for DlocalRouterData<T> {
+    fn from((amount, item): (i64, T)) -> Self {
+        Self {
             amount,
-            router_data,
-        })
-    }
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct DlocalPaymentsRequest {
-    pub amount: i64,
-    pub currency: enums::Currency,
-    pub country: String,
-    pub payment_method_id: PaymentMethodId,
-    pub payment_method_flow: PaymentMethodFlow,
-    pub payer: Payer,
-    pub card: Option<Card>,
-    pub order_id: String,
-    pub three_dsecure: Option<ThreeDSecureReqData>,
-    pub callback_url: Option<String>,
-    pub description: Option<String>,
-}
-
-impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &DlocalRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.email.clone();
-        let address = item.router_data.get_billing_address()?;
-        let country = address.get_country()?;
-        let name = get_payer_name(address);
-        match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref ccard) => {
-                let should_capture = matches!(
-                    item.router_data.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic)
-                        | Some(enums::CaptureMethod::SequentialAutomatic)
-                );
-                let payment_request = Self {
-                    amount: item.amount,
-                    currency: item.router_data.request.currency,
-                    payment_method_id: PaymentMethodId::Card,
-                    payment_method_flow: PaymentMethodFlow::Direct,
-                    country: country.to_string(),
-                    payer: Payer {
-                        name,
-                        email,
-                        // [#589]: Allow securely collecting PII from customer in payments request
-                        document: get_doc_from_currency(country.to_string()),
-                    },
-                    card: Some(Card {
-                        holder_name: item
-                            .router_data
-                            .get_optional_billing_full_name()
-                            .unwrap_or(Secret::new("".to_string())),
-                        number: ccard.card_number.clone(),
-                        cvv: ccard.card_cvc.clone(),
-                        expiration_month: ccard.card_exp_month.clone(),
-                        expiration_year: ccard.card_exp_year.clone(),
-                        capture: should_capture.to_string(),
-                        installments_id: item
-                            .router_data
-                            .request
-                            .mandate_id
-                            .as_ref()
-                            .and_then(|ids| ids.mandate_id.clone()),
-                        // [#595[FEATURE] Pass Mandate history information in payment flows/request]
-                        installments: item
-                            .router_data
-                            .request
-                            .mandate_id
-                            .clone()
-                            .map(|_| "1".to_string()),
-                    }),
-                    order_id: item.router_data.connector_request_reference_id.clone(),
-                    three_dsecure: match item.router_data.auth_type {
-                        enums::AuthenticationType::ThreeDs => {
-                            Some(ThreeDSecureReqData { force: true })
-                        }
-                        enums::AuthenticationType::NoThreeDs => None,
-                    },
-                    callback_url: Some(item.router_data.request.get_router_return_url()?),
-                    description: item.router_data.description.clone(),
-                };
-                Ok(payment_request)
-            }
-            PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
-                ))?
-            }
+            router_data: item,
         }
     }
 }
 
-fn get_payer_name(
-    address: &hyperswitch_domain_models::address::AddressDetails,
-) -> Option<Secret<String>> {
-    let first_name = address
-        .first_name
-        .clone()
-        .map_or("".to_string(), |first_name| first_name.peek().to_string());
-    let last_name = address
-        .last_name
-        .clone()
-        .map_or("".to_string(), |last_name| last_name.peek().to_string());
-    let name: String = format!("{first_name} {last_name}").trim().to_string();
-    if !name.is_empty() {
-        Some(Secret::new(name))
-    } else {
-        None
-    }
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct DlocalPayer {
+    name: Secret<String>,
+    email: Email,
+    document: Option<Secret<String>>,
 }
 
-pub struct DlocalPaymentsSyncRequest {
-    pub authz_id: String,
+#[derive(Debug, Serialize, PartialEq)]
+pub struct DlocalCard {
+    holder_name: Secret<String>,
+    number: cards::CardNumber,
+    cvv: Secret<String>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    #[serde(rename = "capture")]
+    auto_capture: bool,
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for DlocalPaymentsSyncRequest {
+#[derive(Debug, Serialize, PartialEq)]
+pub struct DlocalPaymentsRequest {
+    amount: i64,
+    currency: enums::Currency,
+    country: String,
+    payment_method_id: String,
+    payment_method_flow: String,
+    payer: DlocalPayer,
+    card: DlocalCard,
+    order_id: String,
+    notification_url: String,
+}
+
+impl TryFrom<&DlocalRouterData<&PaymentsAuthorizeRouterData>> for DlocalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &DlocalRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let card_details = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "Payment method not supported by Dlocal".to_string(),
+                )
+                .into())
+            }
+        };
+
+        let dlocal_card = DlocalCard {
+            holder_name: card_details
+                .card_holder_name
+                .clone()
+                .unwrap_or_else(|| Secret::new("Not Available".to_string())),
+            number: card_details.card_number,
+            cvv: card_details.card_cvc,
+            expiration_month: card_details.card_exp_month,
+            expiration_year: card_details.card_exp_year,
+            auto_capture: item.router_data.request.capture_method
+                == Some(enums::CaptureMethod::Automatic),
+        };
+
+        let billing_address = item.router_data.get_billing_address()?;
+        let payer_name = billing_address
+            .get_full_name()
+            .unwrap_or_else(|_| Secret::new("Unknown".to_string()));
+        // Changed to use item.router_data.request.email directly
+        let payer_email = item.router_data.request.email.clone().ok_or_else(|| {
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "email", // Changed from "email".to_string()
+            }
+        })?;
+
+        let dlocal_payer = DlocalPayer {
+            name: payer_name,
+            email: payer_email,
+            document: None,
+        };
+
+        let country_code = billing_address.get_country()?.to_string().to_uppercase();
+
         Ok(Self {
-            authz_id: (item
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?),
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            country: country_code,
+            payment_method_id: "CARD".to_string(),
+            payment_method_flow: "DIRECT".to_string(),
+            payer: dlocal_payer,
+            card: dlocal_card,
+            order_id: item.router_data.connector_request_reference_id.clone(),
+            notification_url: item.router_data.request.get_webhook_url()?,
         })
     }
 }
 
-pub struct DlocalPaymentsCancelRequest {
-    pub cancel_id: String,
-}
-
-impl TryFrom<&types::PaymentsCancelRouterData> for DlocalPaymentsCancelRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            cancel_id: item.request.connector_transaction_id.clone(),
-        })
-    }
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct DlocalPaymentsCaptureRequest {
-    pub authorization_id: String,
-    pub amount: i64,
-    pub currency: String,
-    pub order_id: String,
-}
-
-impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            authorization_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.amount_to_capture,
-            currency: item.request.currency.to_string(),
-            order_id: item.connector_request_reference_id.clone(),
-        })
-    }
-}
-// Auth Struct
 pub struct DlocalAuthType {
-    pub(super) x_login: Secret<String>,
-    pub(super) x_trans_key: Secret<String>,
-    pub(super) secret: Secret<String>,
+    pub x_login: Secret<String>,
+    pub x_trans_key: Secret<String>,
+    pub secret_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for DlocalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let ConnectorAuthType::SignatureKey {
-            api_key,
-            key1,
-            api_secret,
-        } = auth_type
-        {
-            Ok(Self {
+        match auth_type {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 x_login: api_key.to_owned(),
                 x_trans_key: key1.to_owned(),
-                secret: api_secret.to_owned(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+                secret_key: api_secret.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-#[derive(Debug, Clone, Eq, Default, Serialize, Deserialize, PartialEq)]
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum DlocalPaymentStatus {
-    Authorized,
-    Paid,
-    Verified,
-    Cancelled,
+    AUTHORIZED,
+    PAID,
+    REJECTED,
+    CANCELLED,
+    PENDING,
     #[default]
-    Pending,
-    Rejected,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<DlocalPaymentStatus> for enums::AttemptStatus {
+impl From<DlocalPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: DlocalPaymentStatus) -> Self {
         match item {
-            DlocalPaymentStatus::Authorized => Self::Authorized,
-            DlocalPaymentStatus::Verified => Self::Authorized,
-            DlocalPaymentStatus::Paid => Self::Charged,
-            DlocalPaymentStatus::Pending => Self::AuthenticationPending,
-            DlocalPaymentStatus::Cancelled => Self::Voided,
-            DlocalPaymentStatus::Rejected => Self::AuthenticationFailed,
+            DlocalPaymentStatus::AUTHORIZED => Self::Authorized,
+            DlocalPaymentStatus::PAID => Self::Charged,
+            DlocalPaymentStatus::REJECTED => Self::Failure,
+            DlocalPaymentStatus::CANCELLED => Self::Voided,
+            DlocalPaymentStatus::PENDING => Self::Pending,
+            DlocalPaymentStatus::Unknown => Self::Pending,
         }
     }
 }
 
-#[derive(Eq, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ThreeDSecureResData {
-    pub redirect_url: Option<Url>,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DlocalResponseCard {
+    holder_name: Option<Secret<String>>,
+    expiration_month: Option<Secret<String>>,
+    expiration_year: Option<Secret<String>>,
+    brand: Option<String>,
+    last4: Option<String>,
+    card_id: Option<String>,
 }
 
-#[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DlocalPaymentsResponse {
-    status: DlocalPaymentStatus,
     id: String,
-    three_dsecure: Option<ThreeDSecureResData>,
+    status: DlocalPaymentStatus,
+    status_code: Option<String>,
+    status_detail: Option<String>,
+    amount: Option<f64>, // Dlocal response amount is f64 major unit
+    currency: Option<String>,
     order_id: Option<String>,
+    card: Option<DlocalResponseCard>,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+// TryFrom for PaymentsAuthorizeRouterData
+impl
+    TryFrom<
+        ResponseRouterData<
+            AuthorizeFlow,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .three_dsecure
-            .and_then(|three_secure_data| three_secure_data.redirect_url)
-            .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
-
-        let response = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data: Box::new(redirection_data),
-            mandate_reference: Box::new(None),
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: item.response.order_id.clone(),
-            incremental_authorization_allowed: None,
-            charges: None,
-        };
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(response),
-            ..item.data
-        })
-    }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DlocalPaymentsSyncResponse {
-    status: DlocalPaymentStatus,
-    id: String,
-    order_id: Option<String>,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, DlocalPaymentsSyncResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            AuthorizeFlow,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            // Self is PaymentsAuthorizeRouterData
+            status: common_enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -376,22 +244,29 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DlocalPaymentsCaptureResponse {
-    status: DlocalPaymentStatus,
-    id: String,
-    order_id: Option<String>,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+// TryFrom for PaymentsSyncRouterData
+impl
+    TryFrom<
+        ResponseRouterData<
+            PSyncFlow,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsSyncData,
+            PaymentsResponseData,
+        >,
+    > for PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            PSyncFlow,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsSyncData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            // Self is PaymentsSyncRouterData
+            status: common_enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -407,27 +282,59 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
     }
 }
 
-pub struct DlocalPaymentsCancelResponse {
-    status: DlocalPaymentStatus,
+// DlocalCaptureRequest struct and its TryFrom implementation
+#[derive(Debug, Serialize, PartialEq)]
+pub struct DlocalCaptureRequest {
+    authorization_id: String,
+    amount: i64,
+    currency: enums::Currency,
     order_id: String,
+    notification_url: String, // Dlocal capture might also need a notification_url
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl TryFrom<&PaymentsCaptureRouterData> for DlocalCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            authorization_id: item.request.connector_transaction_id.clone(),
+            amount: item.request.minor_amount_to_capture.get_amount_as_i64(),
+            currency: item.request.currency,
+            order_id: item.connector_request_reference_id.clone(),
+            notification_url: item.request.get_webhook_url()?,
+        })
+    }
+}
+
+// TryFrom for PaymentsCaptureRouterData
+impl
+    TryFrom<
+        ResponseRouterData<
+            CaptureFlow,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsCaptureData,
+            PaymentsResponseData,
+        >,
+    > for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, DlocalPaymentsCancelResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            CaptureFlow,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsCaptureData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            // Self is PaymentsCaptureRouterData
+            status: common_enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id.clone()),
+                connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -436,104 +343,156 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
     }
 }
 
-// REFUND :
-#[derive(Default, Debug, Serialize)]
-pub struct DlocalRefundRequest {
-    pub amount: String,
-    pub payment_id: String,
-    pub currency: enums::Currency,
-    pub id: String,
-}
-
-impl<F> TryFrom<&DlocalRouterData<&types::RefundsRouterData<F>>> for DlocalRefundRequest {
+// TryFrom for PaymentsCancelRouterData (Void Flow)
+// Assuming Dlocal void/cancel returns a DlocalPaymentsResponse
+impl
+    TryFrom<
+        ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::payments::Void,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsCancelData,
+            PaymentsResponseData,
+        >,
+    > for hyperswitch_domain_models::types::PaymentsCancelRouterData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &DlocalRouterData<&types::RefundsRouterData<F>>,
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::payments::Void,
+            DlocalPaymentsResponse,
+            router_req_types::PaymentsCancelData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let amount_to_refund = item.router_data.request.refund_amount.to_string();
         Ok(Self {
-            amount: amount_to_refund,
-            payment_id: item.router_data.request.connector_transaction_id.clone(),
-            currency: item.router_data.request.currency,
-            id: item.router_data.request.refund_id.clone(),
+            // Self is PaymentsCancelRouterData
+            status: common_enums::AttemptStatus::from(item.response.status.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.order_id.clone(),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
         })
     }
 }
 
-#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+pub struct DlocalRefundRequest {
+    payment_id: String,
+    amount: i64,
+    currency: enums::Currency,
+    notification_url: String,
+}
+
+impl<F> TryFrom<&DlocalRouterData<&RefundsRouterData<F>>> for DlocalRefundRequest {
+    // Removed RefundableFlow bound
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &DlocalRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_id: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            notification_url: item.router_data.request.get_webhook_url()?,
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum RefundStatus {
-    Success,
+pub enum DlocalRefundStatus {
+    SUCCESS,
+    FAILED,
     #[default]
-    Pending,
-    Rejected,
-    Cancelled,
+    #[serde(other)]
+    PENDING,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<DlocalRefundStatus> for enums::RefundStatus {
+    fn from(item: DlocalRefundStatus) -> Self {
         match item {
-            RefundStatus::Success => Self::Success,
-            RefundStatus::Pending => Self::Pending,
-            RefundStatus::Rejected => Self::ManualReview,
-            RefundStatus::Cancelled => Self::Failure,
+            DlocalRefundStatus::SUCCESS => Self::Success,
+            DlocalRefundStatus::FAILED => Self::Failure,
+            DlocalRefundStatus::PENDING => Self::Pending,
         }
     }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    pub id: String,
-    pub status: RefundStatus,
+pub struct DlocalRefundResponse {
+    id: String,
+    payment_id: Option<String>,
+    amount: Option<f64>, // Dlocal response amount is f64 major unit
+    amount_refunded: Option<f64>,
+    currency: Option<String>,
+    status: DlocalRefundStatus,
+    status_code: Option<i64>,
+    status_detail: Option<String>,
+    created_date: Option<String>,
+    order_id: Option<String>,
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
-    for types::RefundsRouterData<Execute>
+// TryFrom for RefundsRouterData<Execute>
+impl
+    TryFrom<
+        ResponseRouterData<
+            RefundExecuteFlow,
+            DlocalRefundResponse,
+            router_req_types::RefundsData,
+            RefundsResponseData,
+        >,
+    > for RefundsRouterData<RefundExecuteFlow>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: ResponseRouterData<
+            RefundExecuteFlow,
+            DlocalRefundResponse,
+            router_req_types::RefundsData,
+            RefundsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
+            // Self is RefundsRouterData<Execute>
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status,
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct DlocalRefundsSyncRequest {
-    pub refund_id: String,
-}
-
-impl TryFrom<&types::RefundSyncRouterData> for DlocalRefundsSyncRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let refund_id = match item.request.connector_refund_id.clone() {
-            Some(val) => val,
-            None => item.request.refund_id.clone(),
-        };
-        Ok(Self {
-            refund_id: (refund_id),
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
+// TryFrom for RefundSyncRouterData (which is RouterData<RSync, RefundsData, RefundsResponseData>)
+impl
+    TryFrom<
+        ResponseRouterData<
+            RefundSyncFlow,
+            DlocalRefundResponse,
+            router_req_types::RefundsData,
+            RefundsResponseData,
+        >,
+    > for RefundSyncRouterData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: ResponseRouterData<
+            RefundSyncFlow,
+            DlocalRefundResponse,
+            router_req_types::RefundsData,
+            RefundsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
+            // Self is RefundSyncRouterData
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status,
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
@@ -542,26 +501,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::Refund
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DlocalErrorResponse {
-    pub code: i32,
-    pub message: String,
-    pub param: Option<String>,
-}
-
-fn get_doc_from_currency(country: String) -> Secret<String> {
-    let doc = match country.as_str() {
-        "BR" => "91483309223",
-        "ZA" => "2001014800086",
-        "BD" | "GT" | "HN" | "PK" | "SN" | "TH" => "1234567890001",
-        "CR" | "SV" | "VN" => "123456789",
-        "DO" | "NG" => "12345678901",
-        "EG" => "12345678901112",
-        "GH" | "ID" | "RW" | "UG" => "1234567890111123",
-        "IN" => "NHSTP6374G",
-        "CI" => "CA124356789",
-        "JP" | "MY" | "PH" => "123456789012",
-        "NI" => "1234567890111A",
-        "TZ" => "12345678912345678900",
-        _ => "12345678",
-    };
-    Secret::new(doc.to_string())
+    pub status_code: Option<String>,
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
 }

@@ -5971,47 +5971,10 @@ placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
 
+[spreedly]
+base_url = "https://core.spreedly.com/v1/"
 
-
-[worldpayxml]
-[[worldpayxml.credit]]
-  payment_method_type = "Mastercard"
-[[worldpayxml.credit]]
-  payment_method_type = "Visa"
-[[worldpayxml.credit]]
-  payment_method_type = "Interac"
-[[worldpayxml.credit]]
-  payment_method_type = "AmericanExpress"
-[[worldpayxml.credit]]
-  payment_method_type = "JCB"
-[[worldpayxml.credit]]
-  payment_method_type = "DinersClub"
-[[worldpayxml.credit]]
-  payment_method_type = "Discover"
-[[worldpayxml.credit]]
-  payment_method_type = "CartesBancaires"
-[[worldpayxml.credit]]
-  payment_method_type = "UnionPay"
-[[worldpayxml.debit]]
-  payment_method_type = "Mastercard"
-[[worldpayxml.debit]]
-  payment_method_type = "Visa"
-[[worldpayxml.debit]]
-  payment_method_type = "Interac"
-[[worldpayxml.debit]]
-  payment_method_type = "AmericanExpress"
-[[worldpayxml.debit]]
-  payment_method_type = "JCB"
-[[worldpayxml.debit]]
-  payment_method_type = "DinersClub"
-[[worldpayxml.debit]]
-  payment_method_type = "Discover"
-[[worldpayxml.debit]]
-  payment_method_type = "CartesBancaires"
-[[worldpayxml.debit]]
-  payment_method_type = "UnionPay"
-
-[worldpayxml.connector_auth.SignatureKey]
-api_secret="Merchant Code"
-api_key="API Username"
-key1="API Password"
+[spreedly.connector_auth.HeaderKey] # For Hyperswitch internal auth representation
+api_key = "SPREEDLY_ENVIRONMENT_KEY" # Placeholder for env var name for environment_key
+key1 = "SPREEDLY_ACCESS_SECRET"    # Placeholder for env var name for access_secret
+api_secret = "SPREEDLY_GATEWAY_TOKEN" # Placeholder for env var name for gateway_token

@@ -1363,6 +1363,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
         use crate::connector::*;
 
         match self.connector_name {
+            api_enums::Connector::Spreedly => {
+                spreedly::transformers::SpreedlyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Dotpay => {
+                dotpay::transformers::DotpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Vgs => {
                 vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
                 Ok(())

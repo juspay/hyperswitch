@@ -211,6 +211,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
         Ok(match from {
             api_enums::Connector::Aci => Self::Aci,
             // PRAGMA: transformers
+            api_enums::Connector::Spreedly => Self::Spreedly,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
@@ -247,6 +248,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Deutschebank => Self::Deutschebank,
             api_enums::Connector::Digitalvirgo => Self::Digitalvirgo,
             api_enums::Connector::Dlocal => Self::Dlocal,
+            api_enums::Connector::Dotpay => Self::Dotpay,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::Facilitapay => Self::Facilitapay,

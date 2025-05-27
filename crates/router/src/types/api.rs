@@ -328,6 +328,9 @@ impl ConnectorData {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 // PRAGMA: api
+                enums::Connector::Spreedly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Spreedly::new())))
+                }
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
@@ -405,7 +408,12 @@ impl ConnectorData {
                 enums::Connector::Digitalvirgo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
                 }
-                enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
+                enums::Connector::Dotpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Dotpay::new())))
+                }
+                enums::Connector::Dlocal => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Dlocal::new())))
+                }
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<1>,

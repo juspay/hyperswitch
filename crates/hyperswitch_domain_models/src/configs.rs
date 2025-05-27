@@ -13,6 +13,7 @@ use crate::errors::api_error_response;
 pub struct Connectors {
     pub aci: ConnectorParams,
     // PRAGMA: config
+    pub spreedly: ConnectorParams,
     pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     pub airwallex: ConnectorParams,
@@ -42,6 +43,7 @@ pub struct Connectors {
     pub deutschebank: ConnectorParams,
     pub digitalvirgo: ConnectorParams,
     pub dlocal: ConnectorParams,
+    pub dotpay: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
     pub ebanx: ConnectorParams,

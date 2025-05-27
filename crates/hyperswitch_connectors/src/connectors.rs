@@ -26,6 +26,7 @@ pub mod datatrans;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
+pub mod dotpay;
 pub mod ebanx;
 pub mod elavon;
 pub mod facilitapay;
@@ -79,6 +80,7 @@ pub mod redsys;
 pub mod riskified;
 pub mod shift4;
 pub mod signifyd;
+pub mod spreedly;
 pub mod square;
 pub mod stax;
 pub mod stripe;
@@ -109,7 +111,7 @@ pub use self::{
     cashtocode::Cashtocode, chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
-    digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx, elavon::Elavon,
+    digitalvirgo::Digitalvirgo, dlocal::Dlocal, dotpay::Dotpay, ebanx::Ebanx, elavon::Elavon,
     facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
     getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay,
@@ -121,9 +123,9 @@ pub use self::{
     payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
-    threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio, trustpay::Trustpay,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
+    spreedly::Spreedly, square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling,
+    taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio, trustpay::Trustpay, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zsl::Zsl,
 };

@@ -39,6 +39,7 @@ pub struct ConnectorAuthentication {
     pub deutschebank: Option<SignatureKey>,
     pub digitalvirgo: Option<HeaderKey>,
     pub dlocal: Option<SignatureKey>,
+    pub dotpay: Option<HeaderKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
@@ -91,6 +92,7 @@ pub struct ConnectorAuthentication {
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
     pub shift4: Option<HeaderKey>,
+    pub spreedly: Option<HeaderKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,

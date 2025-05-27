@@ -340,3 +340,8 @@ api_key= "API Key"
 api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
+
+[spreedly]
+api_key = "your_spreedly_environment_key" # Mapped to environment_key
+key1 = "your_spreedly_access_secret"    # Mapped to access_secret
+api_secret = "your_spreedly_test_gateway_token" # Mapped to gateway_token
