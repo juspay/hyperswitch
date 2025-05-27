@@ -27,7 +27,9 @@ impl From<types::MerchantAccountData> for pm_auth_types::MerchantAccountData {
                 name,
             },
             types::MerchantAccountData::Sepa { iban, name, .. } => Self::Sepa { iban, name },
-            types::MerchantAccountData::SepaInstant { iban, name, .. } => Self::SepaInstant { iban, name },
+            types::MerchantAccountData::SepaInstant { iban, name, .. } => {
+                Self::SepaInstant { iban, name }
+            }
             types::MerchantAccountData::Elixir {
                 account_number,
                 iban,
@@ -38,8 +40,12 @@ impl From<types::MerchantAccountData> for pm_auth_types::MerchantAccountData {
                 iban,
                 name,
             },
-            types::MerchantAccountData::Bankgiro { number, name, .. } => Self::Bankgiro { number, name },
-            types::MerchantAccountData::Plusgiro { number, name, .. } => Self::Plusgiro { number, name },
+            types::MerchantAccountData::Bankgiro { number, name, .. } => {
+                Self::Bankgiro { number, name }
+            }
+            types::MerchantAccountData::Plusgiro { number, name, .. } => {
+                Self::Plusgiro { number, name }
+            }
         }
     }
 }

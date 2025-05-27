@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use common_utils::{
     errors::CustomResult,
@@ -37,16 +39,10 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
-use openssl::ec::EcKey;
-use openssl::hash::MessageDigest;
-use openssl::pkey::PKey;
-use openssl::rsa::Rsa;
-use openssl::sign::Signer;
+use openssl::{ec::EcKey, hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use transformers as tokenio;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
-
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone)]
 pub struct Tokenio {
