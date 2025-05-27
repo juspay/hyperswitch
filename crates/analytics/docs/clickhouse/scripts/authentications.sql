@@ -56,7 +56,9 @@ CREATE TABLE authentication_queue (
     `browser_name` Nullable(String),
     `browser_version` Nullable(String),
     `issuer_id` Nullable(String),
-    `scheme_name` Nullable(String)
+    `scheme_name` Nullable(String),
+    `exemption_requested` Nullable(Bool),
+    `exemption_accepted` Nullable(Bool),
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-authentication-events',
 kafka_group_name = 'hyper',
@@ -122,7 +124,9 @@ CREATE TABLE authentications (
     `browser_name` Nullable(String),
     `browser_version` Nullable(String),
     `issuer_id` Nullable(String),
-    `scheme_name` Nullable(String)
+    `scheme_name` Nullable(String),
+    `exemption_requested` Nullable(Bool),
+    `exemption_accepted` Nullable(Bool),
     INDEX authenticationConnectorIndex authentication_connector TYPE bloom_filter GRANULARITY 1,
     INDEX transStatusIndex trans_status TYPE bloom_filter GRANULARITY 1,
     INDEX authenticationTypeIndex authentication_type TYPE bloom_filter GRANULARITY 1,
@@ -190,7 +194,9 @@ CREATE MATERIALIZED VIEW authentication_mv TO authentications (
     `browser_name` Nullable(String),
     `browser_version` Nullable(String),
     `issuer_id` Nullable(String),
-    `scheme_name` Nullable(String)
+    `scheme_name` Nullable(String),
+    `exemption_requested` Nullable(Bool),
+    `exemption_accepted` Nullable(Bool),
 ) AS
 SELECT
     authentication_id,
@@ -251,7 +257,9 @@ SELECT
     browser_name,
     browser_version,
     issuer_id,
-    scheme_name
+    scheme_name,
+    exemption_requested,
+    exemption_accepted
 FROM
     authentication_queue
 WHERE
