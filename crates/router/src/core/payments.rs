@@ -7471,9 +7471,9 @@ where
     .attach_printable("failed eligibility analysis")?;
 
     // dynamic success based connector selection
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let mut final_selection = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone()
-    {
+    let mut connectors = {
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+     if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
         let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
             .parse_value("DynamicRoutingAlgorithmRef")
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7556,6 +7556,11 @@ where
         }
     } else {
         connectors
+    }
+    #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
+        {
+            connectors.clone()
+        }
     };
 
     let fallback_selection = routing::perform_fallback_routing(
@@ -7567,18 +7572,16 @@ where
     )
     .await;
 
-    final_selection.append(
+    connectors.append(
         &mut fallback_selection
             .unwrap_or_default()
             .iter()
-            .filter(|&routable_connector_choice| {
-                !final_selection.contains(routable_connector_choice)
-            })
+            .filter(|&routable_connector_choice| !connectors.contains(routable_connector_choice))
             .cloned()
             .collect::<Vec<_>>(),
     );
 
-    let connector_data = final_selection
+    let connector_data = connectors
         .into_iter()
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
