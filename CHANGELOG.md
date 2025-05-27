@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.27.0
+
+### Miscellaneous Tasks
+
+- Update the docker for wasm ([#8080](https://github.com/juspay/hyperswitch/pull/8080)) ([`5642080`](https://github.com/juspay/hyperswitch/commit/5642080025524ed2dee363984359aa9275036035))
+
+**Full Changelog:** [`2025.05.26.0...2025.05.27.0`](https://github.com/juspay/hyperswitch/compare/2025.05.26.0...2025.05.27.0)
+
+
+- - -
+
 ## 2025.05.26.0
 
 ### Features
