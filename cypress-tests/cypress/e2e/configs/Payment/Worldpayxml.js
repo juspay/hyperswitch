@@ -255,7 +255,7 @@ export const connectorDetails = {
         },
       },
     },
-    manualPaymentPartialRefund : {
+    manualPaymentPartialRefund: {
       Request: {
         amount: 5000,
       },
