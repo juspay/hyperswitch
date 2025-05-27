@@ -685,6 +685,7 @@ default_imp_for_create_order!(
     connectors::Prophetpay,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenio,
     connectors::Trustpay,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
