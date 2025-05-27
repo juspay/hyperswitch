@@ -1776,10 +1776,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 ))?;
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
-                logger::debug!(
-                    "open_router decide_gateway call response: {:?}",
-                    gateway_priority_map
-                );
+                logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
                         .get(&connector_choice_a.to_string())

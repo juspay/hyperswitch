@@ -965,6 +965,7 @@ impl Default for SuccessBasedRoutingConfig {
                     max_total_count: Some(5),
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
+                exploration_percent: Some(20.0),
             }),
             decision_engine_configs: None,
         }
@@ -985,7 +986,6 @@ pub enum DynamicRoutingConfigParams {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfigBody {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,
@@ -993,6 +993,7 @@ pub struct SuccessBasedRoutingConfigBody {
     pub current_block_threshold: Option<CurrentBlockThreshold>,
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1118,7 +1119,10 @@ impl SuccessBasedRoutingConfigBody {
                 .as_mut()
                 .map(|threshold| threshold.update(current_block_threshold));
         }
-        self.specificity_level = new.specificity_level
+        self.specificity_level = new.specificity_level;
+        if let Some(exploration_percent) = new.exploration_percent {
+            self.exploration_percent = Some(exploration_percent);
+        }
     }
 }
 
