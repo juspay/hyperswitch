@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.26.0-hotfix1
+
+### Features
+
+- **connector:** [Worldpayxml] add card payment ([#8154](https://github.com/juspay/hyperswitch/pull/8154)) ([`cb773c5`](https://github.com/juspay/hyperswitch/commit/cb773c508850701c79d33992bb725ad038c8912a))
+
+**Full Changelog:** [`2025.05.26.0...2025.05.26.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.05.26.0...2025.05.26.0-hotfix1)
+
+
+- - -
+
 ## 2025.05.26.0
 
 ### Features
