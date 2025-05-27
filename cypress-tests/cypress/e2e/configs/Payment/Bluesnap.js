@@ -330,6 +330,7 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
+      //Skipping this test as Bluesnap does not support mandates and however setup future usage is downgraded to on_session
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -449,7 +450,6 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },

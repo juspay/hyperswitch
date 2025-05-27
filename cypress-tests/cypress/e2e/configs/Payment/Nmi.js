@@ -332,6 +332,7 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
+      //Skipping this test as nmi does not support mandates and however setup future usage is downgraded to on_session
       Configs: {
         TRIGGER_SKIP: true,
       },
