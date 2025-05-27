@@ -330,7 +330,7 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      //Skipping this test as Bluesnap does not support mandates and however setup future usage is downgraded to on_session
+      //Skipping this test and following mandates configs as Bluesnap does not support mandates and however setup future usage is downgraded to on_session
       Configs: {
         TRIGGER_SKIP: true,
       },
