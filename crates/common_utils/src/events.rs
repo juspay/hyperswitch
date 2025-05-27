@@ -121,6 +121,10 @@ pub enum ApiEventsType {
     PaymentMethodSession {
         payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     },
+    #[cfg(feature = "v2")]
+    Token {
+        token_id: Option<id_type::GlobalTokenId>,
+    },
     ProcessTracker,
 }
 
