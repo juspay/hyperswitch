@@ -3834,7 +3834,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
         }
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -4333,7 +4333,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
