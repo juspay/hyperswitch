@@ -56,18 +56,7 @@ pub async fn create_merchant_acquirer(
 
     existing_merchant_acquirer
         .map(|merchant_acquirers| {
-            if has_duplicate_merchant_acquirer(&request, &merchant_acquirers) {
-                Err(error_stack::Report::from(
-                    errors::ApiErrorResponse::GenericDuplicateError {
-                        message: format!(
-                            "Merchant acquirer configuration with id {} already exists.",
-                            merchant_acquirer_id.get_string_repr()
-                        ),
-                    },
-                ))
-            } else {
-                Ok(())
-            }
+            has_duplicate_merchant_acquirer(&request, &merchant_acquirers, &merchant_acquirer_id)
         })
         .transpose()?;
 
@@ -126,7 +115,8 @@ pub async fn create_merchant_acquirer(
 fn has_duplicate_merchant_acquirer(
     request: &merchant_acquirer::MerchantAcquirerCreate,
     existing_acquirers: &Vec<MerchantAcquirer>,
-) -> bool {
+    merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     for acquirer in existing_acquirers {
         if acquirer.acquirer_assigned_merchant_id == request.acquirer_assigned_merchant_id
             && acquirer.merchant_name == request.merchant_name
@@ -136,8 +126,15 @@ fn has_duplicate_merchant_acquirer(
             && acquirer.acquirer_bin == request.acquirer_bin
             && acquirer.acquirer_ica == request.acquirer_ica
         {
-            return true;
+            return Err(error_stack::Report::from(
+                errors::ApiErrorResponse::GenericDuplicateError {
+                    message: format!(
+                        "Merchant acquirer configuration with id {} already exists.",
+                        merchant_acquirer_id.get_string_repr()
+                    ),
+                },
+            ));
         }
     }
-    false
+    Ok(())
 }

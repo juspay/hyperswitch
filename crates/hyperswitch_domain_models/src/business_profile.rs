@@ -961,7 +961,6 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
-            merchant_acquirer_ids: self.merchant_acquirer_ids,
         })
     }
 }
@@ -1885,6 +1884,7 @@ impl super::behaviour::Conversion for Profile {
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
             three_ds_decision_rule_algorithm: None,
+            merchant_acquirer_ids: None,
         })
     }
 

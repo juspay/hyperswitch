@@ -131,7 +131,6 @@ pub struct ProfileNew {
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
-    pub merchant_acquirer_ids: Option<Vec<common_utils::id_type::MerchantAcquirerId>>,
 }
 
 #[cfg(feature = "v1")]
@@ -382,6 +381,8 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<common_utils::id_type::MerchantAcquirerId>)]
+    pub merchant_acquirer_ids: Option<Vec<common_utils::id_type::MerchantAcquirerId>>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -671,6 +672,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             three_ds_decision_rule_algorithm: None,
+            merchant_acquirer_ids: None,
         }
     }
 }
