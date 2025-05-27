@@ -29,7 +29,7 @@ pub enum ApiEventsType {
     },
     #[cfg(feature = "v2")]
     Refund {
-        payment_id: id_type::GlobalPaymentId,
+        payment_id: Option<id_type::GlobalPaymentId>,
         refund_id: id_type::GlobalRefundId,
     },
     #[cfg(feature = "v1")]
