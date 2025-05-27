@@ -134,7 +134,7 @@ fn store_full_response_if_required<
     response: &[u8],
     data: &mut types::RouterData<T, Req, Resp>,
 ) -> Result<(), Report<errors::ConnectorError>> {
-    if all_keys_required == Some(true) {
+    if all_keys_required.unwrap_or(false) {
         let mut decoded = String::from_utf8(response.to_vec())
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         if decoded.starts_with('\u{feff}') {
