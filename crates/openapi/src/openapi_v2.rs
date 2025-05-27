@@ -157,6 +157,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for proxy
         routes::proxy::proxy_core,
+
+        // Route for tokenization
+        routes::tokenization::create_token_vault_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -386,6 +389,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaylaterResponse,
         api_models::payments::KlarnaSdkPaymentMethodResponse,
         api_models::payments::SwishQrData,
+        api_models::payments::RevolutPayData,
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
@@ -644,7 +648,25 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::MerchantRoutingAlgorithm,
         api_models::routing::RoutingAlgorithmKind,
         api_models::routing::RoutingDictionary,
-        api_models::routing::RoutingAlgorithm,
+        api_models::routing::DynamicRoutingConfigParams,
+        api_models::routing::SuccessBasedRoutingConfig,
+        api_models::routing::SuccessRateSpecificityLevel,
+        api_models::routing::CurrentBlockThreshold,
+        api_models::open_router::DecisionEngineSuccessRateData,
+        api_models::routing::ContractBasedTimeScale,
+        api_models::routing::LabelInformation,
+        api_models::routing::ContractBasedRoutingConfig,
+        api_models::routing::ContractBasedRoutingConfigBody,
+        api_models::open_router::DecisionEngineGatewayWiseExtraScore,
+        api_models::open_router::DecisionEngineSRSubLevelInputConfig,
+        api_models::open_router::DecisionEngineEliminationData,
+        api_models::routing::SuccessBasedRoutingConfigBody,
+        api_models::routing::RoutingAlgorithmWrapper,
+        api_models::routing::EliminationRoutingConfig,
+        api_models::open_router::DecisionEngineEliminationData,
+        api_models::routing::EliminationAnalyserConfig,
+        api_models::routing::DynamicRoutingAlgorithm,
+        api_models::routing::StaticRoutingAlgorithm,
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
@@ -736,6 +758,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::proxy::ProxyResponse,
         api_models::proxy::TokenType,
         routes::payments::ForceSync,
+        api_models::tokenization::GenericTokenizationRequest,
+        api_models::tokenization::GenericTokenizationResponse,
     )),
     modifiers(&SecurityAddon)
 )]

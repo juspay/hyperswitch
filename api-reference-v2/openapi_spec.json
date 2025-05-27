@@ -3532,6 +3532,67 @@
           }
         ]
       }
+    },
+    "/v2/tokenize": {
+      "post": {
+        "tags": [
+          "Tokenization"
+        ],
+        "operationId": "create_token_vault_api",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericTokenizationRequest"
+              },
+              "examples": {
+                "Create a token with customer_id": {
+                  "value": {
+                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "token_request": {
+                      "payment_method_data": {
+                        "card": {
+                          "card_holder_name": "test name"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericTokenizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -8016,6 +8077,7 @@
           "bambora",
           "bamboraapac",
           "bankofamerica",
+          "barclaycard",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -8095,6 +8157,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayxml",
           "signifyd",
           "plaid",
           "riskified",
@@ -8374,6 +8437,54 @@
           }
         },
         "additionalProperties": false
+      },
+      "ContractBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          },
+          "label_info": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelInformation"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "constants": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "nullable": true
+          },
+          "time_scale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedTimeScale"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedTimeScale": {
+        "type": "string",
+        "enum": [
+          "day",
+          "month"
+        ]
       },
       "CountryAlpha2": {
         "type": "string",
@@ -9017,7 +9128,7 @@
             ],
             "nullable": true
           },
-          "encypted_payload": {
+          "encrypted_payload": {
             "type": "string",
             "description": "Encrypted payload",
             "nullable": true
@@ -9196,6 +9307,23 @@
           "ZMW",
           "ZWL"
         ]
+      },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -9704,6 +9832,123 @@
         },
         "additionalProperties": false
       },
+      "DecisionEngineEliminationData": {
+        "type": "object",
+        "required": [
+          "threshold"
+        ],
+        "properties": {
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineGatewayWiseExtraScore": {
+        "type": "object",
+        "required": [
+          "gatewayName",
+          "gatewaySigmaFactor"
+        ],
+        "properties": {
+          "gatewayName": {
+            "type": "string"
+          },
+          "gatewaySigmaFactor": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineSRSubLevelInputConfig": {
+        "type": "object",
+        "properties": {
+          "paymentMethodType": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "latencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "bucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "hedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "upperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "gatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "DecisionEngineSuccessRateData": {
+        "type": "object",
+        "properties": {
+          "defaultLatencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultBucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "defaultHedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultLowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultUpperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultGatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          },
+          "subLevelInputConfig": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineSRSubLevelInputConfig"
+            },
+            "nullable": true
+          }
+        }
+      },
       "DecoupledAuthenticationType": {
         "type": "string",
         "enum": [
@@ -9969,6 +10214,31 @@
           }
         }
       },
+      "DynamicRoutingAlgorithm": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EliminationRoutingConfig"
+          },
+          {
+            "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+          },
+          {
+            "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+          }
+        ]
+      },
+      "DynamicRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "AuthenticationType",
+          "Currency",
+          "Country",
+          "CardNetwork",
+          "CardBin"
+        ]
+      },
       "ElementPosition": {
         "type": "string",
         "enum": [
@@ -10023,6 +10293,51 @@
             }
           }
         ]
+      },
+      "EliminationAnalyserConfig": {
+        "type": "object",
+        "properties": {
+          "bucket_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "bucket_leak_interval_in_secs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "EliminationRoutingConfig": {
+        "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "elimination_analyser_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EliminationAnalyserConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineEliminationData"
+          }
+        },
+        "additionalProperties": false
       },
       "EnablePaymentLinkRequest": {
         "type": "string",
@@ -11029,6 +11344,50 @@
             "example": "#4285F4",
             "nullable": true,
             "maxLength": 255
+          }
+        }
+      },
+      "GenericTokenizationRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "token_request"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "token_request": {
+            "type": "object",
+            "description": "Request for tokenization which contains the data to be tokenized"
+          }
+        }
+      },
+      "GenericTokenizationResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "flag"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Created time of the tokenization id",
+            "example": "2024-02-24T11:04:09.922Z"
+          },
+          "flag": {
+            "type": "string",
+            "description": "Status of the tokenization id created",
+            "example": "enabled"
           }
         }
       },
@@ -12051,6 +12410,33 @@
           "session_id": {
             "type": "string",
             "description": "The identifier for the session"
+          }
+        }
+      },
+      "LabelInformation": {
+        "type": "object",
+        "required": [
+          "label",
+          "target_count",
+          "target_time",
+          "mca_id"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "target_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "target_time": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "mca_id": {
+            "type": "string"
           }
         }
       },
@@ -13237,7 +13623,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/RoutingAlgorithmWrapper"
           },
           "created_at": {
             "type": "integer",
@@ -16595,6 +16981,10 @@
             "example": 900,
             "nullable": true,
             "minimum": 0
+          },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
+            "nullable": true
           }
         }
       },
@@ -16640,6 +17030,10 @@
             ],
             "nullable": true
           },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
+            "nullable": true
+          },
           "expires_at": {
             "type": "string",
             "format": "date-time",
@@ -16677,6 +17071,12 @@
               "type": "string"
             },
             "description": "The payment method that was created using this payment method session",
+            "nullable": true
+          },
+          "associated_token_id": {
+            "type": "string",
+            "description": "The token-id created if there is tokenization_data present",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         }
@@ -16854,7 +17254,8 @@
           "mifinity",
           "open_banking_pis",
           "direct_carrier_billing",
-          "instant_bank_transfer"
+          "instant_bank_transfer",
+          "revolut_pay"
         ]
       },
       "PaymentMethodUpdate": {
@@ -16940,6 +17341,10 @@
                 "$ref": "#/components/schemas/NetworkTokenization"
               }
             ],
+            "nullable": true
+          },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
             "nullable": true
           }
         }
@@ -18787,7 +19192,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -21534,6 +21939,9 @@
           }
         }
       },
+      "RevolutPayData": {
+        "type": "object"
+      },
       "RewardData": {
         "type": "object",
         "required": [
@@ -21588,6 +21996,7 @@
           "archipel",
           "authorizedotnet",
           "bankofamerica",
+          "barclaycard",
           "billwerk",
           "bitpay",
           "bambora",
@@ -21663,97 +22072,12 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayxml",
           "xendit",
           "zen",
           "plaid",
           "zsl"
         ]
-      },
-      "RoutingAlgorithm": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "single"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/RoutableConnectorChoice"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "priority"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/RoutableConnectorChoice"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "advanced"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/ProgramConnectorSelection"
-              }
-            }
-          }
-        ],
-        "description": "Routing Algorithm kind",
-        "discriminator": {
-          "propertyName": "type"
-        }
       },
       "RoutingAlgorithmId": {
         "type": "object",
@@ -21776,6 +22100,16 @@
           "dynamic"
         ]
       },
+      "RoutingAlgorithmWrapper": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicRoutingAlgorithm"
+          }
+        ]
+      },
       "RoutingConfigRequest": {
         "type": "object",
         "required": [
@@ -21792,7 +22126,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
           },
           "profile_id": {
             "type": "string"
@@ -22749,6 +23083,91 @@
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
       },
+      "StaticRoutingAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "advanced"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramConnectorSelection"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "StraightThroughAlgorithm": {
         "oneOf": [
           {
@@ -22897,6 +23316,74 @@
           }
         },
         "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineSuccessRateData"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          },
+          "specificity_level": {
+            "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SuccessRateSpecificityLevel": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "global"
+        ]
       },
       "SupportedPaymentMethod": {
         "allOf": [
@@ -24296,6 +24783,17 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
               }
             }
           }

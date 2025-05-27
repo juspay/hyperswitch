@@ -19,6 +19,8 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
@@ -273,7 +275,7 @@ pub async fn create_routing_algorithm_under_profile(
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    use api_models::routing::RoutingAlgorithm as EuclidAlgorithm;
+    use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
     use crate::services::logger;
 
@@ -564,6 +566,24 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
+
+                // Call to DE here to update SR configs
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the success rate routing config in Decision Engine",
+                        )?;
+                    }
+                }
             } else if routing_algorithm.name == helpers::ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM
             {
                 dynamic_routing_ref.update_algorithm_id(
@@ -578,6 +598,22 @@ pub async fn link_routing_config(
                     .enabled_feature,
                 routing_types::DynamicRoutingType::EliminationRouting,
             );
+                #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                {
+                    if state.conf.open_router.enabled {
+                        update_decision_engine_dynamic_routing_setup(
+                            &state,
+                            business_profile.get_id(),
+                            routing_algorithm.algorithm_data.clone(),
+                            routing_types::DynamicRoutingType::EliminationRouting,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to update the elimination routing config in Decision Engine",
+                        )?;
+                    }
+                }
             } else if routing_algorithm.name == helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM {
                 dynamic_routing_ref.update_algorithm_id(
                 algorithm_id,
@@ -1138,16 +1174,20 @@ pub async fn retrieve_linked_routing_config(
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
 
+    // Get business profiles
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
         core_utils::validate_and_get_business_profile(
             db,
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_key_store,
             Some(&profile_id),
-            merchant_context.get_merchant_account().get_id(),
+            merchant_id,
         )
         .await?
         .map(|profile| vec![profile])
@@ -1157,28 +1197,25 @@ pub async fn retrieve_linked_routing_config(
         })?
     } else {
         let business_profile = db
-            .list_profile_by_merchant_id(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().get_id(),
-            )
+            .list_profile_by_merchant_id(key_manager_state, merchant_key_store, merchant_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
         core_utils::filter_objects_based_on_profile_id_list(
             authentication_profile_id.map(|profile_id| vec![profile_id]),
-            business_profile.clone(),
+            business_profile,
         )
     };
 
     let mut active_algorithms = Vec::new();
 
     for business_profile in business_profiles {
-        let profile_id = business_profile.get_id().to_owned();
+        let profile_id = business_profile.get_id();
 
+        // Handle static routing algorithm
         let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-            enums::TransactionType::Payment => business_profile.routing_algorithm,
+            enums::TransactionType::Payment => &business_profile.routing_algorithm,
             #[cfg(feature = "payouts")]
-            enums::TransactionType::Payout => business_profile.payout_routing_algorithm,
+            enums::TransactionType::Payout => &business_profile.payout_routing_algorithm,
         }
         .clone()
         .map(|val| val.parse_value("RoutingAlgorithmRef"))
@@ -1191,11 +1228,53 @@ pub async fn retrieve_linked_routing_config(
             let record = db
                 .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
                     &algorithm_id,
-                    &profile_id,
+                    profile_id,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+            active_algorithms.push(record.foreign_into());
+        }
 
+        // Handle dynamic routing algorithms
+        let dynamic_routing_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+            .dynamic_routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize dynamic routing algorithm ref from business profile",
+            )?
+            .unwrap_or_default();
+
+        // Collect all dynamic algorithm IDs
+        let mut dynamic_algorithm_ids = Vec::new();
+
+        if let Some(sba) = &dynamic_routing_ref.success_based_algorithm {
+            if let Some(id) = &sba.algorithm_id_with_timestamp.algorithm_id {
+                dynamic_algorithm_ids.push(id.clone());
+            }
+        }
+        if let Some(era) = &dynamic_routing_ref.elimination_routing_algorithm {
+            if let Some(id) = &era.algorithm_id_with_timestamp.algorithm_id {
+                dynamic_algorithm_ids.push(id.clone());
+            }
+        }
+        if let Some(cbr) = &dynamic_routing_ref.contract_based_routing {
+            if let Some(id) = &cbr.algorithm_id_with_timestamp.algorithm_id {
+                dynamic_algorithm_ids.push(id.clone());
+            }
+        }
+
+        // Fetch all dynamic algorithms
+        for algorithm_id in dynamic_algorithm_ids {
+            let record = db
+                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
+                    &algorithm_id,
+                    profile_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
             active_algorithms.push(record.foreign_into());
         }
     }
@@ -1420,7 +1499,7 @@ pub async fn configure_dynamic_routing_volume_split(
     merchant_context: domain::MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     routing_info: routing::RoutingVolumeSplit,
-) -> RouterResponse<()> {
+) -> RouterResponse<routing::RoutingVolumeSplit> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
@@ -1472,7 +1551,7 @@ pub async fn configure_dynamic_routing_volume_split(
     )
     .await?;
 
-    Ok(service_api::ApplicationResponse::StatusOk)
+    Ok(service_api::ApplicationResponse::Json(routing_info))
 }
 
 #[cfg(feature = "v1")]
@@ -1558,7 +1637,7 @@ pub async fn success_based_routing_update_configs(
         name: dynamic_routing_algo_to_update.name,
         description: dynamic_routing_algo_to_update.description,
         kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update),
+        algorithm_data: serde_json::json!(config_to_update.clone()),
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
@@ -1593,23 +1672,25 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    state
-        .grpc_client
-        .dynamic_routing
-        .success_rate_client
-        .as_ref()
-        .async_map(|sr_client| async {
-            sr_client
-                .invalidate_success_rate_routing_keys(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the routing keys")
-        })
-        .await
-        .transpose()?;
+    if !state.conf.open_router.enabled {
+        state
+            .grpc_client
+            .dynamic_routing
+            .success_rate_client
+            .as_ref()
+            .async_map(|sr_client| async {
+                sr_client
+                    .invalidate_success_rate_routing_keys(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
@@ -1695,23 +1776,25 @@ pub async fn elimination_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    state
-        .grpc_client
-        .dynamic_routing
-        .elimination_based_client
-        .as_ref()
-        .async_map(|er_client| async {
-            er_client
-                .invalidate_elimination_bucket(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the elimination routing keys")
-        })
-        .await
-        .transpose()?;
+    if !state.conf.open_router.enabled {
+        state
+            .grpc_client
+            .dynamic_routing
+            .elimination_based_client
+            .as_ref()
+            .async_map(|er_client| async {
+                er_client
+                    .invalidate_elimination_bucket(
+                        profile_id.get_string_repr().into(),
+                        state.get_grpc_headers(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to invalidate the elimination routing keys")
+            })
+            .await
+            .transpose()?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
