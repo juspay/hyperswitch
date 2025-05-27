@@ -219,11 +219,130 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
 
-        let payment_method_data = request
+        let mut payment_method_data = request
             .payment_method_data
             .payment_method_data
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
+
+        let mut payment_method_id = None;
+
+        if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) =
+            payment_method_data.clone()
+        {
+            if let Some(customer_id) = payment_intent.customer_id.clone() {
+                let pm_create_data = api_models::payment_methods::PaymentMethodCreateData::Card(
+                    api_models::payment_methods::CardDetail {
+                        card_number: card.card_number,
+                        card_exp_month: card.card_exp_month,
+                        card_exp_year: card.card_exp_year,
+                        card_holder_name: card.card_holder_name,
+                        nick_name: card.nick_name,
+                        card_issuing_country: None,
+                        card_network: card.card_network,
+                        card_issuer: card.card_issuer,
+                        card_type: None,
+                        card_cvc: Some(card.card_cvc),
+                    },
+                );
+
+                let req = api_models::payment_methods::PaymentMethodCreate {
+                    payment_method_type: request.payment_method_type,
+                    payment_method_subtype: request.payment_method_subtype,
+                    metadata: None,
+                    customer_id,
+                    payment_method_data: pm_create_data,
+                    billing: None,
+                    psp_tokenization: None,
+                    network_tokenization: None,
+                };
+
+                let pm_response = crate::core::payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    merchant_context,
+                    profile,
+                )
+                .await?;
+
+                payment_method_id = Some(pm_response.id);
+            }
+        }
+
+        if let Some(payment_token) = request.payment_token.clone() {
+            let pm_token_data = helpers::retrieve_payment_token_data(
+                state,
+                payment_token.clone(),
+                Some(request.payment_method_type),
+            )
+            .await?;
+
+            let pm_id = match pm_token_data {
+                storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                    Some(card_token_data.payment_method_id)
+                }
+                storage::PaymentTokenData::TemporaryGeneric(_) => None,
+                storage::PaymentTokenData::AuthBankDebit(_) => None,
+            };
+
+            payment_method_id = pm_id.clone();
+
+            if let Some(pm_id) = pm_id {
+                let payment_method = db
+                    .find_payment_method(
+                        key_manager_state,
+                        merchant_context.get_merchant_key_store(),
+                        &pm_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                let vault_data =
+                    crate::core::payment_methods::vault::retrieve_payment_method_from_vault(
+                        state,
+                        merchant_context,
+                        profile,
+                        &payment_method,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?
+                    .data;
+
+                match vault_data {
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
+                        card_detail,
+                    ) => {
+                        let pm_data_from_vault =
+                            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
+                                hyperswitch_domain_models::payment_method_data::Card {
+                                    card_number: card_detail.card_number,
+                                    card_exp_month: card_detail.card_exp_month,
+                                    card_exp_year: card_detail.card_exp_year,
+                                    card_cvc: card_detail.card_cvc.unwrap_or_default(),
+                                    card_issuer: card_detail.card_issuer,
+                                    card_network: card_detail.card_network,
+                                    card_type: card_detail.card_type.map(|val| val.to_string()),
+                                    card_issuing_country: card_detail
+                                        .card_issuing_country
+                                        .map(|val| val.to_string()),
+                                    bank_code: None,
+                                    nick_name: card_detail.nick_name,
+                                    card_holder_name: card_detail.card_holder_name,
+                                    co_badged_card_data: None,
+                                },
+                            );
+
+                        payment_method_data = Some(pm_data_from_vault);
+                    }
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                        _,
+                    ) => (), // TODO: Implement this
+                }
+            }
+        }
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
@@ -248,6 +367,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method_data,
             payment_address,
             mandate_data: None,
+            payment_method_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -420,12 +540,26 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
-        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
-            status: attempt_status,
-            updated_by: storage_scheme.to_string(),
-            connector,
-            merchant_connector_id,
-            authentication_type,
+        let payment_attempt_update = match &payment_data.payment_method_id {
+            Some(payment_method_id) => {
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
+                    status: attempt_status,
+                    updated_by: storage_scheme.to_string(),
+                    connector,
+                    merchant_connector_id,
+                    authentication_type,
+                    payment_method_id : payment_method_id.clone()
+                }
+            }
+            None => {
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
+                    status: attempt_status,
+                    updated_by: storage_scheme.to_string(),
+                    connector,
+                    merchant_connector_id,
+                    authentication_type,
+                }
+            }
         };
 
         let updated_payment_intent = db

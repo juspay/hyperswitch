@@ -2541,8 +2541,41 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment attempt")?;
 
+        let intent_status = updated_payment_intent.status;
+
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
+
+        if let Some(payment_method_id) = &payment_data.payment_attempt.payment_method_id {
+            if intent_status != common_enums::IntentStatus::Failed
+                && intent_status != common_enums::IntentStatus::Cancelled
+            {
+                let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+                    status: Some(enums::PaymentMethodStatus::Active),
+                };
+
+                let payment_method = db
+                    .find_payment_method(
+                        key_manager_state,
+                        key_store,
+                        payment_method_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+                db.update_payment_method(
+                    key_manager_state,
+                    key_store,
+                    payment_method,
+                    pm_update,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
+            }
+        }
 
         Ok(payment_data)
     }

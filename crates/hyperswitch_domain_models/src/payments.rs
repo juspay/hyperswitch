@@ -853,6 +853,7 @@ where
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 #[cfg(feature = "v2")]
