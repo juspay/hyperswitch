@@ -15,6 +15,7 @@ v2 = ["common_utils/v2", "common_types/v2"]
 customer_v2 = []
 payment_methods_v2 = []
 refunds_v2 = []
+tokenization_v2 = []
 
 [dependencies]
 async-bb8-diesel = "0.2.1"

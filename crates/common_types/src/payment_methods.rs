@@ -29,7 +29,7 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_subtypes: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
-// Custom FromSql implmentation to handle deserialization of v1 data format
+// Custom FromSql implementation to handle deserialization of v1 data format
 impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn from_sql(bytes: <diesel::pg::Pg as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
         let helper: PaymentMethodsEnabledHelper = serde_json::from_slice(bytes.as_bytes())
