@@ -300,6 +300,9 @@ impl SurchargeMetadata {
             }
         }
     }
+
+    const SURCHARGE_VALUE_KEY: &'static str = "surcharge_algorithm_id";
+
     #[instrument(skip_all)]
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
@@ -325,7 +328,8 @@ impl SurchargeMetadata {
                 ));
             }
             value_list.push((
-                "surcharge_algorithm_id".to_string(),
+                // "surcharge_algorithm_id".to_string(),
+                Self::SURCHARGE_VALUE_KEY.to_string(),
                 self.surcharge_algorithm_id
                     .clone()
                     .unwrap_or_default()
@@ -387,7 +391,8 @@ impl SurchargeMetadata {
             .get_redis_conn()
             .attach_printable("Failed to get redis connection")?;
         let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
-        let value_key = "surcharge_algorithm_id".to_string();
+        // let value_key = "surcharge_algorithm_id".to_string();
+        let value_key = Self::SURCHARGE_VALUE_KEY.to_string();
         let result = redis_conn
             .get_hash_field_and_deserialize(
                 &redis_key.as_str().into(),
