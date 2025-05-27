@@ -41,7 +41,6 @@ dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_ro
 revenue_recovery =["api_models/revenue_recovery","hyperswitch_interfaces/revenue_recovery","hyperswitch_domain_models/revenue_recovery","hyperswitch_connectors/revenue_recovery"]
 refunds_v2 = ["api_models/refunds_v2", "diesel_models/refunds_v2", "storage_impl/refunds_v2", "hyperswitch_domain_models/refunds_v2"]
 
-
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
 # This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
