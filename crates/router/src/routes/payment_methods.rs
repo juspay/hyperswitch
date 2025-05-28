@@ -492,13 +492,13 @@ pub async fn list_payment_method_api(
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
-        ("accepted_country" = Option<Vec<String>>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currency" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
         ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
         ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
         ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
         ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
-        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card networks"),
+        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks")
         ),
     responses(
         (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
