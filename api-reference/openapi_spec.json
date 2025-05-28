@@ -27309,6 +27309,11 @@
           },
           "specificity_level": {
             "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
+          },
+          "exploration_percent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
         }
       },
