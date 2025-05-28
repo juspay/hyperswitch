@@ -3,6 +3,7 @@ use std::str::FromStr;
 use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use crate::core::payments::ActionType;
 pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
     Checkout, Fulfillment, RecordReturn, Sale, Transaction,
 };
@@ -33,6 +34,7 @@ pub enum ConnectorCallType {
 pub struct ConnectorRoutingData {
     pub connector_data: ConnectorData,
     pub network: Option<common_enums::CardNetwork>,
+    pub action_type: Option<ActionType>,
 }
 
 impl FraudCheckConnectorData {
