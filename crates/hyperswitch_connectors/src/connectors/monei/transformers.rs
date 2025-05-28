@@ -33,20 +33,46 @@ impl<T> From<(StringMinorUnit, T)> for MoneiRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct MoneiPaymentsRequest {
     amount: StringMinorUnit,
+    currency: enums::Currency,
+    #[serde(rename = "orderId")]
+    order_id: String,
+    description: Option<String>,
+    #[serde(rename = "paymentMethod")]
+    payment_method: MoneiPaymentMethod,
+    customer: Option<MoneiCustomer>,
+    #[serde(rename = "transactionType")]
+    transaction_type: MoneiTransactionType,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MoneiTransactionType {
+    Sale,
+    Auth,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct MoneiPaymentMethod {
     card: MoneiCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct MoneiCard {
     number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
+    #[serde(rename = "expMonth")]
+    exp_month: Secret<String>,
+    #[serde(rename = "expYear")]
+    exp_year: Secret<String>,
     cvc: Secret<String>,
-    complete: bool,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct MoneiCustomer {
+    email: Option<common_utils::pii::Email>,
+    name: Option<Secret<String>>,
 }
 
 impl TryFrom<&MoneiRouterData<&PaymentsAuthorizeRouterData>> for MoneiPaymentsRequest {
@@ -56,14 +82,34 @@ impl TryFrom<&MoneiRouterData<&PaymentsAuthorizeRouterData>> for MoneiPaymentsRe
             PaymentMethodData::Card(req_card) => {
                 let card = MoneiCard {
                     number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
+                    exp_month: req_card.card_exp_month,
+                    exp_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
                 };
+                
+                let payment_method = MoneiPaymentMethod { card };
+                
+                let customer = item.router_data.address.billing.as_ref().map(|billing| {
+                    MoneiCustomer {
+                        email: billing.email.clone(),
+                        name: billing.get_optional_full_name(),
+                    }
+                });
+                
+                let transaction_type = if item.router_data.request.is_auto_capture()? {
+                    MoneiTransactionType::Sale
+                } else {
+                    MoneiTransactionType::Auth
+                };
+                
                 Ok(Self {
                     amount: item.amount.clone(),
-                    card,
+                    currency: item.router_data.request.currency,
+                    order_id: item.router_data.connector_request_reference_id.clone(),
+                    description: item.router_data.description.clone(),
+                    payment_method,
+                    customer,
+                    transaction_type,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -89,14 +135,20 @@ impl TryFrom<&ConnectorAuthType> for MoneiAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MoneiPaymentStatus {
     Succeeded,
     Failed,
+    Pending,
+    Authorized,
+    Expired,
+    Canceled,
+    Refunded,
+    PartiallyRefunded,
     #[default]
-    Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<MoneiPaymentStatus> for common_enums::AttemptStatus {
@@ -104,7 +156,13 @@ impl From<MoneiPaymentStatus> for common_enums::AttemptStatus {
         match item {
             MoneiPaymentStatus::Succeeded => Self::Charged,
             MoneiPaymentStatus::Failed => Self::Failure,
-            MoneiPaymentStatus::Processing => Self::Authorizing,
+            MoneiPaymentStatus::Pending => Self::Pending,
+            MoneiPaymentStatus::Authorized => Self::Authorized,
+            MoneiPaymentStatus::Expired => Self::Failure,
+            MoneiPaymentStatus::Canceled => Self::Voided,
+            MoneiPaymentStatus::Refunded => Self::AutoRefunded,
+            MoneiPaymentStatus::PartiallyRefunded => Self::PartialCaptured,
+            MoneiPaymentStatus::Unknown => Self::Pending,
         }
     }
 }
