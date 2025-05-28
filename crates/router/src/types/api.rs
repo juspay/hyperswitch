@@ -92,8 +92,8 @@ use crate::{
 };
 #[derive(Clone)]
 pub enum ConnectorCallType {
-    PreDetermined(ConnectorData),
-    Retryable(Vec<ConnectorData>),
+    PreDetermined(ConnectorRoutingData),
+    Retryable(Vec<ConnectorRoutingData>),
     SessionMultiple(SessionConnectorDatas),
     #[cfg(feature = "v2")]
     Skip,
@@ -120,6 +120,15 @@ pub struct ConnectorData {
     pub connector_name: types::Connector,
     pub get_token: GetToken,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+impl From<ConnectorData> for ConnectorRoutingData {
+    fn from(connector_data: ConnectorData) -> Self {
+        Self {
+            connector_data,
+            network: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -186,11 +195,15 @@ common_utils::create_list_wrapper!(
 );
 
 pub fn convert_connector_data_to_routable_connectors(
-    connectors: &[ConnectorData],
+    connectors: &[ConnectorRoutingData],
 ) -> CustomResult<Vec<RoutableConnectorChoice>, common_utils::errors::ValidationError> {
     connectors
         .iter()
-        .map(|connector_data| RoutableConnectorChoice::foreign_try_from(connector_data.clone()))
+        .map(|connectors_routing_data| {
+            RoutableConnectorChoice::foreign_try_from(
+                connectors_routing_data.connector_data.clone(),
+            )
+        })
         .collect()
 }
 
@@ -285,6 +298,29 @@ impl ConnectorData {
         })
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_external_vault_connector_by_name(
+        _connectors: &Connectors,
+        name: &str,
+        connector_type: GetToken,
+        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector = Self::convert_connector(name)?;
+        let external_vault_connector_name = api_enums::VaultConnectors::from_str(name)
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("unable to parse external vault connector name {name}")
+            })?;
+        let connector_name = api_enums::Connector::from(external_vault_connector_name);
+        Ok(Self {
+            connector,
+            connector_name,
+            get_token: connector_type,
+            merchant_connector_id: connector_id,
+        })
+    }
+
     pub fn convert_connector(
         connector_name: &str,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
@@ -303,6 +339,9 @@ impl ConnectorData {
                 // enums::Connector::Amazonpay => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
                 // }
+                enums::Connector::Archipel => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
+                }
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
@@ -312,6 +351,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
+                }
+                enums::Connector::Barclaycard => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Barclaycard)))
                 }
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
@@ -465,6 +507,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nomupay::new())))
                 }
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
+                // enums::Connector::Nordea => Ok(ConnectorEnum::Old(Box::new(connector::Nordea::new()))),
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }
@@ -522,6 +565,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                enums::Connector::Worldpayxml => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml::new())))
+                }
                 enums::Connector::Xendit => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
                 }
@@ -547,6 +593,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                // enums::Connector::Tokenio => Ok(ConnectorEnum::Old(Box::new(connector::Tokenio))),
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
@@ -554,6 +601,7 @@ impl ConnectorData {
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,
                 // ))),
+                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(connector::Vgs::new()))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))

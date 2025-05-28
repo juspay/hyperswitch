@@ -3,8 +3,8 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
-/// Enum for Theme Lineage
-pub mod theme;
+/// User related types
+pub mod user;
 
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
@@ -400,6 +400,11 @@ impl MinorUnit {
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
         Self(value)
+    }
+
+    /// checks if the amount is greater than the given value
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.get_amount_as_i64() > value
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
@@ -1359,7 +1364,7 @@ where
 }
 
 impl_enum_str!(
-    tag_delimeter = ":",
+    tag_delimiter = ":",
     /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
     /// trigger (Api, Jwt) of the record.
     #[derive(Eq, PartialEq, Debug, Clone)]

@@ -175,7 +175,9 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
     fn try_from(item: &api_enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match item {
             api_enums::PaymentMethodType::ApplePay => Ok(Self::APPLEPAY),
-            api_enums::PaymentMethodType::Credit => Ok(Self::CREDITCARD),
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Ok(Self::CREDITCARD)
+            }
             api_enums::PaymentMethodType::GooglePay => Ok(Self::GOOGLEPAY),
             api_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -352,7 +354,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::GooglePayRedirect(_)
                     | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                     | WalletDataPaymentMethod::MbWayRedirect(_)
-                    | WalletDataPaymentMethod::MobilePayRedirect(_) => {
+                    | WalletDataPaymentMethod::MobilePayRedirect(_)
+                    | WalletDataPaymentMethod::RevolutPay(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("novalnet"),
                         )
@@ -1575,7 +1578,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         return_url: None,
                         error_return_url: None,
                         payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
-                            wallet_data: Secret::new(payment_method_data.payment_data.clone()),
+                            wallet_data: payment_method_data.get_applepay_decoded_payment_data()?,
                         })),
                         enforce_3d: None,
                         create_token,
@@ -1603,7 +1606,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
-                | WalletDataPaymentMethod::MobilePayRedirect(_) => {
+                | WalletDataPaymentMethod::MobilePayRedirect(_)
+                | WalletDataPaymentMethod::RevolutPay(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("novalnet"),
                     ))?

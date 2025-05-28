@@ -223,57 +223,31 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
 
     match key_enum {
         dir::DirKeyKind::PaymentMethod => lower_enum!(PaymentMethod, value),
-
         dir::DirKeyKind::CardType => lower_enum!(CardType, value),
-
         dir::DirKeyKind::CardNetwork => lower_enum!(CardNetwork, value),
-
         dir::DirKeyKind::PayLaterType => lower_enum!(PayLaterType, value),
-
         dir::DirKeyKind::WalletType => lower_enum!(WalletType, value),
-
         dir::DirKeyKind::BankDebitType => lower_enum!(BankDebitType, value),
-
         dir::DirKeyKind::BankRedirectType => lower_enum!(BankRedirectType, value),
-
         dir::DirKeyKind::CryptoType => lower_enum!(CryptoType, value),
-
         dir::DirKeyKind::PaymentType => lower_enum!(PaymentType, value),
-
         dir::DirKeyKind::MandateType => lower_enum!(MandateType, value),
-
         dir::DirKeyKind::MandateAcceptanceType => lower_enum!(MandateAcceptanceType, value),
-
         dir::DirKeyKind::RewardType => lower_enum!(RewardType, value),
-
         dir::DirKeyKind::PaymentCurrency => lower_enum!(PaymentCurrency, value),
-
         dir::DirKeyKind::AuthenticationType => lower_enum!(AuthenticationType, value),
-
         dir::DirKeyKind::CaptureMethod => lower_enum!(CaptureMethod, value),
-
         dir::DirKeyKind::BusinessCountry => lower_enum!(BusinessCountry, value),
-
         dir::DirKeyKind::BillingCountry => lower_enum!(BillingCountry, value),
-
         dir::DirKeyKind::SetupFutureUsage => lower_enum!(SetupFutureUsage, value),
-
         dir::DirKeyKind::UpiType => lower_enum!(UpiType, value),
-
         dir::DirKeyKind::OpenBankingType => lower_enum!(OpenBankingType, value),
-
         dir::DirKeyKind::VoucherType => lower_enum!(VoucherType, value),
-
         dir::DirKeyKind::GiftCardType => lower_enum!(GiftCardType, value),
-
         dir::DirKeyKind::BankTransferType => lower_enum!(BankTransferType, value),
-
         dir::DirKeyKind::CardRedirectType => lower_enum!(CardRedirectType, value),
-
         dir::DirKeyKind::MobilePaymentType => lower_enum!(MobilePaymentType, value),
-
         dir::DirKeyKind::RealTimePaymentType => lower_enum!(RealTimePaymentType, value),
-
         dir::DirKeyKind::CardBin => {
             let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {
                 if st.len() == 6 && st.chars().all(|x| x.is_ascii_digit()) {
@@ -288,16 +262,19 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
             };
             lower_str!(CardBin, value, validation_closure)
         }
-
         dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
-
         dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
-
         dir::DirKeyKind::PaymentAmount => lower_number!(PaymentAmount, value, comparison),
-
         dir::DirKeyKind::Connector => Err(AnalysisErrorType::InvalidKey(
             dir::DirKeyKind::Connector.to_string(),
         )),
+        dir::DirKeyKind::IssuerName => lower_str!(IssuerName, value),
+        dir::DirKeyKind::IssuerCountry => lower_enum!(IssuerCountry, value),
+        dir::DirKeyKind::CustomerDevicePlatform => lower_enum!(CustomerDevicePlatform, value),
+        dir::DirKeyKind::CustomerDeviceType => lower_enum!(CustomerDeviceType, value),
+        dir::DirKeyKind::CustomerDeviceDisplaySize => lower_enum!(CustomerDeviceDisplaySize, value),
+        dir::DirKeyKind::AcquirerCountry => lower_enum!(AcquirerCountry, value),
+        dir::DirKeyKind::AcquirerFraudRate => lower_number!(AcquirerFraudRate, value, comparison),
     }
 }
 

@@ -124,6 +124,8 @@ pub enum Flow {
     PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
+    /// Payment methods token data get flow.
+    GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method
@@ -407,6 +409,8 @@ pub enum Flow {
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Platform
+    CreatePlatformAccount,
     /// Create Org in a given tenancy
     UserOrgMerchantCreate,
     /// Generate Sample Data
@@ -582,6 +586,14 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Tokenization flow
+    TokenizationCreate,
+    /// Tokenization retrieve flow
+    TokenizationRetrieve,
+    /// Clone Connector flow
+    CloneConnector,
+    ///Proxy Flow
+    Proxy,
 }
 
 /// Trait for providing generic behaviour to flow metric

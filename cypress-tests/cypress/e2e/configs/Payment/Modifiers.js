@@ -18,6 +18,7 @@ function normalize(input) {
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
     noon: "Noon",
+    archipel: "Archipel",
     // Add more known exceptions here
   };
 

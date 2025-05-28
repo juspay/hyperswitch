@@ -44,7 +44,11 @@ pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(any(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "tokenization_v2"
+))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: id_type::MerchantId,
@@ -56,7 +60,7 @@ pub struct AddVaultRequest<D> {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
-    pub entity_id: id_type::MerchantId,
+    pub entity_id: Option<id_type::MerchantId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
@@ -270,10 +274,19 @@ pub struct GetCardToken {
     pub card_reference: String,
     pub customer_id: id_type::GlobalCustomerId,
 }
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
     pub token: CardNumber, //network token
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Deserialize)]
+pub struct AuthenticationDetails {
+    pub cryptogram: Secret<String>,
+    pub token: NetworkToken, //network token
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -287,6 +300,10 @@ pub struct TokenResponse {
     pub authentication_details: AuthenticationDetails,
     pub network: api_enums::CardNetwork,
     pub token_details: TokenDetails,
+    pub eci: Option<String>,
+    pub card_type: Option<String>,
+    pub issuer: Option<String>,
+    pub nickname: Option<Secret<String>>,
 }
 
 #[cfg(all(
