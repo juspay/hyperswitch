@@ -170,7 +170,7 @@ pub enum BillingConnectors {
     DummyBillingConnector,
 }
 
-#[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
@@ -453,7 +453,7 @@ pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
 }
 
-pub fn convert_external_vault_connector(connector_name: &str) -> Option<VaultConnectors> {
+pub fn convert_vault_connector(connector_name: &str) -> Option<VaultConnectors> {
     VaultConnectors::from_str(connector_name).ok()
 }
 

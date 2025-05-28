@@ -556,6 +556,7 @@ pub trait ConnectorActions: Connector {
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
             authentication_id: None,
+            whole_connector_response: None,
         }
     }
 
@@ -620,6 +621,7 @@ pub trait ConnectorActions: Connector {
             &request,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -663,6 +665,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await?;
@@ -709,6 +712,7 @@ pub trait ConnectorActions: Connector {
             &request,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -752,6 +756,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await?;
@@ -848,6 +853,7 @@ pub trait ConnectorActions: Connector {
             &request,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -888,6 +894,7 @@ async fn call_connector<
         integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -941,6 +948,7 @@ impl Default for CCardType {
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
+            co_badged_card_data: None,
         })
     }
 }

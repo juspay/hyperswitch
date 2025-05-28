@@ -119,6 +119,7 @@ pub struct PaymentIntent {
     pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -503,6 +504,9 @@ pub struct PaymentIntent {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -668,6 +672,7 @@ impl PaymentIntent {
             force_3ds_challenge_trigger: None,
             processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
+            is_iframe_redirection_enabled: None,
         })
     }
 
@@ -995,9 +1000,29 @@ where
     }
 }
 
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardAndNetworkTokenDataForVault {
+    pub card_data: payment_method_data::Card,
+    pub network_token: NetworkTokenDataForVault,
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct NetworkTokenDataForVault {
+    pub network_token_data: payment_method_data::NetworkTokenData,
+    pub network_token_req_ref_id: String,
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardDataForVault {
+    pub card_data: payment_method_data::Card,
+    pub network_token_req_ref_id: Option<String>,
+}
+
 #[derive(Clone, serde::Serialize, Debug)]
 pub enum VaultOperation {
     ExistingVaultData(VaultData),
+    SaveCardData(CardDataForVault),
+    SaveCardAndNetworkTokenData(Box<CardAndNetworkTokenDataForVault>),
 }
 
 impl VaultOperation {

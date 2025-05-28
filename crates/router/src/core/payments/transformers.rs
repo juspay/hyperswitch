@@ -40,7 +40,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorTransactionId},
-        domain,
+        domain, payment_methods as pm_types,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
         MultipleCaptureRequestData,
@@ -169,6 +169,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -388,6 +389,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -550,6 +552,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -677,6 +680,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -837,6 +841,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1044,6 +1049,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1242,6 +1248,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1431,6 +1438,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1881,6 +1889,7 @@ where
             attempts: None,
             billing: None,  //TODO: add this
             shipping: None, //TODO: add this
+            is_iframe_redirection_enabled: None,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -1991,6 +2000,7 @@ where
             next_action: None,
             attempts,
             return_url,
+            is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2588,12 +2598,21 @@ where
                             }
                         }))
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
-                            api_models::payments::NextActionData::RedirectToUrl {
-                                redirect_to_url: helpers::create_startpay_url(
-                                    base_url,
-                                    &payment_attempt,
-                                    &payment_intent,
-                                ),
+                            // Check if iframe redirection is enabled in the business profile
+                            let redirect_url = helpers::create_startpay_url(
+                                base_url,
+                                &payment_attempt,
+                                &payment_intent,
+                            );
+                            // Check if redirection inside popup is enabled in the payment intent
+                            if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
+                                api_models::payments::NextActionData::RedirectInsidePopup {
+                                    popup_url: redirect_url,
+                                }
+                            } else {
+                                api_models::payments::NextActionData::RedirectToUrl {
+                                    redirect_to_url: redirect_url,
+                                }
                             }
                         }))
                         .or(match payment_data.get_authentication(){
@@ -2860,6 +2879,8 @@ where
             force_3ds_challenge_trigger: payment_intent.force_3ds_challenge_trigger,
             issuer_error_code: payment_attempt.issuer_error_code,
             issuer_error_message: payment_attempt.issuer_error_message,
+            is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
+            whole_connector_response: payment_data.get_whole_connector_response(),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3150,8 +3171,10 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             card_discovery: pa.card_discovery,
             force_3ds_challenge: pi.force_3ds_challenge,
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
+            whole_connector_response: None,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,
+            is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled
         }
     }
 }
@@ -5146,5 +5169,24 @@ impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
                 }
                 Some(card_type_in_bin_store)
             })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<pm_types::TokenResponse> for domain::NetworkTokenData {
+    fn from(token_response: pm_types::TokenResponse) -> Self {
+        Self {
+            token_number: token_response.authentication_details.token,
+            token_exp_month: token_response.token_details.exp_month,
+            token_exp_year: token_response.token_details.exp_year,
+            token_cryptogram: Some(token_response.authentication_details.cryptogram),
+            card_issuer: None,
+            card_network: Some(token_response.network),
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            eci: None,
+        }
     }
 }

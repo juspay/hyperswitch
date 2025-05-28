@@ -1,3 +1,4 @@
+pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -73,13 +74,6 @@ pub struct StoreCardRespPayload {
     pub duplication_check: Option<DataDuplicationCheck>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum DataDuplicationCheck {
-    Duplicated,
-    MetaDataChanged,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
@@ -107,13 +101,6 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DeleteCardResp {
-    pub status: String,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1034,6 +1021,7 @@ pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
+    tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1047,6 +1035,10 @@ pub fn generate_payment_method_session_response(
             },
         );
 
+    let token_id = tokenization_service_response
+        .as_ref()
+        .map(|tokenization_service_response| tokenization_service_response.id.clone());
+
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
         customer_id: payment_method_session.customer_id,
@@ -1056,12 +1048,14 @@ pub fn generate_payment_method_session_response(
             .map(From::from),
         psp_tokenization: payment_method_session.psp_tokenization,
         network_tokenization: payment_method_session.network_tokenization,
+        tokenization_data: payment_method_session.tokenization_data,
         expires_at: payment_method_session.expires_at,
         client_secret,
         next_action,
         return_url: payment_method_session.return_url,
         associated_payment_methods: payment_method_session.associated_payment_methods,
         authentication_details,
+        associated_token_id: token_id,
     }
 }
 

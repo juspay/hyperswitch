@@ -43,7 +43,7 @@ pub trait ExternalVaultDeleteV2:
 {
 }
 
-/// trait Payouts
+/// trait ExternalVaultV2
 pub trait ExternalVaultV2:
     ConnectorCommon + ExternalVaultInsertV2 + ExternalVaultRetrieveV2 + ExternalVaultDeleteV2
 {

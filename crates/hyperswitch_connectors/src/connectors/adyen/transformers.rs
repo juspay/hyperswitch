@@ -1257,6 +1257,7 @@ pub enum CardBrand {
     Visa,
     MC,
     Amex,
+    Accel,
     Argencard,
     Bcmc,
     Bijcard,
@@ -1281,13 +1282,16 @@ pub enum CardBrand {
     Mir,
     Naranja,
     Oasis,
+    Pulse,
     Rupay,
     Shopping,
+    Star,
     Solo,
     Troy,
     Uatp,
     Visaalphabankbonus,
     Visadankort,
+    Nyce,
     Warehouse,
 }
 
@@ -2091,6 +2095,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
         common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
         common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
+        common_enums::CardNetwork::Star => Some(CardBrand::Star),
+        common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
+        common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
+        common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
         common_enums::CardNetwork::Interac => None,
     }
 }
@@ -2164,6 +2172,7 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::DinersClub => Ok(Self::Diners),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
+            utils::CardIssuer::CartesBancaires => Ok(Self::Cartebancaire),
         }
     }
 }
@@ -2259,7 +2268,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),

@@ -44,7 +44,11 @@ pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(any(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "tokenization_v2"
+))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: id_type::MerchantId,
@@ -55,15 +59,8 @@ pub struct AddVaultRequest<D> {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub enum AddVaultResponse {
-    AddVaultResponseInternal((AddVaultResponseInternal, String)),
-    AddVaultResponseExternal(AddVaultResponseExternal),
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddVaultResponseInternal {
-    pub entity_id: id_type::MerchantId,
+pub struct AddVaultResponse {
+    pub entity_id: Option<id_type::MerchantId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }

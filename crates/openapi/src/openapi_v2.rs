@@ -148,11 +148,18 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for refunds
         routes::refunds::refunds_create,
+        routes::refunds::refunds_metadata_update,
         routes::refunds::refunds_retrieve,
         routes::refunds::refunds_list,
 
         // Routes for Revenue Recovery flow under Process Tracker
-        routes::revenue_recovery::revenue_recovery_pt_retrieve_api
+        routes::revenue_recovery::revenue_recovery_pt_retrieve_api,
+
+        // Routes for proxy
+        routes::proxy::proxy_core,
+
+        // Route for tokenization
+        routes::tokenization::create_token_vault_api,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -188,12 +195,13 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
+        common_utils::request::Method,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
         api_models::refunds::RefundStatus,
-        api_models::refunds::RefundUpdateRequest,
+        api_models::refunds::RefundMetadataUpdateRequest,
         api_models::organization::OrganizationCreateRequest,
         api_models::organization::OrganizationUpdateRequest,
         api_models::organization::OrganizationResponse,
@@ -382,6 +390,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaylaterResponse,
         api_models::payments::KlarnaSdkPaymentMethodResponse,
         api_models::payments::SwishQrData,
+        api_models::payments::RevolutPayData,
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
         api_models::payments::NoonData,
@@ -640,7 +649,25 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::MerchantRoutingAlgorithm,
         api_models::routing::RoutingAlgorithmKind,
         api_models::routing::RoutingDictionary,
-        api_models::routing::RoutingAlgorithm,
+        api_models::routing::DynamicRoutingConfigParams,
+        api_models::routing::SuccessBasedRoutingConfig,
+        api_models::routing::SuccessRateSpecificityLevel,
+        api_models::routing::CurrentBlockThreshold,
+        api_models::open_router::DecisionEngineSuccessRateData,
+        api_models::routing::ContractBasedTimeScale,
+        api_models::routing::LabelInformation,
+        api_models::routing::ContractBasedRoutingConfig,
+        api_models::routing::ContractBasedRoutingConfigBody,
+        api_models::open_router::DecisionEngineGatewayWiseExtraScore,
+        api_models::open_router::DecisionEngineSRSubLevelInputConfig,
+        api_models::open_router::DecisionEngineEliminationData,
+        api_models::routing::SuccessBasedRoutingConfigBody,
+        api_models::routing::RoutingAlgorithmWrapper,
+        api_models::routing::EliminationRoutingConfig,
+        api_models::open_router::DecisionEngineEliminationData,
+        api_models::routing::EliminationAnalyserConfig,
+        api_models::routing::DynamicRoutingAlgorithm,
+        api_models::routing::StaticRoutingAlgorithm,
         api_models::routing::StraightThroughAlgorithm,
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
@@ -728,7 +755,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::AuthenticationDetails,
         api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
         api_models::enums::ProcessTrackerStatus,
+        api_models::proxy::ProxyRequest,
+        api_models::proxy::ProxyResponse,
+        api_models::proxy::TokenType,
         routes::payments::ForceSync,
+        api_models::tokenization::GenericTokenizationRequest,
+        api_models::tokenization::GenericTokenizationResponse,
     )),
     modifiers(&SecurityAddon)
 )]

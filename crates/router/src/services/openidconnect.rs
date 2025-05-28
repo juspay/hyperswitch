@@ -1,4 +1,6 @@
+use common_utils::errors::ErrorSwitch;
 use error_stack::ResultExt;
+use external_services::http_client::client;
 use masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
@@ -9,7 +11,6 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     routes::SessionState,
-    services::api::client,
     types::domain::user::UserEmail,
 };
 
@@ -155,8 +156,8 @@ async fn get_oidc_reqwest_client(
     state: &SessionState,
     request: oidc::HttpRequest,
 ) -> Result<oidc::HttpResponse, ApiClientError> {
-    let client = client::create_client(&state.conf.proxy, None, None)
-        .map_err(|e| e.current_context().to_owned())?;
+    let client = client::create_client(&state.conf.proxy, None, None, None)
+        .map_err(|e| e.current_context().switch())?;
 
     let mut request_builder = client
         .request(request.method, request.url)

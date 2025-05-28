@@ -811,7 +811,7 @@ impl common_utils::events::ApiEventMetric for Refund {
 impl common_utils::events::ApiEventMetric for Refund {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Refund {
-            payment_id: self.payment_id.clone(),
+            payment_id: Some(self.payment_id.clone()),
             refund_id: self.id.clone(),
         })
     }

@@ -31,9 +31,11 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
-    if unique_groups.contains(&PermissionGroup::OrganizationManage) {
+    if unique_groups.contains(&PermissionGroup::OrganizationManage)
+        || unique_groups.contains(&PermissionGroup::InternalManage)
+    {
         return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("Organization manage group cannot be added to role");
+            .attach_printable("Invalid groups present in the custom role");
     }
 
     if unique_groups.len() != groups.len() {
