@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{PaymentsAuthorizeRequestData, AddressData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -54,6 +54,12 @@ pub enum MoneiTransactionType {
     Auth,
 }
 
+impl Default for MoneiTransactionType {
+    fn default() -> Self {
+        Self::Sale
+    }
+}
+
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct MoneiPaymentMethod {
     card: MoneiCard,
@@ -89,7 +95,7 @@ impl TryFrom<&MoneiRouterData<&PaymentsAuthorizeRouterData>> for MoneiPaymentsRe
                 
                 let payment_method = MoneiPaymentMethod { card };
                 
-                let customer = item.router_data.address.billing.as_ref().map(|billing| {
+                let customer = item.router_data.address.get_payment_billing().map(|billing| {
                     MoneiCustomer {
                         email: billing.email.clone(),
                         name: billing.get_optional_full_name(),
@@ -161,7 +167,7 @@ impl From<MoneiPaymentStatus> for common_enums::AttemptStatus {
             MoneiPaymentStatus::Expired => Self::Failure,
             MoneiPaymentStatus::Canceled => Self::Voided,
             MoneiPaymentStatus::Refunded => Self::AutoRefunded,
-            MoneiPaymentStatus::PartiallyRefunded => Self::PartialCaptured,
+            MoneiPaymentStatus::PartiallyRefunded => Self::PartialCharged,
             MoneiPaymentStatus::Unknown => Self::Pending,
         }
     }
