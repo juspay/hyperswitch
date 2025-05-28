@@ -1,0 +1,67 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 500,
+      "amount_to_capture": 500,
+      "currency": "EUR",
+      "confirm": true,
+      "capture_method": "automatic",
+      "authentication_type": "no_three_ds",
+      "payment_method": "card",
+      "payment_method_type": "credit",
+      "payment_method_data": {
+        "card": {
+          "card_cvc": "123",
+          "card_exp_month": "01",
+          "card_exp_year": "50",
+          "card_holder_name": "John Doe",
+          "card_number": "5185570141917102"
+        }
+      },
+      "profile_id": "{{profile_id}}",
+      "email": "john_doe@gmail.com",
+      "name": "John Doe",
+      "phone": "8056594427",
+      "phone_country_code": "+91",
+      "description": "[Archipel Connector][Variation Cases][Scenario7] - Create card payment without passing card scheme",
+      "billing": {
+        "address": {
+          "line1": "2 ter",
+          "line2": "rue du château",
+          "line3": "",
+          "city": "Neuilly-sur-Seine",
+          "state": "France",
+          "zip": "92200",
+          "country": "FR"
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

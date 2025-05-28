@@ -7,9 +7,9 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::{EntityType, UserAuthType};
+use common_enums::{connector_enums, EntityType, UserAuthType};
 use common_utils::{
-    type_name,
+    fp_utils, type_name,
     types::{keymanager::Identifier, user::LineageContext},
 };
 #[cfg(feature = "email")]
@@ -32,8 +32,6 @@ use user_api::dashboard_metadata::SetMetaDataRequest;
 #[cfg(feature = "v1")]
 use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 #[cfg(feature = "v1")]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -51,6 +49,8 @@ use crate::{
         user::{theme as theme_utils, two_factor_auth as tfa_utils},
     },
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, utils::user as user_utils};
 
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -99,7 +99,7 @@ pub async fn signup_with_merchant_id(
     let send_email_result = state
         .email_client
         .compose_and_send_email(
-            email_types::get_base_url(&state),
+            user_utils::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -128,7 +128,8 @@ pub async fn get_user_details(
             .unwrap_or(&state.tenant.tenant_id),
     )
     .await
-    .change_context(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
 
     let key_manager_state = &(&state).into();
 
@@ -319,7 +320,7 @@ pub async fn connect_account(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(&state),
+                user_utils::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -374,7 +375,7 @@ pub async fn connect_account(
         let magic_link_result = state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(&state),
+                user_utils::get_base_url(&state),
                 Box::new(magic_link_email),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -390,7 +391,7 @@ pub async fn connect_account(
             let welcome_email_result = state
                 .email_client
                 .compose_and_send_email(
-                    email_types::get_base_url(&state),
+                    user_utils::get_base_url(&state),
                     Box::new(welcome_to_community_email),
                     state.conf.proxy.https_url.as_ref(),
                 )
@@ -525,7 +526,7 @@ pub async fn forgot_password(
     state
         .email_client
         .compose_and_send_email(
-            email_types::get_base_url(&state),
+            user_utils::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -937,7 +938,7 @@ async fn handle_existing_user_invitation(
         is_email_sent = state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(state),
+                user_utils::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -1092,7 +1093,7 @@ async fn handle_new_user_invitation(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(state),
+                user_utils::get_base_url(state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -1247,7 +1248,7 @@ pub async fn resend_invite(
     state
         .email_client
         .compose_and_send_email(
-            email_types::get_base_url(&state),
+            user_utils::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -1365,6 +1366,15 @@ pub async fn create_internal_user(
     state: SessionState,
     request: user_api::CreateInternalUserRequest,
 ) -> UserResponse<()> {
+    let role_info = roles::RoleInfo::from_predefined_roles(request.role_id.as_str())
+        .ok_or(UserErrors::InvalidRoleId)?;
+
+    fp_utils::when(
+        role_info.is_internal().not()
+            || request.role_id == common_utils::consts::ROLE_ID_INTERNAL_ADMIN,
+        || Err(UserErrors::InvalidRoleId),
+    )?;
+
     let key_manager_state = &(&state).into();
     let key_store = state
         .store
@@ -1430,10 +1440,7 @@ pub async fn create_internal_user(
         .map(domain::user::UserFromStorage::from)?;
 
     new_user
-        .get_no_level_user_role(
-            common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
-            UserStatus::Active,
-        )
+        .get_no_level_user_role(role_info.get_role_id().to_string(), UserStatus::Active)
         .add_entity(domain::MerchantLevel {
             tenant_id: default_tenant_id,
             org_id: internal_merchant.organization_id,
@@ -1577,13 +1584,22 @@ pub async fn create_org_merchant_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
     let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
-    let merchant_account_create_request =
-        utils::user::create_merchant_account_request_for_org(req, org, default_product_type)?;
+    let merchant_account_create_request = utils::user::create_merchant_account_request_for_org(
+        req,
+        org.clone(),
+        default_product_type,
+    )?;
 
-    admin::create_merchant_account(state.clone(), merchant_account_create_request)
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?;
+    admin::create_merchant_account(
+        state.clone(),
+        merchant_account_create_request,
+        Some(auth::AuthenticationDataWithOrg {
+            organization_id: org.get_organization_id(),
+        }),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Error while creating a merchant")?;
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -1967,7 +1983,7 @@ pub async fn send_verification_mail(
     state
         .email_client
         .compose_and_send_email(
-            email_types::get_base_url(&state),
+            user_utils::get_base_url(&state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
@@ -3636,4 +3652,120 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     };
 
     auth::cookies::set_cookie_response(response, token)
+}
+
+#[cfg(feature = "v1")]
+pub async fn clone_connector(
+    state: SessionState,
+    request: user_api::CloneConnectorRequest,
+) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
+    let Some(allowlist) = &state.conf.clone_connector_allowlist else {
+        return Err(UserErrors::InvalidCloneConnectorOperation(
+            "Cloning is not allowed".to_string(),
+        )
+        .into());
+    };
+
+    fp_utils::when(
+        allowlist
+            .merchant_ids
+            .contains(&request.source.merchant_id)
+            .not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed from this merchant".to_string(),
+            ))
+        },
+    )?;
+
+    let key_manager_state = &(&state).into();
+
+    let source_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &request.source.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Source merchant account not found".to_string(),
+        ))?;
+
+    let source_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            &request.source.merchant_id,
+            &request.source.mca_id,
+            &source_key_store,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Source merchant connector account not found".to_string(),
+        ))?;
+
+    let source_mca_name = source_mca
+        .connector_name
+        .parse::<connector_enums::Connector>()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    fp_utils::when(
+        allowlist.connector_names.contains(&source_mca_name).not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed for this connector".to_string(),
+            ))
+        },
+    )?;
+
+    let merchant_connector_create = utils::user::build_cloned_connector_create_request(
+        source_mca,
+        Some(request.destination.profile_id.clone()),
+        request.destination.connector_label,
+    )
+    .await?;
+
+    let destination_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &request.destination.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Destination merchant account not found".to_string(),
+        ))?;
+
+    let destination_merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            &request.destination.merchant_id,
+            &destination_key_store,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Destination merchant account not found".to_string(),
+        ))?;
+
+    let destination_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        destination_merchant_account,
+        destination_key_store,
+    )));
+
+    admin::create_connector(
+        state,
+        merchant_connector_create,
+        destination_context,
+        Some(request.destination.profile_id),
+    )
+    .await
+    .map_err(|e| {
+        let message = e.current_context().error_message();
+        e.change_context(UserErrors::ErrorCloningConnector(message))
+    })
+    .attach_printable("Failed to create cloned connector")
 }

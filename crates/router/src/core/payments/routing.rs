@@ -1,26 +1,24 @@
 mod transformers;
-
+pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+#[cfg(feature = "v1")]
+use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::{
-    open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest},
-    routing as api_routing,
-};
+use common_utils::ext_traits::AsyncExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::{
-    ext_traits::{AsyncExt, BytesExt},
-    request,
-};
+use common_utils::{ext_traits::BytesExt, request};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -42,7 +40,7 @@ use kgraph_utils::{
     transformers::{IntoContext, IntoDirValue},
     types::CountryCurrencyFilter,
 };
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use rand::distributions::{self, Distribution};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use rand::SeedableRng;
@@ -50,16 +48,21 @@ use rand::SeedableRng;
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
+use utils::perform_decision_euclid_routing;
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
+#[cfg(feature = "v1")]
+use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::{core::routing::transformers::OpenRouterDecideGatewayRequestExt, headers, services};
+use crate::headers;
 use crate::{
-    core::{errors, errors as oss_errors, routing},
-    logger,
+    core::{
+        errors, errors as oss_errors, payments::routing::utils::DecisionEngineApiHandler, routing,
+    },
+    logger, services,
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
@@ -466,7 +469,27 @@ pub async fn perform_static_routing_v1(
                 }
             };
 
-            execute_dsl_and_get_connector_v1(backend_input, interpreter)?
+            let de_euclid_connectors = perform_decision_euclid_routing(
+                state,
+                backend_input.clone(),
+                business_profile.get_id().get_string_repr().to_string(),
+            )
+            .await
+            .map_err(|e|
+                // errors are ignored as this is just for diff checking as of now (optional flow).
+                logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
+            ).unwrap_or_default();
+            let routable_connectors = execute_dsl_and_get_connector_v1(backend_input, interpreter)?;
+            let connectors = routable_connectors
+                .iter()
+                .map(|c| c.connector.to_string())
+                .collect::<Vec<String>>();
+            utils::compare_and_log_result(
+                de_euclid_connectors,
+                connectors,
+                "evaluate_routing".to_string(),
+            );
+            routable_connectors
         }
     })
 }
@@ -554,15 +577,15 @@ fn execute_dsl_and_get_connector_v1(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConnectorSelection>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let routing_output: routing_types::RoutingAlgorithm = interpreter
+    let routing_output: routing_types::StaticRoutingAlgorithm = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection.foreign_into())
         .change_context(errors::RoutingError::DslExecutionError)?;
 
     Ok(match routing_output {
-        routing_types::RoutingAlgorithm::Priority(plist) => plist,
+        routing_types::StaticRoutingAlgorithm::Priority(plist) => plist,
 
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => perform_volume_split(splits)
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => perform_volume_split(splits)
             .change_context(errors::RoutingError::DslFinalConnectorSelectionFailed)?,
 
         _ => Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
@@ -582,7 +605,7 @@ pub async fn refresh_routing_cache_v1(
             .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
             .await
             .change_context(errors::RoutingError::DslMissingInDb)?;
-        let algorithm: routing_types::RoutingAlgorithm = algorithm
+        let algorithm: routing_types::StaticRoutingAlgorithm = algorithm
             .algorithm_data
             .parse_value("RoutingAlgorithm")
             .change_context(errors::RoutingError::DslParsingError)?;
@@ -590,12 +613,12 @@ pub async fn refresh_routing_cache_v1(
     };
 
     let cached_algorithm = match algorithm {
-        routing_types::RoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
-        routing_types::RoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+        routing_types::StaticRoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
+        routing_types::StaticRoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => {
             CachedAlgorithm::VolumeSplit(splits)
         }
-        routing_types::RoutingAlgorithm::Advanced(program) => {
+        routing_types::StaticRoutingAlgorithm::Advanced(program) => {
             let interpreter = backend::VirInterpreterBackend::with_program(program)
                 .change_context(errors::RoutingError::DslBackendInitError)
                 .attach_printable("Error initializing DSL interpreter backend")?;
@@ -1558,6 +1581,65 @@ pub async fn perform_dynamic_routing_with_open_router(
     Ok(connectors)
 }
 
+#[cfg(feature = "v1")]
+pub async fn perform_open_routing_for_debit_routing(
+    state: &SessionState,
+    payment_attempt: &oss_storage::PaymentAttempt,
+    co_badged_card_request: or_types::CoBadgedCardRequest,
+    card_isin: Option<Secret<String>>,
+) -> RoutingResult<or_types::DebitRoutingOutput> {
+    logger::debug!(
+        "performing debit routing with open_router for profile {}",
+        payment_attempt.profile_id.get_string_repr()
+    );
+
+    let metadata = Some(
+        serde_json::to_string(&co_badged_card_request)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode Vaulting data to string")
+            .change_context(errors::RoutingError::MetadataParsingError)?,
+    );
+
+    let open_router_req_body = OpenRouterDecideGatewayRequest::construct_debit_request(
+        payment_attempt,
+        metadata,
+        card_isin,
+        Some(or_types::RankingAlgorithm::NtwBasedRouting),
+    );
+
+    let response: RoutingResult<DecidedGateway> =
+        utils::EuclidApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            "decide-gateway",
+            Some(open_router_req_body),
+            None,
+        )
+        .await;
+
+    let output = match response {
+        Ok(decided_gateway) => {
+            let debit_routing_output = decided_gateway
+                .debit_routing_output
+                .get_required_value("debit_routing_output")
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to parse the response from open_router".into(),
+                ))
+                .attach_printable("debit_routing_output is missing in the open routing response")?;
+
+            Ok(debit_routing_output)
+        }
+        Err(error_response) => {
+            logger::error!("open_router_error_response: {:?}", error_response);
+            Err(errors::RoutingError::OpenRouterError(
+                "Failed to perform debit routing in open router".into(),
+            ))
+        }
+    }?;
+
+    Ok(output)
+}
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn perform_dynamic_routing_with_intelligent_router(
     state: &SessionState,
@@ -1694,17 +1776,14 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 ))?;
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
-                logger::debug!(
-                    "open_router decide_gateway call response: {:?}",
-                    gateway_priority_map
-                );
+                logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
-                        .get(&connector_choice_a.connector.to_string())
+                        .get(&connector_choice_a.to_string())
                         .copied()
                         .unwrap_or(0.0);
                     let connector_choice_b_score = gateway_priority_map
-                        .get(&connector_choice_b.connector.to_string())
+                        .get(&connector_choice_b.to_string())
                         .copied()
                         .unwrap_or(0.0);
                     connector_choice_b_score

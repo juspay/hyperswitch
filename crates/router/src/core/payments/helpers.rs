@@ -2008,9 +2008,11 @@ pub fn decide_payment_method_retrieval_action(
         )
     };
 
-    should_retry_with_pan
-        .then_some(VaultFetchAction::FetchCardDetailsFromLocker)
-        .unwrap_or_else(standard_flow)
+    if should_retry_with_pan {
+        VaultFetchAction::FetchCardDetailsFromLocker
+    } else {
+        standard_flow()
+    }
 }
 
 pub fn determine_standard_vault_action(
@@ -2120,6 +2122,11 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             .network_token_requestor_reference_id
             .clone(),
     );
+
+    let co_badged_card_data = payment_method_info
+        .get_payment_methods_data()
+        .and_then(|payment_methods_data| payment_methods_data.get_co_badged_card_data());
+
     match vault_fetch_action {
         VaultFetchAction::FetchCardDetailsFromLocker => {
             let card = vault_data
@@ -2132,6 +2139,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                         &payment_intent.merchant_id,
                         locker_id,
                         card_token_data,
+                        co_badged_card_data,
                     )
                     .await
                 })
@@ -2182,6 +2190,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                     &payment_intent.merchant_id,
                                     locker_id,
                                     card_token_data,
+                                    co_badged_card_data,
                                 )
                                 .await
                             })
@@ -2246,6 +2255,7 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
             &payment_intent.merchant_id,
             locker_id,
             card_token_data,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2263,7 +2273,9 @@ pub async fn fetch_card_details_from_locker(
     merchant_id: &id_type::MerchantId,
     locker_id: &str,
     card_token_data: Option<&domain::CardToken>,
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
 ) -> RouterResult<domain::Card> {
+    logger::debug!("Fetching card details from locker");
     let card = cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2308,7 +2320,7 @@ pub async fn fetch_card_details_from_locker(
         card_issuing_country: None,
         bank_code: None,
     };
-    Ok(api_card.into())
+    Ok(domain::Card::from((api_card, co_badged_card_data)))
 }
 
 #[cfg(all(
@@ -2608,8 +2620,10 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         (_, Some(hyperswitch_token)) => {
             let existing_vault_data = payment_data.get_vault_operation();
 
-            let vault_data = existing_vault_data.map(|data| match data {
-                domain_payments::VaultOperation::ExistingVaultData(vault_data) => vault_data,
+            let vault_data = existing_vault_data.and_then(|data| match data {
+                domain_payments::VaultOperation::ExistingVaultData(vault_data) => Some(vault_data),
+                domain_payments::VaultOperation::SaveCardData(_)
+                | domain_payments::VaultOperation::SaveCardAndNetworkTokenData(_) => None,
             });
 
             let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
@@ -3685,6 +3699,7 @@ mod tests {
             created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
+            is_iframe_redirection_enabled: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3760,6 +3775,7 @@ mod tests {
             created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
+            is_iframe_redirection_enabled: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3833,6 +3849,7 @@ mod tests {
             created_by: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
+            is_iframe_redirection_enabled: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4157,6 +4174,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
+        whole_connector_response: router_data.whole_connector_response,
     }
 }
 
@@ -4581,15 +4599,32 @@ pub async fn get_additional_payment_data(
                 _ => None,
             };
 
-            let card_network = match card_data
+            // Added an additional check for card_data.co_badged_card_data.is_some()
+            // because is_cobadged_card() only returns true if the card number matches a specific regex.
+            // However, this regex does not cover all possible co-badged networks.
+            // The co_badged_card_data field is populated based on a co-badged BIN lookup
+            // and helps identify co-badged cards that may not match the regex alone.
+            // Determine the card network based on cobadge detection and co-badged BIN data
+            let is_cobadged_based_on_regex = card_data
                 .card_number
                 .is_cobadged_card()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Card cobadge check failed due to an invalid card network regex",
-                )? {
-                true => card_data.card_network.clone(),
-                false => None,
+                )?;
+
+            let card_network = match (
+                is_cobadged_based_on_regex,
+                card_data.co_badged_card_data.is_some(),
+            ) {
+                (false, false) => {
+                    logger::debug!("Card network is not cobadged");
+                    None
+                }
+                _ => {
+                    logger::debug!("Card network is cobadged");
+                    card_data.card_network.clone()
+                }
             };
 
             let last4 = Some(card_data.card_number.get_last4());
@@ -5167,10 +5202,10 @@ pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     payment_data: &D,
-    pre_routing_connector_data_list: &[api::ConnectorData],
+    pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::Profile,
-) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
+) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
     D: payments::OperationSessionGetters<F> + Send,
@@ -5187,7 +5222,10 @@ where
         payment_data.get_creds_identifier(),
         merchant_context.get_merchant_key_store(),
         profile_id,
-        &pre_decided_connector_data_first.connector_name.to_string(),
+        &pre_decided_connector_data_first
+            .connector_data
+            .connector_name
+            .to_string(),
         merchant_connector_id,
     )
     .await?;
@@ -5222,19 +5260,22 @@ where
                 merchant_connector_account.metadata.clone(),
                 Some(&merchant_connector_account.connector_name),
             )? {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &merchant_connector_account.connector_name.to_string(),
-                    api::GetToken::Connector,
-                    Some(merchant_connector_account.get_id()),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received")?;
+                let routing_data: api::ConnectorRoutingData =
+                    api::ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        &merchant_connector_account.connector_name.to_string(),
+                        api::GetToken::Connector,
+                        Some(merchant_connector_account.get_id()),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid connector name received")?
+                    .into();
 
                 if !connector_data_list.iter().any(|connector_details| {
-                    connector_details.merchant_connector_id == connector_data.merchant_connector_id
+                    connector_details.connector_data.merchant_connector_id
+                        == routing_data.connector_data.merchant_connector_id
                 }) {
-                    connector_data_list.push(connector_data)
+                    connector_data_list.push(routing_data)
                 }
             }
         }
@@ -5257,7 +5298,7 @@ where
         let mut routing_connector_data_list = Vec::new();
 
         pre_routing_connector_data_list.iter().for_each(|pre_val| {
-            routing_connector_data_list.push(pre_val.merchant_connector_id.clone())
+            routing_connector_data_list.push(pre_val.connector_data.merchant_connector_id.clone())
         });
 
         fallback_connetors_list.iter().for_each(|fallback_val| {
@@ -5278,7 +5319,7 @@ where
             .iter()
             .for_each(|merchant_connector_id| {
                 let connector_data = connector_data_list.iter().find(|connector_data| {
-                    *merchant_connector_id == connector_data.merchant_connector_id
+                    *merchant_connector_id == connector_data.connector_data.merchant_connector_id
                 });
                 if let Some(connector_data_details) = connector_data {
                     ordered_connector_data_list.push(connector_data_details.clone());

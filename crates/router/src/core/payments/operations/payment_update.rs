@@ -477,6 +477,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_info,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -503,6 +504,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             card_testing_guard_data: None,
             vault_operation: None,
             threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -613,6 +615,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
             )
             .await
@@ -935,6 +938,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_payment_processor_token_flow: None,
                     tax_details: None,
                     force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                    is_iframe_redirection_enabled: payment_data
+                        .payment_intent
+                        .is_iframe_redirection_enabled,
                 })),
                 key_store,
                 storage_scheme,
