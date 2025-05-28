@@ -12,7 +12,7 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
-use common_enums::{MerchantAccountType, TokenPurpose};
+use common_enums::TokenPurpose;
 use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
@@ -784,15 +784,13 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Merchant account not found")?;
 
-        if !(state.conf().platform.enabled
-            && merchant_account.merchant_account_type == MerchantAccountType::Platform)
-        {
+        if !(state.conf().platform.enabled && merchant_account.is_platform_account()) {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Platform authentication check failed"));
         }
 
-        if let Some(organization_id) = self.organization_id.clone() {
-            if organization_id != merchant_account.get_org_id().clone() {
+        if let Some(ref organization_id) = self.organization_id {
+            if organization_id != merchant_account.get_org_id() {
                 return Err(report!(errors::ApiErrorResponse::Unauthorized))
                     .attach_printable("Organization ID does not match");
             }
@@ -875,15 +873,13 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Merchant account not found")?;
 
-        if !(state.conf().platform.enabled
-            && merchant_account.merchant_account_type == MerchantAccountType::Platform)
-        {
+        if !(state.conf().platform.enabled && merchant_account.is_platform_account()) {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Platform authentication check failed"));
         }
 
-        if let Some(organization_id) = self.organization_id.clone() {
-            if organization_id != merchant_account.get_org_id().clone() {
+        if let Some(ref organization_id) = self.organization_id {
+            if organization_id != merchant_account.get_org_id() {
                 return Err(report!(errors::ApiErrorResponse::Unauthorized))
                     .attach_printable("Organization ID does not match");
             }
@@ -1006,9 +1002,7 @@ where
         let (_, platform_merchant) =
             Self::fetch_key_store_and_account(&stored_api_key.merchant_id, state).await?;
 
-        if !(state.conf().platform.enabled
-            && platform_merchant.merchant_account_type == MerchantAccountType::Platform)
-        {
+        if !(state.conf().platform.enabled && platform_merchant.is_platform_account()) {
             return Err(report!(errors::ApiErrorResponse::Unauthorized))
                 .attach_printable("Platform authentication check failed");
         }
@@ -4528,7 +4522,7 @@ fn get_and_validate_connected_merchant_id(
             headers::X_CONNECTED_MERCHANT_ID,
         )?
         .map(|merchant_id| {
-            (merchant_account.merchant_account_type == MerchantAccountType::Platform)
+            (merchant_account.is_platform_account())
                 .then_some(merchant_id)
                 .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
         })
