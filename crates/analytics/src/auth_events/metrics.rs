@@ -17,6 +17,8 @@ use crate::{
 mod authentication_attempt_count;
 mod authentication_count;
 mod authentication_error_message;
+mod authentication_exemption_accepted_count;
+mod authentication_exemption_requested_count;
 mod authentication_funnel;
 mod authentication_success_count;
 mod challenge_attempt_count;
@@ -28,6 +30,8 @@ mod frictionless_success_count;
 use authentication_attempt_count::AuthenticationAttemptCount;
 use authentication_count::AuthenticationCount;
 use authentication_error_message::AuthenticationErrorMessage;
+use authentication_exemption_accepted_count::AuthenticationExemptionAcceptedCount;
+use authentication_exemption_requested_count::AuthenticationExemptionRequestedCount;
 use authentication_funnel::AuthenticationFunnel;
 use authentication_success_count::AuthenticationSuccessCount;
 use challenge_attempt_count::ChallengeAttemptCount;
@@ -46,10 +50,32 @@ pub struct AuthEventMetricRow {
     pub authentication_connector: Option<DBEnumWrapper<storage_enums::AuthenticationConnectors>>,
     pub message_version: Option<String>,
     pub acs_reference_number: Option<String>,
+    pub platform: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub end_bucket: Option<PrimitiveDateTime>,
+    pub mcc: Option<String>,
+    pub amount: Option<i32>,
+    pub currency: Option<String>,
+    pub merchant_country: Option<String>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
+    pub issuer_country: Option<String>,
+    pub earliest_supported_version: Option<String>,
+    pub latest_supported_version: Option<String>,
+    pub whitelist_decision: Option<bool>,
+    pub device_manufacturer: Option<String>,
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+    pub browser_name: Option<String>,
+    pub browser_version: Option<String>,
+    pub issuer_id: Option<String>,
+    pub scheme_name: Option<String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
 }
 
 pub trait AuthEventMetricAnalytics: LoadRow<AuthEventMetricRow> {}
@@ -200,6 +226,30 @@ where
             }
             Self::AuthenticationFunnel => {
                 AuthenticationFunnel
+                    .load_metrics(
+                        merchant_id,
+                        dimensions,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
+                    .await
+            }
+            Self::AuthenticationExemptionRequestedCount => {
+                AuthenticationExemptionRequestedCount
+                    .load_metrics(
+                        merchant_id,
+                        dimensions,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
+                    .await
+            }
+            Self::AuthenticationExemptionAcceptedCount => {
+                AuthenticationExemptionAcceptedCount
                     .load_metrics(
                         merchant_id,
                         dimensions,

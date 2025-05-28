@@ -111,6 +111,10 @@ pub mod routes {
                                 .route(web::post().to(get_auth_event_metrics)),
                         )
                         .service(
+                            web::resource("metrics/auth_events/sankey")
+                                .route(web::post().to(get_auth_event_sankey)),
+                        )
+                        .service(
                             web::resource("filters/auth_events")
                                 .route(web::post().to(get_merchant_auth_events_filters)),
                         )
@@ -2652,6 +2656,37 @@ pub mod routes {
                     merchant_ids: vec![merchant_id.clone()],
                 };
                 analytics::payment_intents::get_sankey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantAnalyticsRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_auth_event_sankey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSankey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::auth_events::get_sankey(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },

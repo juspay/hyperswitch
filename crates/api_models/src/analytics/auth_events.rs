@@ -24,7 +24,51 @@ pub struct AuthEventFilters {
     #[serde(default)]
     pub message_version: Vec<String>,
     #[serde(default)]
+    pub platform: Vec<String>,
+    #[serde(default)]
     pub acs_reference_number: Vec<String>,
+    #[serde(default)]
+    pub mcc: Vec<String>,
+    #[serde(default)]
+    pub amount: Vec<u64>,
+    #[serde(default)]
+    pub currency: Vec<String>,
+    #[serde(default)]
+    pub merchant_country: Vec<String>,
+    #[serde(default)]
+    pub billing_country: Vec<String>,
+    #[serde(default)]
+    pub shipping_country: Vec<String>,
+    #[serde(default)]
+    pub issuer_country: Vec<String>,
+    #[serde(default)]
+    pub earliest_supported_version: Vec<String>,
+    #[serde(default)]
+    pub latest_supported_version: Vec<String>,
+    #[serde(default)]
+    pub whitelist_decision: Vec<bool>,
+    #[serde(default)]
+    pub device_manufacturer: Vec<String>,
+    #[serde(default)]
+    pub device_type: Vec<String>,
+    #[serde(default)]
+    pub device_brand: Vec<String>,
+    #[serde(default)]
+    pub device_os: Vec<String>,
+    #[serde(default)]
+    pub device_display: Vec<String>,
+    #[serde(default)]
+    pub browser_name: Vec<String>,
+    #[serde(default)]
+    pub browser_version: Vec<String>,
+    #[serde(default)]
+    pub issuer_id: Vec<String>,
+    #[serde(default)]
+    pub scheme_name: Vec<String>,
+    #[serde(default)]
+    pub exemption_requested: Vec<bool>,
+    #[serde(default)]
+    pub exemption_accepted: Vec<bool>,
 }
 
 #[derive(
@@ -53,6 +97,28 @@ pub enum AuthEventDimensions {
     AuthenticationConnector,
     MessageVersion,
     AcsReferenceNumber,
+    Platform,
+    Mcc,
+    Amount,
+    Currency,
+    MerchantCountry,
+    BillingCountry,
+    ShippingCountry,
+    IssuerCountry,
+    EarliestSupportedVersion,
+    LatestSupportedVersion,
+    WhitelistDecision,
+    DeviceManufacturer,
+    DeviceType,
+    DeviceBrand,
+    DeviceOs,
+    DeviceDisplay,
+    BrowserName,
+    BrowserVersion,
+    IssuerId,
+    SchemeName,
+    ExemptionRequested,
+    ExemptionAccepted,
 }
 
 #[derive(
@@ -80,6 +146,8 @@ pub enum AuthEventMetrics {
     ChallengeSuccessCount,
     AuthenticationErrorMessage,
     AuthenticationFunnel,
+    AuthenticationExemptionRequestedCount,
+    AuthenticationExemptionAcceptedCount,
 }
 
 #[derive(
@@ -207,6 +275,8 @@ pub struct AuthEventMetricsBucketValue {
     pub frictionless_success_count: Option<u64>,
     pub error_message_count: Option<u64>,
     pub authentication_funnel: Option<u64>,
+    pub authentication_exemption_requested_count: Option<u64>,
+    pub authentication_exemption_accepted_count: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

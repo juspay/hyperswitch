@@ -389,7 +389,8 @@ impl<T: AnalyticsDataSource> ToSql<T> for Filter {
                     filters
                         .iter()
                         .map(|f| <Self as ToSql<T>>::to_sql(f, table_engine))
-                        .collect::<Result<Vec<String>, _>>()?
+                        .collect::<Result<Vec<String>, _>>()
+                        .attach_printable("Error serializing nested filter")?
                         .join(
                             <FilterCombinator as ToSql<T>>::to_sql(operator, table_engine)?
                                 .as_ref()
