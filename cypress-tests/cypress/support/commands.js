@@ -2659,7 +2659,10 @@ Cypress.Commands.add(
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (response.body.status !== "failed") {
+          if (
+            response.body.status !== "failed" &&
+            response.body.setup_future_usage === "off_session"
+          ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
               .be.null;
           }

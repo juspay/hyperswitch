@@ -178,7 +178,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
-    pub is_debit_routing_enabled: bool,
+    pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
@@ -306,7 +306,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
             id: source.id,
-            is_debit_routing_enabled,
+            is_debit_routing_enabled: is_debit_routing_enabled
+                .unwrap_or(source.is_debit_routing_enabled),
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled
@@ -502,7 +503,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
-    pub is_debit_routing_enabled: bool,
+    pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -649,7 +650,8 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
-            is_debit_routing_enabled,
+            is_debit_routing_enabled: is_debit_routing_enabled
+                .unwrap_or(source.is_debit_routing_enabled),
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
             revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type

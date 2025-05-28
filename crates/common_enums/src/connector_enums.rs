@@ -65,7 +65,7 @@ pub enum RoutableConnectors {
     Archipel,
     Authorizedotnet,
     Bankofamerica,
-    // Barclaycard,
+    Barclaycard,
     Billwerk,
     Bitpay,
     Bambora,
@@ -140,6 +140,7 @@ pub enum RoutableConnectors {
     // Taxjar,
     Trustpay,
     // Thunes
+    // Tokenio,
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
@@ -150,7 +151,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
-    // Worldpayxml,
+    Worldpayxml,
     Xendit,
     Zen,
     Plaid,
@@ -219,7 +220,7 @@ pub enum Connector {
     Bambora,
     Bamboraapac,
     Bankofamerica,
-    // Barclaycard,
+    Barclaycard,
     Billwerk,
     Bitpay,
     Bluesnap,
@@ -294,6 +295,7 @@ pub enum Connector {
     Stripebilling,
     Taxjar,
     Threedsecureio,
+    // Tokenio,
     //Thunes,
     Trustpay,
     Tsys,
@@ -305,7 +307,7 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
-    // Worldpayxml,
+    Worldpayxml,
     Signifyd,
     Plaid,
     Riskified,
@@ -393,7 +395,7 @@ impl Connector {
             | Self::Bambora
             | Self::Bamboraapac
             | Self::Bankofamerica
-            // | Self::Barclaycard
+            | Self::Barclaycard
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
@@ -457,6 +459,7 @@ impl Connector {
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
+            // | Self::Tokenio
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
             | Self::Vgs
@@ -466,7 +469,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
-            // | Self::Worldpayxml
+            | Self::Worldpayxml
             | Self::Xendit
             | Self::Zen
             | Self::Zsl
@@ -546,7 +549,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Archipel => Self::Archipel,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
-            // RoutableConnectors::Barclaycard => Self::Barclaycard,
+            RoutableConnectors::Barclaycard => Self::Barclaycard,
             RoutableConnectors::Billwerk => Self::Billwerk,
             RoutableConnectors::Bitpay => Self::Bitpay,
             RoutableConnectors::Bambora => Self::Bambora,
@@ -614,13 +617,14 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Trustpay => Self::Trustpay,
+            // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
             RoutableConnectors::Wellsfargo => Self::Wellsfargo,
             RoutableConnectors::Wise => Self::Wise,
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
-            // RoutableConnectors::Worldpayxml => Self::Worldpayxml,
+            RoutableConnectors::Worldpayxml => Self::Worldpayxml,
             RoutableConnectors::Zen => Self::Zen,
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
@@ -660,7 +664,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Archipel => Ok(Self::Archipel),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
-            // Connector::Barclaycard => Ok(Self::Barclaycard),
+            Connector::Barclaycard => Ok(Self::Barclaycard),
             Connector::Billwerk => Ok(Self::Billwerk),
             Connector::Bitpay => Ok(Self::Bitpay),
             Connector::Bambora => Ok(Self::Bambora),
@@ -725,6 +729,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
+            // Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
@@ -732,7 +737,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldline => Ok(Self::Worldline),
             Connector::Worldpay => Ok(Self::Worldpay),
-            // Connector::Worldpayxml => Ok(Self::Worldpayxml),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Xendit => Ok(Self::Xendit),
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
