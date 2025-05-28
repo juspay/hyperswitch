@@ -16340,6 +16340,14 @@
                 "type": "integer",
                 "nullable": true
               },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfigResponse"
+                  }
+                ],
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
