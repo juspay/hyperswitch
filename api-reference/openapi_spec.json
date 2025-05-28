@@ -4460,7 +4460,7 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle": {
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/toggle": {
       "post": {
         "tags": [
           "Routing"

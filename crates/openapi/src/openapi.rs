@@ -800,11 +800,7 @@ impl utoipa::Modify for SecurityAddon {
                     "jwt_key",
                     SecurityScheme::Http({
                         let mut http = Http::new(HttpAuthScheme::Bearer);
-                        // You can set `bearer_format` directly if it's public.
-                        // Based on the `libelektra.org` Utoipa docs, it is public.
                         http.bearer_format = Some("JWT".to_string());
-                        // You can also set a description similarly if needed:
-                        // http.description = Some("JWT authentication".to_string());
                         http
                     })
                 )
