@@ -760,7 +760,7 @@ struct SecurityAddon;
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         use utoipa::openapi::security::{
-            ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme,
+            HttpBuilder, ApiKey, ApiKeyValue, HttpAuthScheme, SecurityScheme,
         };
 
         if let Some(components) = openapi.components.as_mut() {
@@ -798,11 +798,7 @@ impl utoipa::Modify for SecurityAddon {
                 ),
                 (
                     "jwt_key",
-                    SecurityScheme::Http({
-                        let mut http = Http::new(HttpAuthScheme::Bearer);
-                        http.bearer_format = Some("JWT".to_string());
-                        http
-                    })
+                    SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build())
                 )
             ]);
         }
