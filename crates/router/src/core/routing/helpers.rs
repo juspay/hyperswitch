@@ -317,7 +317,7 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
 pub struct RoutingAlgorithmHelpers<'h> {
     pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'h>,
     pub name_set: ConnectNameForProfile<'h>,
-    pub routing_algorithm: &'h routing_types::RoutingAlgorithm,
+    pub routing_algorithm: &'h routing_types::StaticRoutingAlgorithm,
 }
 
 #[cfg(feature = "v1")]
@@ -415,23 +415,23 @@ impl RoutingAlgorithmHelpers<'_> {
 
     pub fn validate_connectors_in_routing_config(&self) -> RouterResult<()> {
         match self.routing_algorithm {
-            routing_types::RoutingAlgorithm::Single(choice) => {
+            routing_types::StaticRoutingAlgorithm::Single(choice) => {
                 self.connector_choice(choice)?;
             }
 
-            routing_types::RoutingAlgorithm::Priority(list) => {
+            routing_types::StaticRoutingAlgorithm::Priority(list) => {
                 for choice in list {
                     self.connector_choice(choice)?;
                 }
             }
 
-            routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+            routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => {
                 for split in splits {
                     self.connector_choice(&split.connector)?;
                 }
             }
 
-            routing_types::RoutingAlgorithm::Advanced(program) => {
+            routing_types::StaticRoutingAlgorithm::Advanced(program) => {
                 let check_connector_selection =
                     |selection: &routing_types::ConnectorSelection| -> RouterResult<()> {
                         match selection {
@@ -458,7 +458,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 }
             }
 
-            routing_types::RoutingAlgorithm::ThreeDsDecisionRule(_) => {
+            routing_types::StaticRoutingAlgorithm::ThreeDsDecisionRule(_) => {
                 return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
                     "Invalid routing algorithm three_ds decision rule received",
                 )?;
@@ -475,7 +475,7 @@ pub async fn validate_connectors_in_routing_config(
     key_store: &domain::MerchantKeyStore,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
-    routing_algorithm: &routing_types::RoutingAlgorithm,
+    routing_algorithm: &routing_types::StaticRoutingAlgorithm,
 ) -> RouterResult<()> {
     let all_mcas = state
         .store
@@ -529,23 +529,23 @@ pub async fn validate_connectors_in_routing_config(
     };
 
     match routing_algorithm {
-        routing_types::RoutingAlgorithm::Single(choice) => {
+        routing_types::StaticRoutingAlgorithm::Single(choice) => {
             connector_choice(choice)?;
         }
 
-        routing_types::RoutingAlgorithm::Priority(list) => {
+        routing_types::StaticRoutingAlgorithm::Priority(list) => {
             for choice in list {
                 connector_choice(choice)?;
             }
         }
 
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => {
             for split in splits {
                 connector_choice(&split.connector)?;
             }
         }
 
-        routing_types::RoutingAlgorithm::Advanced(program) => {
+        routing_types::StaticRoutingAlgorithm::Advanced(program) => {
             let check_connector_selection =
                 |selection: &routing_types::ConnectorSelection| -> RouterResult<()> {
                     match selection {
@@ -572,7 +572,7 @@ pub async fn validate_connectors_in_routing_config(
             }
         }
 
-        routing_types::RoutingAlgorithm::ThreeDsDecisionRule(_) => {
+        routing_types::StaticRoutingAlgorithm::ThreeDsDecisionRule(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid routing algorithm three_ds decision rule received")?
         }

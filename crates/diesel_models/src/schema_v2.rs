@@ -1384,6 +1384,26 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    tokenization (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        #[max_length = 255]
+        locker_id -> Varchar,
+        flag -> TokenizationFlag,
+        version -> ApiVersion,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     unified_translations (unified_code, unified_message, locale) {
         #[max_length = 255]
         unified_code -> Varchar,
@@ -1533,6 +1553,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     roles,
     routing_algorithm,
     themes,
+    tokenization,
     unified_translations,
     user_authentication_methods,
     user_key_store,
