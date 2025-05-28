@@ -25033,6 +25033,14 @@
             "description": "Indicates if pre network tokenization is enabled or not",
             "default": false,
             "example": false
+          },
+          "merchant_acquirer_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gives list of merchant provided acquirers ids",
+            "nullable": true
           }
         }
       },
