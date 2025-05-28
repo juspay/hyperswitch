@@ -264,6 +264,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             }
             api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::HyperswitchVault => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Hyperswitch Vault is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
