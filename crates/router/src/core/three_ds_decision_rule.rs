@@ -1,3 +1,5 @@
+pub mod utils;
+
 use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
@@ -42,7 +44,7 @@ pub async fn execute_three_ds_decision_rule(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error parsing program from routing algorithm")?;
     // Construct backend input from request
-    let backend_input = construct_backend_input(request)
+    let backend_input = construct_backend_input(request.clone())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct backend input for 3DS decision rule execution")?;
     // Initialize interpreter with the rule program
@@ -54,9 +56,12 @@ pub async fn execute_three_ds_decision_rule(
         .execute(backend_input)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error executing 3DS decision rule")?;
+    // Apply PSD2 validations to the decision
+    let final_decision =
+        utils::apply_psd2_validations_during_execute(result.get_output().get_decision(), &request);
     // Construct response
     let response = api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse {
-        decision: result.connector_selection.decision,
+        decision: final_decision,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
