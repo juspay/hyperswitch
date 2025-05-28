@@ -13977,6 +13977,10 @@
           }
         }
       },
+      "NullObject": {
+        "default": null,
+        "nullable": true
+      },
       "NumberComparison": {
         "type": "object",
         "description": "Represents a number comparison for \"NumberComparisonArrayValue\"",
