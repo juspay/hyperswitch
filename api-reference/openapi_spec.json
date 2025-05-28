@@ -26266,6 +26266,19 @@
           }
         }
       },
+      "RoutingVolumeSplitResponse": {
+        "type": "object",
+        "required": [
+          "split"
+        ],
+        "properties": {
+          "split": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "RuleConnectorSelection": {
         "type": "object",
         "description": "Represents a rule\n\n```text\nrule_name: [stripe, adyen, checkout]\n{\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n\npayment.method.cardtype = credit\n}\n}\n```",
@@ -27395,9 +27408,13 @@
           },
           "specificity_level": {
             "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
+          },
+          "exploration_percent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "SuccessRateSpecificityLevel": {
         "type": "string",
