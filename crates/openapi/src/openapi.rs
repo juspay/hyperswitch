@@ -671,6 +671,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::SuccessRateSpecificityLevel,
         api_models::routing::ToggleDynamicRoutingQuery,
         api_models::routing::ToggleDynamicRoutingPath,
+        api_models::routing::RoutingVolumeSplitResponse,
         api_models::routing::ast::RoutableChoiceKind,
         api_models::enums::RoutableConnectors,
         api_models::routing::ast::ProgramConnectorSelection,

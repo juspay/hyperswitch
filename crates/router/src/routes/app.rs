@@ -2083,6 +2083,10 @@ impl Profile {
                             .route(web::post().to(routing::set_dynamic_routing_volume_split)),
                     )
                     .service(
+                        web::resource("/get_volume_split")
+                            .route(web::get().to(routing::get_dynamic_routing_volume_split)),
+                    )
+                    .service(
                         web::scope("/elimination")
                             .service(
                                 web::resource("/toggle")
