@@ -439,6 +439,7 @@ pub struct StripebillingLatestChargeData {
     pub payment_method_details: StripePaymentMethodDetails,
     #[serde(rename = "invoice")]
     pub invoice_id: String,
+    pub payment_intent: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -511,7 +512,7 @@ impl
                     field_name: "invoice_id",
                 })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
-            charge_details.charge_id,
+            charge_details.payment_intent,
         ));
 
         Ok(Self {
