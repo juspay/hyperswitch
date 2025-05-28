@@ -1850,10 +1850,20 @@ where
                 .clone(),
         )?;
 
+        let next_action_containing_wait_screen =
+            wait_screen_next_steps_check(payment_attempt.clone())?;
+
         let next_action = payment_attempt
             .redirection_data
             .as_ref()
-            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
+            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
+            .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                api_models::payments::NextActionData::WaitScreenInformation {
+                    display_from_timestamp: wait_screen_data.display_from_timestamp,
+                    display_to_timestamp: wait_screen_data.display_to_timestamp,
+                    poll_config: wait_screen_data.poll_config,
+                }
+            }));
 
         let connector_token_details = payment_attempt
             .connector_token_details
@@ -2594,6 +2604,7 @@ where
                             api_models::payments::NextActionData::WaitScreenInformation {
                                 display_from_timestamp: wait_screen_data.display_from_timestamp,
                                 display_to_timestamp: wait_screen_data.display_to_timestamp,
+                                poll_config: wait_screen_data.poll_config,
                             }
                         }))
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use api_models::payments::PollConfigResponse;
 use common_enums::enums;
 use common_utils::{
+    errors::CustomResult,
     pii::{self, Email, IpAddress},
-    request::Method,
     types::MinorUnit,
 };
 use hyperswitch_domain_models::{
@@ -11,12 +12,13 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
 
 use crate::{
     types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -67,7 +69,7 @@ impl TryFrom<&RazorpayRouterData<&types::CreateOrderRouterData>> for RazorpayOrd
         item: &RazorpayRouterData<&types::CreateOrderRouterData>,
     ) -> Result<Self, Self::Error> {
         let currency = item.router_data.request.currency;
-        let receipt = item.router_data.connector_request_reference_id.clone();
+        let receipt = uuid::Uuid::new_v4().to_string();
 
         Ok(Self {
             amount: item.amount,
@@ -235,30 +237,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirect_url = item
-            .response
-            .next
-            .as_ref()
-            .and_then(|next_actions| next_actions.first())
-            .map(|action| action.url.clone())
-            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "next.url",
-            })?;
+        let connector_metadata =
+            get_wait_screen_metadata(item.response.razorpay_payment_id.clone())?;
 
-        let redirection_data = Some(RedirectForm::Form {
-            endpoint: redirect_url,
-            method: Method::Get,
-            form_fields: Default::default(),
-        });
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.razorpay_payment_id.clone(),
                 ),
-                redirection_data: Box::new(redirection_data),
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.razorpay_payment_id),
                 incremental_authorization_allowed: None,
@@ -267,6 +257,28 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaitScreenData {
+    display_from_timestamp: i128,
+    display_to_timestamp: Option<i128>,
+    poll_config: Option<PollConfigResponse>,
+}
+
+pub fn get_wait_screen_metadata(
+    razorpay_payment_id: String,
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    Ok(Some(serde_json::json!(WaitScreenData {
+        display_from_timestamp: current_time,
+        display_to_timestamp: Some(current_time + Duration::minutes(5).whole_nanoseconds()),
+        poll_config: Some(PollConfigResponse {
+            poll_id: razorpay_payment_id,
+            delay_in_secs: 5,
+            frequency: 5,
+        }),
+    })))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -3249,15 +3249,15 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    router_data = router_data
-        .create_order_at_connector(state, &connector)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    let should_continue_further = router_data
+        .create_order_at_connector(state, &connector, should_continue_further)
+        .await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -3473,15 +3473,15 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    router_data = router_data
-        .create_order_at_connector(state, &connector)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    let should_continue_further = router_data
+        .create_order_at_connector(state, &connector, should_continue_further)
+        .await?;
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)

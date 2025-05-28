@@ -199,16 +199,17 @@ pub trait Feature<F, T> {
     }
 
     async fn create_order_at_connector(
-        self,
+        &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
-    ) -> RouterResult<Self>
+        should_continue_payment: bool,
+    ) -> RouterResult<bool>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(self)
+        Ok(should_continue_payment)
     }
 }
 

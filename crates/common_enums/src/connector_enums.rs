@@ -367,6 +367,9 @@ impl Connector {
                 | (Self::Facilitapay, _)
         )
     }
+    pub fn supports_create_order(self, payment_method: PaymentMethod) -> bool {
+        matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
+    }
     pub fn supports_file_storage_module(self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout)
     }

@@ -4533,6 +4533,7 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+        poll_config: Option<PollConfigResponse>,
     },
     /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
     ThreeDsInvoke {
@@ -4599,7 +4600,7 @@ pub enum ThreeDsMethodData {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PollConfigResponse {
     /// Poll Id
     pub poll_id: String,
@@ -4693,6 +4694,7 @@ pub struct QrCodeNextStepsInstruction {
 pub struct WaitScreenInstructions {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
+    pub poll_config: Option<PollConfigResponse>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
