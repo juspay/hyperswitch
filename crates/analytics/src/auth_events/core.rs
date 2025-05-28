@@ -8,11 +8,9 @@ use api_models::analytics::{
     AuthEventFilterValue, AuthEventFiltersResponse, AuthEventMetricsResponse,
     AuthEventsAnalyticsMetadata, GetAuthEventFilterRequest, GetAuthEventMetricRequest,
 };
+use common_utils::types::TimeRange;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-
-use crate::enums::AuthInfo;
-use common_utils::types::TimeRange;
 
 use super::{
     filters::{get_auth_events_filter_for_dimension, AuthEventFilterRow},
@@ -21,6 +19,7 @@ use super::{
 };
 use crate::{
     auth_events::AuthEventMetricAccumulator,
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     AnalyticsProvider,
 };
