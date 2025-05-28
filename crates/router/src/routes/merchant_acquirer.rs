@@ -48,3 +48,44 @@ pub async fn create_merchant_acquirer(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantAcquirerList))]
+pub async fn list_merchant_acquirers(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
+) -> HttpResponse {
+    let flow = Flow::MerchantAcquirerList;
+    let (merchant_id, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state: super::SessionState, auth_data, _req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth_data.merchant_account, auth_data.key_store),
+            ));
+            crate::core::merchant_acquirer::list_merchant_acquirers(
+                state,
+                merchant_context.clone(),
+                profile_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: permissions::Permission::MerchantAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

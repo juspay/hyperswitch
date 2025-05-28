@@ -138,3 +138,32 @@ fn has_duplicate_merchant_acquirer(
     }
     Ok(())
 }
+
+pub async fn list_merchant_acquirers(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResponse<Vec<merchant_acquirer::MerchantAcquirerResponse>> {
+    let db = state.store.as_ref();
+    let key_manager_state: KeyManagerState = (&state).into();
+    let merchant_key_store = merchant_context.get_merchant_key_store();
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_manager_state, merchant_key_store, &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let merchant_acquirers = db
+        .list_merchant_acquirer_based_on_profile_id(business_profile.get_id())
+        .await
+        .ok();
+
+    let response = api::ApplicationResponse::Json(
+        merchant_acquirers
+            .map(|acquirers| acquirers.into_iter().map(to_api_response).collect())
+            .unwrap_or_else(Vec::new),
+    );
+    Ok(response)
+}

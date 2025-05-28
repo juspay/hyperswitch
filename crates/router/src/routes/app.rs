@@ -2631,5 +2631,9 @@ impl MerchantAcquirer {
                 web::resource("")
                     .route(web::post().to(merchant_acquirer::create_merchant_acquirer)),
             )
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(merchant_acquirer::list_merchant_acquirers)),
+            )
     }
 }
