@@ -37,6 +37,7 @@ pub enum EventType {
     Payout,
     Consolidated,
     Authentication,
+    RevenueRecovery
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

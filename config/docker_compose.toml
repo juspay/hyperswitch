@@ -900,6 +900,7 @@ audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
+revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 
 [analytics]
 source = "sqlx"
