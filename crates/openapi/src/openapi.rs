@@ -760,7 +760,7 @@ struct SecurityAddon;
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         use utoipa::openapi::security::{
-            HttpBuilder, ApiKey, ApiKeyValue, HttpAuthScheme, SecurityScheme,
+            ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme,
         };
 
         if let Some(components) = openapi.components.as_mut() {
