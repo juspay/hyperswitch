@@ -577,15 +577,15 @@ fn execute_dsl_and_get_connector_v1(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConnectorSelection>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let routing_output: routing_types::RoutingAlgorithm = interpreter
+    let routing_output: routing_types::StaticRoutingAlgorithm = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection.foreign_into())
         .change_context(errors::RoutingError::DslExecutionError)?;
 
     Ok(match routing_output {
-        routing_types::RoutingAlgorithm::Priority(plist) => plist,
+        routing_types::StaticRoutingAlgorithm::Priority(plist) => plist,
 
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => perform_volume_split(splits)
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => perform_volume_split(splits)
             .change_context(errors::RoutingError::DslFinalConnectorSelectionFailed)?,
 
         _ => Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
@@ -605,7 +605,7 @@ pub async fn refresh_routing_cache_v1(
             .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
             .await
             .change_context(errors::RoutingError::DslMissingInDb)?;
-        let algorithm: routing_types::RoutingAlgorithm = algorithm
+        let algorithm: routing_types::StaticRoutingAlgorithm = algorithm
             .algorithm_data
             .parse_value("RoutingAlgorithm")
             .change_context(errors::RoutingError::DslParsingError)?;
@@ -613,12 +613,12 @@ pub async fn refresh_routing_cache_v1(
     };
 
     let cached_algorithm = match algorithm {
-        routing_types::RoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
-        routing_types::RoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+        routing_types::StaticRoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
+        routing_types::StaticRoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => {
             CachedAlgorithm::VolumeSplit(splits)
         }
-        routing_types::RoutingAlgorithm::Advanced(program) => {
+        routing_types::StaticRoutingAlgorithm::Advanced(program) => {
             let interpreter = backend::VirInterpreterBackend::with_program(program)
                 .change_context(errors::RoutingError::DslBackendInitError)
                 .attach_printable("Error initializing DSL interpreter backend")?;
@@ -1776,10 +1776,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 ))?;
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
-                logger::debug!(
-                    "open_router decide_gateway call response: {:?}",
-                    gateway_priority_map
-                );
+                logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
                         .get(&connector_choice_a.to_string())
