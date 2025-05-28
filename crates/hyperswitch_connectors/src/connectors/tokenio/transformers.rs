@@ -268,9 +268,9 @@ impl TryFrom<&str> for CryptoAlgorithm {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.to_uppercase().as_str() {
-            "RS256" | "rs256" => Ok(CryptoAlgorithm::RS256),
-            "ES256" | "es256" => Ok(CryptoAlgorithm::ES256),
-            "EDDSA" | "eddsa" | "EdDSA" => Ok(CryptoAlgorithm::EDDSA),
+            "RS256" | "rs256" => Ok(Self::RS256),
+            "ES256" | "es256" => Ok(Self::ES256),
+            "EDDSA" | "eddsa" | "EdDSA" => Ok(Self::EDDSA),
             _ => Err(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Unsupported key algorithm. Select from RS256, ES256, EdDSA",
             }
@@ -372,29 +372,29 @@ impl From<TokenioPaymentsResponse> for common_enums::AttemptStatus {
                 | PaymentStatus::InitiationPendingRedirectHp
                 | PaymentStatus::InitiationPendingRedemption
                 | PaymentStatus::InitiationPendingRedemptionVerification => {
-                    common_enums::AttemptStatus::AuthenticationPending
+                    Self::AuthenticationPending
                 }
 
                 // Success statuses
-                PaymentStatus::SettlementCompleted => common_enums::AttemptStatus::Charged,
+                PaymentStatus::SettlementCompleted =>Self::Charged,
 
                 // Settlement in progress - could map to different status based on business logic
-                PaymentStatus::SettlementInProgress => common_enums::AttemptStatus::Pending,
+                PaymentStatus::SettlementInProgress => Self::Pending,
 
                 // Failure statuses
                 PaymentStatus::InitiationRejected
                 | PaymentStatus::InitiationFailed
                 | PaymentStatus::InitiationExpired
                 | PaymentStatus::InitiationRejectedInsufficientFunds
-                | PaymentStatus::InitiationDeclined => common_enums::AttemptStatus::Failure,
+                | PaymentStatus::InitiationDeclined => Self::Failure,
 
                 // Uncertain status
                 PaymentStatus::InitiationCompleted
                 | PaymentStatus::InitiationProcessing
                 | PaymentStatus::InitiationNoFinalStatusAvailable
-                | PaymentStatus::SettlementIncomplete => common_enums::AttemptStatus::Pending,
+                | PaymentStatus::SettlementIncomplete => Self::Pending,
             },
-            TokenioPaymentsResponse::Error(_) => common_enums::AttemptStatus::Failure,
+            TokenioPaymentsResponse::Error(_) => Self::Failure,
         }
     }
 }
