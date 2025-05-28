@@ -2700,20 +2700,20 @@
             }
           },
           {
-            "name": "accepted_country",
+            "name": "accepted_countries",
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/components/schemas/CountryAlpha2"
               },
               "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
+            "name": "accepted_currencies",
             "in": "query",
             "description": "The three-letter ISO currency code",
             "required": false,
