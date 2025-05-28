@@ -7569,7 +7569,7 @@ where
         merchant_context.get_merchant_key_store(),
         &TransactionData::Payment(transaction_data.clone()),
         eligible_connectors.as_ref(),
-        &business_profile,
+        business_profile,
     )
     .await;
 
