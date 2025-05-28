@@ -209,7 +209,7 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let is_external_vault_enabled = profile.get_is_external_vault_enabled();
+    let is_external_vault_enabled = profile.is_external_vault_enabled();
     let is_external_vault_sdk_enabled = profile.get_is_external_vault_sdk_enabled();
 
     if is_external_vault_enabled && is_external_vault_sdk_enabled {

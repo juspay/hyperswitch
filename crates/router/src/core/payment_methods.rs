@@ -1035,18 +1035,19 @@ pub async fn create_payment_method_core(
 
             Ok((resp, payment_method))
         }
-        Ok(pm_types::AddVaultResponse::AddVaultResponseExternal(ext_vaulting_resp)) => {
+        Ok(ext_vaulting_resp) => {
             let external_vault_source = profile
                 .external_vault_connector_details
                 .clone()
                 .map(|details| details.vault_connector_id);
+            let vault_id = ext_vaulting_resp.vault_id.get_string_repr().clone();
 
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
                 merchant_context.get_merchant_key_store(),
-                Some(ext_vaulting_resp.connector_vault_id),
-                Some(ext_vaulting_resp.fingerprint_id),
+                Some(vault_id),
+                (ext_vaulting_resp.fingerprint_id),
                 &payment_method,
                 None,
                 network_tokenization_resp,

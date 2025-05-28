@@ -2032,7 +2032,7 @@ impl ConnectorTypeAndConnectorName<'_> {
         let billing_connector =
             api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
         let external_vault_connector =
-            api_enums::convert_external_vault_connector(self.connector_name.to_string().as_str());
+            api_enums::convert_vault_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
