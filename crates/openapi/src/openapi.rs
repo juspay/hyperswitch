@@ -202,6 +202,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for poll apis
         routes::poll::retrieve_poll_status,
+
+        // Routes for Merchant acquirer account
+        routes::merchant_acquirer::merchant_acquirer_create,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -753,6 +756,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineGatewayWiseExtraScore,
         api_models::open_router::DecisionEngineSRSubLevelInputConfig,
         api_models::open_router::DecisionEngineEliminationData,
+        api_models::merchant_acquirer::MerchantAcquirerCreate,
+        api_models::merchant_acquirer::MerchantAcquirerResponse,
     )),
     modifiers(&SecurityAddon)
 )]

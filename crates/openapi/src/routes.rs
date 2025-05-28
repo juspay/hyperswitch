@@ -7,6 +7,7 @@ pub mod disputes;
 pub mod gsm;
 pub mod mandates;
 pub mod merchant_account;
+pub mod merchant_acquirer;
 pub mod merchant_connector_account;
 pub mod organization;
 pub mod payment_link;

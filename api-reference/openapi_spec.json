@@ -5700,6 +5700,46 @@
           }
         ]
       }
+    },
+    "account/{account_id}/merchant_acquirers": {
+      "post": {
+        "tags": [
+          "Merchant Acquirer"
+        ],
+        "summary": "Merchant Acquirer - Create",
+        "description": "Create a new Merchant Acquirer for accessing our APIs from your servers.",
+        "operationId": "Create a Merchant Acquirer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAcquirerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Acquirer created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAcquirerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -15142,6 +15182,122 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantAcquirerCreate": {
+        "type": "object",
+        "required": [
+          "acquirer_assigned_merchant_id",
+          "merchant_name",
+          "mcc",
+          "merchant_country_code",
+          "network",
+          "acquirer_bin",
+          "acquirer_ica",
+          "acquirer_fraud_rate",
+          "profile_id"
+        ],
+        "properties": {
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "example": "dugduwhqdiuhqw_123"
+          },
+          "merchant_name": {
+            "type": "string",
+            "example": "NewAge Retailer"
+          },
+          "mcc": {
+            "type": "string",
+            "example": "5812"
+          },
+          "merchant_country_code": {
+            "type": "string",
+            "example": "US"
+          },
+          "network": {
+            "type": "string",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "example": "123456"
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "example": "123456"
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "example": "0.01"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          }
+        }
+      },
+      "MerchantAcquirerResponse": {
+        "type": "object",
+        "required": [
+          "merchant_acquirer_id",
+          "acquirer_assigned_merchant_id",
+          "merchant_name",
+          "mcc",
+          "merchant_country_code",
+          "network",
+          "acquirer_bin",
+          "acquirer_ica",
+          "acquirer_fraud_rate",
+          "profile_id",
+          "created_at"
+        ],
+        "properties": {
+          "merchant_acquirer_id": {
+            "type": "string",
+            "example": "mer_acq_LCRdERuylQvNQ4qh3QE0"
+          },
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "example": "dugduwhqdiuhqw_123"
+          },
+          "merchant_name": {
+            "type": "string",
+            "example": "NewAge Retailer"
+          },
+          "mcc": {
+            "type": "string",
+            "example": "5812"
+          },
+          "merchant_country_code": {
+            "type": "string",
+            "example": "US"
+          },
+          "network": {
+            "type": "string",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "example": "123456"
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "example": "123456"
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "example": "0.01"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "MerchantConnectorCreate": {
         "type": "object",
