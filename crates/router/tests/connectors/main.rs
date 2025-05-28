@@ -94,7 +94,6 @@ mod tokenio;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;
-mod tokenio;
 mod utils;
 mod vgs;
 mod volt;

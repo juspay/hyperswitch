@@ -59,7 +59,6 @@ impl Tokenio {
             amount_converter: &StringMajorUnitForConnector,
         }
     }
-    // JWT helper methods
     fn create_jwt_token(
         &self,
         auth: &tokenio::TokenioAuthType,
@@ -81,7 +80,7 @@ impl Tokenio {
                 tokenio::CryptoAlgorithm::ES256 => "ES256",
                 tokenio::CryptoAlgorithm::EDDSA => "EdDSA",
             },
-            "exp": exp_time,
+            "exp": exp_time.to_string(), // Convert to string as Token.io expects
             "mid": auth.merchant_id.clone().expose(),
             "kid": auth.key_id.clone().expose(),
             "method": method.to_uppercase(),
@@ -90,43 +89,46 @@ impl Tokenio {
             "typ": "JWT",
         });
 
-        // Create JWT payload from request body (Token.io expects the request body directly)
-        let payload = match body {
-            RequestContent::Json(json_body) => serde_json::to_value(json_body)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            _ => serde_json::json!({}),
+        // For GET requests, use detached JWT (no payload)
+        // For POST/PUT requests, include the request body as payload
+        let is_get_request = method.to_uppercase() == "GET";
+        let payload = if is_get_request {
+            None // No payload for GET requests (detached JWT)
+        } else {
+            // For non-GET requests, include the request body
+            match body {
+                RequestContent::Json(json_body) => Some(
+                    serde_json::to_value(json_body)
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                ),
+                _ => Some(serde_json::json!({})),
+            }
         };
 
-        println!("=== JWT CREATION DEBUG ===");
-        println!(
-            "1. Header (before encoding): {}",
-            serde_json::to_string(&header)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        );
-        println!(
-            "2. Payload (before encoding): {}",
-            serde_json::to_string(&payload)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        );
-
-        // Base64URL encode header and payload
+        // Use compact JSON serialization (no extra whitespace)
         let encoded_header = self.base64url_encode(
             serde_json::to_string(&header)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .as_bytes(),
         )?;
-        let encoded_payload = self.base64url_encode(
-            serde_json::to_string(&payload)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-                .as_bytes(),
-        )?;
 
-        println!("3. Encoded header: {}", encoded_header);
-        println!("4. Encoded payload: {}", encoded_payload);
-
-        // Create signing input
-        let signing_input = format!("{}.{}", encoded_header, encoded_payload);
-        println!("5. Signing input: {}", signing_input);
+        let (encoded_payload, signing_input) = match payload {
+            Some(p) => {
+                // Standard JWT with payload
+                let encoded_payload = self.base64url_encode(
+                    serde_json::to_string(&p)
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                        .as_bytes(),
+                )?;
+                let signing_input = format!("{}.{}", encoded_header, encoded_payload);
+                (encoded_payload, signing_input)
+            }
+            None => {
+                // Detached JWT (GET requests) - sign only the header with a dot
+                let signing_input = format!("{}.", encoded_header);
+                (String::new(), signing_input) // Empty payload for detached JWT
+            }
+        };
 
         // Sign the JWT based on algorithm
         let signature = match auth.key_algorithm {
@@ -142,20 +144,84 @@ impl Tokenio {
         };
 
         let encoded_signature = self.base64url_encode(&signature)?;
-        println!("6. Signature: {}", encoded_signature);
 
-        let jwt = format!(
+        // Assemble JWT - for detached JWT, middle part is empty
+        Ok(format!(
             "{}.{}.{}",
             encoded_header, encoded_payload, encoded_signature
-        );
-
-        println!("7. Final JWT: {}", jwt);
-        println!("=== END DEBUG ===\n");
-
-        dbg!(&jwt);
-
-        Ok(jwt)
+        ))
     }
+
+    // JWT helper methods
+    // fn create_jwt_token(
+    //     &self,
+    //     auth: &tokenio::TokenioAuthType,
+    //     method: &str,
+    //     path: &str,
+    //     body: &RequestContent,
+    //     connectors: &Connectors,
+    // ) -> CustomResult<String, errors::ConnectorError> {
+    //     // Create JWT header
+    //     let exp_time = SystemTime::now()
+    //         .duration_since(UNIX_EPOCH)
+    //         .change_context(errors::ConnectorError::RequestEncodingFailed)?
+    //         .as_millis()
+    //         + 600_000; // 10 minutes
+
+    //     let header = serde_json::json!({
+    //         "alg": match auth.key_algorithm {
+    //             tokenio::CryptoAlgorithm::RS256 => "RS256",
+    //             tokenio::CryptoAlgorithm::ES256 => "ES256",
+    //             tokenio::CryptoAlgorithm::EDDSA => "EdDSA",
+    //         },
+    //         "exp": exp_time,
+    //         "mid": auth.merchant_id.clone().expose(),
+    //         "kid": auth.key_id.clone().expose(),
+    //         "method": method.to_uppercase(),
+    //         "host": connectors.tokenio.base_url.trim_start_matches("https://").trim_end_matches("/"),
+    //         "path": path,
+    //         "typ": "JWT",
+    //     });
+
+    //     // Create JWT payload from request body (Token.io expects the request body directly)
+    //     let payload = match body {
+    //         RequestContent::Json(json_body) => serde_json::to_value(json_body)
+    //             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+    //         _ => serde_json::json!({}),
+    //     };
+    //     // Base64URL encode header and payload
+    //     let encoded_header = self.base64url_encode(
+    //         serde_json::to_string(&header)
+    //             .change_context(errors::ConnectorError::RequestEncodingFailed)?
+    //             .as_bytes(),
+    //     )?;
+    //     let encoded_payload = self.base64url_encode(
+    //         serde_json::to_string(&payload)
+    //             .change_context(errors::ConnectorError::RequestEncodingFailed)?
+    //             .as_bytes(),
+    //     )?;
+    //     // Create signing input
+    //     let signing_input = format!("{}.{}", encoded_header, encoded_payload);
+
+    //     // Sign the JWT based on algorithm
+    //     let signature = match auth.key_algorithm {
+    //         tokenio::CryptoAlgorithm::RS256 => {
+    //             self.sign_rsa(&auth.private_key.clone().expose(), &signing_input)?
+    //         }
+    //         tokenio::CryptoAlgorithm::ES256 => {
+    //             self.sign_ecdsa(&auth.private_key.clone().expose(), &signing_input)?
+    //         }
+    //         tokenio::CryptoAlgorithm::EDDSA => {
+    //             self.sign_eddsa(&auth.private_key.clone().expose(), &signing_input)?
+    //         }
+    //     };
+
+    //     let encoded_signature = self.base64url_encode(&signature)?;
+    //     Ok(format!(
+    //         "{}.{}.{}",
+    //         encoded_header, encoded_payload, encoded_signature
+    //     ))
+    // }
     fn base64url_encode(&self, data: &[u8]) -> CustomResult<String, errors::ConnectorError> {
         Ok(URL_SAFE_NO_PAD.encode(data))
     }
@@ -416,8 +482,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        dbg!(res.response.clone());
-
         let response: tokenio::TokenioPaymentsResponse = res
             .response
             .parse_struct("Tokenio PaymentsAuthorizeResponse")
@@ -446,24 +510,24 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        // For GET requests, we need JWT with no body
+        // For GET requests, we need JWT with detached format (no body)
         let auth = tokenio::TokenioAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
+        // Use empty RequestContent for GET requests - the create_jwt_token method
+        // will handle this properly by creating detached JWT
         let empty_body = RequestContent::Json(Box::new(serde_json::json!({})));
-        let jwt = self.create_jwt_token(
-            &auth,
-            "GET",
-            &format!(
-                "/v2/payments/{}",
-                req.request
-                    .connector_transaction_id
-                    .get_connector_transaction_id()
-                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
-            ),
-            &empty_body,
-            connectors,
-        )?;
+
+        let path = format!(
+            "/v2/payments/{}",
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        );
+
+        let jwt = self.create_jwt_token(&auth, "GET", &path, &empty_body, connectors)?;
+
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -516,7 +580,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        dbg!(res.response.clone());
         let response: tokenio::TokenioPaymentsResponse = res
             .response
             .parse_struct("tokenio TokenioPaymentsResponse")
@@ -665,6 +728,9 @@ impl webhooks::IncomingWebhook for Tokenio {
                     "INITIATION_PROCESSING" => {
                         Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
                     }
+                    "INITIATION_PENDING_REDIRECT_HP" => {
+                        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
+                    }
                     _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
                 }
             }
@@ -683,15 +749,6 @@ impl webhooks::IncomingWebhook for Tokenio {
 
         Ok(Box::new(webhook_payload))
     }
-
-    // // Override source verification to handle Token.io ED25519 signature verification
-    // fn get_webhook_source_verification_algorithm(
-    //     &self,
-    //     _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    // ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-    //     // Token.io uses ED25519 signature verification
-    //     Ok(Box::new(crypto::Ed25519))
-    // }
 
     fn get_webhook_source_verification_signature(
         &self,
@@ -714,5 +771,4 @@ impl webhooks::IncomingWebhook for Tokenio {
         Ok(decoded_signature)
     }
 }
-
 impl ConnectorSpecifications for Tokenio {}

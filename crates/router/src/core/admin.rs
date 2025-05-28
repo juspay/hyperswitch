@@ -2874,7 +2874,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize MerchantRecipientData")?;
-        dbg!(merchant_recipient_data.clone());
         let encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantConnectorAccount),
@@ -4933,10 +4932,6 @@ async fn process_open_banking_connectors(
                         .locker_based_open_banking_connectors
                         .connector_list
                         .contains(connector_name.as_str());
-                    dbg!(
-                        connector_name.clone(),
-                        recipient_creation_not_supported.clone()
-                    );
                     let recipient_id = if recipient_creation_not_supported {
                         locker_recipient_create_call(state, merchant_id, acc_data).await
                     } else {

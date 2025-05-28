@@ -197,7 +197,7 @@ impl TryFrom<&TokenioRouterData<&PaymentsAuthorizeRouterData>> for TokenioPaymen
                         name,
                         ..
                     }) => (
-                        LocalInstrument::FasterPayments, // Assuming BACS uses FasterPayments instrument
+                        LocalInstrument::FasterPayments,
                         Creditor::FasterPayments {
                             sort_code: sort_code.clone(),
                             account_number: account_number.clone(),
@@ -268,9 +268,9 @@ impl TryFrom<&str> for CryptoAlgorithm {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.to_uppercase().as_str() {
-            "RS256" => Ok(CryptoAlgorithm::RS256),
-            "ES256" => Ok(CryptoAlgorithm::ES256),
-            "EDDSA" => Ok(CryptoAlgorithm::EDDSA),
+            "RS256" | "rs256" => Ok(CryptoAlgorithm::RS256),
+            "ES256" | "es256" => Ok(CryptoAlgorithm::ES256),
+            "EDDSA" | "eddsa" | "EdDSA" => Ok(CryptoAlgorithm::EDDSA),
             _ => Err(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Unsupported key algorithm. Select from RS256, ES256, EdDSA",
             }
@@ -441,17 +441,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(payment.id.clone()),
-                        redirection_data: Box::new(payment.authentication.as_ref().and_then(
-                            |auth| match auth {
+                        redirection_data: Box::new(payment.authentication.as_ref().map(|auth| {
+                            match auth {
                                 Authentication::RedirectUrl { redirect_url } => {
-                                    Some(RedirectForm::Form {
+                                    RedirectForm::Form {
                                         endpoint: redirect_url.to_string(),
                                         method: Method::Get,
                                         form_fields: HashMap::new(),
-                                    })
+                                    }
                                 }
-                            },
-                        )),
+                            }
+                        })),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
