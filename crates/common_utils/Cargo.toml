@@ -68,6 +68,10 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies.uuid]
+version = "1.17.0"
+features = ["v7", "js"]
+
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
 
