@@ -2954,18 +2954,9 @@
         "operationId": "List Customer Payment Methods via Client Secret",
         "parameters": [
           {
-            "name": "customer_id",
+            "name": "client_secret",
             "in": "query",
-            "description": "The unique identifier for the customer account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "client-secret",
-            "in": "query",
-            "description": "A secret known only to your client and the authorization server. Used for client side authentication",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
             "required": false,
             "schema": {
               "type": "string",
@@ -2973,20 +2964,20 @@
             }
           },
           {
-            "name": "accepted_country",
+            "name": "accepted_countries",
             "in": "query",
             "description": "The two-letter ISO currency code",
             "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/components/schemas/CountryAlpha2"
               },
               "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
+            "name": "accepted_currencies",
             "in": "query",
             "description": "The three-letter ISO currency code",
             "required": false,
@@ -2999,9 +2990,9 @@
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
+            "description": "The amount accepted for processing by the particular payment method.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -3010,18 +3001,7 @@
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "required": false,
@@ -3037,6 +3017,30 @@
             "required": false,
             "schema": {
               "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
               "nullable": true
             }
           }
