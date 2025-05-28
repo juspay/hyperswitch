@@ -96,6 +96,7 @@ pub enum WalletType {
     Venmo,
     Mifinity,
     Paze,
+    RevolutPay,
 }
 
 #[derive(

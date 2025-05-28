@@ -45,6 +45,7 @@ pub enum ApiIdentifier {
     ProcessTracker,
     Proxy,
     ThreeDsDecisionRule,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -345,6 +346,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::Proxy => Self::Proxy,
 
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

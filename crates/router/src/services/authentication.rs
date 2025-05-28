@@ -98,6 +98,11 @@ pub struct AuthenticationDataWithUser {
     pub profile_id: id_type::ProfileId,
 }
 
+#[derive(Clone, Debug)]
+pub struct AuthenticationDataWithOrg {
+    pub organization_id: id_type::OrganizationId,
+}
+
 #[derive(Clone)]
 pub struct UserFromTokenWithRoleInfo {
     pub user: UserFromToken,
@@ -1330,7 +1335,8 @@ pub struct AdminApiAuthWithApiKeyFallback;
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<(), A> for AdminApiAuthWithApiKeyFallback
+impl<A> AuthenticateAndFetch<Option<AuthenticationDataWithOrg>, A>
+    for AdminApiAuthWithApiKeyFallback
 where
     A: SessionStateInfo + Sync,
 {
@@ -1338,7 +1344,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<((), AuthenticationType)> {
+    ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
         let request_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -1347,7 +1353,7 @@ where
         let admin_api_key = &conf.secrets.get_inner().admin_api_key;
 
         if request_api_key == admin_api_key.peek() {
-            return Ok(((), AuthenticationType::AdminApiKey));
+            return Ok((None, AuthenticationType::AdminApiKey));
         }
         let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
@@ -1377,12 +1383,37 @@ where
                 .attach_printable("API key has expired");
         }
 
+        let key_manager_state = &(&state.session_state()).into();
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &stored_api_key.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &stored_api_key.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
         if fallback_merchant_ids
             .merchant_ids
             .contains(&stored_api_key.merchant_id)
         {
             return Ok((
-                (),
+                Some(AuthenticationDataWithOrg {
+                    organization_id: merchant.organization_id,
+                }),
                 AuthenticationType::ApiKey {
                     merchant_id: stored_api_key.merchant_id,
                     key_id: stored_api_key.key_id,
@@ -2694,6 +2725,50 @@ where
             key_store,
             profile_id: Some(payload.profile_id),
         };
+
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<AuthenticationDataWithOrg>, A> for JWTAuthMerchantFromHeader
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(self.required_permission, &role_info)?;
+
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
+
+        // Check if token has access to MerchantId that has been requested through headers
+        if payload.merchant_id != merchant_id_from_header {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+
+        let auth = Some(AuthenticationDataWithOrg {
+            organization_id: payload.org_id,
+        });
 
         Ok((
             auth,
