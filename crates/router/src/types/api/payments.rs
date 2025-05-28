@@ -14,7 +14,7 @@ pub use api_models::{
     payments::{
         AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
         CryptoData, CustomerAcceptance, CustomerDetails, CustomerDetailsResponse,
-        ExternalVaultSessionDetails, MandateAmountData, MandateData, MandateTransactionType,
+        HyperswitchVaultSessionDetails, MandateAmountData, MandateData, MandateTransactionType,
         MandateType, MandateValidationFields, NextActionType, OnlineMandate,
         OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
         PaymentListFilters, PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
@@ -29,7 +29,7 @@ pub use api_models::{
         PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
         PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
         PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
-        VerifyRequest, VerifyResponse, WalletData,
+        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 use error_stack::ResultExt;

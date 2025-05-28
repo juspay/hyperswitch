@@ -144,8 +144,7 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    populate_external_vault_session_details(state, &merchant_context, &profile, &mut payment_data)
-        .await?;
+    populate_vault_session_details(state, &merchant_context, &profile, &mut payment_data).await?;
 
     let connector = operation
         .to_domain()?
@@ -199,7 +198,7 @@ where
 }
 
 #[cfg(feature = "v2")]
-pub async fn populate_external_vault_session_details<F, D>(
+pub async fn populate_vault_session_details<F, D>(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
@@ -209,10 +208,9 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
-    let is_external_vault_sdk_enabled = profile.get_is_external_vault_sdk_enabled();
+    let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
 
-    if is_external_vault_enabled && is_external_vault_sdk_enabled {
+    if is_external_vault_sdk_enabled {
         let external_vault_source = profile
             .external_vault_connector_details
             .as_ref()
@@ -240,10 +238,10 @@ where
 
         let env = state.conf.env;
 
-        let external_vault_session_details =
+        let vault_session_details =
             helpers::generate_vault_session_details(&connector_name, env, connector_auth_type);
 
-        payment_data.set_external_vault_session_details(external_vault_session_details);
+        payment_data.set_vault_session_details(vault_session_details);
     }
     Ok(())
 }

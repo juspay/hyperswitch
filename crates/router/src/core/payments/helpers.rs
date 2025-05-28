@@ -7290,7 +7290,7 @@ pub fn generate_vault_session_details(
     connector_name: &str,
     env: Env,
     connector_auth_type: ConnectorAuthType,
-) -> Option<api::ExternalVaultSessionDetails> {
+) -> Option<api::VaultSessionDetails> {
     let connector = api_enums::VaultConnectors::from_str(connector_name);
 
     match connector {
@@ -7301,13 +7301,23 @@ pub fn generate_vault_session_details(
                     Env::Production => "live",
                 }
                 .to_string();
-                Some(api::ExternalVaultSessionDetails {
+                Some(api::VaultSessionDetails::Vgs(api::VgsSessionDetails {
                     external_vault_id: api_secret,
                     sdk_env,
-                })
+                }))
             }
             _ => None,
         },
+        Ok(api_enums::VaultConnectors::HyperswitchVault) => Some(
+            api::VaultSessionDetails::HyperswitchVault(api::HyperswitchVaultSessionDetails {
+                publishable_key: "publishable_key".to_string(),
+                client_secret: masking::Secret::new("client_secret".to_string()),
+                payment_method_session_id: masking::Secret::new(
+                    "payment_method_session_id".to_string(),
+                ),
+                profile_id: masking::Secret::new("profile_id".to_string()),
+            }),
+        ),
         _ => None,
     }
 }

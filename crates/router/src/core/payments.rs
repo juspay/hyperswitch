@@ -8266,9 +8266,7 @@ pub trait OperationSessionGetters<F> {
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
     #[cfg(feature = "v2")]
-    fn get_optional_external_vault_session_details(
-        &self,
-    ) -> Option<api::ExternalVaultSessionDetails>;
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -8323,9 +8321,9 @@ pub trait OperationSessionSetters<F> {
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
 
     #[cfg(feature = "v2")]
-    fn set_external_vault_session_details(
+    fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
     );
 }
 
@@ -8775,10 +8773,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!();
     }
 
-    fn get_optional_external_vault_session_details(
-        &self,
-    ) -> Option<api::ExternalVaultSessionDetails> {
-        self.external_vault_session_details.clone()
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+        self.vault_session_details.clone()
     }
 }
 
@@ -8879,11 +8875,11 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_external_vault_session_details(
+    fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+        vault_session_details: Option<api::VaultSessionDetails>,
     ) {
-        self.external_vault_session_details = external_vault_session_details;
+        self.vault_session_details = vault_session_details;
     }
 }
 
@@ -9031,9 +9027,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_optional_external_vault_session_details(
-        &self,
-    ) -> Option<api::ExternalVaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
         todo!()
     }
 }
@@ -9136,9 +9130,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt.connector = connector;
     }
 
-    fn set_external_vault_session_details(
+    fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
     ) {
         todo!()
     }
@@ -9288,9 +9282,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_optional_external_vault_session_details(
-        &self,
-    ) -> Option<api::ExternalVaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
         todo!()
     }
 }
@@ -9392,9 +9384,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn set_external_vault_session_details(
+    fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
     ) {
         todo!()
     }
@@ -9546,9 +9538,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!();
     }
 
-    fn get_optional_external_vault_session_details(
-        &self,
-    ) -> Option<api::ExternalVaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
         todo!()
     }
 }
@@ -9650,9 +9640,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn set_external_vault_session_details(
+    fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::ExternalVaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
     ) {
         todo!()
     }
