@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.26.0-hotfix2
+
+### Refactors
+
+- **debit_routing:** Handle missing merchant_business_country by defaulting to US ([#8162](https://github.com/juspay/hyperswitch/pull/8162)) ([`b963661`](https://github.com/juspay/hyperswitch/commit/b963661135d442969c817636ca689aa278952008))
+- **success_based:** Add support for exploration ([#8160](https://github.com/juspay/hyperswitch/pull/8160)) ([`65490ea`](https://github.com/juspay/hyperswitch/commit/65490ea21e8903a96f05121c3410942918652fbd))
+
+**Full Changelog:** [`2025.05.26.0-hotfix1...2025.05.26.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.05.26.0-hotfix1...2025.05.26.0-hotfix2)
+
+
+- - -
+
 ## 2025.05.26.0-hotfix1
 
 ### Features
