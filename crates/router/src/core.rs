@@ -42,6 +42,11 @@ pub mod poll;
 pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
+#[cfg(feature = "v2")]
+pub mod refunds_v2;
+
+#[cfg(feature = "v1")]
+pub mod debit_routing;
 pub mod routing;
 pub mod surcharge_decision_config;
 #[cfg(feature = "olap")]
@@ -57,6 +62,10 @@ pub mod webhooks;
 
 pub mod unified_authentication_service;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod proxy;
 pub mod relay;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
+
+pub mod tokenization;

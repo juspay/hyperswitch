@@ -308,7 +308,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                     let apple_pay_payment_data =
                         payment_method_data.get_applepay_decoded_payment_data()?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
-                        .expose()[..]
+                        .expose()
                         .as_bytes()
                         .parse_struct("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::InvalidWalletToken {
@@ -391,7 +391,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("bluesnap"),
                 )),
             },

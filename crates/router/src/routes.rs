@@ -44,10 +44,10 @@ pub mod poll;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
-#[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
+pub mod tokenization;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -68,12 +68,19 @@ pub mod relay;
 #[cfg(feature = "olap")]
 pub mod process_tracker;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod proxy;
+
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
 pub use self::app::PaymentMethodSession;
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+pub use self::app::Proxy;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
+#[cfg(feature = "v2")]
+pub use self::app::Tokenization;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,

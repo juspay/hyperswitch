@@ -1,3 +1,4 @@
+use common_enums::enums::MerchantStorageScheme;
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use common_enums::DeleteStatus;
 use common_utils::{
@@ -11,13 +12,15 @@ use common_utils::{
         Description,
     },
 };
-use diesel_models::customers::CustomerUpdateInternal;
+use diesel_models::{
+    customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
+};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-use crate::type_encryption as types;
+use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -109,7 +112,7 @@ impl Customer {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -213,7 +216,7 @@ impl super::behaviour::Conversion for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Customer {
+impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -500,4 +503,137 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
             },
         }
     }
+}
+
+pub struct CustomerListConstraints {
+    pub limit: u16,
+    pub offset: Option<u32>,
+}
+
+impl From<CustomerListConstraints> for query::CustomerListConstraints {
+    fn from(value: CustomerListConstraints) -> Self {
+        Self {
+            limit: i64::from(value.limit),
+            offset: value.offset.map(i64::from),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+pub trait CustomerInterface
+where
+    Customer: behaviour::Conversion<
+        DstType = storage_types::Customer,
+        NewDstType = storage_types::CustomerNew,
+    >,
+{
+    type Error;
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn delete_customer_by_customer_id_merchant_id(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<bool, Self::Error>;
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn find_customer_optional_by_customer_id_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<Customer>, Self::Error>;
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<Customer>, Self::Error>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_optional_by_merchant_id_merchant_reference_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<Customer>, Self::Error>;
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[allow(clippy::too_many_arguments)]
+    async fn update_customer_by_customer_id_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: id_type::CustomerId,
+        merchant_id: id_type::MerchantId,
+        customer: Customer,
+        customer_update: CustomerUpdate,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    async fn find_customer_by_customer_id_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_merchant_reference_id_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_reference_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
+
+    async fn list_customers_by_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: CustomerListConstraints,
+    ) -> CustomResult<Vec<Customer>, Self::Error>;
+
+    async fn insert_customer(
+        &self,
+        customer_data: Customer,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn update_customer_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        id: &id_type::GlobalCustomerId,
+        customer: Customer,
+        merchant_id: &id_type::MerchantId,
+        customer_update: CustomerUpdate,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Customer, Self::Error>;
 }

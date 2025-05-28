@@ -6,13 +6,14 @@ use std::{
 
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
-use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
+use api_models::enums;
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
+    crm::CrmManagerConfig,
     file_storage::FileStorageConfig,
     grpc_client::GrpcClientSettings,
     managers::{
@@ -21,10 +22,18 @@ use external_services::{
     },
 };
 pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+use hyperswitch_interfaces::{
+    secrets_interface::secret_state::{
+        RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+    },
+    types::Proxy,
 };
 use masking::Secret;
+pub use payment_methods::configs::settings::{
+    ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
+    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -34,6 +43,8 @@ use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery;
 use crate::{
     configs,
     core::errors::{ApplicationError, ApplicationResult},
@@ -42,7 +53,6 @@ use crate::{
     routes::app,
     AppState,
 };
-
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
 
 #[derive(clap::Parser, Default)]
@@ -91,18 +101,22 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
+    pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
@@ -139,6 +153,36 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub authentication_providers: AuthenticationProviders,
+    pub open_router: OpenRouter,
+    #[cfg(feature = "v2")]
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OpenRouter {
+    pub enabled: bool,
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CloneConnectorAllowlistConfig {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_names: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -426,19 +470,6 @@ pub struct ForexApi {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct PaymentMethodAuth {
-    pub redis_expiry: i64,
-    pub pm_auth_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct EligiblePaymentMethods {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub sdk_eligible_payment_methods: HashSet<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DefaultExchangeRates {
     pub base_currency: String,
     pub conversion: HashMap<String, Conversion>,
@@ -519,10 +550,29 @@ pub struct CorsSettings {
     pub allowed_methods: HashSet<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Mandates {
-    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
-    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationProviders {
+    #[serde(deserialize_with = "deserialize_connector_list")]
+    pub click_to_pay: HashSet<enums::Connector>,
+}
+
+fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        connector_list: String,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    wrapper
+        .connector_list
+        .split(',')
+        .map(|s| s.trim().parse().map_err(D::Error::custom))
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -547,22 +597,6 @@ pub struct NetworkTokenizationService {
     pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodsForMandate(
-    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodTypesForMandate(
-    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForMandate>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedConnectorsForMandate {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -651,34 +685,6 @@ pub struct NotAvailableFlows {
 #[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payout_required_fields.toml
 pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
-#[derive(Debug, Deserialize, Clone)]
-#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payment_required_fields.toml
-pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFieldFinal {
-    pub mandate: HashMap<String, RequiredFieldInfo>,
-    pub non_mandate: HashMap<String, RequiredFieldInfo>,
-    pub common: HashMap<String, RequiredFieldInfo>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFieldFinal {
-    pub mandate: Option<Vec<RequiredFieldInfo>>,
-    pub non_mandate: Option<Vec<RequiredFieldInfo>>,
-    pub common: Option<Vec<RequiredFieldInfo>>,
-}
-
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
@@ -750,15 +756,6 @@ pub struct Jwekey {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct Proxy {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_hosts: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
 pub struct Server {
     pub port: u16,
     pub workers: usize,
@@ -823,6 +820,7 @@ pub struct DrainerSettings {
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
+    pub redis_lock_expiry_seconds: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -869,6 +867,12 @@ pub struct WebhookSourceVerificationCall {
 pub struct BillingConnectorPaymentsSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1012,6 +1016,10 @@ impl Settings<SecuredSecret> {
         self.api_keys.get_inner().validate()?;
 
         self.file_storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.crm
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 

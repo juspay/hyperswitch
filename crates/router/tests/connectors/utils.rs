@@ -410,6 +410,7 @@ pub trait ConnectorActions: Connector {
                 merchant_account_id: None,
                 merchant_config_currency: None,
                 capture_method: None,
+                additional_payment_method_data: None,
             }),
             payment_info,
         );
@@ -555,6 +556,7 @@ pub trait ConnectorActions: Connector {
             connector_mandate_request_reference_id: None,
             psd2_sca_exemption_type: None,
             authentication_id: None,
+            whole_connector_response: None,
         }
     }
 
@@ -576,7 +578,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -618,6 +620,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await?;
@@ -662,6 +665,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await?;
@@ -708,6 +712,7 @@ pub trait ConnectorActions: Connector {
             &request,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -751,6 +756,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await?;
@@ -847,6 +853,7 @@ pub trait ConnectorActions: Connector {
             &request,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -887,6 +894,7 @@ async fn call_connector<
         integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -940,6 +948,7 @@ impl Default for CCardType {
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
+            co_badged_card_data: None,
         })
     }
 }
@@ -987,6 +996,7 @@ impl Default for PaymentAuthorizeType {
             shipping_cost: None,
             merchant_account_id: None,
             merchant_config_currency: None,
+            connector_testing_data: None,
         };
         Self(data)
     }
@@ -1080,6 +1090,7 @@ impl Default for PaymentRefundType {
             merchant_account_id: None,
             merchant_config_currency: None,
             capture_method: None,
+            additional_payment_method_data: None,
         };
         Self(data)
     }
@@ -1128,7 +1139,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
         Err(_) => None,
     }
 }

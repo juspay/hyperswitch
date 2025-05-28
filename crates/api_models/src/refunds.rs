@@ -12,6 +12,7 @@ use crate::{
     enums,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
@@ -61,7 +62,7 @@ pub struct RefundRequest {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundsCreateRequest {
@@ -74,14 +75,18 @@ pub struct RefundsCreateRequest {
     )]
     pub payment_id: common_utils::id_type::GlobalPaymentId,
 
-    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment.
+    /// Unique Identifier for the Refund given by the Merchant.
     #[schema(
-        max_length = 30,
-        min_length = 30,
+        max_length = 64,
+        min_length = 1,
         example = "ref_mbabizu24mvu3mela5njyhpit4",
-        value_type = Option<String>,
+        value_type = String,
     )]
-    pub merchant_reference_id: Option<common_utils::id_type::RefundReferenceId>,
+    pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
+
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = Option<String>)]
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the amount_captured of the payment
     #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
@@ -100,11 +105,19 @@ pub struct RefundsCreateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RefundsRetrieveBody {
+    pub force_sync: Option<bool>,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -123,11 +136,40 @@ pub struct RefundsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RefundsRetrieveRequest {
+    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "ref_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub refund_id: common_utils::id_type::GlobalRefundId,
+
+    /// `force_sync` with the connector to get refund details
+    /// (defaults to false)
+    pub force_sync: Option<bool>,
+}
+
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundUpdateRequest {
     #[serde(skip)]
     pub refund_id: String,
+    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
+    #[schema(max_length = 255, example = "Customer returned the product")]
+    pub reason: Option<String>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundMetadataUpdateRequest {
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
@@ -153,14 +195,27 @@ pub struct RefundManualUpdateRequest {
     pub error_message: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 /// To indicate whether to refund needs to be instant or scheduled
 #[derive(
     Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
-    #[default]
     Scheduled,
+    #[default]
+    Instant,
+}
+
+#[cfg(feature = "v2")]
+/// To indicate whether the refund needs to be instant or scheduled
+#[derive(
+    Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RefundType {
+    Scheduled,
+    #[default]
     Instant,
 }
 
@@ -288,6 +343,7 @@ pub struct RefundErrorDetails {
     pub message: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListRequest {
     /// The identifier for the payment
@@ -319,7 +375,36 @@ pub struct RefundListRequest {
     #[schema(value_type = Option<Vec<RefundStatus>>)]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
-
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
+pub struct RefundListRequest {
+    /// The identifier for the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_id: Option<common_utils::id_type::GlobalPaymentId>,
+    /// The identifier for the refund
+    #[schema(value_type = String)]
+    pub refund_id: Option<common_utils::id_type::GlobalRefundId>,
+    /// Limit on the number of objects to return
+    pub limit: Option<i64>,
+    /// The starting point within a list of objects
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+    /// The amount to filter reufnds list. Amount takes two option fields start_amount and end_amount from which objects can be filtered as per required scenarios (less_than, greater_than, equal_to and range)
+    pub amount_filter: Option<AmountFilter>,
+    /// The list of connectors to filter refunds list
+    pub connector: Option<Vec<String>>,
+    /// The list of merchant connector ids to filter the refunds list for selected label
+    #[schema(value_type = Option<Vec<String>>)]
+    pub connector_id_list: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    /// The list of currencies to filter refunds list
+    #[schema(value_type = Option<Vec<Currency>>)]
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The list of refund statuses to filter refunds list
+    #[schema(value_type = Option<Vec<RefundStatus>>)]
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
+}
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list

@@ -282,7 +282,7 @@ impl
             VoucherData::PagoEfectivo => ZenPaymentChannels::PclBoacompraPagoefectivo,
             VoucherData::RedCompra => ZenPaymentChannels::PclBoacompraRedcompra,
             VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            VoucherData::Oxxo { .. }
+            VoucherData::Oxxo
             | VoucherData::Alfamart { .. }
             | VoucherData::Indomaret { .. }
             | VoucherData::SevenEleven { .. }
@@ -507,7 +507,8 @@ impl
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayQr(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             ))?,
         };

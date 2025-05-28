@@ -3,8 +3,8 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
-/// Enum for Theme Lineage
-pub mod theme;
+/// User related types
+pub mod user;
 
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
@@ -49,6 +49,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
+    impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -125,7 +126,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            match value.split('.').last() {
+            match value.split('.').next_back() {
                 Some(decimal_part) => {
                     decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
                 }
@@ -399,6 +400,11 @@ impl MinorUnit {
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
         Self(value)
+    }
+
+    /// checks if the amount is greater than the given value
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.get_amount_as_i64() > value
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
@@ -1204,6 +1210,14 @@ impl ConnectorTransactionId {
         }
     }
 
+    /// Implementation for extracting hashed data
+    pub fn extract_hashed_data(&self) -> Option<String> {
+        match self {
+            Self::TxnId(_) => None,
+            Self::HashedData(src) => Some(src.clone()),
+        }
+    }
+
     /// Implementation for retrieving
     pub fn get_txn_id<'a>(
         &'a self,
@@ -1348,3 +1362,22 @@ where
         self.0.to_sql(out)
     }
 }
+
+impl_enum_str!(
+    tag_delimiter = ":",
+    /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
+    /// trigger (Api, Jwt) of the record.
+    #[derive(Eq, PartialEq, Debug, Clone)]
+    pub enum CreatedBy {
+        /// Api variant
+        Api {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
+        /// Jwt variant
+        Jwt {
+            /// user id of creator.
+            user_id: String,
+        },
+    }
+);

@@ -13,7 +13,7 @@ export const customerAcceptance = {
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
-  card_exp_year: "50",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
@@ -21,7 +21,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
-  card_exp_year: "50",
+  card_exp_year: "30",
   card_holder_name: "morino",
   card_cvc: "999",
 };
@@ -1569,4 +1569,56 @@ export const connectorDetails = {
       },
     },
   },
+  return_url_variations: {
+    return_url_too_long: getCustomExchange({
+      Request: {
+        customer_id: "customer_1234567890",
+        return_url: "http://example.com/" + "a".repeat(237),
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "return_url must be at most 255 characters long. Received 256 characters",
+            code: "IR_06",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
+    return_url_invalid_format: getCustomExchange({
+      Request: {
+        return_url: "not_a_valid_url",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              'Json deserialize error: relative URL without a base: "not_a_valid_url" at line 1 column 357',
+            code: "IR_06",
+            error_type: "invalid_request",
+          },
+        },
+      },
+    }),
+  },
+  mandate_id_too_long: getCustomExchange({
+    Request: {
+      mandate_id: "mnd_" + "a".repeat(63),
+      off_session: true,
+    },
+    Response: {
+      status: 400,
+      body: {
+        error: {
+          message:
+            "mandate_id must be at most 64 characters long. Received 67 characters",
+          code: "IR_06",
+          type: "invalid_request",
+        },
+      },
+    },
+  }),
 };

@@ -327,7 +327,8 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?,
             },
@@ -556,7 +557,12 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::RuPay
+        | common_enums::CardNetwork::Star
+        | common_enums::CardNetwork::Accel
+        | common_enums::CardNetwork::Pulse
+        | common_enums::CardNetwork::Nyce => None,
     }
 }
 
@@ -1104,7 +1110,8 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::WeChatPayQr(_)
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
-                        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                        | WalletData::Mifinity(_)
+                        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
                             ),
@@ -1598,6 +1605,7 @@ fn get_error_response_if_failure(
     if utils::is_payment_failure(status) {
         Some(get_error_response(
             &info_response.error_information,
+            &info_response.processor_information,
             &info_response.risk_information,
             Some(status),
             http_code,
@@ -1923,6 +1931,7 @@ impl<F>
                     Ok(Self {
                         response: Err(get_error_response(
                             &item.response.error_information,
+                            &item.response.processor_information,
                             &risk_info,
                             Some(status),
                             item.http_code,
@@ -2140,6 +2149,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, BankOfAmericaRefundResponse>>
             Err(get_error_response(
                 &item.response.error_information,
                 &None,
+                &None,
                 None,
                 item.http_code,
                 item.response.id,
@@ -2227,6 +2237,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, BankOfAmericaRsyncResponse>>
                                 details: None,
                             }),
                             &None,
+                            &None,
                             None,
                             item.http_code,
                             item.response.id.clone(),
@@ -2234,6 +2245,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, BankOfAmericaRsyncResponse>>
                     } else {
                         Err(get_error_response(
                             &item.response.error_information,
+                            &None,
                             &None,
                             None,
                             item.http_code,
@@ -2323,6 +2335,7 @@ pub struct AuthenticationErrorInformation {
 
 fn get_error_response(
     error_data: &Option<BankOfAmericaErrorInformation>,
+    processor_information: &Option<ClientProcessorInformation>,
     risk_information: &Option<ClientRiskInformation>,
     attempt_status: Option<enums::AttemptStatus>,
     status_code: u16,
@@ -2354,6 +2367,14 @@ fn get_error_response(
                 .join(", ")
         })
     });
+    let network_decline_code = processor_information
+        .as_ref()
+        .and_then(|info| info.response_code.clone());
+    let network_advice_code = processor_information.as_ref().and_then(|info| {
+        info.merchant_advice
+            .as_ref()
+            .and_then(|merchant_advice| merchant_advice.code_raw.clone())
+    });
 
     let reason = get_error_reason(
         error_data
@@ -2377,8 +2398,8 @@ fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
-        network_advice_code: None,
-        network_decline_code: None,
+        network_advice_code,
+        network_decline_code,
         network_error_message: None,
     }
 }

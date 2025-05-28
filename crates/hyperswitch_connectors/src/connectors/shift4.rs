@@ -953,7 +953,7 @@ lazy_static! {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-    static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments];
+    static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
 
 }
 

@@ -10,6 +10,7 @@ use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod callback_mapper;
+pub mod cards_info;
 pub mod config;
 pub mod connection;
 pub mod customers;
@@ -31,6 +32,9 @@ pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use diesel_models::tokenization::Tokenization;
+pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
@@ -177,6 +181,37 @@ impl<T: DatabaseStore> RouterStore<T> {
             )
             .await
             .change_context(StorageError::DecryptionError)
+    }
+
+    pub async fn find_optional_resource<D, R, M>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        execute_query_fut: R,
+    ) -> error_stack::Result<Option<D>, StorageError>
+    where
+        D: Debug + Sync + Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Option<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: ReverseConversion<D>,
+    {
+        match execute_query_fut.await.map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })? {
+            Some(resource) => Ok(Some(
+                resource
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
     }
 
     pub async fn find_resources<D, R, M>(
@@ -470,3 +505,14 @@ impl UniqueConstraints for diesel_models::Customer {
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl UniqueConstraints for diesel_models::tokenization::Tokenization {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("id_{}", self.id.get_string_repr())]
+    }
+
+    fn table_name(&self) -> &str {
+        "tokenization"
+    }
+}

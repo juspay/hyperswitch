@@ -9,6 +9,7 @@ use diesel::{
 };
 use masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -171,6 +172,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub payment_method_subtype: common_enums::enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
     pub connector: common_enums::connector_enums::Connector,
+    /// Time at which next invoice will be created
+    pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
