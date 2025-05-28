@@ -67,13 +67,6 @@ pub struct AddVaultResponse {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddVaultResponseExternal {
-    pub connector_vault_id: String,
-    pub fingerprint_id: String,
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVault;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
