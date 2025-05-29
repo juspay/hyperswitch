@@ -16,21 +16,19 @@ use common_utils::consts;
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-#[cfg(feature = "v2")]
-use recovery_trainer_client::{RecoveryTrainerClient, RecoveryTrainerClientConfig};
-
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use http_body_util::combinators::UnsyncBoxBody;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use hyper::body::Bytes;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use hyper_util::client::legacy::connect::HttpConnector;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
-use tonic::Status;
-
+#[cfg(feature = "v2")]
+use recovery_trainer_client::{RecoveryTrainerClient, RecoveryTrainerClientConfig};
 #[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
+#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+use tonic::Status;
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
@@ -90,7 +88,7 @@ impl GrpcClientSettings {
         #[cfg(feature = "v2")]
         let recovery_trainer_client = {
             let config = self.recovery_trainer_client.clone();
-        
+
             RecoveryTrainerClient::get_recovery_trainer_connection(config, client.clone())
                 .await
                 .expect("Failed to establish a connection with the Recovery Trainer Server")

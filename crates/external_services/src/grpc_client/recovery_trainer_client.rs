@@ -1,8 +1,9 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use router_env::logger; 
+use router_env::logger;
+
+use super::{Client, GrpcHeaders, RecoveryTrainerClientConfig};
 use crate::grpc_client::{self, GrpcHeaders};
-use super::{Client, GrpcHeaders, RecoveryTrainerClientConfig}; 
 
 // #[allow(
 //     clippy::unwrap_used,
@@ -20,15 +21,15 @@ use super::{Client, GrpcHeaders, RecoveryTrainerClientConfig};
 //     clippy::redundant_closure_for_method_calls,
 //     clippy::implicit_clone,
 //     clippy::must_use_candidate,
-//     clippy::clone_on_copy, 
+//     clippy::clone_on_copy,
 //     clippy::large_enum_variant
 // )]
 pub mod recovery_trainer {
     tonic::include_proto!("recovery_trainer");
 }
 
-pub use recovery_trainer::{RecoveryTrainerRequest, RecoveryTrainerResponse};
 use recovery_trainer::recovery_trainer_service_client::RecoveryTrainerServiceClient;
+pub use recovery_trainer::{RecoveryTrainerRequest, RecoveryTrainerResponse};
 
 pub type RecoveryTrainerResult<T> = CustomResult<T, RecoveryTrainerError>;
 
@@ -61,9 +62,11 @@ impl RecoveryTrainerClient {
 
         (host.is_empty())
             .then_some(())
-            .ok_or_else(|| RecoveryTrainerError::ConfigError(
-                "Host is not configured for Recovery Trainer client".to_string(),
-            ))
+            .ok_or_else(|| {
+                RecoveryTrainerError::ConfigError(
+                    "Host is not configured for Recovery Trainer client".to_string(),
+                )
+            })
             .into_report();
 
         let uri_string = format!("http://{}:{}", host, port);
@@ -89,7 +92,7 @@ impl RecoveryTrainerClient {
         card_network: String,
         card_issuer: String,
         txn_time: i64,
-        headers: GrpcHeaders, 
+        headers: GrpcHeaders,
     ) -> RecoveryTrainerResult<RecoveryTrainerResponse> {
         logger::debug!(recovery_trainer_request =?request_payload);
 
@@ -104,7 +107,6 @@ impl RecoveryTrainerClient {
             },
             headers,
         );
-
 
         let response = self
             .client
