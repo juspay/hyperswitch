@@ -1599,7 +1599,7 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
-    /// There has been a discrepancy between the amount sent in the request and the amount received by the processor
+    /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
 }
 
@@ -1610,15 +1610,14 @@ impl IntentStatus {
             Self::Succeeded
             | Self::Failed
             | Self::Cancelled
-            | Self::PartiallyCaptured
-            | Self::Conflicted => true,
+            | Self::PartiallyCaptured => true,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::RequiresPaymentMethod
             | Self::RequiresConfirmation
             | Self::RequiresCapture
-            | Self::PartiallyCapturedAndCapturable => false,
+            | Self::PartiallyCapturedAndCapturable | Self::Conflicted => false,
         }
     }
 
@@ -1633,12 +1632,11 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture => false,
+            |  Self::RequiresCapture | Self::Conflicted => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            | Self::Conflicted
             => true,
         }
     }

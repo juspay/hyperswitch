@@ -667,8 +667,7 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Success),
             enums::AttemptStatus::Failure
             | enums::AttemptStatus::CaptureFailed
-            | enums::AttemptStatus::RouterDeclined
-            | enums::AttemptStatus::IntegrityFailure => Ok(Self::Failure),
+            | enums::AttemptStatus::RouterDeclined => Ok(Self::Failure),
             enums::AttemptStatus::AuthenticationFailed
             | enums::AttemptStatus::Started
             | enums::AttemptStatus::AuthenticationPending
@@ -686,7 +685,7 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::ConfirmationAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
+            | enums::AttemptStatus::DeviceDataCollectionPending | enums::AttemptStatus::IntegrityFailure=> {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Record back flow is only supported for terminal status".to_string(),
                     connector: "chargebee",

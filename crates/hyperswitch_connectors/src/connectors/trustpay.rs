@@ -6,7 +6,7 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -56,12 +56,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Trustpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync)
 }
 
 impl Trustpay {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_webhooks: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -416,13 +418,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
 
         if let trustpay::TrustpayPaymentsResponse::WebhookResponse(ref webhook_response) = response
         {
-            let amount = StringMajorUnit::f64_to_string_major_unit(webhook_response.amount.amount);
-            let currency = webhook_response.amount.currency;
-
             let response_integrity_object = connector_utils::get_sync_integrity_object(
-                self.amount_converter,
-                amount,
-                currency.to_string(),
+                self.amount_converter_webhooks,
+                webhook_response.amount.amount,
+                webhook_response.amount.currency.to_string(),
             )?;
 
             event_builder.map(|i| i.set_response_body(&response));
@@ -829,13 +828,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         if let trustpay::RefundResponse::WebhookRefund(ref webhook_response) = response {
-            let currency = webhook_response.amount.currency;
-
-            let amount = StringMajorUnit::f64_to_string_major_unit(webhook_response.amount.amount);
             let response_integrity_object = connector_utils::get_refund_integrity_object(
-                self.amount_converter,
-                amount,
-                currency.to_string(),
+                self.amount_converter_webhooks,
+                webhook_response.amount.amount,
+                webhook_response.amount.currency.to_string(),
             )?;
 
             event_builder.map(|i| i.set_response_body(&response));

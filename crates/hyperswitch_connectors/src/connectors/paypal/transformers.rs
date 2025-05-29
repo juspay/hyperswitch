@@ -2525,11 +2525,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::Voided
-            | storage_enums::AttemptStatus::IntegrityFailure => 0,
+            | storage_enums::AttemptStatus::Voided => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::IntegrityFailure => {
                 item.data.request.amount_to_capture
             }
         };

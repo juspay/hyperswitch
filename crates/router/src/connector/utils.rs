@@ -2206,8 +2206,7 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
-            | storage_enums::AttemptStatus::AutoRefunded
-            | storage_enums::AttemptStatus::IntegrityFailure => Some(false),
+            | storage_enums::AttemptStatus::AutoRefunded => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2226,7 +2225,7 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => None,
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending | storage_enums::AttemptStatus::IntegrityFailure => None,
         }
     }
 }
@@ -2237,8 +2236,7 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::AuthorizationFailed
         | common_enums::AttemptStatus::CaptureFailed
         | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure
-        | common_enums::AttemptStatus::IntegrityFailure => true,
+        | common_enums::AttemptStatus::Failure => true,
         common_enums::AttemptStatus::Started
         | common_enums::AttemptStatus::RouterDeclined
         | common_enums::AttemptStatus::AuthenticationPending
@@ -2257,7 +2255,7 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::Pending
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+        | common_enums::AttemptStatus::DeviceDataCollectionPending | common_enums::AttemptStatus::IntegrityFailure => false,
     }
 }
 

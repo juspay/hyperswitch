@@ -592,11 +592,6 @@ impl StringMajorUnit {
         Self(value)
     }
 
-    /// Direct Conversion of amount in f64 to StringMajorUnit
-    pub fn f64_to_string_major_unit(amount: f64) -> Self {
-        Self::new(amount.to_string())
-    }
-
     /// Converts to minor unit as i64 from StringMajorUnit
     fn to_minor_unit_as_i64(
         &self,

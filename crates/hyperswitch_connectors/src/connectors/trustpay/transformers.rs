@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
     request::Method,
-    types::StringMajorUnit,
+    types::{StringMajorUnit, FloatMajorUnit}
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -1904,7 +1904,7 @@ pub struct WebhookReferences {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
 }
 

@@ -426,8 +426,7 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Failure
-        | AttemptStatus::IntegrityFailure => true,
+        | AttemptStatus::Failure => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
@@ -446,7 +445,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Pending
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
-        | AttemptStatus::DeviceDataCollectionPending => false,
+        | AttemptStatus::DeviceDataCollectionPending 
+        | AttemptStatus::IntegrityFailure => false,
     }
 }
 
@@ -6171,8 +6171,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Voided
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
-            | AttemptStatus::AutoRefunded
-            | AttemptStatus::IntegrityFailure => Some(false),
+            | AttemptStatus::AutoRefunded => Some(false),
 
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
@@ -6191,7 +6190,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending | AttemptStatus::IntegrityFailure => None,
         }
     }
 }
