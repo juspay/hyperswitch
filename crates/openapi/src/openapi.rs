@@ -205,6 +205,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for Merchant acquirer account
         routes::merchant_acquirer::merchant_acquirer_create,
+        routes::merchant_acquirer::merchant_acquirer_list,
     ),
     components(schemas(
         common_utils::types::MinorUnit,

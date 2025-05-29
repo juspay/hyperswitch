@@ -5701,7 +5701,7 @@
         ]
       }
     },
-    "account/{account_id}/merchant_acquirers": {
+    "/account/{account_id}/merchant_acquirers": {
       "post": {
         "tags": [
           "Merchant Acquirer"
@@ -5726,6 +5726,37 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantAcquirerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Merchant Acquirer"
+        ],
+        "summary": "Merchant Acquirer - List",
+        "description": "List all Merchant Acquirers for accessing our APIs from your servers.",
+        "operationId": "List Merchant Acquirers",
+        "responses": {
+          "200": {
+            "description": "Merchant Acquirers listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantAcquirerResponse"
+                  }
                 }
               }
             }

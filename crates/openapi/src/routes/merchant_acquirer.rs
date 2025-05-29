@@ -4,7 +4,7 @@
 /// Create a new Merchant Acquirer for accessing our APIs from your servers.
 #[utoipa::path(
     post,
-    path = "account/{account_id}/merchant_acquirers",
+    path = "/account/{account_id}/merchant_acquirers",
     request_body= MerchantAcquirerCreate,
     responses(
         (status = 200, description = "Merchant Acquirer created", body = MerchantAcquirerResponse),
@@ -15,3 +15,20 @@
     security(("api_key" = []))
 )]
 pub async fn merchant_acquirer_create() {}
+
+#[cfg(feature = "v1")]
+/// Merchant Acquirer - List
+///
+/// List all Merchant Acquirers for accessing our APIs from your servers.
+#[utoipa::path(
+    get,
+    path = "/account/{account_id}/merchant_acquirers",
+    responses(
+        (status = 200, description = "Merchant Acquirers listed", body = Vec<MerchantAcquirerResponse>),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Merchant Acquirer",
+    operation_id = "List Merchant Acquirers",
+    security(("api_key" = []))
+)]
+pub async fn merchant_acquirer_list() {}
