@@ -1584,13 +1584,22 @@ pub async fn create_org_merchant_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
     let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
-    let merchant_account_create_request =
-        utils::user::create_merchant_account_request_for_org(req, org, default_product_type)?;
+    let merchant_account_create_request = utils::user::create_merchant_account_request_for_org(
+        req,
+        org.clone(),
+        default_product_type,
+    )?;
 
-    admin::create_merchant_account(state.clone(), merchant_account_create_request)
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?;
+    admin::create_merchant_account(
+        state.clone(),
+        merchant_account_create_request,
+        Some(auth::AuthenticationDataWithOrg {
+            organization_id: org.get_organization_id(),
+        }),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Error while creating a merchant")?;
 
     Ok(ApplicationResponse::StatusOk)
 }

@@ -158,7 +158,10 @@ pub fn mk_app(
                 .service(routes::PaymentMethodSession::server(state.clone()))
                 .service(routes::Refunds::server(state.clone()));
         }
-
+        #[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
+        {
+            server_app = server_app.service(routes::Tokenization::server(state.clone()));
+        }
         #[cfg(feature = "v1")]
         {
             server_app = server_app
@@ -227,6 +230,11 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::StripeApis::server(state.clone()))
             .service(routes::Cards::server(state.clone()));
+    }
+
+    #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+    {
+        server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
 
     #[cfg(all(feature = "recon", feature = "v1"))]

@@ -190,6 +190,7 @@ pub async fn get_organization(
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
+    org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
     use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
@@ -242,7 +243,12 @@ pub async fn create_merchant_account(
     };
 
     let domain_merchant_account = req
-        .create_domain_model_from_request(&state, key_store.clone(), &merchant_id)
+        .create_domain_model_from_request(
+            &state,
+            key_store.clone(),
+            &merchant_id,
+            org_data_from_auth,
+        )
         .await?;
     let key_manager_state = &(&state).into();
     db.insert_merchant_key_store(
@@ -257,6 +263,26 @@ pub async fn create_merchant_account(
         .insert_merchant(key_manager_state, domain_merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    // Call to DE here
+    // Check if creation should be based on default profile
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
 
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
@@ -281,6 +307,7 @@ trait MerchantAccountCreateBridge {
         state: &SessionState,
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
@@ -292,6 +319,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
@@ -341,7 +369,22 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         )
         .await?;
 
-        let organization = CreateOrValidateOrganization::new(self.organization_id)
+        let org_id = match (&self.organization_id, &org_data_from_auth) {
+            (Some(req_org_id), Some(auth)) => {
+                if req_org_id != &auth.organization_id {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Mismatched organization_id in request and authenticated context"
+                            .to_string(),
+                    }
+                    .into());
+                }
+                Some(req_org_id.clone())
+            }
+            (None, Some(auth)) => Some(auth.organization_id.clone()),
+            (req_org_id, _) => req_org_id.clone(),
+        };
+
+        let organization = CreateOrValidateOrganization::new(org_id)
             .create_or_validate(db)
             .await?;
 
@@ -647,6 +690,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        _org_data: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.accounts_store;
@@ -767,7 +811,16 @@ pub async fn list_merchant_account(
 pub async fn list_merchant_account(
     state: SessionState,
     req: api_models::admin::MerchantAccountListRequest,
+    org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    if let Some(auth) = org_data_from_auth {
+        if auth.organization_id != req.organization_id {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Organization ID in request and authentication do not match".to_string(),
+            }
+            .into());
+        }
+    }
     let merchant_accounts = state
         .store
         .list_merchant_accounts_by_organization_id(&(&state).into(), &req.organization_id)
@@ -1171,6 +1224,25 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
+    // Call to DE here
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled && is_deleted {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -1340,10 +1412,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bankofamerica::transformers::BankOfAmericaAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Barclaycard => {
-            //     barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Barclaycard => {
+                barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Billwerk => {
                 billwerk::transformers::BillwerkAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1650,6 +1722,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Tokenio => {
+            //     tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Tsys => {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1674,10 +1750,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Worldpayxml => {
-            //     worldpayxml::transformers::WorldpayxmlAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Worldpayxml => {
+                worldpayxml::transformers::WorldpayxmlAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Xendit => {
                 xendit::transformers::XenditAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -3758,7 +3834,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
         }
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -4257,7 +4333,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -4387,7 +4463,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
                 force_3ds_challenge: self.force_3ds_challenge, //
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
@@ -4523,7 +4599,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: None,
                 is_external_vault_enabled: self.is_external_vault_enabled,
