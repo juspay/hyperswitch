@@ -1961,7 +1961,7 @@ pub struct CardDetailsPaymentMethod {
     pub saved_to_locker: bool,
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
- 
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
@@ -1988,8 +1988,7 @@ impl CardDetailsPaymentMethod {
             card_issuer: self.card_issuer.clone(),
             card_network: self.card_network.clone(),
             card_type: self.card_type.clone(),
-            issuer_country: self
-            .clone().get_issuer_country_alpha2(),
+            issuer_country: self.clone().get_issuer_country_alpha2(),
             last4_digits: self.last4_digits,
             expiry_month: self.expiry_month,
             expiry_year: self.expiry_year,
@@ -2001,15 +2000,13 @@ impl CardDetailsPaymentMethod {
     }
 
     pub fn get_issuer_country_alpha2(self) -> Option<common_enums::CountryAlpha2> {
-        self
-                .issuer_country
-                .as_ref()
-                .map(|c| api_enums::CountryAlpha2::from_str(c))
-                .transpose()
-                .ok()
-                .flatten()
+        self.issuer_country
+            .as_ref()
+            .map(|c| api_enums::CountryAlpha2::from_str(c))
+            .transpose()
+            .ok()
+            .flatten()
     }
-
 }
 
 impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {

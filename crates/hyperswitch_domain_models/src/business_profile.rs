@@ -1902,11 +1902,10 @@ impl super::behaviour::Conversion for Profile {
                             key.peek(),
                         )
                         .await
-                        .and_then(|val| val.try_into_optionaloperation()) {
+                        .and_then(|val| val.try_into_optionaloperation())
+                        {
                             Ok(value) => value,
-                            Err(err) => {
-                                None
-                            }
+                            Err(err) => None,
                         }
                     }
                     None => None,
