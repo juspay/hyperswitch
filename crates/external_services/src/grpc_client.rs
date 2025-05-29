@@ -44,6 +44,7 @@ pub struct GrpcClients {
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
     #[cfg(feature = "v2")]
+    #[allow(missing_docs)]
     pub recovery_trainer_client: RecoveryTrainerClient,
 }
 
@@ -81,7 +82,7 @@ impl GrpcClientSettings {
             .expect("Failed to establish a connection with the Dynamic Routing Server");
 
         #[cfg(feature = "dynamic_routing")]
-        let health_client = HealthCheckClient::build_connections(self, client)
+        let health_client = HealthCheckClient::build_connections(self, client.clone())
             .await
             .expect("Failed to build gRPC connections");
 

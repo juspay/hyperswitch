@@ -35,8 +35,7 @@ fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
         // Compile the .proto file
         tonic_build::configure()
             .out_dir(out_dir)
-            .compile(&proto_files_to_compile, &[proto_base_path])
-            .expect("Failed to compile proto files");
+            .compile(&proto_files_to_compile, &[proto_base_path])?;
     }
     Ok(())
 }
