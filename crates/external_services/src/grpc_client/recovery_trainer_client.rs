@@ -1,8 +1,9 @@
 use common_utils::errors::CustomResult;
-use error_stack::{ResultExt, Report};
-use router_env::logger; 
+use error_stack::{Report, ResultExt};
+use router_env::logger;
+
+use super::Client;
 use crate::grpc_client::{self, GrpcHeaders};
-use super::Client; 
 
 #[allow(
     missing_docs,
@@ -72,7 +73,7 @@ impl RecoveryTrainerClient {
         })
     }
 
-    #[allow(clippy::too_many_arguments,missing_docs)]
+    #[allow(clippy::too_many_arguments, missing_docs)]
     pub async fn get_trainer_time(
         &mut self,
         first_error_message: String,
@@ -83,7 +84,6 @@ impl RecoveryTrainerClient {
         txn_time: i64,
         headers: GrpcHeaders,
     ) -> RecoveryTrainerResult<RecoveryTrainerResponse> {
-
         let request = grpc_client::create_grpc_request(
             RecoveryTrainerRequest {
                 first_error_message,
