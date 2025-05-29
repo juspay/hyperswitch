@@ -5701,7 +5701,7 @@
         ]
       }
     },
-    "account/{account_id}/merchant_acquirers": {
+    "/account/{account_id}/merchant_acquirers": {
       "post": {
         "tags": [
           "Merchant Acquirer"
@@ -5709,6 +5709,17 @@
         "summary": "Merchant Acquirer - Create",
         "description": "Create a new Merchant Acquirer for accessing our APIs from your servers.",
         "operationId": "Create a Merchant Acquirer",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
