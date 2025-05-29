@@ -231,7 +231,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) =
             payment_method_data.clone()
         {
-            if let Some(customer_id) = payment_intent.customer_id.clone() {
+            if let Some(customer_acceptance) = request.customer_acceptance.clone() {
+                let customer_id = match payment_intent.customer_id.clone() {
+                    Some(customer_id) => customer_id,
+                    None => {
+                        return Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "customer_id",
+                        })
+                        .attach_printable("customer_id not provided");
+                    }
+                };
                 let pm_create_data = api_models::payment_methods::PaymentMethodCreateData::Card(
                     api_models::payment_methods::CardDetail {
                         card_number: card.card_number,
