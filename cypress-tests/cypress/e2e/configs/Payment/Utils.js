@@ -2,6 +2,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
@@ -38,6 +39,7 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
+  aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
@@ -186,7 +188,7 @@ export const should_continue_further = (data) => {
   } else {
     return true;
   }
-};
+}
 
 export function defaultErrorHandler(response, response_data) {
   if (
