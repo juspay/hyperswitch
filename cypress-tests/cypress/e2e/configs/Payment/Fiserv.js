@@ -928,14 +928,6 @@ export const connectorDetails = {
       },
     },
   },
-  // Add payment method list configurations if needed
-  pm_list: {
-    PmListResponse: {
-      PmListNull: {
-        payment_methods: [],
-      },
-    },
-  },
 
   // Error case configurations
   InvalidCardNumber: {
