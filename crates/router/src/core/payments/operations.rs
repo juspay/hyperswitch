@@ -223,7 +223,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 }
 
 #[async_trait]
-pub trait Domain<F: Clone, R, D: Clone>: Send + Sync {
+pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
