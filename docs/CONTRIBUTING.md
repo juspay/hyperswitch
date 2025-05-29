@@ -18,7 +18,7 @@ You can also get help with contributing on our [Discord server][discord],
 Please join us!
 
 [discord]: https://discord.gg/wJZ7DVW8mm
-[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-362xmn7hg-ujdw8Wvx_~BgNTLrCcdCPw
+[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg
 [discussions]: https://github.com/juspay/hyperswitch/discussions
 
 ## Table of Contents
@@ -62,18 +62,17 @@ This describes the _minimum_ behavior expected from all contributors.
 ## What's Included❓
 
 ### Repositories
+The current setup contains three different repositories, corresponding to the different Hyperswitch components.  
 
-The current setup contains three different repositories, corresponding to the different Hyperswitch components.
+- [App Server][app-server] - The core payments engine responsible for managing payment flows, payment unification and smart routing. App server is maintained in this repo itself.  
 
-- [App Server][app-server] - The core payments engine responsible for managing payment flows, payment unification and smart routing. App server is maintained in this repo itself.
+- [Web Client (SDK)][web-client] - An inclusive, consistent and blended payment experience optimized for the best payment conversions.  
 
-- [Web Client (SDK)][web-client] - An inclusive, consistent and blended payment experience optimized for the best payment conversions.
+- [Control center][control-center] - A dashboard for payment analytics and operations, managing payment processors or payment methods and configuring payment routing rules.  
 
-- [Control center][control-center] - A dashboard for payment analytics and operations, managing payment processors or payment methods and configuring payment routing rules.
-
-[app-server]: https://github.com/juspay/hyperswitch
-[web-client]: https://github.com/juspay/hyperswitch-web
-[control-center]: https://github.com/juspay/hyperswitch-control-center
+[app-server]: https://github.com/juspay/hyperswitch  
+[web-client]: https://github.com/juspay/hyperswitch-web  
+[control-center]: https://github.com/juspay/hyperswitch-control-center  
 
 ### Files Tree Layout
 
@@ -277,12 +276,10 @@ To generate code coverage using the cypress tests, follow these steps:
    ```
 
 Note:
-
 - It is necessary to stop the `router` process to generate the coverage file
 - Branch coverage generation requires nightly and currently `grcov` crashes while trying to include branch coverage. (Checked using `--log-level` parameter in `grcov`)
 
 #### Integration with VSCode
-
 You can also visualize code coverage in VSCode using the [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) extension.
 
 You need to generate an `lcov.info` file in the directory root. After following till step 4 above:
@@ -315,6 +312,7 @@ in which case force pushing is okay for that request.
 
 Note that squashing at the end of the review process should also not be done,
 that can be done when the pull request is integrated via GitHub.
+
 
 #### Commit message guidelines
 

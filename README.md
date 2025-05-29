@@ -31,7 +31,7 @@ Single API to access the payments ecosystem and its features
   <a href="https://x.com/hyperswitchio">
     <img src="https://img.shields.io/badge/follow-%40hyperswitchio-white?logo=x&labelColor=grey"/>
   </a>
-  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-362xmn7hg-ujdw8Wvx_~BgNTLrCcdCPw">
+  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw">
     <img src="https://img.shields.io/badge/chat-on_slack-blue?logo=slack&labelColor=grey&color=%233f0e40"/>
   </a>
   <a href="https://deepwiki.com/juspay/hyperswitch">
@@ -47,9 +47,9 @@ Single API to access the payments ecosystem and its features
 2. [Try Hyperswitch](#try-hyperswitch)
 3. [Architectural Overview](#architectural-overview)
 4. [Community & Contributions](#community-and-contributions)
-5. [Feature requests & Bugs](#feature-requests)
-6. [Our Vision](#our-vision)
-7. [Versioning](#versioning)
+5. [Feature requests & Bugs](#feature-requests)  
+6. [Our Vision](#our-vision)  
+7. [Versioning](#versioning)  
 8. [Copyright and License](#copyright-and-license)
 
 <a href="#introduction">
@@ -59,11 +59,11 @@ Juspay, founded in 2012, is a global leader in payment orchestration and checkou
 
 Here are the key components of Hyperswitch that deliver the whole solution:
 
-- [Hyperswitch Backend](https://github.com/juspay/hyperswitch): Hyperswitch backend enables seamless payment processing with comprehensive support for various payment flows - authorization, authentication, void and capture workflows along with robust management of post-payment processes like refunds and chargeback handling. Additionally, Hyperswitch supports non-payment use cases by enabling connections with external FRM or authentication providers as part of the payment flow. The backend optimizes payment routing with customizable workflows, including success rate-based routing, rule-based routing, volume distribution, fallback handling, and intelligent retry mechanisms for failed payments based on specific error codes.
+* [Hyperswitch Backend](https://github.com/juspay/hyperswitch): Hyperswitch backend enables seamless payment processing with comprehensive support for various payment flows - authorization, authentication, void and capture workflows along with robust management of post-payment processes like refunds and chargeback handling. Additionally, Hyperswitch supports non-payment use cases by enabling connections with external FRM or authentication providers as part of the payment flow. The backend optimizes payment routing with customizable workflows, including success rate-based routing, rule-based routing, volume distribution, fallback handling, and intelligent retry mechanisms for failed payments based on specific error codes.
 
-- [SDK (Frontend)](https://github.com/juspay/hyperswitch-web): The SDK, available for web, [Android, and iOS](https://github.com/juspay/hyperswitch-client-core), unifies the payment experience across various methods such as cards, wallets, BNPL, bank transfers, and more, while supporting the diverse payment flows of underlying PSPs. When paired with the locker, it surfaces the user's saved payment methods.
+* [SDK (Frontend)](https://github.com/juspay/hyperswitch-web): The SDK, available for web, [Android, and iOS](https://github.com/juspay/hyperswitch-client-core), unifies the payment experience across various methods such as cards, wallets, BNPL, bank transfers, and more, while supporting the diverse payment flows of underlying PSPs. When paired with the locker, it surfaces the user's saved payment methods.    
 
-- [Control Center](https://github.com/juspay/hyperswitch-control-center): The Control Center enables users to manage the entire payments stack without any coding. It allows the creation of workflows for routing, payment retries, and defining conditions to invoke 3DS, fraud risk management (FRM), and surcharge modules. The Control Center provides access to transaction, refund, and chargeback operations across all integrated PSPs, transaction-level logs for initial debugging, and detailed analytics and insights into payment performance.
+* [Control Center](https://github.com/juspay/hyperswitch-control-center): The Control Center enables users to manage the entire payments stack without any coding. It allows the creation of workflows for routing, payment retries, and defining conditions to invoke 3DS, fraud risk management (FRM), and surcharge modules. The Control Center provides access to transaction, refund, and chargeback operations across all integrated PSPs, transaction-level logs for initial debugging, and detailed analytics and insights into payment performance.
 
 Read more at [Hyperswitch docs](https://docs.hyperswitch.io/).
 
@@ -84,7 +84,6 @@ scripts/setup.sh
 ```
 
 The above script will:
-
 - Check for prerequisites (Docker Compose/Podman)
 - Set up necessary configurations
 - Let you select a deployment profile:
@@ -99,6 +98,7 @@ The next step is to [configure a connector][configure-a-connector] with the Hype
 
 Check out the [local setup guide][local-setup-guide] for more details on setting up the entire stack or component wise.
 
+
 ### 2. Deployment on cloud
 
 The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
@@ -110,17 +110,17 @@ The fastest and easiest way to try Hyperswitch on AWS is via our CDK scripts
 
 2. Sign-in to your AWS console.
 
-3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 30-45mins and gives the following output
+3. Follow the instructions provided on the console to successfully deploy Hyperswitch. This takes 30-45mins and gives the following output 
 
-| Service                           | Host                                                                                                          |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| App server running on             | `http://hyperswitch-<host-id.region>.elb.amazonaws.com`                                                       |
-| HyperloaderJS Hosted at           | `http://<cloudfront.host-id>/0.103.1/v0/HyperLoader.js`                                                       |
-| Control center server running on  | `http://hyperswitch-control-center-<host-id.region>.elb.amazonaws.com`, Login with Email: `test@gmail.com`    |
-| Hyperswitch Demo Store running on | `http://hyperswitch-sdk-demo-<host-id.region>.elb.amazonaws.com`                                              |
-| Logs server running on            | `http://hyperswitch-logs-<host-id.region>.elb.amazonaws.com`, Login with username: `admin`, password: `admin` |
+| Service| Host|
+|----------------------------------------------|----------------------------------------------|
+| App server running on                        | `http://hyperswitch-<host-id.region>.elb.amazonaws.com` |
+| HyperloaderJS Hosted at                      | `http://<cloudfront.host-id>/0.103.1/v0/HyperLoader.js` |
+| Control center server running on             | `http://hyperswitch-control-center-<host-id.region>.elb.amazonaws.com`, Login with Email: `test@gmail.com` |
+| Hyperswitch Demo Store running on            | `http://hyperswitch-sdk-demo-<host-id.region>.elb.amazonaws.com` |
+| Logs server running on                       | `http://hyperswitch-logs-<host-id.region>.elb.amazonaws.com`, Login with username: `admin`, password: `admin` |
 
-We support deployment on GCP and Azure via Helm charts which takes 30-45mins. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm).
+We support deployment on GCP and Azure via Helm charts which takes 30-45mins. You can read more at [Hyperswitch docs](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm). 
 
 ### 3. Hosted Sandbox
 
@@ -149,7 +149,7 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
   <h2 id="community-and-contributions">Community & Contributions</h2>
 </a>
 
-If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-362xmn7hg-ujdw8Wvx_~BgNTLrCcdCPw).
+If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw).
 
 We welcome contributors from around the world to help build Hyperswitch. To get started, please read our [contribution guidelines](contributing-guidelines).
 
@@ -198,6 +198,7 @@ Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
+
 
 <a href="team-behind-hyperswitch">
   <h2 id="team-behind-hyperswitch">Team behind Hyperswitch</h2>
