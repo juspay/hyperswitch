@@ -1,3 +1,4 @@
+use common_enums::AuthenticationStatus;
 use common_utils::{
     errors::ParsingError,
     types::{authentication::AuthInfo, TimeRange},
@@ -10,8 +11,6 @@ use crate::{
     query::{Aggregate, QueryBuilder, QueryFilter},
     types::{AnalyticsCollection, MetricsError, MetricsResult},
 };
-
-use common_enums::AuthenticationStatus;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SankeyRow {

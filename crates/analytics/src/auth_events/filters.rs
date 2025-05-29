@@ -1,6 +1,5 @@
 use api_models::analytics::{auth_events::AuthEventDimensions, Granularity, TimeRange};
-use common_enums::Currency;
-use common_enums::DecoupledAuthenticationType;
+use common_enums::{Currency, DecoupledAuthenticationType};
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
 use error_stack::ResultExt;
