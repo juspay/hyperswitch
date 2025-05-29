@@ -1623,14 +1623,26 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
                   );
                 }
               } else {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 expect(response.body)
                   .to.have.property("next_action")
                   .to.have.property("redirect_to_url");
@@ -1666,8 +1678,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2062,7 +2074,7 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2095,8 +2107,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2205,8 +2217,8 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2270,8 +2282,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2678,8 +2690,8 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2723,8 +2735,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for all connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2735,13 +2747,13 @@ Cypress.Commands.add(
                   .to.have.property("next_action")
                   .to.have.property("redirect_to_url");
 
-                  const nextActionUrl = response.body.next_action.redirect_to_url;
-                  globalState.set(
+                const nextActionUrl = response.body.next_action.redirect_to_url;
+                globalState.set(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
                 );
 
-              cy.log(nextActionUrl);
+                cy.log(nextActionUrl);
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2858,8 +2870,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2876,7 +2888,6 @@ Cypress.Commands.add(
                   response.body.next_action.redirect_to_url
                 );
                 for (const key in resData.body) {
-                  
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
                   );
@@ -3055,8 +3066,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -3066,8 +3077,8 @@ Cypress.Commands.add(
                 expect(response.body)
                   .to.have.property("next_action")
                   .to.have.property("redirect_to_url");
-                  const nextActionUrl = response.body.next_action.redirect_to_url;
-                             cy.log(nextActionUrl);
+                const nextActionUrl = response.body.next_action.redirect_to_url;
+                cy.log(nextActionUrl);
                 globalState.set(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
@@ -3165,8 +3176,8 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -3176,11 +3187,12 @@ Cypress.Commands.add(
                 expect(response.body)
                   .to.have.property("next_action")
                   .to.have.property("redirect_to_url");
-                    const nextActionUrl = response.body.next_action.redirect_to_url;
+                const nextActionUrl = response.body.next_action.redirect_to_url;
                 globalState.set(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
                 );
+                cy.log(nextActionUrl);
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]

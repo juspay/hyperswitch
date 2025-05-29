@@ -44,7 +44,7 @@ const multiUseMandateData = {
   },
 };
 
-export const connectorDetails ={
+export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -80,7 +80,7 @@ export const connectorDetails ={
       },
     },
     "3DSAutoCapture": {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -198,82 +198,82 @@ export const connectorDetails ={
       },
     },
     MandateSingleUse3DSAutoCapture: {
-        Configs:{
-          TRIGGER_SKIP: true,
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
         },
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulThreeDSTestCardDetails,
-           },
-           currency: "USD",
-           mandate_data: singleUseMandateData,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       MandateSingleUseNo3DSAutoCapture: {
-         Configs:{
-          TRIGGER_SKIP: true,
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulNo3DSCardDetails,
-           },
-           currency: "USD",
-           mandate_data: singleUseMandateData,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       MandateMultiUseNo3DSAutoCapture: {
-         Configs:{
-          TRIGGER_SKIP: true,
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulNo3DSCardDetails,
-           },
-           currency: "USD",
-           mandate_data: multiUseMandateData,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       MandateMultiUse3DSAutoCapture: {
-         Configs:{
-          TRIGGER_SKIP: true,
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulThreeDSTestCardDetails,
-           },
-           currency: "USD",
-           mandate_data: multiUseMandateData,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "requires_capture",
-           },
-         },
-       },
-       ZeroAuthMandate: {
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    ZeroAuthMandate: {
       Response: {
         status: 501,
         body: {
@@ -319,117 +319,117 @@ export const connectorDetails ={
         },
       },
     },
-       SaveCardUseNo3DSAutoCapture: {
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulNo3DSCardDetails,
-           },
-           currency: "USD",
-           setup_future_usage: "on_session",
-           customer_acceptance: customerAcceptance,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       SaveCardUseNo3DSAutoCaptureOffSession: {
-         Configs:{
-          TRIGGER_SKIP: true,
+    SaveCardUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
-         Request: {
-           payment_method: "card",
-           payment_method_type: "debit",
-           payment_method_data: {
-             card: successfulNo3DSCardDetails,
-           },
-           setup_future_usage: "off_session",
-           customer_acceptance: customerAcceptance,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-   
-       SaveCardUse3DSAutoCaptureOffSession: {
-         Configs:{
-          TRIGGER_SKIP: true,
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
-         Request: {
-           payment_method: "card",
-           payment_method_type: "debit",
-           payment_method_data: {
-             card: successfulThreeDSTestCardDetails,
-           },
-           setup_future_usage: "off_session",
-           customer_acceptance: customerAcceptance,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "requires_customer_action",
-           },
-         },
-       },
-       SaveCardConfirmAutoCaptureOffSession: {
-         Request: {
-           setup_future_usage: "off_session",
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       PaymentMethodIdMandateNo3DSAutoCapture: {
-         Configs:{
-          TRIGGER_SKIP: true,
+      },
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulNo3DSCardDetails,
-           },
-           currency: "USD",
-           mandate_data: null,
-           customer_acceptance: customerAcceptance,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       PaymentMethodIdMandate3DSAutoCapture: {
-         Configs:{
-          TRIGGER_SKIP: true,
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
-         Request: {
-           payment_method: "card",
-           payment_method_data: {
-             card: successfulThreeDSTestCardDetails,
-           },
-           currency: "USD",
-           mandate_data: null,
-           authentication_type: "three_ds",
-           customer_acceptance: customerAcceptance,
-         },
-         Response: {
-           status: 200,
-           body: {
-             status: "succeeded",
-           },
-         },
-       },
-       No3DSFailPayment: {
+      },
+    },
+
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -443,7 +443,8 @@ export const connectorDetails ={
         body: {
           status: "failed",
           error_code: "200.300.404",
-          error_message: "Field is card.expiryYear and the message is must match ^[0-9]{4}$",
+          error_message:
+            "Field is card.expiryYear and the message is must match ^[0-9]{4}$",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },

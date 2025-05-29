@@ -188,7 +188,7 @@ export const should_continue_further = (data) => {
   } else {
     return true;
   }
-}
+};
 
 export function defaultErrorHandler(response, response_data) {
   if (

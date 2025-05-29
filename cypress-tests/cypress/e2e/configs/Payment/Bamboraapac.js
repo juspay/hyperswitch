@@ -48,24 +48,6 @@ const multiUseMandateData = {
   },
 };
 
-const payment_method_data_3ds = {
-  card: {
-    last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "Bambora",
-    card_issuing_country: "AU",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "50",
-    card_holder_name: "morino",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
-
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
