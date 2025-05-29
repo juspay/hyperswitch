@@ -2,7 +2,7 @@ use diesel::{prelude::Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::schema::merchant_acquirer;
+use crate::{enums as storage_enums, schema::merchant_acquirer};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = merchant_acquirer, primary_key(merchant_acquirer_id), check_for_backend(diesel::pg::Pg))]
@@ -11,8 +11,8 @@ pub struct MerchantAcquirer {
     pub acquirer_assigned_merchant_id: String,
     pub merchant_name: String,
     pub mcc: String,
-    pub merchant_country_code: String,
-    pub network: common_enums::enums::CardNetwork,
+    pub merchant_country_code: storage_enums::CountryAlpha2,
+    pub network: storage_enums::CardNetwork,
     pub acquirer_bin: String,
     pub acquirer_ica: Option<String>,
     pub acquirer_fraud_rate: f64,
@@ -38,8 +38,8 @@ pub struct MerchantAcquirerNew {
     pub acquirer_assigned_merchant_id: String,
     pub merchant_name: String,
     pub mcc: String,
-    pub merchant_country_code: String,
-    pub network: common_enums::enums::CardNetwork,
+    pub merchant_country_code: storage_enums::CountryAlpha2,
+    pub network: storage_enums::CardNetwork,
     pub acquirer_bin: String,
     pub acquirer_ica: Option<String>,
     pub acquirer_fraud_rate: f64,

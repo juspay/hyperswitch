@@ -15199,7 +15199,7 @@
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
-            "example": "dugduwhqdiuhqw_123"
+            "example": "M123456789"
           },
           "merchant_name": {
             "type": "string",
@@ -15219,11 +15219,11 @@
           },
           "acquirer_bin": {
             "type": "string",
-            "example": "123456"
+            "example": "456789"
           },
           "acquirer_ica": {
             "type": "string",
-            "example": "123456"
+            "example": "401288"
           },
           "acquirer_fraud_rate": {
             "type": "number",
@@ -15248,8 +15248,7 @@
           "acquirer_bin",
           "acquirer_ica",
           "acquirer_fraud_rate",
-          "profile_id",
-          "created_at"
+          "profile_id"
         ],
         "properties": {
           "merchant_acquirer_id": {
@@ -15258,7 +15257,7 @@
           },
           "acquirer_assigned_merchant_id": {
             "type": "string",
-            "example": "dugduwhqdiuhqw_123"
+            "example": "M123456789"
           },
           "merchant_name": {
             "type": "string",
@@ -15278,11 +15277,11 @@
           },
           "acquirer_bin": {
             "type": "string",
-            "example": "123456"
+            "example": "456789"
           },
           "acquirer_ica": {
             "type": "string",
-            "example": "123456"
+            "example": "401288"
           },
           "acquirer_fraud_rate": {
             "type": "number",
@@ -15292,10 +15291,6 @@
           "profile_id": {
             "type": "string",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
