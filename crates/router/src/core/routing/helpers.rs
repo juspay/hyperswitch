@@ -1454,7 +1454,8 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
             common_enums::AttemptStatus::Unresolved => Self::Pending,
-            common_enums::AttemptStatus::Pending | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
+            common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
             common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,

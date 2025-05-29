@@ -713,7 +713,8 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 
@@ -731,8 +732,9 @@ impl
                 Some(total_amount)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Failed => Some(MinorUnit::zero()),
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -744,7 +746,8 @@ impl
             common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 }
@@ -925,7 +928,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 
@@ -949,8 +953,9 @@ impl
                 Some(amount_captured)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Failed => Some(MinorUnit::zero()),
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
             common_enums::IntentStatus::RequiresCapture => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
@@ -961,7 +966,8 @@ impl
             | common_enums::IntentStatus::Processing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::Conflicted => None,
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
@@ -1159,7 +1165,8 @@ impl
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Conflicted => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1192,8 +1199,9 @@ impl
                 Some(amount_captured)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Failed => Some(MinorUnit::zero()),
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1207,7 +1215,8 @@ impl
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 }
@@ -1403,7 +1412,8 @@ impl
             }
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 
@@ -1421,8 +1431,9 @@ impl
                 Some(total_amount)
             }
             // No amount is captured
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Failed => Some(MinorUnit::zero()),
+            common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Failed => {
+                Some(MinorUnit::zero())
+            }
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1434,7 +1445,8 @@ impl
             common_enums::IntentStatus::RequiresCapture => Some(MinorUnit::zero()),
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Conflicted => None,
         }
     }
 }

@@ -6,7 +6,10 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector,
+    },
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -56,7 +59,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Trustpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync)
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Trustpay {

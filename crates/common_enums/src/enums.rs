@@ -1607,17 +1607,15 @@ impl IntentStatus {
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
-            Self::Succeeded
-            | Self::Failed
-            | Self::Cancelled
-            | Self::PartiallyCaptured => true,
+            Self::Succeeded | Self::Failed | Self::Cancelled | Self::PartiallyCaptured => true,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::RequiresPaymentMethod
             | Self::RequiresConfirmation
             | Self::RequiresCapture
-            | Self::PartiallyCapturedAndCapturable | Self::Conflicted => false,
+            | Self::PartiallyCapturedAndCapturable
+            | Self::Conflicted => false,
         }
     }
 

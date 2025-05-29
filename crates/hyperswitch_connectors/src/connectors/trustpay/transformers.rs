@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
     request::Method,
-    types::{StringMajorUnit, FloatMajorUnit}
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
