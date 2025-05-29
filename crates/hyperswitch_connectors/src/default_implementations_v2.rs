@@ -26,7 +26,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        AccessTokenAuth, ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultRetrieveFlow,
     },
     router_request_types::{
@@ -109,7 +109,8 @@ use hyperswitch_interfaces::{
             RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
         vault_v2::{
-            ExternalVaultDeleteV2, ExternalVaultInsertV2, ExternalVaultRetrieveV2, ExternalVaultV2,
+            ExternalVaultCreateV2, ExternalVaultDeleteV2, ExternalVaultInsertV2,
+            ExternalVaultRetrieveV2, ExternalVaultV2,
         },
         ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
@@ -3237,6 +3238,7 @@ macro_rules! default_imp_for_new_connector_integration_external_vault {
             impl ExternalVaultInsertV2 for $path::$connector {}
             impl ExternalVaultRetrieveV2 for $path::$connector {}
             impl ExternalVaultDeleteV2 for $path::$connector {}
+            impl ExternalVaultCreateV2 for $path::$connector {}
             impl
             ConnectorIntegrationV2<
             ExternalVaultInsertFlow,
@@ -3256,6 +3258,14 @@ macro_rules! default_imp_for_new_connector_integration_external_vault {
         impl
             ConnectorIntegrationV2<
             ExternalVaultDeleteFlow,
+            VaultConnectorFlowData,
+            VaultRequestData,
+            VaultResponseData,
+        > for $path::$connector
+        {}
+        impl
+            ConnectorIntegrationV2<
+            ExternalVaultCreateFlow,
             VaultConnectorFlowData,
             VaultRequestData,
             VaultResponseData,

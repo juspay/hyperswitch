@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, str::FromStr};
 
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
@@ -8,26 +8,40 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     payments::HeaderPayload,
     router_data::{PaymentMethodToken, RouterData},
+    router_data_v2::{flow_common_types::VaultConnectorFlowData, RouterDataV2},
+    router_flow_types::ExternalVaultCreateFlow,
     router_request_types::CustomerDetails,
+    types::{VaultRouterData, VaultRouterDataV2},
 };
-use router_env::{instrument, tracing};
+use hyperswitch_interfaces::{
+    api::Connector as ConnectorTrait,
+    connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+};
+use masking::ExposeInterface;
+use router_env::{env::Env, instrument, tracing};
 
 use crate::{
     core::{
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
-            call_multiple_connectors_service,
+            self as payments_core, call_multiple_connectors_service, customers,
             flows::{ConstructFlowSpecificData, Feature},
-            helpers, operations,
+            helpers, helpers as payment_helpers, operations,
             operations::{BoxedOperation, Operation},
             transformers, OperationSessionGetters, OperationSessionSetters,
         },
+        utils as core_utils,
     },
+    db::errors::ConnectorErrorExt,
     errors::RouterResponse,
     routes::{app::ReqState, SessionState},
-    services,
-    types::{self as router_types, api, domain},
-    utils::ValueExt,
+    services::{self, connector_integration_interface::RouterDataConversion},
+    types::{
+        self as router_types,
+        api::{self, enums as api_enums},
+        domain, storage,
+    },
+    utils::{OptionExt, ValueExt},
 };
 
 #[cfg(feature = "v2")]
@@ -211,37 +225,153 @@ where
     let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
-        let external_vault_source = profile
-            .external_vault_connector_details
-            .as_ref()
-            .map(|details| &details.vault_connector_id);
-
-        let merchant_connector_account = helpers::get_merchant_connector_account(
-            state,
-            merchant_context.get_merchant_account().get_id(),
-            None,
-            merchant_context.get_merchant_key_store(),
-            profile.get_id(),
-            "",
-            external_vault_source,
-        )
-        .await?;
-
-        let connector_name = merchant_connector_account
-            .get_connector_name()
-            .unwrap_or_default(); // always get the connector name from the merchant_connector_account
-
-        let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account
-            .get_connector_account_details()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        let env = state.conf.env;
-
         let vault_session_details =
-            helpers::generate_vault_session_details(&connector_name, env, connector_auth_type);
+            generate_vault_session_details(state, merchant_context, profile).await?;
 
         payment_data.set_vault_session_details(vault_session_details);
     }
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn generate_vault_session_details(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    profile: &domain::Profile,
+) -> RouterResult<Option<api::VaultSessionDetails>> {
+    let external_vault_source = profile
+        .external_vault_connector_details
+        .as_ref()
+        .map(|details| &details.vault_connector_id);
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        merchant_context.get_merchant_account().get_id(),
+        None,
+        merchant_context.get_merchant_key_store(),
+        profile.get_id(),
+        "",
+        external_vault_source,
+    )
+    .await?;
+
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .unwrap_or_default(); // always get the connector name from the merchant_connector_account
+    let connector = api_enums::VaultConnectors::from_str(&connector_name);
+    let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    match connector {
+        Ok(api_enums::VaultConnectors::Vgs) => match connector_auth_type {
+            router_types::ConnectorAuthType::SignatureKey { api_secret, .. } => {
+                let sdk_env = match state.conf.env {
+                    Env::Sandbox | Env::Development => "sandbox",
+                    Env::Production => "live",
+                }
+                .to_string();
+                Ok(Some(api::VaultSessionDetails::Vgs(
+                    api::VgsSessionDetails {
+                        external_vault_id: api_secret,
+                        sdk_env,
+                    },
+                )))
+            }
+            _ => Ok(None),
+        },
+        Ok(api_enums::VaultConnectors::HyperswitchVault) => match connector_auth_type {
+            router_types::ConnectorAuthType::SignatureKey {
+                key1, api_secret, ..
+            } => {
+                let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector_name,
+                    api::GetToken::Connector,
+                    merchant_connector_account.get_mca_id(),
+                )?;
+
+                let connector_response = call_external_vault_connector_service(
+                    state,
+                    merchant_context,
+                    &connector_data,
+                    &merchant_connector_account,
+                )
+                .await?;
+
+                match connector_response.response {
+                    Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
+                        session_id,
+                        client_secret,
+                    }) => {
+                        let vault_session_details = api::VaultSessionDetails::HyperswitchVault(
+                            api::HyperswitchVaultSessionDetails {
+                                payment_method_session_id: session_id,
+                                client_secret,
+                                publishable_key: key1,
+                                profile_id: api_secret,
+                            },
+                        );
+                        Ok(Some(vault_session_details))
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
+
+#[cfg(feature = "v2")]
+async fn call_external_vault_connector_service(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    connector_data: &api::ConnectorData,
+    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+) -> RouterResult<VaultRouterData<ExternalVaultCreateFlow>>
+where
+    dyn ConnectorTrait + Sync: services::api::ConnectorIntegration<
+        ExternalVaultCreateFlow,
+        router_types::VaultRequestData,
+        router_types::VaultResponseData,
+    >,
+    dyn ConnectorV2 + Sync: ConnectorIntegrationV2<
+        ExternalVaultCreateFlow,
+        VaultConnectorFlowData,
+        router_types::VaultRequestData,
+        router_types::VaultResponseData,
+    >,
+{
+    let mut router_data = core_utils::construct_vault_router_data(
+        state,
+        merchant_context.get_merchant_account(),
+        merchant_connector_account,
+        None,
+        None,
+    )
+    .await?;
+
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the external vault create api call",
+        )?;
+
+    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+        ExternalVaultCreateFlow,
+        router_types::VaultRequestData,
+        router_types::VaultResponseData,
+    > = connector_data.connector.get_connector_integration();
+    services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &old_router_data,
+        CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_vault_failed_response()
 }

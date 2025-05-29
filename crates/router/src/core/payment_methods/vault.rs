@@ -1452,7 +1452,8 @@ pub fn get_vault_response_for_retrieve_payment_method_data<F>(
                 Ok(pm_types::VaultRetrieveResponse { data: vault_data })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
-            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -1617,7 +1618,8 @@ pub fn get_vault_response_for_delete_payment_method_data<F>(
                 })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
-            | types::VaultResponseData::ExternalVaultRetrieveResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }

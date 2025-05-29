@@ -7027,7 +7027,7 @@ pub struct HyperswitchVaultSessionDetails {
     /// Client secret for Hyperswitch Vault
     pub client_secret: Secret<String>,
     /// Publishable key for Hyperswitch Vault
-    pub publishable_key: String,
+    pub publishable_key: Secret<String>,
     /// Profile ID for Hyperswitch Vault
     pub profile_id: Secret<String>,
 }

@@ -1935,7 +1935,8 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                 entity_id: None,
             }),
             types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
-            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
