@@ -6595,7 +6595,7 @@ pub enum UnifiedAuthenticationServiceFlow {
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
     ClickToPayConfirmation,
 }
@@ -6677,7 +6677,7 @@ pub enum PaymentExternalAuthenticationFlow {
         token: String,
     },
     PostAuthenticationFlow {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
 }
 

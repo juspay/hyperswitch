@@ -126,6 +126,9 @@ pub enum ApiEventsType {
         token_id: Option<id_type::GlobalTokenId>,
     },
     ProcessTracker,
+    Authentication {
+        authentication_id: id_type::AuthenticationId,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}
