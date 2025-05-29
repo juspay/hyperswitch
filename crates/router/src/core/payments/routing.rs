@@ -6,6 +6,7 @@ use std::collections::hash_map;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -35,6 +36,7 @@ use external_services::grpc_client::dynamic_routing::{
     DynamicRoutingError,
 };
 use hyperswitch_domain_models::address::Address;
+use hyperswitch_interfaces::events::routing_api_logs::{RoutingEngine, RoutingEvent};
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -1759,12 +1761,29 @@ pub async fn perform_decide_gateway_call_with_open_router(
         state.tenant.tenant_id.get_string_repr().to_owned().into(),
     );
     request.set_body(request::RequestContent::Json(Box::new(
-        open_router_req_body,
+        open_router_req_body.clone(),
     )));
+
+    let serialized_request = serde_json::to_value(&open_router_req_body)
+        .change_context(errors::RoutingError::OpenRouterCallFailed)
+        .attach_printable("Failed to serialize open_router request body")?;
 
     let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
         .await
         .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+
+    let mut routing_event = RoutingEvent::new(
+        state.tenant.tenant_id.clone(),
+        vec![],
+        "open_router_decide_gateway_call",
+        serialized_request,
+        url.clone(),
+        services::Method::Post,
+        payment_attempt.payment_id.get_string_repr().to_string(),
+        profile_id.to_owned(),
+        state.request_id.clone(),
+        RoutingEngine::DecisionEngine,
+    );
 
     let sr_sorted_connectors = match response {
         Ok(resp) => {
@@ -1794,6 +1813,11 @@ pub async fn perform_decide_gateway_call_with_open_router(
                         .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
+
+            routing_event.set_status_code(resp.status_code);
+            routing_event.set_routable_connectors(routable_connectors.clone());
+            state.event_handler().log_event(&routing_event);
+
             Ok(routable_connectors)
         }
         Err(err) => {
@@ -1804,6 +1828,11 @@ pub async fn perform_decide_gateway_call_with_open_router(
                     "Failed to parse the response from open_router".into(),
                 ))?;
             logger::error!("open_router_error_response: {:?}", err_resp);
+
+            routing_event.set_status_code(err.status_code);
+            routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
+            state.event_handler().log_event(&routing_event);
+
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to perform decide_gateway call in open_router".into(),
             ))
