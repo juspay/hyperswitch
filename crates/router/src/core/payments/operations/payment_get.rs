@@ -41,7 +41,7 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Cancelled 
+            | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Conflicted => Ok(()),
             // These statuses are not valid for this operation
             common_enums::IntentStatus::RequiresConfirmation
