@@ -1311,6 +1311,8 @@ Cypress.Commands.add(
           const clientSecret = response.body.client_secret;
           globalState.set("clientSecret", clientSecret);
           globalState.set("paymentID", response.body.payment_id);
+          // Store the actual setup_future_usage value from the response
+          globalState.set("actualSetupFutureUsage", response.body.setup_future_usage);
           cy.log(clientSecret);
           for (const key in resData.body) {
             expect(resData.body[key]).to.equal(
@@ -2023,6 +2025,8 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
           globalState.set("paymentID", response.body.payment_id);
+          // Store the actual setup_future_usage value from the response
+          globalState.set("actualSetupFutureUsage", response.body.setup_future_usage);
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -2117,7 +2121,10 @@ Cypress.Commands.add(
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
-    if (reqData.setup_future_usage === "on_session") {
+    // Add card_cvc if actual setup_future_usage is "on_session"
+    // This covers both explicit on_session and fallback cases
+    if (globalState.get("actualSetupFutureUsage") === "on_session" && 
+        reqData.payment_method_data?.card?.card_cvc) {
       saveCardConfirmBody.card_cvc = reqData.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
@@ -2316,8 +2323,11 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
   const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
   requestBody.profile_id = profile_id;
-  requestBody.cancellation_reason =
-    reqData?.cancellation_reason ?? requestBody.cancellation_reason;
+
+  // Apply connector-specific request data (including cancellation_reason)
+  for (const key in reqData) {
+    requestBody[key] = reqData[key];
+  }
 
   cy.request({
     method: "POST",
