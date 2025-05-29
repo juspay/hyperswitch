@@ -1979,17 +1979,12 @@ impl CardDetailsPaymentMethod {
     pub fn to_card_details_from_locker(self) -> payment_methods::CardDetailFromLocker {
         payment_methods::CardDetailFromLocker {
             card_number: None,
-            card_holder_name: self.card_holder_name,
-            card_issuer: self.card_issuer,
-            card_network: self.card_network,
-            card_type: self.card_type,
+            card_holder_name: self.card_holder_name.clone(),
+            card_issuer: self.card_issuer.clone(),
+            card_network: self.card_network.clone(),
+            card_type: self.card_type.clone(),
             issuer_country: self
-                .issuer_country
-                .as_ref()
-                .map(|c| api_enums::CountryAlpha2::from_str(c))
-                .transpose()
-                .ok()
-                .flatten(),
+            .clone().get_issuer_country_alpha2(),
             last4_digits: self.last4_digits,
             expiry_month: self.expiry_month,
             expiry_year: self.expiry_year,
@@ -1999,6 +1994,17 @@ impl CardDetailsPaymentMethod {
             saved_to_locker: self.saved_to_locker,
         }
     }
+
+    pub fn get_issuer_country_alpha2(self) -> Option<common_enums::CountryAlpha2> {
+        self
+                .issuer_country
+                .as_ref()
+                .map(|c| api_enums::CountryAlpha2::from_str(c))
+                .transpose()
+                .ok()
+                .flatten()
+    }
+
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

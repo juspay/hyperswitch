@@ -6649,15 +6649,12 @@ where
             .merchant_connector_id
             .clone(),
         pre_routing_connector_choice: payment_data
-            .get_payment_intent()
-            .prerouting_algorithm
-            .clone()
-            .and_then(|pre_routing_algorithm| pre_routing_algorithm.pre_routing_results)
-            .and_then(|pre_routing_results| {
-                let payment_method_subtype =
-                    &payment_data.get_payment_attempt().payment_method_subtype;
-                pre_routing_results.get(payment_method_subtype).cloned()
-            }),
+            .get_pre_routing_result()
+            .and_then(
+                |pre_routing_results| {
+                    pre_routing_results.get(&payment_data.get_payment_attempt().payment_method_subtype).cloned()
+                },
+        ),
 
         algorithm_requested: payment_data
             .get_payment_intent()
@@ -8469,6 +8466,11 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
+
+    #[cfg(feature = "v2")]
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -8975,6 +8977,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!();
     }
+
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        None
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9223,6 +9231,15 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!()
+    }
+
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        self.get_payment_intent()
+            .prerouting_algorithm
+            .clone()
+            .and_then(|pre_routing_algorithm| pre_routing_algorithm.pre_routing_results)
     }
 }
 
@@ -9475,6 +9492,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!()
     }
+
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        None
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9726,6 +9749,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
 
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!();
+    }
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        None
     }
 }
 
