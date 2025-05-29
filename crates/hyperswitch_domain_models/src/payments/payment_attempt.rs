@@ -521,6 +521,8 @@ impl PaymentAttempt {
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        use common_utils::ext_traits::Encode;
+
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
 
@@ -581,7 +583,14 @@ impl PaymentAttempt {
             charges: None,
             client_source: None,
             client_version: None,
-            customer_acceptance: None,
+            customer_acceptance: request
+                .customer_acceptance
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode billing address")?
+                .map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,

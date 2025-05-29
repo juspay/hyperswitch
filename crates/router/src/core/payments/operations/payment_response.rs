@@ -2547,33 +2547,34 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         payment_data.payment_attempt = updated_payment_attempt;
 
         if let Some(payment_method_id) = &payment_data.payment_attempt.payment_method_id {
-            if intent_status != common_enums::IntentStatus::Failed
-                && intent_status != common_enums::IntentStatus::Cancelled
-            {
-                let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-                    status: Some(enums::PaymentMethodStatus::Active),
-                };
+            match intent_status {
+                common_enums::IntentStatus::Failed | common_enums::IntentStatus::Cancelled => (),
+                _ => {
+                    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+                        status: Some(enums::PaymentMethodStatus::Active),
+                    };
 
-                let payment_method = db
-                    .find_payment_method(
+                    let payment_method = db
+                        .find_payment_method(
+                            key_manager_state,
+                            key_store,
+                            payment_method_id,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+                    db.update_payment_method(
                         key_manager_state,
                         key_store,
-                        payment_method_id,
+                        payment_method,
+                        pm_update,
                         storage_scheme,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
-                db.update_payment_method(
-                    key_manager_state,
-                    key_store,
-                    payment_method,
-                    pm_update,
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment method in db")?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update payment method in db")?;
+                }
             }
         }
 

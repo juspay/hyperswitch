@@ -169,6 +169,12 @@ where
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
+    // If payment_token and card_cvc are provided, we fetch card data from vault
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, profile, &mut payment_data)
+        .await?;
+
     let (_operation, customer) = operation
         .to_domain()?
         .get_customer_details(

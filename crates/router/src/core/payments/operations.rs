@@ -223,7 +223,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 }
 
 #[async_trait]
-pub trait Domain<F: Clone, R, D>: Send + Sync {
+pub trait Domain<F: Clone, R, D: Clone>: Send + Sync {
     #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
@@ -369,6 +369,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_id: &common_utils::id_type::PaymentId,
         _business_profile: &domain::Profile,
         _payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut D,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
