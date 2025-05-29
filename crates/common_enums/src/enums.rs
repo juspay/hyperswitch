@@ -166,8 +166,7 @@ impl AttemptStatus {
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
-            | Self::PartialCharged
-            | Self::IntegrityFailure => true,
+            | Self::PartialCharged => true,
             Self::Started
             | Self::AuthenticationFailed
             | Self::AuthenticationPending
@@ -183,7 +182,8 @@ impl AttemptStatus {
             | Self::Pending
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
-            | Self::DeviceDataCollectionPending => false,
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
         }
     }
 }
@@ -1630,11 +1630,11 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted => false,
+            |  Self::RequiresCapture  => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
-            | Self::PartiallyCapturedAndCapturable
+            | Self::PartiallyCapturedAndCapturable | Self::Conflicted
             => true,
         }
     }
