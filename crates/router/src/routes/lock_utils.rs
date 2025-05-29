@@ -45,6 +45,7 @@ pub enum ApiIdentifier {
     ProcessTracker,
     Authentication,
     Proxy,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -345,6 +346,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::AuthenticationCreate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
+
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

@@ -32,12 +32,13 @@ pub use hyperswitch_connectors::connectors::{
     recurly::Recurly, redsys, redsys::Redsys, riskified, riskified::Riskified, shift4,
     shift4::Shift4, signifyd, signifyd::Signifyd, square, square::Square, stax, stax::Stax, stripe,
     stripe::Stripe, stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar,
-    threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes, trustpay,
-    trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
-    unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
-    wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
-    wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayxml,
-    worldpayxml::Worldpayxml, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes, tokenio,
+    tokenio::Tokenio, trustpay, trustpay::Trustpay, tsys, tsys::Tsys,
+    unified_authentication_service, unified_authentication_service::UnifiedAuthenticationService,
+    vgs, vgs::Vgs, volt, volt::Volt, wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout,
+    wellsfargopayout::Wellsfargopayout, wise, wise::Wise, worldline, worldline::Worldline,
+    worldpay, worldpay::Worldpay, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
+    zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
