@@ -36,7 +36,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::ExposeInterface;
 use transformers as monei;
 
 use crate::{constants::headers, types::ResponseRouterData, utils::{self, RefundsRequestData}};
@@ -118,7 +118,7 @@ impl ConnectorCommon for Monei {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key.expose()).into_masked(),
+            format!("Bearer {}", auth.api_key.expose()).into(),
         )])
     }
 
@@ -127,6 +127,7 @@ impl ConnectorCommon for Monei {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("Monei response:: {:?}", res);
         let response: monei::MoneiErrorResponse =
             res.response
                 .parse_struct("MoneiErrorResponse")
@@ -142,9 +143,9 @@ impl ConnectorCommon for Monei {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
-            network_advice_code : None,
-            network_decline_code : None,
-            network_error_message : None
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None
         })
     }
 }
@@ -195,6 +196,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = monei::MoneiRouterData::from((amount, req));
         let connector_req = monei::MoneiPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -203,6 +207,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("$$$$$ {:?}", req);
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -226,6 +231,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("Monei response:1: {:?}", res);
         let response: monei::MoneiPaymentsResponse = res
             .response
             .parse_struct("Monei PaymentsAuthorizeResponse")
@@ -274,7 +280,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mon
         Ok(format!(
             "{}/v1/payments/{}",
             self.base_url(connectors),
-            payment_id
+            payment_id 
         ))
     }
 
@@ -299,6 +305,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mon
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        println!("Monei response:3: {:?}", res);
         let response: monei::MoneiPaymentsResponse = res
             .response
             .parse_struct("monei PaymentsSyncResponse")
@@ -382,6 +389,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+        println!("Monei response:2: {:?}", res);
         let response: monei::MoneiPaymentsResponse = res
             .response
             .parse_struct("Monei PaymentsCaptureResponse")
@@ -444,7 +452,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Monei {
         )?;
 
         let connector_router_data = monei::MoneiRouterData::from((refund_amount, req));
-        let connector_req = monei::MoneiRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = monei::MoneiRefundRequest::try_from(&connector_router_data)?;        
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -473,6 +484,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Monei {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
+        println!("Monei response:4: {:?}", res);
         let response: monei::RefundResponse = res
             .response
             .parse_struct("monei RefundResponse")
@@ -545,6 +557,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Monei {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+        println!("Monei response:5: {:?}", res);
         let response: monei::RefundResponse = res
             .response
             .parse_struct("monei RefundSyncResponse")

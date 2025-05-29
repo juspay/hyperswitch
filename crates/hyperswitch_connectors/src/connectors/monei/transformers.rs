@@ -35,7 +35,7 @@ impl<T> From<(StringMinorUnit, T)> for MoneiRouterData<T> {
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct MoneiPaymentsRequest {
-    amount: StringMinorUnit,
+    amount: i32, // Changed from StringMinorUnit to i32 as required by Monei
     currency: enums::Currency,
     #[serde(rename = "orderId")]
     order_id: String,
@@ -108,8 +108,13 @@ impl TryFrom<&MoneiRouterData<&PaymentsAuthorizeRouterData>> for MoneiPaymentsRe
                     MoneiTransactionType::Auth
                 };
                 
+                // Get amount as i64 first, then convert to i32
+                let amount_i64 = item.router_data.request.amount;
+                let amount = amount_i64.to_string().parse::<i32>()
+                    .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+                
                 Ok(Self {
-                    amount: item.amount.clone(),
+                    amount,
                     currency: item.router_data.request.currency,
                     order_id: item.router_data.connector_request_reference_id.clone(),
                     description: item.router_data.description.clone(),
@@ -209,14 +214,19 @@ impl<F, T> TryFrom<ResponseRouterData<F, MoneiPaymentsResponse, T, PaymentsRespo
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct MoneiRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: i32,
 }
 
 impl<F> TryFrom<&MoneiRouterData<&RefundsRouterData<F>>> for MoneiRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &MoneiRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        // Get amount as i64 first, then convert to i32
+        let amount_i64 = item.router_data.request.refund_amount;
+        let amount = amount_i64.to_string().parse::<i32>()
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount,
         })
     }
 }
@@ -280,11 +290,19 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
+// Error response structure based on Monei API documentation
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MoneiErrorResponse {
+    pub status: String,
+    #[serde(rename = "statusCode")]
     pub status_code: u16,
-    pub code: String,
     pub message: String,
+    #[serde(rename = "requestId")]
+    pub request_id: Option<String>,
+    #[serde(rename = "requestTime")]
+    pub request_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(default)]
+    pub code: String,
 }
