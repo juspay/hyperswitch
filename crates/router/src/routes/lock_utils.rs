@@ -345,7 +345,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
             Flow::Proxy => Self::Proxy,
 
-            Flow::MerchantAcquirerCreate => Self::MerchantAcquirer,
+            Flow::MerchantAcquirerCreate | Flow::MerchantAcquirerList => Self::MerchantAcquirer,
             Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
