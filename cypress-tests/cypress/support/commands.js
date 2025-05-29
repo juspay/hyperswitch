@@ -50,6 +50,11 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+function isConnectorWithout3DS(connectorId) {
+  const connectorsWithout3DS = ["bamboraapac", "aci"];
+  return connectorsWithout3DS.includes(connectorId);
+}
+
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -1624,7 +1629,7 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -1679,7 +1684,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2073,8 +2078,8 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for Bambora APAC
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              // Skip 3DS verification for connectors that do not support 3DS
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2108,7 +2113,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2218,7 +2223,7 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2283,7 +2288,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2691,7 +2696,7 @@ Cypress.Commands.add(
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2736,7 +2741,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for all connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2871,7 +2876,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -3067,7 +3072,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -3177,7 +3182,7 @@ Cypress.Commands.add(
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
               // Skip 3DS verification for connectors that do not support 3DS
-              if (globalState.get("connectorId") === "bamboraapac" || "aci") {
+              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
                 for (const key in resData.body) {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
