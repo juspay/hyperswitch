@@ -5,7 +5,10 @@
 #[utoipa::path(
     post,
     path = "/account/{account_id}/merchant_acquirers",
-    request_body= MerchantAcquirerCreate,
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account")
+    ),
+    request_body = MerchantAcquirerCreate,
     responses(
         (status = 200, description = "Merchant Acquirer created", body = MerchantAcquirerResponse),
         (status = 400, description = "Invalid data")

@@ -5709,6 +5709,17 @@
         "summary": "Merchant Acquirer - Create",
         "description": "Create a new Merchant Acquirer for accessing our APIs from your servers.",
         "operationId": "Create a Merchant Acquirer",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -15230,7 +15241,7 @@
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
-            "example": "dugduwhqdiuhqw_123"
+            "example": "M123456789"
           },
           "merchant_name": {
             "type": "string",
@@ -15250,11 +15261,11 @@
           },
           "acquirer_bin": {
             "type": "string",
-            "example": "123456"
+            "example": "456789"
           },
           "acquirer_ica": {
             "type": "string",
-            "example": "123456"
+            "example": "401288"
           },
           "acquirer_fraud_rate": {
             "type": "number",
@@ -15279,8 +15290,7 @@
           "acquirer_bin",
           "acquirer_ica",
           "acquirer_fraud_rate",
-          "profile_id",
-          "created_at"
+          "profile_id"
         ],
         "properties": {
           "merchant_acquirer_id": {
@@ -15289,7 +15299,7 @@
           },
           "acquirer_assigned_merchant_id": {
             "type": "string",
-            "example": "dugduwhqdiuhqw_123"
+            "example": "M123456789"
           },
           "merchant_name": {
             "type": "string",
@@ -15309,11 +15319,11 @@
           },
           "acquirer_bin": {
             "type": "string",
-            "example": "123456"
+            "example": "456789"
           },
           "acquirer_ica": {
             "type": "string",
-            "example": "123456"
+            "example": "401288"
           },
           "acquirer_fraud_rate": {
             "type": "number",
@@ -15323,10 +15333,6 @@
           "profile_id": {
             "type": "string",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },

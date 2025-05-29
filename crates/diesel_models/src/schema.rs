@@ -772,8 +772,7 @@ diesel::table! {
         merchant_name -> Varchar,
         #[max_length = 64]
         mcc -> Varchar,
-        #[max_length = 64]
-        merchant_country_code -> Varchar,
+        merchant_country_code -> CountryAlpha2,
         #[max_length = 64]
         network -> Varchar,
         #[max_length = 64]

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS merchant_acquirer (
     acquirer_assigned_merchant_id VARCHAR(64) NOT NULL,
     merchant_name VARCHAR(255) NOT NULL,
     mcc VARCHAR(64) NOT NULL,
-    merchant_country_code VARCHAR(64) NOT NULL,
+    merchant_country_code "CountryAlpha2" NOT NULL,
     network VARCHAR(64) NOT NULL,
     acquirer_bin VARCHAR(64) NOT NULL,
     acquirer_ica VARCHAR(64),

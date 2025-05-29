@@ -22,7 +22,6 @@ fn to_api_response(db_acquirer: MerchantAcquirer) -> merchant_acquirer::Merchant
         acquirer_ica: db_acquirer.acquirer_ica,
         acquirer_fraud_rate: db_acquirer.acquirer_fraud_rate,
         profile_id: db_acquirer.profile_id,
-        created_at: db_acquirer.created_at,
     }
 }
 
