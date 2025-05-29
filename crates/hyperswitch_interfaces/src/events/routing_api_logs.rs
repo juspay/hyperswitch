@@ -5,6 +5,7 @@ use common_utils::request::Method;
 use router_env::tracing_actix_web::RequestId;
 use serde::Serialize;
 use serde_json::json;
+use strum::Display;
 use time::OffsetDateTime;
 
 /// RoutingEngine enum
@@ -15,6 +16,16 @@ pub enum RoutingEngine {
     IntelligentRouter,
     /// Decision engine for routing
     DecisionEngine,
+}
+
+/// Method type enum
+#[derive(Debug, Clone, Copy, Serialize, Display)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiMethod {
+    /// grpc call
+    Grpc,
+    /// Rest call
+    Rest(Method),
 }
 
 #[derive(Debug, Serialize)]
@@ -45,7 +56,7 @@ impl RoutingEvent {
         flow: &str,
         request: serde_json::Value,
         url: String,
-        method: Method,
+        method: ApiMethod,
         payment_id: String,
         profile_id: common_utils::id_type::ProfileId,
         request_id: Option<RequestId>,

@@ -7545,6 +7545,7 @@ where
                     connectors.clone(),
                     business_profile,
                     dynamic_routing_config_params_interpolator,
+                    payment_data.get_payment_attempt(),
                 )
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))

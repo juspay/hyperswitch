@@ -1230,3 +1230,70 @@ impl RoutableConnectorChoiceWithBucketName {
         }
     }
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateConfigEventRequest {
+    pub min_aggregates_size: u32,
+    pub default_success_rate: f64,
+    pub specificity_level: Option<SuccessRateSpecificityLevel>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<CalSuccessRateConfigEventRequest>,
+}
+
+// impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfigEventRequest {
+//     type Error = error_stack::Report<DynamicRoutingError>;
+//     fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             min_aggregates_size: config
+//                 .min_aggregates_size
+//                 .get_required_value("min_aggregate_size")
+//                 .change_context(DynamicRoutingError::MissingRequiredField {
+//                     field: "min_aggregates_size".to_string(),
+//                 })?,
+//             default_success_rate: config
+//                 .default_success_rate
+//                 .get_required_value("default_success_rate")
+//                 .change_context(DynamicRoutingError::MissingRequiredField {
+//                     field: "default_success_rate".to_string(),
+//                 })?,
+//             specificity_level: match config.specificity_level {
+//                 SuccessRateSpecificityLevel::Merchant => Some(ProtoSpecificityLevel::Entity.into()),
+//                 SuccessRateSpecificityLevel::Global => Some(ProtoSpecificityLevel::Global.into()),
+//             },
+//         })
+//     }
+// }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventBucketConfig {
+    pub bucket_size: u64,
+    pub bucket_leak_interval_in_secs: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+/// API-1 types
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<ContractBasedRoutingConfig>,
+}
