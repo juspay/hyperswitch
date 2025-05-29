@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::PeekInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -227,6 +227,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let mut payment_method_id = None;
 
+        // If card data and customer_id are present we save the payment method data in vault
         if let Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) =
             payment_method_data.clone()
         {
@@ -270,6 +271,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             }
         }
 
+        // If payment_token and card_cvc are provided, we fetch card data from vault
         if let Some(payment_token) = request.payment_token.clone() {
             let pm_token_data = helpers::retrieve_payment_token_data(
                 state,
@@ -284,6 +286,28 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 }
                 storage::PaymentTokenData::TemporaryGeneric(_) => None,
                 storage::PaymentTokenData::AuthBankDebit(_) => None,
+            };
+
+            let card_cvc = match &payment_method_data {
+                Some(
+                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(
+                        card_token,
+                    ),
+                ) => card_token.card_cvc.clone(),
+                _ => None,
+            }
+            .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_cvc",
+            })
+            .attach_printable("card_cvc not provided")?;
+
+            let card_holder_name = match &payment_method_data {
+                Some(
+                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(
+                        card_token,
+                    ),
+                ) => card_token.card_holder_name.clone(),
+                _ => None,
             };
 
             payment_method_id = pm_id.clone();
@@ -321,7 +345,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                                     card_number: card_detail.card_number,
                                     card_exp_month: card_detail.card_exp_month,
                                     card_exp_year: card_detail.card_exp_year,
-                                    card_cvc: card_detail.card_cvc.unwrap_or_default(),
+                                    card_cvc,
                                     card_issuer: card_detail.card_issuer,
                                     card_network: card_detail.card_network,
                                     card_type: card_detail.card_type.map(|val| val.to_string()),
@@ -330,16 +354,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                                         .map(|val| val.to_string()),
                                     bank_code: None,
                                     nick_name: card_detail.nick_name,
-                                    card_holder_name: card_detail.card_holder_name,
+                                    card_holder_name: card_holder_name
+                                        .or(card_detail.card_holder_name),
                                     co_badged_card_data: None,
                                 },
                             );
 
                         payment_method_data = Some(pm_data_from_vault);
                     }
-                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
-                        _,
-                    ) => (), // TODO: Implement this
+                    _ => Err(errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(
+                            "Non-card Tokenization not implemented".to_string(),
+                        ),
+                    })?,
                 }
             }
         }
