@@ -188,6 +188,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
@@ -244,6 +245,7 @@ nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
+nordea.base_url = "https://api.nordeaopenbanking.com"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
@@ -276,6 +278,7 @@ stripebilling.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
+tokenio.base_url = "https://api.token.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -354,6 +357,7 @@ cards = [
     "stripebilling",
   "threedsecureio",
     "thunes",
+    "tokenio",
   "worldpay",
     "worldpayxml",
     "xendit",
@@ -1064,6 +1068,10 @@ url = "http://localhost:8080"           # Open Router URL
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
+
+[revenue_recovery]
+monitoring_threshold_in_seconds = 2592000 # 30*24*60*60 secs , threshold for monitoring the retry system
+retry_algorithm_type = "cascading" # type of retry algorithm 
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs

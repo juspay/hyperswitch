@@ -5123,7 +5123,12 @@ pub async fn tokenize_card_flow(
             );
             let builder =
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::default();
-            execute_payment_method_tokenization(executor, builder, payment_method).await
+            Box::pin(execute_payment_method_tokenization(
+                executor,
+                builder,
+                payment_method,
+            ))
+            .await
         }
     }
 }

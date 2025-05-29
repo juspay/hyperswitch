@@ -245,6 +245,7 @@ pub enum WalletData {
     CashappQr(Box<CashappQr>),
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
+    RevolutPay(RevolutPayData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -301,6 +302,8 @@ pub struct GooglePayWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayRedirectData {}
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RevolutPayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GooglePayRedirectData {}
@@ -946,6 +949,7 @@ impl From<api_models::payments::WalletData> for WalletData {
                     language_preference: mifinity_data.language_preference,
                 })
             }
+            api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
         }
     }
 }
@@ -1709,6 +1713,7 @@ impl GetPaymentMethodType for WalletData {
             Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
+            Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
         }
     }
 }
@@ -1945,7 +1950,6 @@ pub struct CardDetailsPaymentMethod {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
         Self {

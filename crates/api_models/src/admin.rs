@@ -58,7 +58,7 @@ pub struct MerchantAccountCreate {
 
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -165,8 +165,9 @@ impl MerchantAccountCreate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::RoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -325,7 +326,7 @@ pub struct MerchantAccountUpdate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -425,8 +426,9 @@ impl MerchantAccountUpdate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::RoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -517,7 +519,7 @@ pub struct MerchantAccountResponse {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -545,7 +547,7 @@ pub struct MerchantAccountResponse {
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
 
     /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
-    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
@@ -1897,7 +1899,7 @@ pub struct ProfileCreate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2199,7 +2201,7 @@ pub struct ProfileResponse {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2504,7 +2506,7 @@ pub struct ProfileUpdate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
