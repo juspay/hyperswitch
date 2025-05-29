@@ -95,11 +95,11 @@ pub async fn get_metrics(
                 AuthEventMetrics::AuthenticationFunnel => metrics_builder
                     .authentication_funnel
                     .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationExemptionApprovedCount => metrics_builder
+                    .authentication_exemption_approved_count
+                    .add_metrics_bucket(&value),
                 AuthEventMetrics::AuthenticationExemptionRequestedCount => metrics_builder
                     .authentication_exemption_requested_count
-                    .add_metrics_bucket(&value),
-                AuthEventMetrics::AuthenticationExemptionAcceptedCount => metrics_builder
-                    .authentication_exemption_accepted_count
                     .add_metrics_bucket(&value),
             }
         }
@@ -181,8 +181,7 @@ pub async fn get_filters(
             AuthEventDimensions::AcsReferenceNumber => fil.acs_reference_number,
             AuthEventDimensions::Platform => fil.platform,
             AuthEventDimensions::Mcc => fil.mcc,
-            AuthEventDimensions::Amount => fil.amount.map(|i| i.to_string()),
-            AuthEventDimensions::Currency => fil.currency,
+           AuthEventDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::MerchantCountry => fil.merchant_country,
             AuthEventDimensions::BillingCountry => fil.billing_country,
             AuthEventDimensions::ShippingCountry => fil.shipping_country,

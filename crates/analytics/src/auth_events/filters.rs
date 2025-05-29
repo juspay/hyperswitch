@@ -1,4 +1,5 @@
 use api_models::analytics::{auth_events::AuthEventDimensions, Granularity, TimeRange};
+use common_enums::Currency;
 use common_enums::DecoupledAuthenticationType;
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
@@ -62,8 +63,7 @@ pub struct AuthEventFilterRow {
     pub acs_reference_number: Option<String>,
     pub platform: Option<String>,
     pub mcc: Option<String>,
-    pub amount: Option<i32>,
-    pub currency: Option<String>,
+    pub currency: Option<DBEnumWrapper<Currency>>,
     pub merchant_country: Option<String>,
     pub billing_country: Option<String>,
     pub shipping_country: Option<String>,

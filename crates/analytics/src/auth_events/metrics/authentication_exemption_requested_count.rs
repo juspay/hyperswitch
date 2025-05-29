@@ -1,5 +1,3 @@
-// src/metrics/exemption_requested_count.rs
-
 use std::collections::HashSet;
 
 use api_models::analytics::{
@@ -40,13 +38,9 @@ where
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::Authentications);
-
-        // select the same dimensions
-        for dim in dimensions {
+        for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
-
-        // count(*) as count
         query_builder
             .add_select_column(Aggregate::Count {
                 field: None,
@@ -54,13 +48,13 @@ where
             })
             .switch()?;
 
-        // same start/end buckets
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
                 alias: Some("start_bucket"),
             })
             .switch()?;
+
         query_builder
             .add_select_column(Aggregate::Max {
                 field: "created_at",
@@ -68,39 +62,34 @@ where
             })
             .switch()?;
 
-        // filter by merchant
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
 
-        // **only difference**: filter for exemption_requested = true
         query_builder
-            .add_filter_clause("exemption_requested", true)
+            .add_filter_clause(AuthEventDimensions::ExemptionRequested, true)
             .switch()?;
 
-        // apply any other filters
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
 
-        // group by dimensions (plus implicit boolean if you pass it in dims)
-        for dim in dimensions {
+        for dim in dimensions.iter() {
             query_builder
                 .add_group_by_clause(dim)
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
 
-        // and granularity
-        if let Some(g) = granularity {
-            g.set_group_by_clause(&mut query_builder)
+        if let Some(granularity) = granularity {
+            granularity
+                .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
 
-        // execute + map out the same way
         query_builder
             .execute_query::<AuthEventMetricRow, _>(pool)
             .await
@@ -117,6 +106,26 @@ where
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),
                         i.acs_reference_number.clone(),
+                        i.mcc.clone(),
+                        i.currency.as_ref().map(|i| i.0.clone()),
+                        i.merchant_country.clone(),
+                        i.billing_country.clone(),
+                        i.shipping_country.clone(),
+                        i.issuer_country.clone(),
+                        i.earliest_supported_version.clone(),
+                        i.latest_supported_version.clone(),
+                        i.whitelist_decision.clone(),
+                        i.device_manufacturer.clone(),
+                        i.device_type.clone(),
+                        i.device_brand.clone(),
+                        i.device_os.clone(),
+                        i.device_display.clone(),
+                        i.browser_name.clone(),
+                        i.browser_version.clone(),
+                        i.issuer_id.clone(),
+                        i.scheme_name.clone(),
+                        i.exemption_requested.clone(),
+                        i.exemption_accepted.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

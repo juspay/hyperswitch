@@ -54,7 +54,6 @@ pub fn get_auth_event_dimensions() -> Vec<NameDescription> {
         AuthEventDimensions::AcsReferenceNumber,
         AuthEventDimensions::Platform,
         AuthEventDimensions::Mcc,
-        AuthEventDimensions::Amount,
         AuthEventDimensions::Currency,
         AuthEventDimensions::MerchantCountry,
         AuthEventDimensions::BillingCountry,

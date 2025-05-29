@@ -256,14 +256,11 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let amount: Option<i32> = row.try_get("amount").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let currency: Option<String> = row.try_get("currency").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
+        let currency: Option<DBEnumWrapper<Currency>> =
+            row.try_get("currency").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let merchant_country: Option<String> =
             row.try_get("merchant_country").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
@@ -364,7 +361,6 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
             start_bucket,
             end_bucket,
             mcc,
-            amount,
             currency,
             merchant_country,
             billing_country,
@@ -433,14 +429,11 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let amount: Option<i32> = row.try_get("amount").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let currency: Option<String> = row.try_get("currency").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
+        let currency: Option<DBEnumWrapper<Currency>> =
+            row.try_get("currency").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let merchant_country: Option<String> =
             row.try_get("merchant_country").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
@@ -538,7 +531,6 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
             platform,
             acs_reference_number,
             mcc,
-            amount,
             currency,
             merchant_country,
             billing_country,

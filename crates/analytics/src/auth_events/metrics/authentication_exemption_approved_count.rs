@@ -15,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct AuthenticationExemptionAcceptedCount;
+pub(super) struct AuthenticationExemptionApprovedCount;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for AuthenticationExemptionAcceptedCount
+impl<T> super::AuthEventMetric<T> for AuthenticationExemptionApprovedCount
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -66,11 +66,9 @@ where
             .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
 
-        // Add filter for exemption_accepted = true
         query_builder
-            .add_filter_clause("exemption_accepted", true)
+            .add_filter_clause(AuthEventDimensions::ExemptionAccepted, true)
             .switch()?;
-
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
             .set_filter_clause(&mut query_builder)
@@ -107,6 +105,26 @@ where
                         i.authentication_connector.as_ref().map(|i| i.0),
                         i.message_version.clone(),
                         i.acs_reference_number.clone(),
+                        i.mcc.clone(),
+                        i.currency.as_ref().map(|i| i.0.clone()),
+                        i.merchant_country.clone(),
+                        i.billing_country.clone(),
+                        i.shipping_country.clone(),
+                        i.issuer_country.clone(),
+                        i.earliest_supported_version.clone(),
+                        i.latest_supported_version.clone(),
+                        i.whitelist_decision.clone(),
+                        i.device_manufacturer.clone(),
+                        i.device_type.clone(),
+                        i.device_brand.clone(),
+                        i.device_os.clone(),
+                        i.device_display.clone(),
+                        i.browser_name.clone(),
+                        i.browser_version.clone(),
+                        i.issuer_id.clone(),
+                        i.scheme_name.clone(),
+                        i.exemption_requested.clone(),
+                        i.exemption_accepted.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
