@@ -86,7 +86,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
-barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/pts/v2/"
+barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
@@ -143,6 +143,7 @@ nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
+nordea.base_url = "https://api.nordeaopenbanking.com"
 noon.key_mode = "Test"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
@@ -175,6 +176,7 @@ stripebilling.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
+tokenio.base_url = "https://api.token.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -254,6 +256,7 @@ cards = [
     "nexixpay",
     "nmi",
     "noon",
+    "nordea",
     "novalnet",
     "nuvei",
     "opayo",
@@ -278,6 +281,7 @@ cards = [
     "taxjar",
     "threedsecureio",
     "thunes",
+    "tokenio",
     "trustpay",
     "tsys",
     "unified_authentication_service",

@@ -1856,7 +1856,7 @@ pub async fn record_attempt_core(
     let default_payment_status_data = PaymentStatusData {
         flow: PhantomData,
         payment_intent: payment_data.payment_intent.clone(),
-        payment_attempt: Some(payment_data.payment_attempt.clone()),
+        payment_attempt: payment_data.payment_attempt.clone(),
         attempts: None,
         should_sync_with_connector: false,
         payment_address: payment_data.payment_address.clone(),
@@ -1887,7 +1887,7 @@ pub async fn record_attempt_core(
                 payment_data: PaymentStatusData {
                     flow: PhantomData,
                     payment_intent: payment_data.payment_intent.clone(),
-                    payment_attempt: Some(payment_data.payment_attempt.clone()),
+                    payment_attempt: payment_data.payment_attempt.clone(),
                     attempts: None,
                     should_sync_with_connector: true,
                     payment_address: payment_data.payment_address.clone(),
@@ -1911,9 +1911,7 @@ pub async fn record_attempt_core(
     let record_payment_data = domain_payments::PaymentAttemptRecordData {
         flow: PhantomData,
         payment_intent: payment_status_data.payment_intent,
-        payment_attempt: payment_status_data
-            .payment_attempt
-            .unwrap_or(payment_data.payment_attempt.clone()),
+        payment_attempt: payment_status_data.payment_attempt,
         revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
         payment_address: payment_data.payment_address.clone(),
     };
@@ -2778,11 +2776,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_data = &get_tracker_response.payment_data;
         self.validate_status_for_operation(payment_data.payment_intent.status)?;
 
-        let payment_attempt = payment_data
-            .payment_attempt
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("payment_attempt not found in get_tracker_response")?;
+        let payment_attempt = payment_data.payment_attempt.clone();
 
         let connector = payment_attempt
             .connector
@@ -6288,7 +6282,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let _: api_models::routing::RoutingAlgorithm = request_straight_through
+    let _: api_models::routing::StaticRoutingAlgorithm = request_straight_through
         .clone()
         .parse_value("RoutingAlgorithm")
         .attach_printable("Invalid straight through routing rules format")?;
@@ -8493,7 +8487,7 @@ pub trait OperationSessionSetters<F> {
     fn set_card_network(&mut self, card_network: enums::CardNetwork);
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     );
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
@@ -8751,11 +8745,11 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         let co_badged_card_data =
-            api_models::payment_methods::CoBadgedCardData::from(debit_routing_ouput);
-        let card_type = debit_routing_ouput
+            api_models::payment_methods::CoBadgedCardData::from(debit_routing_output);
+        let card_type = debit_routing_output
             .card_type
             .clone()
             .to_string()
@@ -9018,7 +9012,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
@@ -9293,7 +9287,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
@@ -9353,7 +9347,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
-        todo!()
+        &self.payment_attempt
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
         todo!()
@@ -9482,7 +9476,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     }
 
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
-        self.payment_attempt.as_ref()
+        Some(&self.payment_attempt)
     }
 
     fn get_all_keys_required(&self) -> Option<bool> {
@@ -9516,7 +9510,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
-        self.payment_attempt = Some(payment_attempt);
+        self.payment_attempt = payment_attempt;
     }
 
     fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
@@ -9537,7 +9531,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
@@ -9790,7 +9784,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_co_badged_card_data(
         &mut self,
-        debit_routing_ouput: &api_models::open_router::DebitRoutingOutput,
+        debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
         todo!()
     }
