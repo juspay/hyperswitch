@@ -1,6 +1,6 @@
 -- Your SQL goes here
-CREATE TABLE IF NOT EXISTS merchant_acquirer (
-    merchant_acquirer_id VARCHAR(64) NOT NULL,
+CREATE TABLE IF NOT EXISTS profile_acquirer (
+    profile_acquirer_id VARCHAR(64) NOT NULL,
     acquirer_assigned_merchant_id VARCHAR(64) NOT NULL,
     merchant_name VARCHAR(255) NOT NULL,
     mcc VARCHAR(64) NOT NULL,
@@ -12,5 +12,5 @@ CREATE TABLE IF NOT EXISTS merchant_acquirer (
     profile_id VARCHAR(64) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     last_modified_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (merchant_acquirer_id)
+    PRIMARY KEY (profile_acquirer_id)
 );

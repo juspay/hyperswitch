@@ -2,18 +2,18 @@ use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
 use crate::{
-    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew},
-    schema::merchant_acquirer::dsl,
+    profile_acquirer::{ProfileAcquirer, ProfileAcquirerNew},
+    schema::profile_acquirer::dsl,
     PgPooledConn, StorageResult,
 };
 
-impl MerchantAcquirerNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantAcquirer> {
+impl ProfileAcquirerNew {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ProfileAcquirer> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl MerchantAcquirer {
+impl ProfileAcquirer {
     pub async fn list_by_profile_id(
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,

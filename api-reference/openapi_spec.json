@@ -5701,30 +5701,19 @@
         ]
       }
     },
-    "/account/{account_id}/merchant_acquirers": {
+    "/profile_acquirers": {
       "post": {
         "tags": [
-          "Merchant Acquirer"
+          "Profile Acquirer"
         ],
-        "summary": "Merchant Acquirer - Create",
-        "description": "Create a new Merchant Acquirer for accessing our APIs from your servers.",
-        "operationId": "Create a Merchant Acquirer",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "description": "The unique identifier for the merchant account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "summary": "Profile Acquirer - Create",
+        "description": "Create a new Profile Acquirer for accessing our APIs from your servers.",
+        "operationId": "Create a Profile Acquirer",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MerchantAcquirerCreate"
+                "$ref": "#/components/schemas/ProfileAcquirerCreate"
               }
             }
           },
@@ -5732,11 +5721,11 @@
         },
         "responses": {
           "200": {
-            "description": "Merchant Acquirer created",
+            "description": "Profile Acquirer created",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MerchantAcquirerResponse"
+                  "$ref": "#/components/schemas/ProfileAcquirerResponse"
                 }
               }
             }
@@ -15194,117 +15183,6 @@
         },
         "additionalProperties": false
       },
-      "MerchantAcquirerCreate": {
-        "type": "object",
-        "required": [
-          "acquirer_assigned_merchant_id",
-          "merchant_name",
-          "mcc",
-          "merchant_country_code",
-          "network",
-          "acquirer_bin",
-          "acquirer_ica",
-          "acquirer_fraud_rate",
-          "profile_id"
-        ],
-        "properties": {
-          "acquirer_assigned_merchant_id": {
-            "type": "string",
-            "example": "M123456789"
-          },
-          "merchant_name": {
-            "type": "string",
-            "example": "NewAge Retailer"
-          },
-          "mcc": {
-            "type": "string",
-            "example": "5812"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "example": "US"
-          },
-          "network": {
-            "type": "string",
-            "example": "VISA"
-          },
-          "acquirer_bin": {
-            "type": "string",
-            "example": "456789"
-          },
-          "acquirer_ica": {
-            "type": "string",
-            "example": "401288"
-          },
-          "acquirer_fraud_rate": {
-            "type": "number",
-            "format": "double",
-            "example": "0.01"
-          },
-          "profile_id": {
-            "type": "string",
-            "example": "pro_ky0yNyOXXlA5hF8JzE5q"
-          }
-        }
-      },
-      "MerchantAcquirerResponse": {
-        "type": "object",
-        "required": [
-          "merchant_acquirer_id",
-          "acquirer_assigned_merchant_id",
-          "merchant_name",
-          "mcc",
-          "merchant_country_code",
-          "network",
-          "acquirer_bin",
-          "acquirer_ica",
-          "acquirer_fraud_rate",
-          "profile_id"
-        ],
-        "properties": {
-          "merchant_acquirer_id": {
-            "type": "string",
-            "example": "mer_acq_LCRdERuylQvNQ4qh3QE0"
-          },
-          "acquirer_assigned_merchant_id": {
-            "type": "string",
-            "example": "M123456789"
-          },
-          "merchant_name": {
-            "type": "string",
-            "example": "NewAge Retailer"
-          },
-          "mcc": {
-            "type": "string",
-            "example": "5812"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "example": "US"
-          },
-          "network": {
-            "type": "string",
-            "example": "VISA"
-          },
-          "acquirer_bin": {
-            "type": "string",
-            "example": "456789"
-          },
-          "acquirer_ica": {
-            "type": "string",
-            "example": "401288"
-          },
-          "acquirer_fraud_rate": {
-            "type": "number",
-            "format": "double",
-            "example": "0.01"
-          },
-          "profile_id": {
-            "type": "string",
-            "example": "pro_ky0yNyOXXlA5hF8JzE5q"
-          }
-        }
-      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -24519,6 +24397,117 @@
           "accommodation"
         ]
       },
+      "ProfileAcquirerCreate": {
+        "type": "object",
+        "required": [
+          "acquirer_assigned_merchant_id",
+          "merchant_name",
+          "mcc",
+          "merchant_country_code",
+          "network",
+          "acquirer_bin",
+          "acquirer_fraud_rate",
+          "profile_id"
+        ],
+        "properties": {
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "example": "M123456789"
+          },
+          "merchant_name": {
+            "type": "string",
+            "example": "NewAge Retailer"
+          },
+          "mcc": {
+            "type": "string",
+            "example": "5812"
+          },
+          "merchant_country_code": {
+            "type": "string",
+            "example": "US"
+          },
+          "network": {
+            "type": "string",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "example": "456789"
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "example": "401288",
+            "nullable": true
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "example": "0.01"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          }
+        }
+      },
+      "ProfileAcquirerResponse": {
+        "type": "object",
+        "required": [
+          "profile_acquirer_id",
+          "acquirer_assigned_merchant_id",
+          "merchant_name",
+          "mcc",
+          "merchant_country_code",
+          "network",
+          "acquirer_bin",
+          "acquirer_fraud_rate",
+          "profile_id"
+        ],
+        "properties": {
+          "profile_acquirer_id": {
+            "type": "string",
+            "example": "pro_acq_LCRdERuylQvNQ4qh3QE0"
+          },
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "example": "M123456789"
+          },
+          "merchant_name": {
+            "type": "string",
+            "example": "NewAge Retailer"
+          },
+          "mcc": {
+            "type": "string",
+            "example": "5812"
+          },
+          "merchant_country_code": {
+            "type": "string",
+            "example": "US"
+          },
+          "network": {
+            "type": "string",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "example": "456789"
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "example": "401288",
+            "nullable": true
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "example": "0.01"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          }
+        }
+      },
       "ProfileCreate": {
         "type": "object",
         "properties": {
@@ -25039,14 +25028,6 @@
             "description": "Indicates if pre network tokenization is enabled or not",
             "default": false,
             "example": false
-          },
-          "merchant_acquirer_ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Gives list of merchant provided acquirers ids",
-            "nullable": true
           }
         }
       },

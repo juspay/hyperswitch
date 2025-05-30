@@ -12,7 +12,7 @@ use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
     enums::{self, ProcessTrackerStatus},
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew},
+    profile_acquirer::{ProfileAcquirer, ProfileAcquirerNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
@@ -43,7 +43,7 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
-    merchant_acquirer::MerchantAcquirerInterface,
+    profile_acquirer::ProfileAcquirerInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -4237,24 +4237,24 @@ impl CallbackMapperInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl MerchantAcquirerInterface for KafkaStore {
+impl ProfileAcquirerInterface for KafkaStore {
     #[instrument(skip_all)]
-    async fn insert_merchant_acquirer(
+    async fn insert_profile_acquirer(
         &self,
-        new_acquirer: MerchantAcquirerNew,
-    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        new_acquirer: ProfileAcquirerNew,
+    ) -> CustomResult<ProfileAcquirer, errors::StorageError> {
         self.diesel_store
-            .insert_merchant_acquirer(new_acquirer)
+            .insert_profile_acquirer(new_acquirer)
             .await
     }
 
     #[instrument(skip_all)]
-    async fn list_merchant_acquirer_based_on_profile_id(
+    async fn list_profile_acquirer_based_on_profile_id(
         &self,
         profile_id: &id_type::ProfileId,
-    ) -> CustomResult<Vec<MerchantAcquirer>, errors::StorageError> {
+    ) -> CustomResult<Vec<ProfileAcquirer>, errors::StorageError> {
         self.diesel_store
-            .list_merchant_acquirer_based_on_profile_id(profile_id)
+            .list_profile_acquirer_based_on_profile_id(profile_id)
             .await
     }
 }

@@ -76,7 +76,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub merchant_acquirer_ids: Option<Vec<common_utils::id_type::MerchantAcquirerId>>,
+    pub profile_acquirer_ids: Option<Vec<common_utils::id_type::ProfileAcquirerId>>,
 }
 
 #[cfg(feature = "v1")]
@@ -189,7 +189,7 @@ impl From<ProfileSetter> for Profile {
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
-            merchant_acquirer_ids: None, // merchant_acquirer_ids is not yet created during profile creation
+            profile_acquirer_ids: None, // profile_acquirer_ids is not yet created during profile creation
         }
     }
 }
@@ -276,8 +276,8 @@ pub enum ProfileUpdate {
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
-    MerchantAcquirerUpdate {
-        merchant_acquirer_ids: Option<Vec<common_utils::id_type::MerchantAcquirerId>>,
+    ProfileAcquirerUpdate {
+        profile_acquirer_ids: Option<Vec<common_utils::id_type::ProfileAcquirerId>>,
     },
 }
 
@@ -378,7 +378,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
                     three_ds_decision_rule_algorithm: None,
-                    merchant_acquirer_ids: None,
+                    profile_acquirer_ids: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -431,7 +431,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm,
-                merchant_acquirer_ids: None,
+                profile_acquirer_ids: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -481,7 +481,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                merchant_acquirer_ids: None,
+                profile_acquirer_ids: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -531,7 +531,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                merchant_acquirer_ids: None,
+                profile_acquirer_ids: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -581,7 +581,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                merchant_acquirer_ids: None,
+                profile_acquirer_ids: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -631,7 +631,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                merchant_acquirer_ids: None,
+                profile_acquirer_ids: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -681,10 +681,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                merchant_acquirer_ids: None,
+                profile_acquirer_ids: None,
             },
-            ProfileUpdate::MerchantAcquirerUpdate {
-                merchant_acquirer_ids,
+            ProfileUpdate::ProfileAcquirerUpdate {
+                profile_acquirer_ids,
             } => Self {
                 profile_name: None,
                 modified_at: now,
@@ -731,7 +731,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                merchant_acquirer_ids,
+                profile_acquirer_ids,
             },
         }
     }
@@ -801,7 +801,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
-            merchant_acquirer_ids: self.merchant_acquirer_ids,
+            profile_acquirer_ids: self.profile_acquirer_ids,
         })
     }
 
@@ -897,7 +897,7 @@ impl super::behaviour::Conversion for Profile {
                     .is_pre_network_tokenization_enabled
                     .unwrap_or(false),
                 three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
-                merchant_acquirer_ids: item.merchant_acquirer_ids,
+                profile_acquirer_ids: item.profile_acquirer_ids,
             })
         }
         .await
@@ -1884,7 +1884,7 @@ impl super::behaviour::Conversion for Profile {
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
             three_ds_decision_rule_algorithm: None,
-            merchant_acquirer_ids: None,
+            profile_acquirer_ids: None,
         })
     }
 

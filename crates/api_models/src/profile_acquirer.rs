@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 use crate::enums;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct MerchantAcquirerCreate {
+pub struct ProfileAcquirerCreate {
     #[schema(value_type= String,example = "M123456789")]
     pub acquirer_assigned_merchant_id: String,
     #[schema(value_type= String,example = "NewAge Retailer")]
@@ -17,7 +17,7 @@ pub struct MerchantAcquirerCreate {
     pub network: common_enums::enums::CardNetwork,
     #[schema(value_type= String,example = "456789")]
     pub acquirer_bin: String,
-    #[schema(value_type= String,example = "401288")]
+    #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
     #[schema(value_type= f64,example = "0.01")]
     pub acquirer_fraud_rate: f64,
@@ -26,9 +26,9 @@ pub struct MerchantAcquirerCreate {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct MerchantAcquirerResponse {
-    #[schema(value_type= String,example = "mer_acq_LCRdERuylQvNQ4qh3QE0")]
-    pub merchant_acquirer_id: common_utils::id_type::MerchantAcquirerId,
+pub struct ProfileAcquirerResponse {
+    #[schema(value_type= String,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
+    pub profile_acquirer_id: common_utils::id_type::ProfileAcquirerId,
     #[schema(value_type= String,example = "M123456789")]
     pub acquirer_assigned_merchant_id: String,
     #[schema(value_type= String,example = "NewAge Retailer")]
@@ -41,7 +41,7 @@ pub struct MerchantAcquirerResponse {
     pub network: common_enums::enums::CardNetwork,
     #[schema(value_type= String,example = "456789")]
     pub acquirer_bin: String,
-    #[schema(value_type= String,example = "401288")]
+    #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
     #[schema(value_type= f64,example = "0.01")]
     pub acquirer_fraud_rate: f64,
@@ -49,5 +49,5 @@ pub struct MerchantAcquirerResponse {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-impl common_utils::events::ApiEventMetric for MerchantAcquirerCreate {}
-impl common_utils::events::ApiEventMetric for MerchantAcquirerResponse {}
+impl common_utils::events::ApiEventMetric for ProfileAcquirerCreate {}
+impl common_utils::events::ApiEventMetric for ProfileAcquirerResponse {}

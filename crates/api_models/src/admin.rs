@@ -2311,10 +2311,6 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
-
-    /// Gives list of merchant provided acquirers ids
-    #[schema(value_type = Option<Vec<String>>)]
-    pub merchant_acquirer_ids: Option<Vec<id_type::MerchantAcquirerId>>,
 }
 
 #[cfg(feature = "v2")]

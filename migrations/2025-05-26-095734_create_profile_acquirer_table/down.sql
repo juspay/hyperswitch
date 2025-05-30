@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE IF EXISTS merchant_acquirer;
+DROP TABLE IF EXISTS profile_acquirer;

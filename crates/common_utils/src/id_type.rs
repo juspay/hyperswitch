@@ -7,11 +7,11 @@ mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
 mod merchant;
-mod merchant_acquirer;
 mod merchant_connector_account;
 mod organization;
 mod payment;
 mod profile;
+mod profile_acquirer;
 mod refunds;
 mod relay;
 mod routing;
@@ -43,11 +43,11 @@ pub use self::{
     client_secret::ClientSecretId,
     customer::CustomerId,
     merchant::MerchantId,
-    merchant_acquirer::MerchantAcquirerId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId},
     profile::ProfileId,
+    profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,

@@ -28,8 +28,6 @@ pub mod lock_utils;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandates;
-#[cfg(feature = "olap")]
-pub mod merchant_acquirer;
 pub mod metrics;
 #[cfg(feature = "v1")]
 pub mod payment_link;
@@ -42,6 +40,8 @@ pub mod payouts;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod pm_auth;
 pub mod poll;
+#[cfg(feature = "olap")]
+pub mod profile_acquirer;
 #[cfg(feature = "olap")]
 pub mod profiles;
 #[cfg(feature = "recon")]

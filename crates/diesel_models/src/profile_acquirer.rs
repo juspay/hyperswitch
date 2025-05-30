@@ -2,12 +2,12 @@ use diesel::{prelude::Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::merchant_acquirer};
+use crate::{enums as storage_enums, schema::profile_acquirer};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
-#[diesel(table_name = merchant_acquirer, primary_key(merchant_acquirer_id), check_for_backend(diesel::pg::Pg))]
-pub struct MerchantAcquirer {
-    pub merchant_acquirer_id: common_utils::id_type::MerchantAcquirerId,
+#[diesel(table_name = profile_acquirer, primary_key(profile_acquirer_id), check_for_backend(diesel::pg::Pg))]
+pub struct ProfileAcquirer {
+    pub profile_acquirer_id: common_utils::id_type::ProfileAcquirerId,
     pub acquirer_assigned_merchant_id: String,
     pub merchant_name: String,
     pub mcc: String,
@@ -32,9 +32,9 @@ pub struct MerchantAcquirer {
     serde::Deserialize,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_acquirer)]
-pub struct MerchantAcquirerNew {
-    pub merchant_acquirer_id: common_utils::id_type::MerchantAcquirerId,
+#[diesel(table_name = profile_acquirer)]
+pub struct ProfileAcquirerNew {
+    pub profile_acquirer_id: common_utils::id_type::ProfileAcquirerId,
     pub acquirer_assigned_merchant_id: String,
     pub merchant_name: String,
     pub mcc: String,

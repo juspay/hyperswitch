@@ -253,11 +253,11 @@ pub fn generate_merchant_connector_account_id_of_default_length(
     id_type::MerchantConnectorAccountId::generate()
 }
 
-/// Generate a merchant_acquirer id with default length, with prefix as `mer_acq`
-pub fn generate_merchant_acquirer_id_of_default_length() -> id_type::MerchantAcquirerId {
+/// Generate a profile_acquirer id with default length, with prefix as `mer_acq`
+pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcquirerId {
     use id_type::GenerateId;
 
-    id_type::MerchantAcquirerId::generate()
+    id_type::ProfileAcquirerId::generate()
 }
 
 /// Generate a nanoid with the given prefix and a default length

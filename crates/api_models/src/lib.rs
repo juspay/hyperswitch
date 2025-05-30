@@ -23,7 +23,6 @@ pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
-pub mod merchant_acquirer;
 pub mod open_router;
 pub mod organization;
 pub mod payment_methods;
@@ -33,6 +32,7 @@ pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
+pub mod profile_acquirer;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod proxy;
 #[cfg(feature = "recon")]

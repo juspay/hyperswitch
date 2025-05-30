@@ -126,8 +126,8 @@ pub enum ApiEventsType {
         token_id: Option<id_type::GlobalTokenId>,
     },
     ProcessTracker,
-    MerchantAcquirer {
-        merchant_acquirer_id: id_type::MerchantAcquirerId,
+    ProfileAcquirer {
+        profile_acquirer_id: id_type::ProfileAcquirerId,
     },
 }
 
