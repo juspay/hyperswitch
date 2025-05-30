@@ -22,11 +22,15 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 #[cfg(feature = "v2")]
+use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "v2")]
 use masking::PeekInterface;
 use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
+#[cfg(feature = "v2")]
+use crate::services::connector_integration_interface::ConnectorEnum;
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     core::{
@@ -242,11 +246,18 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();
 
-    let connector_request_reference_id = payment_data
-        .payment_intent
-        .merchant_reference_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_id,
+        api::GetToken::Connector,
+        payment_data.payment_attempt.merchant_connector_id.clone(),
+    )?;
+
+    let connector_request_reference_id =
+        connector.connector.generate_connector_request_reference_id(
+            payment_data.payment_intent.clone(),
+            payment_data.payment_attempt.clone(),
+        );
 
     let email = customer
         .as_ref()
@@ -312,6 +323,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: None,
+        order_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -430,12 +442,6 @@ pub async fn construct_payment_router_data_for_capture<'a>(
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
-    let connector_request_reference_id = payment_data
-        .payment_intent
-        .merchant_reference_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
-
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
         .connector_token_details
@@ -448,6 +454,12 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         api::GetToken::Connector,
         payment_data.payment_attempt.merchant_connector_id.clone(),
     )?;
+
+    let connector_request_reference_id =
+        connector.connector.generate_connector_request_reference_id(
+            payment_data.payment_intent.clone(),
+            payment_data.payment_attempt.clone(),
+        );
 
     let amount_to_capture = payment_data
         .payment_attempt
@@ -912,11 +924,18 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();
 
-    let connector_request_reference_id = payment_data
-        .payment_intent
-        .merchant_reference_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or(payment_data.payment_attempt.id.get_string_repr().to_owned());
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_id,
+        api::GetToken::Connector,
+        payment_data.payment_attempt.merchant_connector_id.clone(),
+    )?;
+
+    let connector_request_reference_id =
+        connector.connector.generate_connector_request_reference_id(
+            payment_data.payment_intent.clone(),
+            payment_data.payment_attempt.clone(),
+        );
 
     let email = customer
         .as_ref()
@@ -1845,10 +1864,20 @@ where
                 .clone(),
         )?;
 
+        let next_action_containing_wait_screen =
+            wait_screen_next_steps_check(payment_attempt.clone())?;
+
         let next_action = payment_attempt
             .redirection_data
             .as_ref()
-            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
+            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
+            .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                api_models::payments::NextActionData::WaitScreenInformation {
+                    display_from_timestamp: wait_screen_data.display_from_timestamp,
+                    display_to_timestamp: wait_screen_data.display_to_timestamp,
+                    poll_config: wait_screen_data.poll_config,
+                }
+            }));
 
         let connector_token_details = payment_attempt
             .connector_token_details
@@ -2572,6 +2601,7 @@ where
                             api_models::payments::NextActionData::WaitScreenInformation {
                                 display_from_timestamp: wait_screen_data.display_from_timestamp,
                                 display_to_timestamp: wait_screen_data.display_to_timestamp,
+                                poll_config: wait_screen_data.poll_config,
                             }
                         }))
                         .or(payment_attempt.authentication_data.as_ref().map(|_| {
@@ -3576,6 +3606,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_account_id,
             merchant_config_currency,
             connector_testing_data,
+            order_id: None,
         })
     }
 }

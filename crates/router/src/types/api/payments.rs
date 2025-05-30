@@ -35,17 +35,17 @@ pub use api_models::{
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent,
-    PaymentGetIntent, PaymentMethodToken, PaymentUpdateIntent, PostProcessing, PostSessionTokens,
-    PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
-    Void,
+    CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
+    PaymentCreateIntent, PaymentGetIntent, PaymentMethodToken, PaymentUpdateIntent, PostProcessing,
+    PostSessionTokens, PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session,
+    SetupMandate, UpdateMetadata, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
     PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentSync,
     PaymentToken, PaymentUpdateMetadata, PaymentVoid, PaymentsCompleteAuthorize,
-    PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
+    PaymentsCreateOrder, PaymentsPostProcessing, PaymentsPreProcessing, TaxCalculation,
 };
 
 pub use super::payments_v2::{
