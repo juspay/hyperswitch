@@ -1251,6 +1251,129 @@ fn create_paypal_sdk_session_token(
     })
 }
 
+async fn create_amazon_pay_session_token(
+    router_data: &types::PaymentsSessionRouterData,
+    state: &routes::SessionState,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    let amazon_pay_session_token_data = router_data
+        .connector_wallets_details
+        .clone()
+        .parse_value::<payment_types::AmazonPaySessionTokenData>("AmazonPaySessionTokenData")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_id or store_id",
+        })?;
+    let amazon_pay_metadata = amazon_pay_session_token_data.data;
+    let merchant_id = amazon_pay_metadata.merchant_id;
+    let store_id = amazon_pay_metadata.store_id;
+    let amazonpay_supported_currencies =
+        payments::cards::list_countries_currencies_for_connector_payment_method_util(
+            state.conf.pm_filters.clone(),
+            enums::Connector::Amazonpay,
+            enums::PaymentMethodType::AmazonPay,
+        )
+        .await
+        .currencies;
+    // currently supports only the US region hence USD is the only supported currency
+    payment_types::AmazonPayDeliveryOptions::validate_currency(
+        router_data.request.currency,
+        amazonpay_supported_currencies.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
+        message: "USD is the only supported currency.".to_string(),
+    })?;
+    let ledger_currency = router_data.request.currency;
+    // currently supports only the 'automatic' capture_method
+    let payment_intent = payment_types::AmazonPayPaymentIntent::AuthorizeWithCapture;
+    let required_amount_type = StringMajorUnitForConnector;
+    let total_tax_amount = required_amount_type
+        .convert(
+            router_data.request.order_tax_amount.unwrap_or_default(),
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+    let total_shipping_amount = required_amount_type
+        .convert(
+            router_data.request.shipping_cost.unwrap_or_default(),
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+    let total_base_amount = required_amount_type
+        .convert(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )
+        .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+            amount_type: "StringMajorUnit",
+        })?;
+
+    let delivery_options_request = router_data
+        .request
+        .metadata
+        .as_ref()
+        .and_then(|metadata| {
+            metadata
+                .get("delivery_options")
+                .and_then(|value| value.as_array())
+        })
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "metadata.delivery_options",
+        })?;
+
+    let mut delivery_options =
+        payment_types::AmazonPayDeliveryOptions::parse_delivery_options_request(
+            delivery_options_request,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "delivery_options".to_string(),
+            expected_format: r#""delivery_options": [{"id": String, "price": {"amount": Number, "currency_code": String}, "shipping_method":{"shipping_method_name": String, "shipping_method_code": String}, "is_default": Boolean}]"#.to_string(),
+        })?;
+
+    payment_types::AmazonPayDeliveryOptions::validate_is_default_count(delivery_options.clone())
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "is_default",
+        })?;
+
+    for option in &delivery_options {
+        payment_types::AmazonPayDeliveryOptions::validate_currency(
+            option.price.currency_code,
+            amazonpay_supported_currencies.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
+            message: "USD is the only supported currency.".to_string(),
+        })?;
+    }
+
+    payment_types::AmazonPayDeliveryOptions::insert_display_amount(
+        &mut delivery_options,
+        router_data.request.currency,
+    )
+    .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+        amount_type: "StringMajorUnit",
+    })?;
+
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::AmazonPay(Box::new(
+                payment_types::AmazonPaySessionTokenResponse {
+                    merchant_id,
+                    ledger_currency,
+                    store_id,
+                    payment_intent,
+                    total_shipping_amount,
+                    total_tax_amount,
+                    total_base_amount,
+                    delivery_options,
+                },
+            )),
+        }),
+        ..router_data.clone()
+    })
+}
+
 #[async_trait]
 impl RouterDataSession for types::PaymentsSessionRouterData {
     async fn decide_flow<'a, 'b>(
@@ -1306,6 +1429,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
 
                 Ok(resp)
             }
+            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self, state).await,
         }
     }
 }
