@@ -381,9 +381,8 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
 impl UniqueConstraints for diesel_models::PaymentAttempt {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
-            "pa_{}_{}_{}",
+            "pa_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id.get_string_repr(),
             self.id.get_string_repr()
         )]
     }
