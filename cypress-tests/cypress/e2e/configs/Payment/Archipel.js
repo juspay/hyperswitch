@@ -404,6 +404,6 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }
+    },
   },
 };
