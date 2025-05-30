@@ -1936,6 +1936,7 @@ impl behaviour::Conversion for PaymentIntent {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            routing_algorithm_id: self.routing_algorithm_id,
         })
     }
 }
