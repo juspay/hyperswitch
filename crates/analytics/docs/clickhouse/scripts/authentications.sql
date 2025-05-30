@@ -58,7 +58,7 @@ CREATE TABLE authentication_queue (
     `issuer_id` Nullable(String),
     `scheme_name` Nullable(String),
     `exemption_requested` Nullable(Bool),
-    `exemption_accepted` Nullable(Bool),
+    `exemption_accepted` Nullable(Bool)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-authentication-events',
 kafka_group_name = 'hyper',
@@ -196,7 +196,7 @@ CREATE MATERIALIZED VIEW authentication_mv TO authentications (
     `issuer_id` Nullable(String),
     `scheme_name` Nullable(String),
     `exemption_requested` Nullable(Bool),
-    `exemption_accepted` Nullable(Bool),
+    `exemption_accepted` Nullable(Bool)
 ) AS
 SELECT
     authentication_id,
