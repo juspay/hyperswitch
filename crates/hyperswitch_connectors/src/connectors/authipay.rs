@@ -98,10 +98,8 @@ impl ConnectorCommon for Authipay {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
+        // Authipay accepts amount in major unit (i.e., dollars for USD)
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -139,14 +137,20 @@ impl ConnectorCommon for Authipay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.code.clone().unwrap_or_else(|| "".to_string()),
+            message: response.error.message.clone().unwrap_or_else(|| "".to_string()),
+            reason: response.error.details.map(|details| {
+                details
+                    .iter()
+                    .map(|detail| detail.message.clone())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            }),
             attempt_status: None,
             connector_transaction_id: None,
-            network_advice_code:None, 
+            network_advice_code: None, 
             network_decline_code: None,
-            network_error_message : None
+            network_error_message: None
         })
     }
 }
@@ -182,9 +186,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -268,10 +272,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aut
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_id = req.request.connector_transaction_id.clone().get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        
+        Ok(format!(
+            "{}/payments/{}",
+            self.base_url(connectors),
+            connector_id
+        ))
     }
 
     fn build_request(
@@ -332,18 +343,36 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/payments/{}/captures",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            common_utils::types::MinorUnit::new(req.request.amount_to_capture),
+            req.request.currency,
+        )?;
+
+        let capture_request = serde_json::json!({
+            "requestType": "CaptureTransaction",
+            "transactionAmount": {
+                "total": amount,
+                "currency": req.request.currency.to_string()
+            }
+        });
+
+        Ok(RequestContent::Json(Box::new(capture_request)))
     }
 
     fn build_request(
@@ -394,7 +423,88 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Authipay {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Authipay {
+    fn get_headers(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/payments/{}/voids",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let void_request = serde_json::json!({
+            "requestType": "VoidTransaction"
+        });
+        
+        Ok(RequestContent::Json(Box::new(void_request)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<Void, PaymentsCancelData, PaymentsResponseData>, errors::ConnectorError> {
+        let response: authipay::AuthipayPaymentsResponse = res
+            .response
+            .parse_struct("Authipay PaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipay {
     fn get_headers(
@@ -411,10 +521,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipa
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/payments/{}/returns",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -495,10 +609,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authipay 
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/payments/returns/{}",
+            self.base_url(connectors),
+            req.request.connector_refund_id.clone().unwrap_or_default()
+        ))
     }
 
     fn build_request(

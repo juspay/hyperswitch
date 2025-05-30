@@ -5004,6 +5004,23 @@ api_key="Api Key"
 
 
 
+[authipay]
+[[authipay.credit]]
+  payment_method_type = "Mastercard"
+[[authipay.credit]]
+  payment_method_type = "Visa"
+[[authipay.credit]]
+  payment_method_type = "AmericanExpress"
+[[authipay.debit]]
+  payment_method_type = "Mastercard"
+[[authipay.debit]]
+  payment_method_type = "Visa"
+  
+[authipay.connector_auth.BodyKey]
+api_key = "Your API Key"
+key1 = "Your Store ID"
+api_secret = "Your API Secret"
+
 [adyen_payout]
 [[adyen_payout.credit]]
   payment_method_type = "Mastercard"

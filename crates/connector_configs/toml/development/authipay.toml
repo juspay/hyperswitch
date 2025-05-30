@@ -1,0 +1,22 @@
+# Authipay Configuration
+
+[connector_auth]
+connector_auth_type = "BodyKey"
+api_key = "Your API Key"
+key1 = "Your Store ID"
+api_secret = "Your API Secret"
+
+# Credit Card Accepted Providers
+[credit]
+card_types = [
+    { card_type = "visa" },
+    { card_type = "mastercard" },
+    { card_type = "amex" },
+]
+
+# Debit Card Accepted Providers 
+[debit]
+card_types = [
+    { card_type = "visa" },
+    { card_type = "mastercard" },
+]
