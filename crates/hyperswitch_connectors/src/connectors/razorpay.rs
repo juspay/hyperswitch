@@ -831,4 +831,14 @@ impl ConnectorSpecifications for Razorpay {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*RAZORPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    #[cfg(feature = "v2")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        // The length of receipt for Razorpay order request should not exceed 40 characters.
+        uuid::Uuid::new_v4().to_string()
+    }
 }

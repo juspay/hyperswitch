@@ -69,7 +69,7 @@ impl TryFrom<&RazorpayRouterData<&types::CreateOrderRouterData>> for RazorpayOrd
         item: &RazorpayRouterData<&types::CreateOrderRouterData>,
     ) -> Result<Self, Self::Error> {
         let currency = item.router_data.request.currency;
-        let receipt = uuid::Uuid::new_v4().to_string();
+        let receipt = item.router_data.connector_request_reference_id.clone();
 
         Ok(Self {
             amount: item.amount,
