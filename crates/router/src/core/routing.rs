@@ -1,6 +1,6 @@
 pub mod helpers;
 pub mod transformers;
-use std::collections::HashSet;
+use std::{collections::HashSet, pin::Pin};
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::DynamicRoutingAlgoAccessor;
@@ -19,6 +19,7 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting,
 };
+use futures::{future::join_all, Future};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
@@ -1165,6 +1166,17 @@ pub async fn retrieve_routing_config_under_profile(
     ))
 }
 
+type DbCallFuture = Pin<
+    Box<
+        dyn Future<
+                Output = CustomResult<
+                    diesel_models::routing_algorithm::RoutingProfileMetadata,
+                    errors::ApiErrorResponse,
+                >,
+            > + Send,
+    >,
+>;
+
 #[cfg(feature = "v1")]
 pub async fn retrieve_linked_routing_config(
     state: SessionState,
@@ -1207,9 +1219,10 @@ pub async fn retrieve_linked_routing_config(
     };
 
     let mut active_algorithms = Vec::new();
+    let mut db_call_futures: Vec<DbCallFuture> = Vec::new();
 
     for business_profile in business_profiles {
-        let profile_id = business_profile.get_id();
+        let profile_id = business_profile.get_id().clone();
 
         // Handle static routing algorithm
         let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
@@ -1228,7 +1241,7 @@ pub async fn retrieve_linked_routing_config(
             let record = db
                 .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
                     &algorithm_id,
-                    profile_id,
+                    &profile_id,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
@@ -1266,16 +1279,32 @@ pub async fn retrieve_linked_routing_config(
             }
         }
 
-        // Fetch all dynamic algorithms
+        // Prepare futures for dynamic algorithms
         for algorithm_id in dynamic_algorithm_ids {
-            let record = db
-                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
-                    &algorithm_id,
-                    profile_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            let store = state.store.clone();
+            let profile_id_clone = profile_id.clone();
+            db_call_futures.push(Box::pin(async move {
+                store
+                    .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
+                        &algorithm_id,
+                        &profile_id_clone,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+            }));
+        }
+    }
+
+    let results = join_all(db_call_futures).await;
+
+    for result in results {
+        match result {
+            Ok(record) => {
+                active_algorithms.push(record.foreign_into());
+            }
+            Err(e) => {
+                return Err(e);
+            }
         }
     }
 
@@ -1315,7 +1344,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         })
         .collect::<Vec<_>>();
 
-    let configs = futures::future::join_all(retrieve_config_futures)
+    let configs = join_all(retrieve_config_futures)
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
