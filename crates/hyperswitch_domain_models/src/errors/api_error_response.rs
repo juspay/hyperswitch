@@ -303,6 +303,8 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "IR_46", message = "Merchant acquirer not found")]
+    MerchantAcquirerNotFound { id: String },
 }
 
 #[derive(Clone)]
@@ -680,6 +682,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidPlatformOperation => {
                 AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
+            }
+            Self::MerchantAcquirerNotFound { .. } => {
+                AER::NotFound(ApiError::new("IR", 46, "Merchant acquirer not found", None))
             }
         }
     }

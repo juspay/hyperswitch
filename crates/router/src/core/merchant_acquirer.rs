@@ -1,6 +1,9 @@
 use api_models::merchant_acquirer;
+use common_enums::enums;
 use common_utils::{date_time, types::keymanager::KeyManagerState};
-use diesel_models::merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew};
+use diesel_models::merchant_acquirer::{
+    MerchantAcquirer, MerchantAcquirerNew, MerchantAcquirerUpdate,
+};
 use error_stack::ResultExt;
 
 use crate::{
@@ -9,6 +12,102 @@ use crate::{
     types::domain,
     SessionState,
 };
+
+/// A common interface where every accessor returns Option<&T>.
+pub trait MerchantAcquirerKey {
+    fn acquirer_assigned_merchant_id(&self) -> Option<&String>;
+    fn merchant_name(&self) -> Option<&String>;
+    fn mcc(&self) -> Option<&String>;
+    fn merchant_country_code(&self) -> Option<&enums::CountryAlpha2>;
+    fn network(&self) -> Option<&enums::CardNetwork>;
+    fn acquirer_bin(&self) -> Option<&String>;
+    fn acquirer_ica(&self) -> Option<&String>;
+}
+
+impl MerchantAcquirerKey for merchant_acquirer::MerchantAcquirerCreate {
+    fn acquirer_assigned_merchant_id(&self) -> Option<&String> {
+        Some(&self.acquirer_assigned_merchant_id)
+    }
+    fn merchant_name(&self) -> Option<&String> {
+        Some(&self.merchant_name)
+    }
+    fn mcc(&self) -> Option<&String> {
+        Some(&self.mcc)
+    }
+    fn merchant_country_code(&self) -> Option<&enums::CountryAlpha2> {
+        Some(&self.merchant_country_code)
+    }
+    fn network(&self) -> Option<&enums::CardNetwork> {
+        Some(&self.network)
+    }
+    fn acquirer_bin(&self) -> Option<&String> {
+        Some(&self.acquirer_bin)
+    }
+    fn acquirer_ica(&self) -> Option<&String> {
+        self.acquirer_ica.as_ref()
+    }
+}
+
+impl MerchantAcquirerKey for merchant_acquirer::MerchantAcquirerUpdate {
+    fn acquirer_assigned_merchant_id(&self) -> Option<&String> {
+        self.acquirer_assigned_merchant_id.as_ref()
+    }
+    fn merchant_name(&self) -> Option<&String> {
+        self.merchant_name.as_ref()
+    }
+    fn mcc(&self) -> Option<&String> {
+        self.mcc.as_ref()
+    }
+    fn merchant_country_code(&self) -> Option<&enums::CountryAlpha2> {
+        self.merchant_country_code.as_ref()
+    }
+    fn network(&self) -> Option<&enums::CardNetwork> {
+        self.network.as_ref()
+    }
+    fn acquirer_bin(&self) -> Option<&String> {
+        self.acquirer_bin.as_ref()
+    }
+    fn acquirer_ica(&self) -> Option<&String> {
+        self.acquirer_ica.as_ref()
+    }
+}
+
+pub fn has_duplicate_merchant_acquirer<R>(
+    req: &R,
+    existing: &[MerchantAcquirer],
+    merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>>
+where
+    R: MerchantAcquirerKey,
+{
+    if existing.iter().any(|acq| {
+        [
+            req.acquirer_assigned_merchant_id()
+                .map(|v| &acq.acquirer_assigned_merchant_id == v),
+            req.merchant_name().map(|v| &acq.merchant_name == v),
+            req.mcc().map(|v| &acq.mcc == v),
+            req.merchant_country_code()
+                .map(|v| &acq.merchant_country_code == v),
+            req.network().map(|v| &acq.network == v),
+            req.acquirer_bin().map(|v| &acq.acquirer_bin == v),
+            req.acquirer_ica()
+                .map(|v| acq.acquirer_ica.as_ref() == Some(v)),
+        ]
+        .into_iter()
+        .flatten()
+        .all(|matches| matches)
+    }) {
+        return Err(error_stack::Report::from(
+            errors::ApiErrorResponse::GenericDuplicateError {
+                message: format!(
+                    "Merchant acquirer configuration with id {} already exists.",
+                    merchant_acquirer_id.get_string_repr()
+                ),
+            },
+        ));
+    }
+    Ok(())
+}
 
 fn to_api_response(db_acquirer: MerchantAcquirer) -> merchant_acquirer::MerchantAcquirerResponse {
     merchant_acquirer::MerchantAcquirerResponse {
@@ -111,29 +210,56 @@ pub async fn create_merchant_acquirer(
     )))
 }
 
-fn has_duplicate_merchant_acquirer(
-    request: &merchant_acquirer::MerchantAcquirerCreate,
-    existing_acquirers: &Vec<MerchantAcquirer>,
-    merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
-) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    for acquirer in existing_acquirers {
-        if acquirer.acquirer_assigned_merchant_id == request.acquirer_assigned_merchant_id
-            && acquirer.merchant_name == request.merchant_name
-            && acquirer.mcc == request.mcc
-            && acquirer.merchant_country_code == request.merchant_country_code
-            && acquirer.network == request.network
-            && acquirer.acquirer_bin == request.acquirer_bin
-            && acquirer.acquirer_ica == request.acquirer_ica
-        {
-            return Err(error_stack::Report::from(
-                errors::ApiErrorResponse::GenericDuplicateError {
-                    message: format!(
-                        "Merchant acquirer configuration with id {} already exists.",
-                        merchant_acquirer_id.get_string_repr()
-                    ),
-                },
-            ));
-        }
-    }
-    Ok(())
+pub async fn update_merchant_acquirer(
+    state: SessionState,
+    request: merchant_acquirer::MerchantAcquirerUpdate,
+    merchant_acquirer_id: common_utils::id_type::MerchantAcquirerId,
+) -> RouterResponse<merchant_acquirer::MerchantAcquirerResponse> {
+    let db = state.store.as_ref();
+
+    let merchant_acquirer = db
+        .find_merchant_acquirer_by_acquirer_id(&merchant_acquirer_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAcquirerNotFound {
+            id: merchant_acquirer_id.get_string_repr().to_owned(),
+        })?;
+
+    let existing_merchant_acquirers = db
+        .list_merchant_acquirer_based_on_profile_id(&merchant_acquirer.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAcquirerNotFound {
+            id: merchant_acquirer_id.get_string_repr().to_owned(),
+        })?;
+
+    has_duplicate_merchant_acquirer(
+        &request,
+        &existing_merchant_acquirers,
+        &merchant_acquirer_id,
+    )?;
+
+    let updated_merchant_acquirer = MerchantAcquirerUpdate {
+        merchant_acquirer_id: Some(merchant_acquirer.merchant_acquirer_id),
+        acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id,
+        merchant_name: request.merchant_name,
+        mcc: request.mcc,
+        merchant_country_code: request.merchant_country_code,
+        network: request.network,
+        acquirer_bin: request.acquirer_bin,
+        acquirer_ica: request.acquirer_ica,
+        acquirer_fraud_rate: request.acquirer_fraud_rate,
+        profile_id: request.profile_id,
+    };
+
+    let updated_acquirer = db
+        .update_merchant_acquirer_by_merchant_acquirer_id(
+            &merchant_acquirer_id,
+            updated_merchant_acquirer,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update merchant acquirer")?;
+
+    Ok(api::ApplicationResponse::Json(to_api_response(
+        updated_acquirer,
+    )))
 }

@@ -1,4 +1,6 @@
-use diesel_models::merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew};
+use diesel_models::merchant_acquirer::{
+    MerchantAcquirer, MerchantAcquirerNew, MerchantAcquirerUpdate,
+};
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -20,6 +22,17 @@ pub trait MerchantAcquirerInterface {
         &self,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<Vec<MerchantAcquirer>, errors::StorageError>;
+
+    async fn find_merchant_acquirer_by_acquirer_id(
+        &self,
+        merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError>;
+
+    async fn update_merchant_acquirer_by_merchant_acquirer_id(
+        &self,
+        merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+        merchant_acquirer_update: MerchantAcquirerUpdate,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -45,6 +58,33 @@ impl MerchantAcquirerInterface for Store {
         MerchantAcquirer::list_by_profile_id(&conn, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_merchant_acquirer_by_acquirer_id(
+        &self,
+        merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        MerchantAcquirer::find_by_id(&conn, merchant_acquirer_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn update_merchant_acquirer_by_merchant_acquirer_id(
+        &self,
+        merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+        merchant_acquirer_update: MerchantAcquirerUpdate,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        MerchantAcquirer::update_by_merchant_acquirer_id(
+            &conn,
+            merchant_acquirer_id,
+            merchant_acquirer_update,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -91,6 +131,23 @@ impl MerchantAcquirerInterface for MockDb {
         &self,
         _profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<Vec<MerchantAcquirer>, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_merchant_acquirer_by_acquirer_id(
+        &self,
+        _merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn update_merchant_acquirer_by_merchant_acquirer_id(
+        &self,
+        _merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+        _merchant_acquirer_update: MerchantAcquirerUpdate,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

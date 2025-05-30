@@ -2,7 +2,8 @@ use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
 use crate::{
-    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew},
+    errors::DatabaseError,
+    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew, MerchantAcquirerUpdate},
     schema::merchant_acquirer::dsl,
     PgPooledConn, StorageResult,
 };
@@ -31,5 +32,45 @@ impl MerchantAcquirer {
             None,
         )
         .await
+    }
+
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_acquirer_id.eq(merchant_acquirer_id.to_owned()),
+        )
+        .await
+    }
+
+    pub async fn update_by_merchant_acquirer_id(
+        conn: &PgPooledConn,
+        merchant_acquirer_id: &common_utils::id_type::MerchantAcquirerId,
+        merchant_acquirer_update: MerchantAcquirerUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            merchant_acquirer_id.to_owned(),
+            merchant_acquirer_update,
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                DatabaseError::NotFound => {
+                    Err(error.attach_printable("Merchant Acquirer with the given ID doesn't exist"))
+                }
+                DatabaseError::NoFieldsToUpdate => {
+                    generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
+                        conn,
+                        merchant_acquirer_id.clone(),
+                    )
+                    .await
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 }

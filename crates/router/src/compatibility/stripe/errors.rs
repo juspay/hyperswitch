@@ -285,6 +285,8 @@ pub enum StripeErrorCode {
     PlatformBadRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
     PlatformUnauthorizedRequest,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant Acquirer not found")]
+    MerchantAcquirerNotFound,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -688,6 +690,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
             errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
+            errors::ApiErrorResponse::MerchantAcquirerNotFound { .. } => {
+                Self::MerchantAcquirerNotFound
+            }
         }
     }
 }
@@ -782,6 +787,7 @@ impl actix_web::ResponseError for StripeErrorCode {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
             Self::LockTimeout => StatusCode::LOCKED,
+            Self::MerchantAcquirerNotFound => StatusCode::NOT_FOUND,
         }
     }
 
