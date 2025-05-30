@@ -1893,17 +1893,16 @@ impl super::behaviour::Conversion for Profile {
                 three_ds_decision_manager_config: item.three_ds_decision_manager_config,
                 card_testing_guard_config: item.card_testing_guard_config,
                 card_testing_secret_key: match item.card_testing_secret_key {
-                    Some(encrypted_value) => {
-                        crypto_operation(
-                            state,
-                            type_name!(Self::DstType),
-                            CryptoOperation::DecryptOptional(Some(encrypted_value)),
-                            key_manager_identifier.clone(),
-                            key.peek(),
-                        )
-                        .await
-                        .and_then(|val| val.try_into_optionaloperation()).unwrap_or_default()
-                    }
+                    Some(encrypted_value) => crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(Some(encrypted_value)),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                    .unwrap_or_default(),
                     None => None,
                 },
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,

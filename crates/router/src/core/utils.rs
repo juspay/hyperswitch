@@ -2045,7 +2045,7 @@ pub async fn construct_vault_router_data<F>(
     let connector_name = merchant_connector_account
         .get_connector_name()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?;// always get the connector name from the merchant_connector_account
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
