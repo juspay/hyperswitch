@@ -12,7 +12,7 @@ use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
     enums::{self, ProcessTrackerStatus},
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew},
+    merchant_acquirer::{MerchantAcquirer, MerchantAcquirerNew, MerchantAcquirerUpdate},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
@@ -4255,6 +4255,30 @@ impl MerchantAcquirerInterface for KafkaStore {
     ) -> CustomResult<Vec<MerchantAcquirer>, errors::StorageError> {
         self.diesel_store
             .list_merchant_acquirer_based_on_profile_id(profile_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_merchant_acquirer_by_acquirer_id(
+        &self,
+        merchant_acquirer_id: &id_type::MerchantAcquirerId,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        self.diesel_store
+            .find_merchant_acquirer_by_acquirer_id(merchant_acquirer_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_merchant_acquirer_by_merchant_acquirer_id(
+        &self,
+        merchant_acquirer_id: &id_type::MerchantAcquirerId,
+        merchant_acquirer_update: MerchantAcquirerUpdate,
+    ) -> CustomResult<MerchantAcquirer, errors::StorageError> {
+        self.diesel_store
+            .update_merchant_acquirer_by_merchant_acquirer_id(
+                merchant_acquirer_id,
+                merchant_acquirer_update,
+            )
             .await
     }
 }

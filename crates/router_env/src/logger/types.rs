@@ -596,6 +596,8 @@ pub enum Flow {
     Proxy,
     /// Merchant Acquirer Create Flow
     MerchantAcquirerCreate,
+    /// Merchant Acquirer Update Flow
+    MerchantAcquirerUpdate,
 }
 
 /// Trait for providing generic behaviour to flow metric
