@@ -1573,7 +1573,6 @@ Cypress.Commands.add(
     const merchantConnectorId = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
-    const setupFutureUsage = globalState.get("setupFutureUsage");
     const paymentIntentID = globalState.get("paymentID");
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
     const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
@@ -1641,7 +1640,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
@@ -1675,7 +1674,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
@@ -2560,7 +2559,6 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
-    const setupFutureUsage = globalState.get("setupFutureUsage");
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
@@ -2639,7 +2637,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
@@ -2675,7 +2673,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
