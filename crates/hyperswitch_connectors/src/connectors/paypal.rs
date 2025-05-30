@@ -8,7 +8,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -86,12 +89,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Paypal {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Paypal {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -2024,9 +2029,15 @@ impl IncomingWebhook for Paypal {
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }
             transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
+                let amt = connector_utils::convert_back_amount_to_minor_units(
+                    self.amount_converter,
+                    payload.dispute_amount.value,
+                    payload.dispute_amount.currency_code,
+                )?;
                 Ok(disputes::DisputePayload {
-                    amount: connector_utils::to_currency_lower_unit(
-                        payload.dispute_amount.value.get_amount_as_string(),
+                    amount: connector_utils::convert_amount(
+                        self.amount_converter_webhooks,
+                        amt,
                         payload.dispute_amount.currency_code,
                     )?,
                     currency: payload.dispute_amount.currency_code,
