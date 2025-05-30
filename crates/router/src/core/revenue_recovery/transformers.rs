@@ -18,7 +18,8 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::CodInitiated
             | AttemptStatus::VoidInitiated
             | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
+            | AttemptStatus::Pending
+            | AttemptStatus::IntegrityFailure => Self::Processing,
 
             AttemptStatus::AuthenticationFailed
             | AttemptStatus::AuthorizationFailed
