@@ -1312,7 +1312,10 @@ Cypress.Commands.add(
           globalState.set("clientSecret", clientSecret);
           globalState.set("paymentID", response.body.payment_id);
           // Store the actual setup_future_usage value from the response
-          globalState.set("actualSetupFutureUsage", response.body.setup_future_usage);
+          globalState.set(
+            "actualSetupFutureUsage",
+            response.body.setup_future_usage
+          );
           cy.log(clientSecret);
           for (const key in resData.body) {
             expect(resData.body[key]).to.equal(
@@ -2026,7 +2029,10 @@ Cypress.Commands.add(
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
           globalState.set("paymentID", response.body.payment_id);
           // Store the actual setup_future_usage value from the response
-          globalState.set("actualSetupFutureUsage", response.body.setup_future_usage);
+          globalState.set(
+            "actualSetupFutureUsage",
+            response.body.setup_future_usage
+          );
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -2123,8 +2129,10 @@ Cypress.Commands.add(
 
     // Add card_cvc if actual setup_future_usage is "on_session"
     // This covers both explicit on_session and fallback cases
-    if (globalState.get("actualSetupFutureUsage") === "on_session" && 
-        reqData.payment_method_data?.card?.card_cvc) {
+    if (
+      globalState.get("actualSetupFutureUsage") === "on_session" &&
+      reqData.payment_method_data?.card?.card_cvc
+    ) {
       saveCardConfirmBody.card_cvc = reqData.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
