@@ -32,6 +32,7 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 
@@ -66,6 +67,7 @@ const connectorDetails = {
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
   archipel: archipelConnectorDetails,
 };

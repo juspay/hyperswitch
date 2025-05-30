@@ -161,7 +161,7 @@ pub async fn perform_execute_payment(
         types::Decision::ReviewForFailedPayment(triggered_by) => {
             match triggered_by {
                 enums::TriggeredBy::Internal => {
-                    // requeue the current taks to update the fields for rescheduling a payment
+                    // requeue the current tasks to update the fields for rescheduling a payment
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                         status: enums::ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(
@@ -259,10 +259,8 @@ pub async fn perform_payments_sync(
         revenue_recovery_payment_data,
     )
     .await?;
-    // If there is an active_attempt id then there will be a payment attempt
-    let payment_attempt = psync_data
-        .payment_attempt
-        .get_required_value("Payment Attempt")?;
+
+    let payment_attempt = psync_data.payment_attempt;
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()

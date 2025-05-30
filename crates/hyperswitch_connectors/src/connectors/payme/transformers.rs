@@ -425,7 +425,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::CashappQr(_)
                 | WalletData::ApplePay(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
                     connector: "payme",
                 }

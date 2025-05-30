@@ -9,6 +9,7 @@ use masking::ExposeInterface;
 use once_cell::sync::OnceCell;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+use router_env::logger;
 
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
@@ -17,30 +18,55 @@ pub fn create_client(
     proxy_config: &Proxy,
     client_certificate: Option<masking::Secret<String>>,
     client_certificate_key: Option<masking::Secret<String>>,
+    ca_certificate: Option<masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, HttpClientError> {
-    match (client_certificate, client_certificate_key) {
-        (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-            let client_builder = get_client_builder(proxy_config)?;
-
-            let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
-                encoded_certificate_key,
-            )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
-                .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
-            client_builder
-                .identity(identity)
-                .use_rustls_tls()
-                .build()
-                .change_context(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct client with certificate and certificate key")
+    // Case 1: Mutual TLS with client certificate and key
+    if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
+        (client_certificate.clone(), client_certificate_key.clone())
+    {
+        if ca_certificate.is_some() {
+            logger::warn!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
         }
-        _ => get_base_client(proxy_config),
+
+        logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
+        let client_builder = get_client_builder(proxy_config)?;
+
+        let identity = create_identity_from_certificate_and_key(
+            encoded_certificate.clone(),
+            encoded_certificate_key,
+        )?;
+        let certificate_list = create_certificate(encoded_certificate)?;
+        let client_builder = certificate_list
+            .into_iter()
+            .fold(client_builder, |client_builder, certificate| {
+                client_builder.add_root_certificate(certificate)
+            });
+        return client_builder
+            .identity(identity)
+            .use_rustls_tls()
+            .build()
+            .change_context(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to construct client with certificate and certificate key");
     }
+
+    // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
+    if let Some(ca_pem) = ca_certificate {
+        logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
+        let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
+        let cert = reqwest::Certificate::from_pem(pem.as_bytes())
+            .change_context(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to parse CA certificate PEM block")?;
+        let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
+        return client_builder
+            .use_rustls_tls()
+            .build()
+            .change_context(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to construct client with CA certificate");
+    }
+
+    // Case 3: Default client (no certs)
+    logger::debug!("Creating default HTTP client (no client or CA certificates)");
+    get_base_client(proxy_config)
 }
 
 #[allow(missing_docs)]
