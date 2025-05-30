@@ -54,7 +54,7 @@ impl SESConfig {
 pub enum AwsSesError {
     /// An error occurred in the SDK while sending email.
     #[error("Failed to Send Email {0:?}")]
-    SendingFailure(aws_sdk_sesv2::error::SdkError<SendEmailError>),
+    SendingFailure(Box<aws_sdk_sesv2::error::SdkError<SendEmailError>>),
 
     /// Configuration variable is missing to construct the email client
     #[error("Missing configuration variable {0}")]
@@ -245,7 +245,7 @@ impl EmailClient for AwsSes {
             )
             .send()
             .await
-            .map_err(AwsSesError::SendingFailure)
+            .map_err(|e| AwsSesError::SendingFailure(Box::new(e)))
             .change_context(EmailError::EmailSendingFailure)?;
 
         Ok(())

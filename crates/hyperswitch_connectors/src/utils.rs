@@ -67,10 +67,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use quick_xml::{
+    events::{BytesDecl, BytesText, Event},
+    Writer,
+};
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
@@ -5505,6 +5509,7 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    RevolutPay,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5555,6 +5560,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
                 payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
                 payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
+                payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -6446,5 +6452,44 @@ impl SplitPaymentData for PaymentsCancelData {
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
+    }
+}
+
+pub struct XmlSerializer;
+impl XmlSerializer {
+    pub fn serialize_to_xml_bytes<T: Serialize>(
+        item: &T,
+        xml_version: &str,
+        xml_encoding: Option<&str>,
+        xml_standalone: Option<&str>,
+        xml_doc_type: &str,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+        let mut xml_bytes = Vec::new();
+        let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
+
+        writer
+            .write_event(Event::Decl(BytesDecl::new(
+                xml_version,
+                xml_encoding,
+                xml_standalone,
+            )))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write XML declaration")?;
+
+        writer
+            .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write the XML declaration")?;
+
+        let xml_body = quick_xml::se::to_string(&item)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
+
+        writer
+            .write_event(Event::Text(BytesText::from_escaped(xml_body)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
+
+        Ok(xml_bytes)
     }
 }
