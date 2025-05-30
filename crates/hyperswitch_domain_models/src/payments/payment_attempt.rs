@@ -1211,6 +1211,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
+        surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1469,6 +1470,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 card_discovery,
+                surcharge_algorithm_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1504,6 +1506,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
+                surcharge_algorithm_id,
             },
             Self::VoidUpdate {
                 status,

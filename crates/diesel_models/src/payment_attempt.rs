@@ -497,6 +497,7 @@ pub enum PaymentAttemptUpdate {
         order_tax_amount: Option<MinorUnit>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<storage_enums::CardDiscovery>,
+        surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -937,6 +938,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
 }
 
@@ -1126,6 +1128,7 @@ impl PaymentAttemptUpdate {
             charges,
             issuer_error_code,
             issuer_error_message,
+            surcharge_algorithm_id,
             setup_future_usage_applied,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -1191,6 +1194,7 @@ impl PaymentAttemptUpdate {
             charges: charges.or(source.charges),
             issuer_error_code: issuer_error_code.or(source.issuer_error_code),
             issuer_error_message: issuer_error_message.or(source.issuer_error_message),
+            surcharge_algorithm_id: surcharge_algorithm_id.or(source.surcharge_algorithm_id),
             setup_future_usage_applied: setup_future_usage_applied
                 .or(source.setup_future_usage_applied),
             ..source
@@ -2250,6 +2254,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
@@ -2312,6 +2317,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
@@ -2349,6 +2355,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 order_tax_amount,
                 connector_mandate_detail,
                 card_discovery,
+                surcharge_algorithm_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2406,6 +2413,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -2469,6 +2477,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
@@ -2533,6 +2542,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
@@ -2597,6 +2607,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
@@ -2659,6 +2670,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
@@ -2721,6 +2733,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
@@ -2811,6 +2824,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_discovery: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    surcharge_algorithm_id: None,
                     setup_future_usage_applied,
                 }
             }
@@ -2892,6 +2906,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_mandate_detail: None,
                     card_discovery: None,
                     charges: None,
+                    surcharge_algorithm_id: None,
                     setup_future_usage_applied: None,
                 }
             }
@@ -2952,6 +2967,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
@@ -3020,6 +3036,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -3095,6 +3112,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    surcharge_algorithm_id: None,
                     setup_future_usage_applied: None,
                 }
             }
@@ -3169,6 +3187,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    surcharge_algorithm_id: None,
                     setup_future_usage_applied: None,
                 }
             }
@@ -3233,6 +3252,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
@@ -3296,6 +3316,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
@@ -3368,6 +3389,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     card_discovery: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    surcharge_algorithm_id: None,
                     setup_future_usage_applied: None,
                 }
             }
@@ -3431,6 +3453,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
@@ -3496,6 +3519,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
@@ -3570,6 +3594,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     charges: None,
                     issuer_error_code: None,
                     issuer_error_message: None,
+                    surcharge_algorithm_id: None,
                     setup_future_usage_applied: None,
                 }
             }
@@ -3633,6 +3658,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                surcharge_algorithm_id: None,
                 setup_future_usage_applied: None,
             },
         }

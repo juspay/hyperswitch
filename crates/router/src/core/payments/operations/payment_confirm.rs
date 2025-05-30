@@ -993,6 +993,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.payment_attempt.payment_method,
                 payment_data.payment_attempt.payment_method_type,
             );
+        println!(
+            "surcharge_algorithm_id: {:?}",
+            payment_data.payment_attempt.surcharge_algorithm_id
+        );
         Ok(())
     }
 
@@ -1796,6 +1800,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .connector_mandate_detail,
                         card_discovery,
+                        surcharge_algorithm_id: payment_data.payment_attempt.surcharge_algorithm_id,
                     },
                     storage_scheme,
                 )

@@ -187,6 +187,10 @@ pub const ALGORITHM_TYPE_ROUTING: common_enums::AlgorithmType =
 pub const ALGORITHM_TYPE_SURCHARGE: common_enums::AlgorithmType =
     common_enums::AlgorithmType::Surcharge;
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+/// Length of generated tokens
+pub const TOKEN_LENGTH: usize = 32;
+
 /// The tag name used for identifying the host in metrics.
 pub const METRICS_HOST_TAG_NAME: &str = "host";
 

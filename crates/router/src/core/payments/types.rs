@@ -4,6 +4,7 @@ use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
+    id_type::SurchargeRoutingId,
     types::{self as common_types, ConnectorTransactionIdTrait},
 };
 use error_stack::ResultExt;
@@ -242,13 +243,15 @@ pub enum SurchargeKey {
 pub struct SurchargeMetadata {
     surcharge_results: HashMap<SurchargeKey, SurchargeDetails>,
     pub payment_attempt_id: String,
+    pub surcharge_algorithm_id: Option<String>,
 }
 
 impl SurchargeMetadata {
-    pub fn new(payment_attempt_id: String) -> Self {
+    pub fn new(payment_attempt_id: String, surcharge_algo_id: Option<String>) -> Self {
         Self {
             surcharge_results: HashMap::new(),
             payment_attempt_id,
+            surcharge_algorithm_id: surcharge_algo_id,
         }
     }
     pub fn is_empty_result(&self) -> bool {
@@ -297,6 +300,9 @@ impl SurchargeMetadata {
             }
         }
     }
+
+    const SURCHARGE_VALUE_KEY: &'static str = "surcharge_algorithm_id";
+
     #[instrument(skip_all)]
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
@@ -321,6 +327,16 @@ impl SurchargeMetadata {
                         .attach_printable("Failed to encode to string of json")?,
                 ));
             }
+            value_list.push((
+                // "surcharge_algorithm_id".to_string(),
+                Self::SURCHARGE_VALUE_KEY.to_string(),
+                self.surcharge_algorithm_id
+                    .clone()
+                    .unwrap_or_default()
+                    .encode_to_string_of_json()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode to string of json")?,
+            ));
             let intent_fulfillment_time = business_profile
                 .get_order_fulfillment_time()
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
@@ -359,6 +375,33 @@ impl SurchargeMetadata {
             .await;
         logger::debug!(
             "Surcharge result fetched from redis with key = {} and {}",
+            redis_key,
+            value_key
+        );
+        result
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_surcharge_id_from_redis(
+        state: &SessionState,
+        payment_attempt_id: &str,
+    ) -> CustomResult<SurchargeRoutingId, RedisError> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .attach_printable("Failed to get redis connection")?;
+        let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
+        // let value_key = "surcharge_algorithm_id".to_string();
+        let value_key = Self::SURCHARGE_VALUE_KEY.to_string();
+        let result = redis_conn
+            .get_hash_field_and_deserialize(
+                &redis_key.as_str().into(),
+                &value_key,
+                "SurchargeRoutingId",
+            )
+            .await;
+        logger::debug!(
+            "Surcharge algorithm id fetched from redis with key = {} and  {}",
             redis_key,
             value_key
         );

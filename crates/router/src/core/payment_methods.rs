@@ -71,7 +71,7 @@ use crate::{
     configs::settings,
     core::{
         payment_methods::transformers as pm_transforms, payments as payments_core,
-        utils as core_utils,
+        tokenization as tokenization_core, utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
     headers, logger,
@@ -400,7 +400,7 @@ pub async fn render_pm_collect_link(
                 let generic_form_data = services::GenericLinkFormData {
                     js_data: serialized_js_content,
                     css_data: serialized_css_content,
-                    sdk_url: default_config.sdk_url.to_string(),
+                    sdk_url: default_config.sdk_url.clone(),
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
@@ -2569,10 +2569,12 @@ pub async fn payment_methods_session_create(
             billing,
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
+            tokenization_data: request.tokenization_data,
             expires_at,
             return_url: request.return_url,
             associated_payment_methods: None,
             associated_payment: None,
+            associated_token_id: None,
         };
 
     db.insert_payment_methods_session(
@@ -2588,6 +2590,7 @@ pub async fn payment_methods_session_create(
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         client_secret.secret,
+        None,
         None,
     );
 
@@ -2638,6 +2641,7 @@ pub async fn payment_methods_session_update(
             billing,
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
+            tokenization_data: request.tokenization_data,
         };
 
     let update_state_change = db
@@ -2656,6 +2660,7 @@ pub async fn payment_methods_session_update(
         update_state_change,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -2685,6 +2690,7 @@ pub async fn payment_methods_session_retrieve(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -2873,6 +2879,8 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
+    let customer_id = payment_method_session.customer_id.clone();
+
     let create_payment_method_request = get_payment_method_create_request(
         request
             .payment_method_data
@@ -2881,7 +2889,7 @@ pub async fn payment_methods_session_confirm(
             .get_required_value("payment_method_data")?,
         request.payment_method_type,
         request.payment_method_subtype,
-        payment_method_session.customer_id.clone(),
+        customer_id.clone(),
         unified_billing_address.as_ref(),
         Some(&payment_method_session),
     )
@@ -2936,11 +2944,35 @@ pub async fn payment_methods_session_confirm(
         None => None,
     };
 
+    let tokenization_response = match payment_method_session.tokenization_data.clone() {
+        Some(tokenization_data) => {
+            let tokenization_response = tokenization_core::create_vault_token_core(
+                state.clone(),
+                &merchant_context.get_merchant_account().clone(),
+                &merchant_context.get_merchant_key_store().clone(),
+                api_models::tokenization::GenericTokenizationRequest {
+                    customer_id: customer_id.clone(),
+                    token_request: tokenization_data,
+                },
+            )
+            .await?;
+            let token = match tokenization_response {
+                services::ApplicationResponse::Json(response) => Some(response),
+                _ => None,
+            };
+            Some(token)
+        }
+        None => None,
+    };
+
+    logger::debug!(?tokenization_response, "Tokenization response");
+
     //TODO: update the payment method session with the payment id and payment method id
     let payment_method_session_response = transformers::generate_payment_method_session_response(
         payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         payments_response,
+        (tokenization_response.flatten()),
     );
 
     Ok(services::ApplicationResponse::Json(
