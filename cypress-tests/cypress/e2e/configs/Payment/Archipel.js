@@ -430,5 +430,39 @@ export const connectorDetails = {
         },
       },
     },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+      MandateSingleUseNo3DSManualCapture: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          currency: "USD",
+          mandate_data: singleUseMandateData,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_capture",
+            payment_method_data: paymentMethodDataNo3DSResponse,
+          },
+        },
+      },
+    }
   },
 };
