@@ -2769,11 +2769,9 @@ pub async fn payment_confirm_intent(
                 is_connected_allowed: false,
                 is_platform_allowed: false,
             },
-            &auth::V2ClientAuth(
-                common_utils::types::authentication::ResourceId::Payment(
-                    global_payment_id,
-                ),
-            ),
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
             req.headers(),
         ),
         locking_action,

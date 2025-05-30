@@ -6642,12 +6642,12 @@ where
             .get_payment_attempt()
             .merchant_connector_id
             .clone(),
-        pre_routing_connector_choice: payment_data
-            .get_pre_routing_result()
-            .and_then(
-                |pre_routing_results| {
-                    pre_routing_results.get(&payment_data.get_payment_attempt().payment_method_subtype).cloned()
-                },
+        pre_routing_connector_choice: payment_data.get_pre_routing_result().and_then(
+            |pre_routing_results| {
+                pre_routing_results
+                    .get(&payment_data.get_payment_attempt().payment_method_subtype)
+                    .cloned()
+            },
         ),
 
         algorithm_requested: payment_data
