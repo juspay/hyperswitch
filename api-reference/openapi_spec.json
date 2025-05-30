@@ -11909,8 +11909,7 @@
             "description": "The identifier for payment_attempt"
           },
           "amount": {
-            "type": "string",
-            "description": "The dispute amount"
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -14865,7 +14864,8 @@
           "primary_business_details",
           "organization_id",
           "is_recon_enabled",
-          "recon_status"
+          "recon_status",
+          "merchant_account_type"
         ],
         "properties": {
           "merchant_id": {
@@ -15011,8 +15011,19 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
+      },
+      "MerchantAccountType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform",
+          "connected"
+        ]
       },
       "MerchantAccountUpdate": {
         "type": "object",
@@ -27328,6 +27339,10 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StringMinorUnit": {
+        "type": "string",
+        "description": "Connector specific types to send"
       },
       "StripeChargeResponseData": {
         "type": "object",

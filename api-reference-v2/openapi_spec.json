@@ -10015,8 +10015,7 @@
             "description": "The identifier for payment_attempt"
           },
           "amount": {
-            "type": "string",
-            "description": "The dispute amount"
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -23298,6 +23297,10 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StringMinorUnit": {
+        "type": "string",
+        "description": "Connector specific types to send"
       },
       "StripeChargeResponseData": {
         "type": "object",

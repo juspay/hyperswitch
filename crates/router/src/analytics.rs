@@ -446,6 +446,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetPaymentMetricRequest` element.
@@ -486,9 +487,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -600,6 +608,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetPaymentIntentMetricRequest` element.
@@ -640,9 +649,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -754,6 +770,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
@@ -794,9 +811,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1068,6 +1092,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_org_payment_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1088,9 +1113,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1132,6 +1164,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_payment_intents_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1152,9 +1185,16 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1190,6 +1230,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_org_refund_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1210,9 +1251,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2480,6 +2528,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_org_dispute_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2500,9 +2549,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2594,6 +2650,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
@@ -2624,9 +2681,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2663,6 +2727,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_org_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2684,9 +2749,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
