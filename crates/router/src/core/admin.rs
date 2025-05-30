@@ -197,6 +197,21 @@ pub async fn create_merchant_account(
 
     let db = state.store.as_ref();
 
+    #[cfg(feature = "v1")]
+    if let Some(ref webhook_details) = &req.webhook_details {
+        if let Some(ref multiple_webhooks_list) = webhook_details.multiple_webhooks_list {
+            if multiple_webhooks_list.len() > consts::MAX_WEBHOOK_DETAILS {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "Webhook details cannot exceed {} entries.",
+                        consts::MAX_WEBHOOK_DETAILS
+                    ),
+                }
+                .into());
+            }
+        }
+    }
+
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to generate aes 256 key")?;
@@ -1168,6 +1183,21 @@ pub async fn merchant_account_update(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    #[cfg(feature = "v1")]
+    if let Some(ref webhook_details) = &req.webhook_details {
+        if let Some(ref multiple_webhooks_list) = webhook_details.multiple_webhooks_list {
+            if multiple_webhooks_list.len() > consts::MAX_WEBHOOK_DETAILS {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "Webhook details cannot exceed {} entries.",
+                        consts::MAX_WEBHOOK_DETAILS
+                    ),
+                }
+                .into());
+            }
+        }
+    }
 
     let merchant_account_storage_object = req
         .get_update_merchant_object(&state, merchant_id, &key_store)
@@ -4177,6 +4207,19 @@ pub async fn create_profile(
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+    if let Some(ref webhook_details) = &request.webhook_details {
+        if let Some(ref multiple_webhooks_list) = webhook_details.multiple_webhooks_list {
+            if multiple_webhooks_list.len() > consts::MAX_WEBHOOK_DETAILS {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "Webhook details cannot exceed {} entries.",
+                        consts::MAX_WEBHOOK_DETAILS
+                    ),
+                }
+                .into());
+            }
+        }
+    }
 
     #[cfg(feature = "v1")]
     let business_profile = request
@@ -4259,6 +4302,7 @@ pub async fn list_profile(
         let business_profile = api_models::admin::ProfileResponse::foreign_try_from(profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?;
+
         business_profiles.push(business_profile);
     }
 
@@ -4279,11 +4323,11 @@ pub async fn retrieve_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?,
-    ))
+    let profile_response = api_models::admin::ProfileResponse::foreign_try_from(business_profile)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse business profile details")?;
+
+    Ok(service_api::ApplicationResponse::Json(profile_response))
 }
 
 pub async fn delete_profile(
@@ -4620,6 +4664,19 @@ pub async fn update_profile(
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+    if let Some(ref webhook_details) = &request.webhook_details {
+        if let Some(ref multiple_webhooks_list) = webhook_details.multiple_webhooks_list {
+            if multiple_webhooks_list.len() > consts::MAX_WEBHOOK_DETAILS {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "Webhook details cannot exceed {} entries.",
+                        consts::MAX_WEBHOOK_DETAILS
+                    ),
+                }
+                .into());
+            }
+        }
+    }
 
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)

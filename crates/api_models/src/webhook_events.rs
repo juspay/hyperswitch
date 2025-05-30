@@ -71,6 +71,10 @@ pub struct EventListItemResponse {
     #[schema(max_length = 64, value_type = String, example = "SqB0zwDGR5wHppWf0bx7GKr1f2")]
     pub profile_id: common_utils::id_type::ProfileId,
 
+    /// The identifier for the webhook endpoint.
+    #[schema(max_length = 64, example = "whe_018e31720d1b7a2b82677d3032cab959")]
+    pub webhook_endpoint_id: Option<common_utils::id_type::WebhookEndpointId>,
+
     /// The identifier for the object (Payment Intent ID, Refund ID, etc.)
     #[schema(max_length = 64, example = "QHrfd5LUDdZaKtAjdJmMu0dMa1")]
     pub object_id: String,

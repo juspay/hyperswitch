@@ -1999,6 +1999,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
             created: item.created_at,
+            webhook_endpoint_id: item.webhook_endpoint_id,
         })
     }
 }
@@ -2140,6 +2141,56 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
     for diesel_models::business_profile::WebhookDetails
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+        let mut normalized_list = vec![];
+
+        if let Some(webhook_url) = &item.webhook_url {
+            let events: std::collections::HashSet<_> = std::collections::HashSet::from([
+                common_enums::EventType::PaymentSucceeded,
+                common_enums::EventType::PaymentFailed,
+                common_enums::EventType::PaymentProcessing,
+                common_enums::EventType::PaymentCancelled,
+                common_enums::EventType::PaymentAuthorized,
+                common_enums::EventType::PaymentCaptured,
+                common_enums::EventType::ActionRequired,
+                common_enums::EventType::RefundSucceeded,
+                common_enums::EventType::RefundFailed,
+                common_enums::EventType::DisputeOpened,
+                common_enums::EventType::DisputeExpired,
+                common_enums::EventType::DisputeAccepted,
+                common_enums::EventType::DisputeCancelled,
+                common_enums::EventType::DisputeChallenged,
+                common_enums::EventType::DisputeWon,
+                common_enums::EventType::DisputeLost,
+                common_enums::EventType::MandateActive,
+                common_enums::EventType::MandateRevoked,
+                common_enums::EventType::PayoutSuccess,
+                common_enums::EventType::PayoutFailed,
+                common_enums::EventType::PayoutInitiated,
+                common_enums::EventType::PayoutProcessing,
+                common_enums::EventType::PayoutCancelled,
+                common_enums::EventType::PayoutExpired,
+                common_enums::EventType::PayoutReversed,
+            ]);
+
+            let legacy_entry = diesel_models::business_profile::MultipleWebhookDetail {
+                webhook_endpoint_id: Some(
+                    common_utils::generate_webhook_endpoint_id_of_default_length(),
+                ),
+                webhook_url: Some(webhook_url.clone()),
+                events,
+                status: Some(common_enums::OutgoingWebhookEndpointStatus::Active),
+            };
+            normalized_list.push(legacy_entry);
+        }
+
+        if let Some(list) = item.multiple_webhooks_list {
+            normalized_list.extend(
+                list.into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect::<Vec<_>>(),
+            );
+        }
+
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2148,6 +2199,26 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             payment_created_enabled: item.payment_created_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
+            multiple_webhooks_list: Some(normalized_list),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::MultipleWebhookDetail>
+    for diesel_models::business_profile::MultipleWebhookDetail
+{
+    fn foreign_from(item: api_models::admin::MultipleWebhookDetail) -> Self {
+        Self {
+            webhook_endpoint_id: Some(
+                item.webhook_endpoint_id.unwrap_or_else(|| {
+                    common_utils::generate_webhook_endpoint_id_of_default_length()
+                }),
+            ),
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item
+                .status
+                .or(Some(common_enums::OutgoingWebhookEndpointStatus::Active)),
         }
     }
 }
@@ -2164,6 +2235,22 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
             payment_created_enabled: item.payment_created_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
+            multiple_webhooks_list: item
+                .multiple_webhooks_list
+                .map(|list| list.into_iter().map(ForeignFrom::foreign_from).collect()),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::MultipleWebhookDetail>
+    for api_models::admin::MultipleWebhookDetail
+{
+    fn foreign_from(item: diesel_models::business_profile::MultipleWebhookDetail) -> Self {
+        Self {
+            webhook_endpoint_id: item.webhook_endpoint_id,
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item.status,
         }
     }
 }
