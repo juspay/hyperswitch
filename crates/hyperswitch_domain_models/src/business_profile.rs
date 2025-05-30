@@ -1894,7 +1894,7 @@ impl super::behaviour::Conversion for Profile {
                 card_testing_guard_config: item.card_testing_guard_config,
                 card_testing_secret_key: match item.card_testing_secret_key {
                     Some(encrypted_value) => {
-                        match crypto_operation(
+                        crypto_operation(
                             state,
                             type_name!(Self::DstType),
                             CryptoOperation::DecryptOptional(Some(encrypted_value)),
@@ -1902,12 +1902,7 @@ impl super::behaviour::Conversion for Profile {
                             key.peek(),
                         )
                         .await
-                        .and_then(|val| val.try_into_optionaloperation()) {
-                            Ok(value) => value,
-                            Err(err) => {
-                                None
-                            }
-                        }
+                        .and_then(|val| val.try_into_optionaloperation()).unwrap_or_default()
                     }
                     None => None,
                 },
