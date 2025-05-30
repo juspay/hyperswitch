@@ -6706,6 +6706,7 @@ dependencies = [
  "tracing-futures",
  "unicode-segmentation",
  "url",
+ "urlencoding",
  "utoipa",
  "uuid",
  "validator",
