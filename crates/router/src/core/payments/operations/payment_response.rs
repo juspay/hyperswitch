@@ -2546,7 +2546,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
 
-        if let Some(payment_method_id) = &payment_data.payment_attempt.payment_method_id {
+        if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {
                 common_enums::AttemptStatus::AuthenticationFailed
                 | common_enums::AttemptStatus::RouterDeclined
@@ -2577,20 +2577,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         status: Some(enums::PaymentMethodStatus::Active),
                     };
 
-                    let payment_method = db
-                        .find_payment_method(
-                            key_manager_state,
-                            key_store,
-                            payment_method_id,
-                            storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
                     db.update_payment_method(
                         key_manager_state,
                         key_store,
-                        payment_method,
+                        payment_method.clone(),
                         pm_update,
                         storage_scheme,
                     )

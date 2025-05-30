@@ -248,7 +248,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method_data,
             payment_address,
             mandate_data: None,
-            payment_method_id: None,
+            payment_method: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -382,7 +382,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
 
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
-        let (payment_method_id, payment_method_data) = if let Some(payment_token) =
+        let (payment_method, payment_method_data) = if let Some(payment_token) =
             payment_data.payment_attempt.payment_token.clone()
         {
             let pm_token_data = helpers::retrieve_payment_token_data(
@@ -461,7 +461,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                                 )),
                             );
 
-                        (payment_method_id, Some(pm_data_from_vault))
+                        (Some(payment_method), Some(pm_data_from_vault))
                     }
                     _ => Err(errors::ApiErrorResponse::NotImplemented {
                         message: errors::NotImplementedMessage::Reason(
@@ -508,16 +508,17 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             network_tokenization: None,
                         };
 
-                        let pm_response = crate::core::payment_methods::create_payment_method_core(
-                            state,
-                            &state.get_req_state(),
-                            req,
-                            merchant_context,
-                            business_profile,
-                        )
-                        .await?;
+                        let (_pm_response, payment_method) =
+                            crate::core::payment_methods::create_payment_method_core(
+                                state,
+                                &state.get_req_state(),
+                                req,
+                                merchant_context,
+                                business_profile,
+                            )
+                            .await?;
 
-                        (Some(pm_response.id), None)
+                        (Some(payment_method), None)
                     } else {
                         // If customer_acceptance is not present, we will not have a payment_method_id from the vault
                         (None, None)
@@ -529,7 +530,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         };
 
         payment_data.update_payment_method_data(payment_method_data);
-        payment_data.update_payment_method_id(payment_method_id);
+        payment_data.update_payment_method(payment_method);
 
         Ok(())
     }
@@ -586,15 +587,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
-        let payment_attempt_update = match &payment_data.payment_method_id {
-            Some(payment_method_id) => {
+        let payment_attempt_update = match &payment_data.payment_method {
+            Some(payment_method) => {
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
                     status: attempt_status,
                     updated_by: storage_scheme.to_string(),
                     connector,
                     merchant_connector_id,
                     authentication_type,
-                    payment_method_id : payment_method_id.clone()
+                    payment_method_id : payment_method.get_id().clone()
                 }
             }
             None => {

@@ -260,7 +260,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             payment_method_data: Some(PaymentMethodData::MandatePayment),
             payment_address,
             mandate_data: Some(mandate_data_input),
-            payment_method_id: None,
+            payment_method: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

@@ -899,7 +899,7 @@ pub async fn create_payment_method(
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let response =
+    let (response, _payment_method) =
         create_payment_method_core(state, request_state, req, merchant_context, profile).await?;
 
     Ok(services::ApplicationResponse::Json(response))
@@ -913,7 +913,7 @@ pub async fn create_payment_method_core(
     req: api::PaymentMethodCreate,
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
-) -> RouterResult<api::PaymentMethodResponse> {
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use common_utils::ext_traits::ValueExt;
 
     req.validate()?;
@@ -1055,7 +1055,7 @@ pub async fn create_payment_method_core(
         }
     }?;
 
-    Ok(response)
+    Ok((response, payment_method))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -3008,7 +3008,7 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let payment_method = create_payment_method_core(
+    let (payment_method_response, _payment_method) = create_payment_method_core(
         &state,
         &req_state,
         create_payment_method_request.clone(),
@@ -3025,7 +3025,7 @@ pub async fn payment_methods_session_confirm(
             let zero_auth_request = construct_zero_auth_payments_request(
                 &request,
                 &payment_method_session,
-                &payment_method,
+                &payment_method_response,
             )?;
             let payments_response = Box::pin(create_zero_auth_payment(
                 state.clone(),
@@ -3048,7 +3048,7 @@ pub async fn payment_methods_session_confirm(
                 merchant_context.clone(),
                 profile.clone(),
                 &create_payment_method_request.clone(),
-                &payment_method,
+                &payment_method_response,
                 &payment_method_session,
             ))
             .await?;
