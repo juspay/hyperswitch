@@ -31,7 +31,7 @@ Single API to access the payments ecosystem and its features
   <a href="https://x.com/hyperswitchio">
     <img src="https://img.shields.io/badge/follow-%40hyperswitchio-white?logo=x&labelColor=grey"/>
   </a>
-  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw">
+  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-362xmn7hg-ujdw8Wvx_~BgNTLrCcdCPw">
     <img src="https://img.shields.io/badge/chat-on_slack-blue?logo=slack&labelColor=grey&color=%233f0e40"/>
   </a>
   <a href="https://deepwiki.com/juspay/hyperswitch">
@@ -149,7 +149,7 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
   <h2 id="community-and-contributions">Community & Contributions</h2>
 </a>
 
-If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw).
+If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-362xmn7hg-ujdw8Wvx_~BgNTLrCcdCPw).
 
 We welcome contributors from around the world to help build Hyperswitch. To get started, please read our [contribution guidelines](contributing-guidelines).
 

@@ -158,7 +158,7 @@ refund_retrieve_duration = 500                                          # Fake d
 refund_retrieve_tolerance = 100                                         # Fake delay tolerance for dummy connector refund sync
 refund_tolerance = 100                                                  # Fake delay tolerance for dummy connector refund
 refund_ttl = 172800                                                     # Time to live for dummy connector refund in redis
-slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"    # Slack invite url for hyperswitch
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-362xmn7hg-ujdw8Wvx_~BgNTLrCcdCPw"    # Slack invite url for hyperswitch
 
 [user]
 password_validity_in_days = 90
