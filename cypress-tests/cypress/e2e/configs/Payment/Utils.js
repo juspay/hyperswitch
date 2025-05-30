@@ -2,8 +2,8 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
-import { connectorDetails as airwallexConnectorDetails } from "./airwallex.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -35,7 +35,7 @@ import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js"
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
-import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as airwallexConnectorDetails } from "./airwallex.js";
 
 const connectorDetails = {
   airwallex: airwallexConnectorDetails,

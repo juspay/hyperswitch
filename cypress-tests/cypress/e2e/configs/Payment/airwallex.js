@@ -1,4 +1,4 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Non-3DS Airwallex test card
@@ -79,25 +79,6 @@ const payment_method_data_no3ds = {
     authentication_data: null,
   },
   billing: null,
-};
-
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["airwallex"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 
 export const connectorDetails = {
