@@ -1,7 +1,6 @@
 use api_models::profile_acquirer;
 use common_utils::{date_time, types::keymanager::KeyManagerState};
 use diesel_models::profile_acquirer::{ProfileAcquirer, ProfileAcquirerNew};
-use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
@@ -101,28 +100,6 @@ pub async fn create_profile_acquirer(
                 profile_acquirer_id.get_string_repr()
             ),
         })?;
-
-    let updated_acquirer_list = match business_profile.profile_acquirer_ids.clone() {
-        Some(mut ids) => {
-            ids.push(profile_acquirer_id);
-            ids
-        }
-        None => vec![profile_acquirer_id],
-    };
-
-    let profile_update = domain::ProfileUpdate::ProfileAcquirerUpdate {
-        profile_acquirer_ids: Some(updated_acquirer_list),
-    };
-
-    db.update_profile_by_profile_id(
-        &key_manager_state,
-        merchant_key_store,
-        business_profile,
-        profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update profile acquirer ids in business profile")?;
 
     Ok(api::ApplicationResponse::Json(
         created_acquirer.foreign_into(),
