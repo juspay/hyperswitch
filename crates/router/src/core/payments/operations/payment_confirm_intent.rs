@@ -400,26 +400,29 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 storage::PaymentTokenData::AuthBankDebit(_) => None,
             };
 
-            let card_cvc = match &payment_data.payment_method_data {
+            let (card_cvc, card_holder_name) = match &payment_data.payment_method_data {
                 Some(
                     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(
                         card_token,
                     ),
-                ) => card_token.card_cvc.clone(),
-                _ => None,
-            }
-            .ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "card_cvc",
-            })
-            .attach_printable("card_cvc not provided")?;
-
-            let card_holder_name = match &payment_data.payment_method_data {
-                Some(
-                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(
-                        card_token,
-                    ),
-                ) => card_token.card_holder_name.clone(),
-                _ => None,
+                ) => (
+                    card_token
+                        .card_cvc
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "card_cvc",
+                        })
+                        .attach_printable("card_cvc not provided")?,
+                    card_token.card_holder_name.clone(),
+                ),
+                _ => {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data",
+                    })
+                    .attach_printable(
+                        "payment_method_data should be card_token when a token is passed",
+                    )
+                }
             };
 
             if let Some(pm_id) = payment_method_id.clone() {
@@ -454,6 +457,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                                 hyperswitch_domain_models::payment_method_data::Card::from((
                                     card_detail,
                                     card_cvc,
+                                    card_holder_name,
                                 )),
                             );
 
@@ -524,12 +528,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             }
         };
 
-        payment_data.payment_method_data =
-            payment_method_data.or(payment_data.payment_method_data.clone());
-        payment_data.payment_method_id =
-            payment_method_id.or(payment_data.payment_method_id.clone());
-
-        payment_data.payment_attempt.payment_method_id = payment_data.payment_method_id.clone();
+        payment_data.update_payment_method_data(payment_method_data);
+        payment_data.update_payment_method_id(payment_method_id);
 
         Ok(())
     }

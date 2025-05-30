@@ -2122,18 +2122,15 @@ pub async fn list_customer_payment_method_core(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
         // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            pm.payment_method_subtype
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_subtype",
-                })?;
+        let payment_method_subtype = pm
+            .payment_method_subtype
+            .get_required_value("payment_method_subtype")?;
 
         // For payment methods that are active we should always have the payment method type
-        let payment_method_type =
-            pm.payment_method_type
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_type",
-                })?;
+        let payment_method_type = pm
+            .payment_method_type
+            .get_required_value("payment_method_type")?;
+
         let pm_list_context = get_pm_list_context(payment_method_type, &pm, true)?;
 
         if pm_list_context.is_none() {

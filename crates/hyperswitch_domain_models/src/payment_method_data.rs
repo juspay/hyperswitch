@@ -841,8 +841,20 @@ impl
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-impl From<(payment_methods::CardDetail, Secret<String>)> for Card {
-    fn from((card_detail, card_cvc): (payment_methods::CardDetail, Secret<String>)) -> Self {
+impl
+    From<(
+        payment_methods::CardDetail,
+        Secret<String>,
+        Option<Secret<String>>,
+    )> for Card
+{
+    fn from(
+        (card_detail, card_cvc, card_holder_name): (
+            payment_methods::CardDetail,
+            Secret<String>,
+            Option<Secret<String>>,
+        ),
+    ) -> Self {
         Self {
             card_number: card_detail.card_number,
             card_exp_month: card_detail.card_exp_month,
@@ -854,7 +866,7 @@ impl From<(payment_methods::CardDetail, Secret<String>)> for Card {
             card_issuing_country: card_detail.card_issuing_country.map(|val| val.to_string()),
             bank_code: None,
             nick_name: card_detail.nick_name,
-            card_holder_name: card_detail.card_holder_name,
+            card_holder_name: card_holder_name.or(card_detail.card_holder_name),
             co_badged_card_data: None,
         }
     }

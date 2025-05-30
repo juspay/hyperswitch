@@ -872,6 +872,23 @@ impl<F: Clone> PaymentConfirmData<F> {
                 .get_connector_customer_id_from_feature_metadata(),
         }
     }
+
+    pub fn update_payment_method_data(
+        &mut self,
+        payment_method_data: Option<payment_method_data::PaymentMethodData>,
+    ) {
+        self.payment_method_data = payment_method_data;
+    }
+
+    pub fn update_payment_method_id(
+        &mut self,
+        payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    ) {
+        if let Some(id) = payment_method_id {
+            self.payment_method_id = Some(id.clone());
+            self.payment_attempt.payment_method_id = Some(id);
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
