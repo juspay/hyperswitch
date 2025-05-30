@@ -2946,6 +2946,7 @@ dependencies = [
  "reqwest 0.11.27",
  "router_env",
  "serde",
+ "serde_json",
  "thiserror 1.0.63",
  "tokio 1.40.0",
  "tonic",

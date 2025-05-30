@@ -1046,7 +1046,7 @@ pub struct CurrentBlockThreshold {
     pub max_total_count: Option<u64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, Copy, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessRateSpecificityLevel {
     #[default]
@@ -1282,4 +1282,238 @@ impl RoutableConnectorChoiceWithBucketName {
             bucket_name,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateConfigEventRequest {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub specificity_level: SuccessRateSpecificityLevel,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<CalSuccessRateConfigEventRequest>,
+}
+
+// impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfigEventRequest {
+//     type Error = error_stack::Report<DynamicRoutingError>;
+//     fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             min_aggregates_size: config
+//                 .min_aggregates_size
+//                 .get_required_value("min_aggregate_size")
+//                 .change_context(DynamicRoutingError::MissingRequiredField {
+//                     field: "min_aggregates_size".to_string(),
+//                 })?,
+//             default_success_rate: config
+//                 .default_success_rate
+//                 .get_required_value("default_success_rate")
+//                 .change_context(DynamicRoutingError::MissingRequiredField {
+//                     field: "default_success_rate".to_string(),
+//                 })?,
+//             specificity_level: match config.specificity_level {
+//                 SuccessRateSpecificityLevel::Merchant => Some(ProtoSpecificityLevel::Entity.into()),
+//                 SuccessRateSpecificityLevel::Global => Some(ProtoSpecificityLevel::Global.into()),
+//             },
+//         })
+//     }
+// }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventBucketConfig {
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+/// API-1 types
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<ContractBasedRoutingConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithScoreEventResponse {
+    pub score: f64,
+    pub label: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventResponse {
+    pub labels_with_score: Vec<LabelWithScoreEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct BucketInformationEventResponse {
+    pub is_eliminated: bool,
+    pub bucket_name: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationInformationEventResponse {
+    pub entity: Option<BucketInformationEventResponse>,
+    pub global: Option<BucketInformationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithStatusEliminationEventResponse {
+    pub label: String,
+    pub elimination_information: Option<EliminationInformationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationEventResponse {
+    pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ScoreDataEventResponse {
+    pub score: f64,
+    pub label: String,
+    pub current_count: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventResponse {
+    pub labels_with_score: Vec<ScoreDataEventResponse>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalGlobalSuccessRateConfigEventRequest {
+    pub entity_min_aggregates_size: u32,
+    pub entity_default_success_rate: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalGlobalSuccessRateEventRequest {
+    pub entity_id: String,
+    pub entity_params: String,
+    pub entity_labels: Vec<String>,
+    pub global_labels: Vec<String>,
+    pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowConfig {
+    pub max_aggregates_size: Option<u32>,
+    pub current_block_threshold: Option<CurrentBlockThreshold>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateLabelWithStatusEventRequest {
+    pub label: String,
+    pub status: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+    pub config: Option<UpdateSuccessRateWindowConfig>,
+    pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowEventResponse {
+    pub status: UpdationStatusEventResponse,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdationStatusEventResponse {
+    WindowUpdationSucceeded,
+    WindowUpdationFailed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithBucketNameEventRequest {
+    pub label: String,
+    pub bucket_name: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateEliminationBucketEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_with_bucket_name: Vec<LabelWithBucketNameEventRequest>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateEliminationBucketEventResponse {
+    pub status: EliminationUpdationStatusEventResponse,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EliminationUpdationStatusEventResponse {
+    BucketUpdationSucceeded,
+    BucketUpdationFailed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ContractLabelInformationEventRequest {
+    pub label: String,
+    pub target_count: u64,
+    pub target_time: u64,
+    pub current_count: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateContractRequestEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_information: Vec<ContractLabelInformationEventRequest>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateContractEventResponse {
+    pub status: ContractUpdationStatusEventResponse,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractUpdationStatusEventResponse {
+    ContractUpdationSucceeded,
+    ContractUpdationFailed,
 }
