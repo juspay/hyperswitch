@@ -326,7 +326,7 @@ impl KafkaProducer {
             consolidated_events_topic: conf.consolidated_events_topic.clone(),
             authentication_analytics_topic: conf.authentication_analytics_topic.clone(),
             ckh_database_name: None,
-            routing_logs_topic: conf.connector_logs_topic.clone(),
+            routing_logs_topic: conf.routing_logs_topic.clone(),
         })
     }
 

@@ -1798,6 +1798,9 @@ pub async fn perform_decide_gateway_call_with_open_router(
                     "Failed to parse the response from open_router".into(),
                 ))?;
 
+            routing_event.set_status_code(resp.status_code);
+            routing_event.set_response_body(&decided_gateway);
+
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
                 logger::debug!(
                     "open_router decide_gateway call response: {:?}",
@@ -1818,7 +1821,6 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 });
             }
 
-            routing_event.set_status_code(resp.status_code);
             routing_event.set_routable_connectors(routable_connectors.clone());
             state.event_handler().log_event(&routing_event);
 
@@ -1835,6 +1837,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
 
             routing_event.set_status_code(err.status_code);
             routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
+            routing_event.set_error_response_body(&err_resp);
             state.event_handler().log_event(&routing_event);
 
             Err(errors::RoutingError::OpenRouterError(
@@ -1910,6 +1913,7 @@ pub async fn update_gateway_score_with_open_router(
             );
 
             routing_event.set_status_code(resp.status_code);
+            routing_event.set_response_body(&update_score_resp);
             state.event_handler().log_event(&routing_event);
 
             Ok(())
@@ -1925,6 +1929,7 @@ pub async fn update_gateway_score_with_open_router(
 
             routing_event.set_status_code(err.status_code);
             routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
+            routing_event.set_error_response_body(&err_resp);
             state.event_handler().log_event(&routing_event);
 
             Err(errors::RoutingError::OpenRouterError(
@@ -2032,6 +2037,21 @@ pub async fn perform_success_based_routing(
             .attach_printable(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
+
+        let event_resposne = api_routing::CalSuccessRateEventResponse {
+            labels_with_score: success_based_connectors
+                .labels_with_score
+                .iter()
+                .map(
+                    |label_with_score| api_routing::LabelWithScoreEventResponse {
+                        label: label_with_score.label.clone(),
+                        score: label_with_score.score,
+                    },
+                )
+                .collect(),
+        };
+
+        routing_event.set_response_body(&event_resposne);
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
@@ -2169,6 +2189,38 @@ pub async fn perform_elimination_routing(
             .attach_printable(
                 "unable to analyze/fetch elimination routing from dynamic routing service",
             )?;
+
+        let event_response = api_routing::EliminationEventResponse {
+            labels_with_status: elimination_based_connectors
+                .labels_with_status
+                .iter()
+                .map(
+                    |label_with_status| api_routing::LabelWithStatusEliminationEventResponse {
+                        label: label_with_status.label.clone(),
+                        elimination_information: label_with_status
+                            .elimination_information
+                            .as_ref()
+                            .map(|info| api_routing::EliminationInformationEventResponse {
+                                entity: info.entity.as_ref().map(|entity_info| {
+                                    api_routing::BucketInformationEventResponse {
+                                        is_eliminated: entity_info.is_eliminated,
+                                        bucket_name: entity_info.bucket_name.clone(),
+                                    }
+                                }),
+                                global: info.global.as_ref().map(|global_info| {
+                                    api_routing::BucketInformationEventResponse {
+                                        is_eliminated: global_info.is_eliminated,
+                                        bucket_name: global_info.bucket_name.clone(),
+                                    }
+                                }),
+                            }),
+                    },
+                )
+                .collect(),
+        };
+
+        routing_event.set_response_body(&event_response);
+
         let mut connectors =
             Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
         let mut eliminated_connectors =
@@ -2342,7 +2394,22 @@ pub async fn perform_contract_based_routing(
             );
 
         let contract_based_connectors = match contract_based_connectors_result {
-            Ok(resp) => resp,
+            Ok(resp) => {
+                let event_response = api_routing::CalContractScoreEventResponse {
+                    labels_with_score: resp
+                        .labels_with_score
+                        .iter()
+                        .map(|label_with_score| api_routing::ScoreDataEventResponse {
+                            score: label_with_score.score,
+                            label: label_with_score.label.clone(),
+                            current_count: label_with_score.current_count,
+                        })
+                        .collect(),
+                };
+
+                routing_event.set_response_body(&event_response);
+                resp
+            }
             Err(err) => match err.current_context() {
                 DynamicRoutingError::ContractNotFound => {
                     client
