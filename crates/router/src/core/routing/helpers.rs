@@ -1069,26 +1069,21 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     .attach_printable("Unable to push dynamic routing stats to db")?;
             };
 
-            let label_with_status: Vec<routing_types::UpdateLabelWithStatusEventRequest> =
-                vec![routing_types::RoutableConnectorChoiceWithStatus::new(
-                    routable_connector.clone(),
-                    payment_status_attribute == common_enums::AttemptStatus::Charged,
-                )]
-                .into_iter()
-                .map(
-                    |conn_choice| routing_types::UpdateLabelWithStatusEventRequest {
-                        label: conn_choice.routable_connector_choice.to_string(),
-                        status: conn_choice.status,
-                    },
-                )
-                .collect();
-
+            let label_with_status = routing_types::UpdateLabelWithStatusEventRequest {
+                label: routable_connector.clone().to_string(),
+                status: payment_status_attribute == common_enums::AttemptStatus::Charged,
+            };
             let event_request = routing_types::UpdateSuccessRateWindowEventRequest {
                 id: payment_attempt.profile_id.get_string_repr().to_string(),
                 params: success_based_routing_config_params.clone(),
-                labels_with_status: label_with_status.clone(),
-                global_labels_with_status: label_with_status,
-                config: None, // Need to populate this
+                labels_with_status: vec![label_with_status.clone()],
+                global_labels_with_status: vec![label_with_status],
+                config: success_based_routing_configs.config.as_ref().map(|conf| {
+                    routing_types::UpdateSuccessRateWindowConfig {
+                        max_aggregates_size: conf.max_aggregates_size,
+                        current_block_threshold: conf.current_block_threshold.clone(),
+                    }
+                }),
             };
 
             let serialized_request = serde_json::to_value(&event_request)
@@ -1098,7 +1093,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             let mut routing_event = routing_events::RoutingEvent::new(
                 state.tenant.tenant_id.clone(),
                 vec![],
-                "Intelligent router UpdateSuccessRateWindow",
+                "Intelligent-router UpdateSuccessRateWindow",
                 serialized_request,
                 "SuccessRateCalculator.UpdateSuccessRateWindow".to_string(),
                 routing_events::ApiMethod::Grpc,
@@ -1213,7 +1208,7 @@ pub async fn update_window_for_elimination_routing(
                         .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 );
 
-            let labels_with_bucket_name: Vec<routing_types::LabelWithBucketNameEventRequest> =
+            let labels_with_bucket_name =
                 vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
@@ -1225,21 +1220,26 @@ pub async fn update_window_for_elimination_routing(
                         merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     },
                     gsm_error_category.to_string(),
-                )]
-                .into_iter()
-                .map(
-                    |conn_choice| routing_types::LabelWithBucketNameEventRequest {
-                        label: conn_choice.routable_connector_choice.to_string(),
-                        bucket_name: conn_choice.bucket_name,
-                    },
-                )
-                .collect();
+                )];
 
             let event_request = routing_types::UpdateEliminationBucketEventRequest {
                 id: profile_id.get_string_repr().to_string(),
                 params: elimination_routing_config_params.clone(),
-                labels_with_bucket_name,
-                config: None, // Need to populate this
+                labels_with_bucket_name: labels_with_bucket_name
+                    .iter()
+                    .map(
+                        |conn_choice| routing_types::LabelWithBucketNameEventRequest {
+                            label: conn_choice.routable_connector_choice.to_string(),
+                            bucket_name: conn_choice.bucket_name.clone(),
+                        },
+                    )
+                    .collect(),
+                config: elimination_routing_config
+                    .elimination_analyser_config
+                    .map(|conf| routing_types::EliminationRoutingEventBucketConfig {
+                        bucket_leak_interval_in_secs: conf.bucket_leak_interval_in_secs,
+                        bucket_size: conf.bucket_size,
+                    }),
             };
 
             let serialized_request = serde_json::to_value(&event_request)
@@ -1249,7 +1249,7 @@ pub async fn update_window_for_elimination_routing(
             let mut routing_event = routing_events::RoutingEvent::new(
                 state.tenant.tenant_id.clone(),
                 vec![],
-                "Intelligent router UpdateEliminationBucket",
+                "Intelligent-router UpdateEliminationBucket",
                 serialized_request,
                 "EliminationAnalyser.UpdateEliminationBucket".to_string(),
                 routing_events::ApiMethod::Grpc,
@@ -1263,20 +1263,7 @@ pub async fn update_window_for_elimination_routing(
                 .update_elimination_bucket_config(
                     profile_id.get_string_repr().to_string(),
                     elimination_routing_config_params,
-                    vec![routing_types::RoutableConnectorChoiceWithBucketName::new(
-                        routing_types::RoutableConnectorChoice {
-                            choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                            connector: common_enums::RoutableConnectors::from_str(
-                                payment_connector.as_str(),
-                            )
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "unable to infer routable_connector from connector",
-                            )?,
-                            merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                        },
-                        gsm_error_category.to_string(),
-                    )],
+                    labels_with_bucket_name,
                     elimination_routing_config.elimination_analyser_config,
                     state.get_grpc_headers(),
                 )
@@ -1422,7 +1409,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 let mut routing_event = routing_events::RoutingEvent::new(
                     state.tenant.tenant_id.clone(),
                     vec![],
-                    "Intelligent router UpdateContract",
+                    "Intelligent-router UpdateContract",
                     serialized_request,
                     "ContractScoreCalculator.UpdateContract".to_string(),
                     routing_events::ApiMethod::Grpc,

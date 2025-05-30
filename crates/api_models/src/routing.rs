@@ -996,7 +996,7 @@ pub struct CurrentBlockThreshold {
     pub max_total_count: Option<u64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, Copy, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessRateSpecificityLevel {
     #[default]
@@ -1234,9 +1234,9 @@ impl RoutableConnectorChoiceWithBucketName {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct CalSuccessRateConfigEventRequest {
-    pub min_aggregates_size: u32,
-    pub default_success_rate: f64,
-    pub specificity_level: Option<SuccessRateSpecificityLevel>,
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub specificity_level: SuccessRateSpecificityLevel,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1275,8 +1275,8 @@ pub struct CalSuccessRateEventRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct EliminationRoutingEventBucketConfig {
-    pub bucket_size: u64,
-    pub bucket_leak_interval_in_secs: u64,
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1369,28 +1369,21 @@ pub struct CalGlobalSuccessRateEventRequest {
     pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CurrentBlockThresholdEventRequest {
-    pub duration_in_mins: Option<u64>,
-    pub max_total_count: u64,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateSuccessRateWindowConfig {
-    pub max_aggregates_size: u32,
-    pub current_block_threshold: Option<CurrentBlockThresholdEventRequest>,
+    pub max_aggregates_size: Option<u32>,
+    pub current_block_threshold: Option<CurrentBlockThreshold>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateLabelWithStatusEventRequest {
     pub label: String,
     pub status: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateSuccessRateWindowEventRequest {
     pub id: String,
@@ -1400,13 +1393,13 @@ pub struct UpdateSuccessRateWindowEventRequest {
     pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateSuccessRateWindowEventResponse {
     pub status: UpdationStatusEventResponse,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UpdationStatusEventResponse {
     WindowUpdationSucceeded,

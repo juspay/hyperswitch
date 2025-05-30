@@ -1786,7 +1786,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
         ApiMethod::Rest(services::Method::Post),
         payment_attempt.payment_id.get_string_repr().to_string(),
         profile_id.to_owned(),
-        state.request_id.clone(),
+        state.request_id,
         RoutingEngine::DecisionEngine,
     );
 
@@ -1895,7 +1895,7 @@ pub async fn update_gateway_score_with_open_router(
         ApiMethod::Rest(services::Method::Post),
         payment_id.get_string_repr().to_string(),
         profile_id.to_owned(),
-        state.request_id.clone(),
+        state.request_id,
         RoutingEngine::DecisionEngine,
     );
 
@@ -2000,7 +2000,13 @@ pub async fn perform_success_based_routing(
                 .iter()
                 .map(|conn_choice| conn_choice.to_string())
                 .collect::<Vec<_>>(),
-            config: None, // Need to populate this config
+            config: success_based_routing_configs.config.as_ref().map(|conf| {
+                api_routing::CalSuccessRateConfigEventRequest {
+                    min_aggregates_size: conf.min_aggregates_size,
+                    default_success_rate: conf.default_success_rate,
+                    specificity_level: conf.specificity_level,
+                }
+            }),
         };
 
         let serialized_request = serde_json::to_value(&event_request)
@@ -2010,7 +2016,7 @@ pub async fn perform_success_based_routing(
         let mut routing_event = RoutingEvent::new(
             state.tenant.tenant_id.clone(),
             vec![],
-            "Intelligent router FetchSuccessRate",
+            "Intelligent-router FetchSuccessRate",
             serialized_request,
             "SuccessRateCalculator.FetchSuccessRate".to_string(),
             ApiMethod::Grpc,
@@ -2152,7 +2158,13 @@ pub async fn perform_elimination_routing(
                 .iter()
                 .map(|conn_choice| conn_choice.to_string())
                 .collect::<Vec<_>>(),
-            config: None, // Need to populate this config
+            config: elimination_routing_config
+                .elimination_analyser_config
+                .as_ref()
+                .map(|conf| api_routing::EliminationRoutingEventBucketConfig {
+                    bucket_leak_interval_in_secs: conf.bucket_leak_interval_in_secs,
+                    bucket_size: conf.bucket_size,
+                }),
         };
 
         let serialized_request = serde_json::to_value(&event_request)
@@ -2162,7 +2174,7 @@ pub async fn perform_elimination_routing(
         let mut routing_event = RoutingEvent::new(
             state.tenant.tenant_id.clone(),
             vec![],
-            "Intelligent router GetEliminationStatus",
+            "Intelligent-router GetEliminationStatus",
             serialized_request,
             "EliminationAnalyser.GetEliminationStatus".to_string(),
             ApiMethod::Grpc,
@@ -2356,7 +2368,7 @@ pub async fn perform_contract_based_routing(
                 .iter()
                 .map(|conn_choice| conn_choice.to_string())
                 .collect::<Vec<_>>(),
-            config: None, // Need to populate this config
+            config: Some(contract_based_routing_configs.clone()),
         };
 
         let serialized_request = serde_json::to_value(&event_request)
@@ -2366,7 +2378,7 @@ pub async fn perform_contract_based_routing(
         let mut routing_event = RoutingEvent::new(
             state.tenant.tenant_id.clone(),
             vec![],
-            "Intelligent router CalContractScore",
+            "Intelligent-router CalContractScore",
             serialized_request,
             "ContractScoreCalculator.FetchContractScore".to_string(),
             ApiMethod::Grpc,
