@@ -352,9 +352,9 @@ impl ConnectorData {
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
-                // enums::Connector::Barclaycard => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard)))
-                // }
+                enums::Connector::Barclaycard => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Barclaycard)))
+                }
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
                 }
@@ -565,8 +565,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
-                // enums::Connector::Worldpayxml => { Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml)))
-                // },
+                enums::Connector::Worldpayxml => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml::new())))
+                }
                 enums::Connector::Xendit => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
                 }

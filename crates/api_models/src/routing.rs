@@ -49,7 +49,7 @@ impl ConnectorSelection {
 pub struct RoutingConfigRequest {
     pub name: String,
     pub description: String,
-    pub algorithm: RoutingAlgorithm,
+    pub algorithm: StaticRoutingAlgorithm,
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
@@ -59,7 +59,7 @@ pub struct RoutingConfigRequest {
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
-    pub algorithm: Option<RoutingAlgorithm>,
+    pub algorithm: Option<StaticRoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
@@ -96,7 +96,7 @@ pub struct RoutingRetrieveResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum LinkedRoutingConfigRetrieveResponse {
-    MerchantAccountBased(RoutingRetrieveResponse),
+    MerchantAccountBased(Box<RoutingRetrieveResponse>),
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
@@ -109,7 +109,7 @@ pub struct MerchantRoutingAlgorithm {
     pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
     pub description: String,
-    pub algorithm: RoutingAlgorithm,
+    pub algorithm: RoutingAlgorithmWrapper,
     pub created_at: i64,
     pub modified_at: i64,
     pub algorithm_for: TransactionType,
@@ -301,6 +301,20 @@ pub struct RoutingPayloadWrapper {
     pub updated_config: Vec<RoutableConnectorChoice>,
     pub profile_id: common_utils::id_type::ProfileId,
 }
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum RoutingAlgorithmWrapper {
+    Static(StaticRoutingAlgorithm),
+    Dynamic(DynamicRoutingAlgorithm),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum DynamicRoutingAlgorithm {
+    EliminationBasedAlgorithm(EliminationRoutingConfig),
+    SuccessBasedAlgorithm(SuccessBasedRoutingConfig),
+    ContractBasedAlgorithm(ContractBasedRoutingConfig),
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
@@ -309,8 +323,7 @@ pub struct RoutingPayloadWrapper {
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
-/// Routing Algorithm kind
-pub enum RoutingAlgorithm {
+pub enum StaticRoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
@@ -318,7 +331,7 @@ pub enum RoutingAlgorithm {
     Advanced(ast::Program<ConnectorSelection>),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
@@ -327,7 +340,7 @@ pub enum RoutingAlgorithmSerde {
     Advanced(ast::Program<ConnectorSelection>),
 }
 
-impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
+impl TryFrom<RoutingAlgorithmSerde> for StaticRoutingAlgorithm {
     type Error = error_stack::Report<ParsingError>;
 
     fn try_from(value: RoutingAlgorithmSerde) -> Result<Self, Self::Error> {
@@ -434,7 +447,7 @@ impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
     }
 }
 
-impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
+impl From<StraightThroughAlgorithm> for StaticRoutingAlgorithm {
     fn from(value: StraightThroughAlgorithm) -> Self {
         match value {
             StraightThroughAlgorithm::Single(conn) => Self::Single(conn),
@@ -444,7 +457,7 @@ impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
     }
 }
 
-impl RoutingAlgorithm {
+impl StaticRoutingAlgorithm {
     pub fn get_kind(&self) -> RoutingAlgorithmKind {
         match self {
             Self::Single(_) => RoutingAlgorithmKind::Single,
@@ -844,7 +857,13 @@ pub struct ToggleDynamicRoutingPath {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct RoutingVolumeSplitResponse {
+    pub split: u8,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
@@ -853,6 +872,7 @@ pub struct EliminationRoutingConfig {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EliminationAnalyserConfig {
     pub bucket_size: Option<u64>,
     pub bucket_leak_interval_in_secs: Option<u64>,
@@ -924,6 +944,7 @@ impl EliminationRoutingConfig {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<SuccessBasedRoutingConfigBody>,
@@ -944,13 +965,16 @@ impl Default for SuccessBasedRoutingConfig {
                     max_total_count: Some(5),
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
+                exploration_percent: Some(20.0),
             }),
             decision_engine_configs: None,
         }
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, PartialEq, strum::Display,
+)]
 pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
@@ -969,6 +993,7 @@ pub struct SuccessBasedRoutingConfigBody {
     pub current_block_threshold: Option<CurrentBlockThreshold>,
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1094,7 +1119,10 @@ impl SuccessBasedRoutingConfigBody {
                 .as_mut()
                 .map(|threshold| threshold.update(current_block_threshold));
         }
-        self.specificity_level = new.specificity_level
+        self.specificity_level = new.specificity_level;
+        if let Some(exploration_percent) = new.exploration_percent {
+            self.exploration_percent = Some(exploration_percent);
+        }
     }
 }
 
