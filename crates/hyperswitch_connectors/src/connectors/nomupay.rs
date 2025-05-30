@@ -149,8 +149,6 @@ fn get_signature(
                     .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
             };
 
-            router_env::logger::info!(nomupay_jwt=?nomupay_jwt);
-
             let jws_blocks: Vec<&str> = nomupay_jwt.split('.').collect();
 
             let jws_detached = jws_blocks
