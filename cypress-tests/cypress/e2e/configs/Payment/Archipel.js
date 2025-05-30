@@ -429,6 +429,6 @@ export const connectorDetails = {
           payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
-    }
+    },
   },
 };
