@@ -10,9 +10,9 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
-    enums,
-    enums::ProcessTrackerStatus,
+    enums::{self, ProcessTrackerStatus},
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+    profile_acquirer::{ProfileAcquirer, ProfileAcquirerNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
@@ -43,6 +43,7 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
+    profile_acquirer::ProfileAcquirerInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -4232,6 +4233,29 @@ impl CallbackMapperInterface for KafkaStore {
         id: &str,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         self.diesel_store.find_call_back_mapper_by_id(id).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ProfileAcquirerInterface for KafkaStore {
+    #[instrument(skip_all)]
+    async fn insert_profile_acquirer(
+        &self,
+        new_acquirer: ProfileAcquirerNew,
+    ) -> CustomResult<ProfileAcquirer, errors::StorageError> {
+        self.diesel_store
+            .insert_profile_acquirer(new_acquirer)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_profile_acquirer_based_on_profile_id(
+        &self,
+        profile_id: &id_type::ProfileId,
+    ) -> CustomResult<Vec<ProfileAcquirer>, errors::StorageError> {
+        self.diesel_store
+            .list_profile_acquirer_based_on_profile_id(profile_id)
+            .await
     }
 }
 

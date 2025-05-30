@@ -594,6 +594,8 @@ pub enum Flow {
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    /// Profile Acquirer Create Flow
+    ProfileAcquirerCreate,
 }
 
 /// Trait for providing generic behaviour to flow metric

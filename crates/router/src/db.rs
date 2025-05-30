@@ -29,6 +29,7 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method_session;
+pub mod profile_acquirer;
 pub mod refund;
 pub mod relay;
 pub mod reverse_lookup;
@@ -141,6 +142,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + profile_acquirer::ProfileAcquirerInterface
     + tokenization::TokenizationInterface
     + 'static
 {

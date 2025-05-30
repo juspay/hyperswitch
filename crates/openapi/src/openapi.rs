@@ -202,6 +202,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for poll apis
         routes::poll::retrieve_poll_status,
+
+        // Routes for profile acquirer account
+        routes::profile_acquirer::profile_acquirer_create,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -761,6 +764,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineGatewayWiseExtraScore,
         api_models::open_router::DecisionEngineSRSubLevelInputConfig,
         api_models::open_router::DecisionEngineEliminationData,
+        api_models::profile_acquirer::ProfileAcquirerCreate,
+        api_models::profile_acquirer::ProfileAcquirerResponse,
     )),
     modifiers(&SecurityAddon)
 )]
