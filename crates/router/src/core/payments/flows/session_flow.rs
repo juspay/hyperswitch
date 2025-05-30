@@ -1251,7 +1251,7 @@ fn create_paypal_sdk_session_token(
     })
 }
 
-fn create_amazon_pay_session_token(
+async fn create_amazon_pay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     state: &routes::SessionState,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -1265,14 +1265,18 @@ fn create_amazon_pay_session_token(
     let amazon_pay_metadata = amazon_pay_session_token_data.data;
     let merchant_id = amazon_pay_metadata.merchant_id;
     let store_id = amazon_pay_metadata.store_id;
-    let amazonpay_supported_currencies = state
-        .conf
-        .pm_filters
-        .supported_currencies_for(enums::PaymentMethodType::AmazonPay);
+    let amazonpay_supported_currencies =
+        payments::cards::list_countries_currencies_for_connector_payment_method_util(
+            state.conf.pm_filters.clone(),
+            enums::Connector::Amazonpay,
+            enums::PaymentMethodType::AmazonPay,
+        )
+        .await
+        .currencies;
     // currently supports only the US region hence USD is the only supported currency
     payment_types::AmazonPayDeliveryOptions::validate_currency(
         router_data.request.currency,
-        amazonpay_supported_currencies,
+        amazonpay_supported_currencies.clone(),
     )
     .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
         message: "USD is the only supported currency.".to_string(),
@@ -1336,7 +1340,7 @@ fn create_amazon_pay_session_token(
     for option in &delivery_options {
         payment_types::AmazonPayDeliveryOptions::validate_currency(
             option.price.currency_code,
-            amazonpay_supported_currencies,
+            amazonpay_supported_currencies.clone(),
         )
         .change_context(errors::ApiErrorResponse::CurrencyNotSupported {
             message: "USD is the only supported currency.".to_string(),
@@ -1425,7 +1429,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
 
                 Ok(resp)
             }
-            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self, state),
+            api::GetToken::AmazonPayMetadata => create_amazon_pay_session_token(self, state).await,
         }
     }
 }

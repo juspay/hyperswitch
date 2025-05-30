@@ -7501,12 +7501,9 @@ impl AmazonPayDeliveryOptions {
 
     pub fn validate_currency(
         currency_code: common_enums::Currency,
-        amazonpay_supported_currencies: Option<&HashSet<common_enums::Currency>>,
+        amazonpay_supported_currencies: HashSet<common_enums::Currency>,
     ) -> Result<(), ValidationError> {
-        if amazonpay_supported_currencies
-            .map(|supported_currency| !supported_currency.contains(&currency_code))
-            .unwrap_or(true)
-        {
+        if !amazonpay_supported_currencies.contains(&currency_code) {
             return Err(ValidationError::InvalidValue {
                 message: format!("{:?} is not a supported currency.", currency_code),
             });
