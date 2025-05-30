@@ -28,6 +28,7 @@ use external_services::grpc_client::dynamic_routing::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_domain_models::api::ApplicationResponse;
+use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::logger;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -39,7 +40,6 @@ use storage_impl::redis::cache::Cacheable;
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
-use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -47,7 +47,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
-    routes::SessionState,
+    routes::{app::SessionStateInfo, SessionState},
     types::{domain, storage},
     utils::StringExt,
 };
@@ -61,7 +61,6 @@ use crate::{
     services,
     types::transformers::ForeignInto,
 };
-use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
