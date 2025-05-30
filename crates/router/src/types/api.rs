@@ -342,6 +342,7 @@ impl ConnectorData {
                 enums::Connector::Archipel => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
                 }
+                enums::Connector::Authipay => Ok(ConnectorEnum::Old(Box::new(connector::Authipay::new()))),
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }

@@ -162,6 +162,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -356,6 +357,7 @@ impl ConnectorConfig {
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Archipel => Ok(connector_data.archipel),
+            Connector::Authipay => Ok(connector_data.authipay),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bamboraapac => Ok(connector_data.bamboraapac),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),

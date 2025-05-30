@@ -25,6 +25,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+	Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -216,6 +217,7 @@ pub enum Connector {
     Airwallex,
     // Amazonpay,
     Archipel,
+    Authipay,
     Authorizedotnet,
     Bambora,
     Bamboraapac,
@@ -375,6 +377,7 @@ impl Connector {
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
+        
             #[cfg(feature = "dummy_connector")]
             Self::DummyBillingConnector => false,
             #[cfg(feature = "dummy_connector")]
@@ -386,6 +389,7 @@ impl Connector {
             | Self::DummyConnector6
             | Self::DummyConnector7 => false,
             Self::Aci
+            | Self::Authipay
             // Add Separate authentication support for connectors
             | Self::Adyen
             | Self::Adyenplatform
@@ -526,6 +530,7 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::Authipay => Self::Authipay,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
@@ -662,6 +667,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Airwallex => Ok(Self::Airwallex),
             Connector::Archipel => Ok(Self::Archipel),
+            Connector::Authipay => Ok(Self::Authipay),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
             Connector::Barclaycard => Ok(Self::Barclaycard),
