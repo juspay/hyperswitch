@@ -461,6 +461,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AmountInfo,
         api_models::payments::ClickToPaySessionResponse,
         api_models::enums::ProductType,
+        api_models::enums::MerchantAccountType,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,
