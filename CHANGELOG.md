@@ -4,6 +4,41 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.30.0
+
+### Bug Fixes
+
+- **payment_link:** Sanitize embedded payment link data ([#7736](https://github.com/juspay/hyperswitch/pull/7736)) ([`0f43aa4`](https://github.com/juspay/hyperswitch/commit/0f43aa43aa1d615069087ffdb8e67fbf18ac13b3))
+
+### Refactors
+
+- Payment Attempt as mandatory field in PaymentStatusData ([#8126](https://github.com/juspay/hyperswitch/pull/8126)) ([`eb15fa1`](https://github.com/juspay/hyperswitch/commit/eb15fa110d7dbbd5d5023404025449e3a88289c0))
+
+### Miscellaneous Tasks
+
+- **ci:** Update postman ci credentials ([#8172](https://github.com/juspay/hyperswitch/pull/8172)) ([`ae9d977`](https://github.com/juspay/hyperswitch/commit/ae9d977f3ddf4eda558738831fcc3a5421e68b25))
+- **docs:** Remove old add_connector.md file ([#8143](https://github.com/juspay/hyperswitch/pull/8143)) ([`b8e7a86`](https://github.com/juspay/hyperswitch/commit/b8e7a868ade62ff21498203d9e14edae094071d9))
+
+**Full Changelog:** [`2025.05.29.0...2025.05.30.0`](https://github.com/juspay/hyperswitch/compare/2025.05.29.0...2025.05.30.0)
+
+
+- - -
+
+## 2025.05.29.0
+
+### Features
+
+- **analytics:** Add ckh columns for 3ds intelligence analytics ([#8136](https://github.com/juspay/hyperswitch/pull/8136)) ([`4ad0492`](https://github.com/juspay/hyperswitch/commit/4ad0492a88ec2c53b9c70af9a999fc3127c19345))
+
+### Refactors
+
+- **debit_routing:** Handle missing merchant_business_country by defaulting to US ([#8141](https://github.com/juspay/hyperswitch/pull/8141)) ([`1acf525`](https://github.com/juspay/hyperswitch/commit/1acf525a4681153fff4b3783975d26ffcf1d65f4))
+
+**Full Changelog:** [`2025.05.28.0...2025.05.29.0`](https://github.com/juspay/hyperswitch/compare/2025.05.28.0...2025.05.29.0)
+
+
+- - -
+
 ## 2025.05.28.0
 
 ### Features
