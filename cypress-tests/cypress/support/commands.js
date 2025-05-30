@@ -1641,7 +1641,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
@@ -1675,7 +1675,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
@@ -2639,7 +2639,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
@@ -2675,7 +2675,7 @@ Cypress.Commands.add(
                   response.body[key]
                 );
                 if (
-                  setupFutureUsage === "off_session" &&
+                  response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
                   expect(
