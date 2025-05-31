@@ -4,7 +4,6 @@ pub mod connector;
 pub mod consts;
 pub mod core;
 pub mod cors;
-pub mod db;
 pub mod env;
 pub mod locale;
 pub(crate) mod macros;
