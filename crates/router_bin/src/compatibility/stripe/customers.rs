@@ -9,7 +9,7 @@ use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::compatibility::{stripe::errors, wrap};
+use crate::compatibility::wrap;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router::{
@@ -21,6 +21,9 @@ use router::{
         domain,
     },
 };
+
+use router::types::stripe_errors::StripeErrorCode;
+
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -34,10 +37,13 @@ pub async fn customer_create(
     req: HttpRequest,
     form_payload: web::Bytes,
 ) -> HttpResponse {
+    use router::types::stripe_errors::StripeErrorCode;
+
+
     let payload: types::CreateCustomerRequest = match qs_config.deserialize_bytes(&form_payload) {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -52,7 +58,7 @@ pub async fn customer_create(
         _,
         _,
         types::CreateCustomerResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -85,6 +91,7 @@ pub async fn customer_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
+
     let customer_id = path.into_inner();
 
     let flow = Flow::CustomersRetrieve;
@@ -96,7 +103,7 @@ pub async fn customer_retrieve(
         _,
         _,
         types::CustomerRetrieveResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -134,7 +141,7 @@ pub async fn customer_update(
     let payload: types::CustomerUpdateRequest = match qs_config.deserialize_bytes(&form_payload) {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -154,7 +161,7 @@ pub async fn customer_update(
         _,
         _,
         types::CustomerUpdateResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -198,7 +205,7 @@ pub async fn customer_delete(
         _,
         _,
         types::CustomerDeleteResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -232,6 +239,8 @@ pub async fn list_customer_payment_method_api(
     path: web::Path<id_type::CustomerId>,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
+    use router::types::stripe_errors::StripeErrorCode;
+
     let payload = json_payload.into_inner();
     let customer_id = path.into_inner();
     let flow = Flow::CustomerPaymentMethodsList;
@@ -243,7 +252,7 @@ pub async fn list_customer_payment_method_api(
         _,
         _,
         types::CustomerPaymentMethodListResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,

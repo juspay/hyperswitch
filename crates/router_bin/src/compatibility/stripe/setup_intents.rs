@@ -6,20 +6,23 @@ use api_models::payments as payment_types;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use router_env::{instrument, tracing, Flow};
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::compatibility::{
-    stripe::{errors, payment_intents::types as stripe_payment_types},
-    wrap,
-};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
     types::{api as api_types, domain},
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use router_env::{instrument, tracing, Flow};
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::compatibility::{stripe::payment_intents::types as stripe_payment_types, wrap};
+
+
+
+use router::types::stripe_errors::StripeErrorCode;
+
+
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -29,11 +32,12 @@ pub async fn setup_intents_create(
     req: HttpRequest,
     form_payload: web::Bytes,
 ) -> HttpResponse {
+
     let payload: types::StripeSetupIntentRequest = match qs_config.deserialize_bytes(&form_payload)
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -52,7 +56,7 @@ pub async fn setup_intents_create(
         _,
         _,
         types::StripeSetupIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -133,7 +137,7 @@ pub async fn setup_intents_retrieve(
         _,
         _,
         types::StripeSetupIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -185,7 +189,7 @@ pub async fn setup_intents_update(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -216,7 +220,7 @@ pub async fn setup_intents_update(
         _,
         _,
         types::StripeSetupIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -268,7 +272,7 @@ pub async fn setup_intents_confirm(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -300,7 +304,7 @@ pub async fn setup_intents_confirm(
         _,
         _,
         types::StripeSetupIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,

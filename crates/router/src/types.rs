@@ -16,6 +16,7 @@ pub mod pm_auth;
 use masking::Secret;
 pub mod storage;
 pub mod transformers;
+pub mod stripe_errors;
 use std::marker::PhantomData;
 
 pub use api_models::{enums::Connector, mandates};

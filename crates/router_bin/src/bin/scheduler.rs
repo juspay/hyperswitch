@@ -49,7 +49,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
     let _task_handle = tokio::spawn(
-        router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
+        router_bin::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
     );
 
     #[allow(clippy::expect_used)]

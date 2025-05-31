@@ -166,8 +166,8 @@ wiremock = "0.6.0"
 test_utils = { version = "0.1.0", path = "../test_utils" }
 
 [[bin]]
-name = "router"
-path = "src/bin/router.rs"
+name = "router_bin"
+path = "src/bin/router_bin.rs"
 
 [[bin]]
 name = "scheduler"

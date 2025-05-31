@@ -4,26 +4,26 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use router::{
-    logger,
-    types::{api as api_types, domain},
-};
-
-use crate::routes::payments::GetLockingInput;
-
 use router::{
     core::payments,
     routes::{self},
     services::{api, authentication as auth},
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use router::{
+    logger,
+    types::{api as api_types, domain},
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router_env::Tag;
 use router_env::{instrument, tracing, Flow};
 
-use crate::compatibility::{stripe::errors, wrap};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::routes::payments::get_or_generate_payment_id;
+use crate::{compatibility::wrap, routes::payments::GetLockingInput};
+
+use router::types::stripe_errors::StripeErrorCode;
+
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
@@ -33,9 +33,10 @@ pub async fn payment_intents_create(
     req: HttpRequest,
     form_payload: web::Bytes,
 ) -> HttpResponse {
+
     let payload: types::StripePaymentIntentRequest = match qs_config
         .deserialize_bytes(&form_payload)
-        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+        .map_err(|err| report!(StripeErrorCode::from(err)))
     {
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
@@ -69,7 +70,7 @@ pub async fn payment_intents_create(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -118,6 +119,7 @@ pub async fn payment_intents_retrieve(
     path: web::Path<common_utils::id_type::PaymentId>,
     query_payload: web::Query<types::StripePaymentRetrieveBody>,
 ) -> HttpResponse {
+
     let payload = payment_types::PaymentsRetrieveRequest {
         resource_id: api_types::PaymentIdType::PaymentIntentId(path.into_inner()),
         merchant_id: None,
@@ -151,7 +153,7 @@ pub async fn payment_intents_retrieve(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -198,7 +200,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
 ) -> HttpResponse {
     let json_payload: payment_types::PaymentRetrieveBodyWithCredentials = match qs_config
         .deserialize_bytes(&form_payload)
-        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+        .map_err(|err| report!(StripeErrorCode::from(err)))
     {
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
@@ -237,7 +239,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -289,7 +291,7 @@ pub async fn payment_intents_update(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -319,7 +321,7 @@ pub async fn payment_intents_update(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -372,7 +374,7 @@ pub async fn payment_intents_confirm(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -411,7 +413,7 @@ pub async fn payment_intents_confirm(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -463,7 +465,7 @@ pub async fn payment_intents_capture(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -485,7 +487,7 @@ pub async fn payment_intents_capture(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -540,7 +542,7 @@ pub async fn payment_intents_cancel(
     {
         Ok(p) => p,
         Err(err) => {
-            return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
+            return api::log_and_return_error_response(report!(StripeErrorCode::from(err)))
         }
     };
 
@@ -570,7 +572,7 @@ pub async fn payment_intents_cancel(
         _,
         _,
         types::StripePaymentIntentResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -626,7 +628,7 @@ pub async fn payment_intent_list(
         _,
         _,
         types::StripePaymentIntentListResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,

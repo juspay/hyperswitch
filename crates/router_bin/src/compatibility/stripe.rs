@@ -6,7 +6,6 @@ pub mod setup_intents;
 pub mod webhooks;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use actix_web::{web, Scope};
-pub mod errors;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router::routes;
 

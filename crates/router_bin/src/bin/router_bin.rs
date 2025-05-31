@@ -39,7 +39,7 @@ async fn main() -> ApplicationResult<()> {
     );
 
     #[allow(clippy::expect_used)]
-    let server = Box::pin(router::start_server(conf))
+    let server = Box::pin(router_bin::start_server(conf))
         .await
         .expect("Failed to create the server");
     let _ = server.await;

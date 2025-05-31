@@ -2,16 +2,16 @@ pub mod types;
 
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
-use router_env::{instrument, tracing, Flow, Tag};
-
-use crate::compatibility::{stripe::errors, wrap};
 use router::{
     core::{api_locking, refunds},
     db::domain,
     logger, routes,
     services::{api, authentication as auth},
-    types::api::refunds as refund_types,
+    types::{api::refunds as refund_types, stripe_errors::StripeErrorCode},
 };
+use router_env::{instrument, tracing, Flow, Tag};
+
+use crate::compatibility::wrap;
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate, payment_id))]
 pub async fn refund_create(
@@ -22,7 +22,7 @@ pub async fn refund_create(
 ) -> HttpResponse {
     let payload: types::StripeCreateRefundRequest = match qs_config
         .deserialize_bytes(&form_payload)
-        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+        .map_err(|err| report!(StripeErrorCode::from(err)))
     {
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
@@ -43,7 +43,7 @@ pub async fn refund_create(
         _,
         _,
         types::StripeRefundResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -73,7 +73,7 @@ pub async fn refund_retrieve_with_gateway_creds(
 ) -> HttpResponse {
     let refund_request: refund_types::RefundsRetrieveRequest = match qs_config
         .deserialize_bytes(&form_payload)
-        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+        .map_err(|err| report!(StripeErrorCode::from(err)))
     {
         Ok(payload) => payload,
         Err(err) => return api::log_and_return_error_response(err),
@@ -93,7 +93,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         _,
         _,
         types::StripeRefundResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -141,7 +141,7 @@ pub async fn refund_retrieve(
         _,
         _,
         types::StripeRefundResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
@@ -187,7 +187,7 @@ pub async fn refund_update(
         _,
         _,
         types::StripeRefundResponse,
-        errors::StripeErrorCode,
+        StripeErrorCode,
         _,
     >(
         flow,
