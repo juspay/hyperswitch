@@ -2076,7 +2076,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
             profile_id.get_string_repr()
         );
 
-        create_decision_engine_merchant(&state, profile_id)
+        create_decision_engine_merchant(state, profile_id)
             .await
             .map_err(|err| {
                 logger::warn!("Merchant creation error in decision_engine: {err:?}");
@@ -2166,7 +2166,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
             profile_id.get_string_repr()
         );
 
-        create_decision_engine_merchant(&state, profile_id)
+        create_decision_engine_merchant(state, profile_id)
             .await
             .map_err(|err| {
                 logger::warn!("Merchant creation error in decision_engine: {err:?}");
@@ -2228,7 +2228,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
             profile_id.get_string_repr()
         );
 
-        create_decision_engine_merchant(&state, profile_id)
+        create_decision_engine_merchant(state, profile_id)
             .await
             .map_err(|err| {
                 logger::warn!("Merchant creation error in decision_engine: {err:?}");

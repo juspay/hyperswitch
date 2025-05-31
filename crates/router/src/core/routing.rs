@@ -1933,7 +1933,7 @@ pub async fn contract_based_dynamic_routing_setup(
             contract_based_routing: Some(contract_algo),
             is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                 .as_ref()
-                .map_or(false, |algo| algo.is_merchant_created_in_decision_engine),
+                .is_some_and(|algo| algo.is_merchant_created_in_decision_engine),
         }
     };
 
