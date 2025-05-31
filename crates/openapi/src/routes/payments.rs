@@ -1,22 +1,33 @@
 /// Payments - Create
 ///
-/// **Creates a payment object when amount and currency are passed.**
+/// Creates a payment resource, which represents a customer's intent to pay.
+/// This endpoint is the starting point for various payment flows:
 ///
-/// This API is also used to create a mandate by passing the `mandate_object`.
+/// - **Instant Payment (Single-Step):** For immediate authorization and capture.
+///   Set `confirm: true` and `capture_method: "automatic"`.
 ///
-/// Depending on the user journey you wish to achieve, you may opt to complete all the steps in a single request **by attaching a payment method, setting `confirm=true` and `capture_method = automatic`** in the *Payments/Create API* request.
+/// - **Two-Step Manual Capture:** Authorize now, capture later.
+///   Set `confirm: true` and `capture_method: "manual"`.
+///   The payment status will be `requires_capture`. Later, call `POST /payments/{payment_id}/capture`.
 ///
-/// Otherwise, To completely process a payment you will have to **create a payment, attach a payment method, confirm and capture funds**. For that you could use the following sequence of API requests -
+/// - **Fully Decoupled Flow (Multi-Step):** For complex checkouts.
+///   1. Call this endpoint (`POST /payments`) to create the payment intent.
+///      Returns `payment_id` and `client_secret`.
+///   2. Optionally, update details using `POST /payments/{payment_id}` (Payments - Update).
+///   3. Finalize and authorize using `POST /payments/{payment_id}/confirm` (Payments - Confirm).
+///   4. If manual capture, call `POST /payments/{payment_id}/capture`.
 ///
-/// 1. Payments - Create
+/// - **Saving Payment Methods:** To save a payment method for future use.
+///   Include `customer_id` and set `setup_future_usage` to `"on_session"` or `"off_session"`.
 ///
-/// 2. Payments - Update
+/// - **Setting up Recurring Payments (CIT):** For customer-initiated recurring setups.
+///   Use `setup_future_usage: "off_session"`. Can be with an initial charge (`amount > 0`)
+///   or as a zero-dollar authorization (`amount: 0`, `payment_type: "setup_mandate"`).
 ///
-/// 3. Payments - Confirm
+/// - **Executing Recurring Payments (MIT):** For merchant-initiated payments using a saved method.
+///   Set `off_session: true` and provide `recurring_details` (including the `payment_method_id` from setup).
 ///
-/// 4. Payments - Capture.
-///
-/// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
+/// You can also provide your internal order identifier using `merchant_order_reference_id` for reconciliation.
 ///
 /// This page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.
 #[utoipa::path(
@@ -294,15 +305,15 @@ pub fn payments_update() {}
 
 /// Payments - Confirm
 ///
-/// **Use this API to confirm the payment and forward the payment to the payment processor.**
+/// Confirms a payment intent that was previously created with `confirm: false`. This action attempts to authorize the payment with the payment processor.
 ///
-/// Alternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:
+/// Expected status transitions after confirmation:
+/// - `succeeded`: If authorization is successful and `capture_method` is `automatic`.
+/// - `requires_capture`: If authorization is successful and `capture_method` is `manual`.
+/// - `requires_action`: If further customer authentication (e.g., 3DS) is needed. The `next_action` field in the response provides details.
+/// - `failed`: If authorization fails.
 ///
-/// 1. fail with `failed` status or
 ///
-/// 2. transition to a `requires_customer_action` status with a `next_action` block or
-///
-/// 3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",
@@ -352,7 +363,13 @@ pub fn payments_confirm() {}
 
 /// Payments - Capture
 ///
-/// To capture the funds for an uncaptured payment
+/// Captures the funds for a previously authorized payment intent where `capture_method` was set to `manual` and the payment is in a `requires_capture` state.
+///
+/// Upon successful capture, the payment status usually transitions to `succeeded`.
+/// The `amount_to_capture` can be specified in the request body; it must be less than or equal to the payment's `amount_capturable`. If omitted, the full capturable amount is captured.
+///
+/// A payment must be in a capturable state (e.g., `requires_capture`). Attempting to capture an already `succeeded` (and fully captured) payment or one in an invalid state will lead to an error.
+///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/capture",
