@@ -151,7 +151,7 @@ You can experience the product by signing up for our [hosted sandbox](https://ap
 
 If you have any questions, feel free to drop them in our [Slack community](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw).
 
-We welcome contributors from around the world to help build Hyperswitch. To get started, please read our [contribution guidelines](contributing-guidelines).
+We welcome contributors from around the world to help build Hyperswitch. To get started, please read our [contribution guidelines][contributing-guidelines].
 
 <a href="feature-requests">
   <h2 id="feature-requests">Feature requests & Bugs</h2>
@@ -183,7 +183,7 @@ Hyperswitch serves as a well-architected designed reference platform, built on b
 3. Be community driven: It enables participatory design and development.
 4. Build it like Systems Software: This sets a high bar for Reliability,
    Security and Performance SLAs.
-5. Maximise Value Creation: For developers, customers & partners.
+5. Maximize Value Creation: For developers, customers & partners.
 
 This project is being created and maintained by [Juspay](https://juspay.io)
 
