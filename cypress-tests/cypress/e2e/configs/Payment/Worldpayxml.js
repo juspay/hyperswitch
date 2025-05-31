@@ -5,16 +5,13 @@ const successfulNo3DSCardDetails = {
   card_number: "4444333322221111",
   card_exp_month: "01",
   card_exp_year: "27",
-  card_holder_name: "AUTHORISED",
+  card_holder_name: "Juspay Hyperswitch",
   card_cvc: "123",
 };
 
-const successfulThreeDSTestCardDetails = {
-  card_number: "4242424242424242",
-  card_exp_month: "01",
-  card_exp_year: "27",
-  card_holder_name: "Joseph",
-  card_cvc: "123",
+const successful3DSTestCardDetails = {
+  ...successfulNo3DSCardDetails,
+  card_number: "4242424242424242"
 };
 
 export const connectorDetails = {
@@ -72,7 +69,7 @@ export const connectorDetails = {
         amount: 5000,
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -84,7 +81,7 @@ export const connectorDetails = {
         payment_method: "card",
         amount: 5000,
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
