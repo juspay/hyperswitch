@@ -1,13 +1,12 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::blocklist as api_blocklist;
-use router_env::Flow;
-
-use crate::{
+use router::{
     core::{api_locking, blocklist},
     routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::domain,
 };
+use router_env::Flow;
 
 #[utoipa::path(
     post,

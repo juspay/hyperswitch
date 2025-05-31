@@ -1262,7 +1262,7 @@ where
 
 #[cfg(feature = "olap")]
 #[derive(Debug)]
-pub(crate) struct SinglePurposeJWTAuth(pub TokenPurpose);
+pub struct SinglePurposeJWTAuth(pub TokenPurpose);
 
 #[cfg(feature = "olap")]
 #[async_trait]
@@ -2776,7 +2776,7 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth {
+pub struct JWTAuth {
     pub permission: Permission,
 }
 

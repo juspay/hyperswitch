@@ -5,7 +5,10 @@ use super::customers::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use super::{payment_intents::*, setup_intents::*};
 use super::{refunds::*, webhooks::*};
-use crate::routes::{self, mandates, webhooks};
+use router::routes;
+
+use crate::routes::{mandates, webhooks};
+
 
 pub struct PaymentIntents;
 

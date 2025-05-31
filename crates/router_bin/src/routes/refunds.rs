@@ -2,12 +2,12 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils;
 use router_env::{instrument, tracing, Flow};
 
-use super::app::AppState;
+use router::routes::AppState;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-use crate::core::refunds::*;
+use router::core::refunds::*;
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
-use crate::core::refunds_v2::*;
-use crate::{
+use router::core::refunds_v2::*;
+use router::{
     core::api_locking,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{api::refunds, domain},

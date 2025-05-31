@@ -1,12 +1,11 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
+use router::core::api_locking;
 use router_env::{instrument, tracing, Flow};
-
-use crate::core::api_locking;
 pub mod transformers;
 
-use super::app::AppState;
-use crate::{
+use router::routes::AppState;
+use router::{
     core::files::*,
     services::{api, authentication as auth},
     types::{api::files, domain},

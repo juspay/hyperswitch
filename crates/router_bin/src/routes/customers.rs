@@ -1,13 +1,12 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, customers::*},
+    routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{api::customers, domain},
 };
+use router_env::{instrument, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -122,7 +121,7 @@ pub async fn customers_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::GlobalCustomerId>,
 ) -> HttpResponse {
-    use crate::services::authentication::api_or_client_auth;
+    use router::services::authentication::api_or_client_auth;
 
     let flow = Flow::CustomersRetrieve;
 
@@ -411,7 +410,7 @@ pub async fn get_customer_mandates(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            crate::core::mandate::get_customer_mandates(state, merchant_context, customer_id)
+            router::core::mandate::get_customer_mandates(state, merchant_context, customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

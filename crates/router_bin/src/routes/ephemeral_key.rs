@@ -1,13 +1,13 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
-
-use super::AppState;
-#[cfg(feature = "v2")]
-use crate::types::domain;
-use crate::{
+use router::{
     core::{api_locking, payments::helpers},
+    routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::{instrument, tracing, Flow};
+
+#[cfg(feature = "v2")]
+use crate::types::domain;
 
 #[cfg(all(feature = "v1", not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]

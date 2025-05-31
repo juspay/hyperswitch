@@ -5,22 +5,25 @@ use api_models::payments as payment_types;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use router_env::Tag;
-use router_env::{instrument, tracing, Flow};
+use router::{
+    logger,
+    types::{api as api_types, domain},
+};
 
-use crate::{
-    compatibility::{stripe::errors, wrap},
+use crate::routes::payments::GetLockingInput;
+
+use router::{
     core::payments,
     routes::{self},
     services::{api, authentication as auth},
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::{
-    core::api_locking::GetLockingInput,
-    logger,
-    routes::payments::get_or_generate_payment_id,
-    types::{api as api_types, domain},
-};
+use router_env::Tag;
+use router_env::{instrument, tracing, Flow};
+
+use crate::compatibility::{stripe::errors, wrap};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::routes::payments::get_or_generate_payment_id;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
@@ -614,7 +617,7 @@ pub async fn payment_intent_list(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
-    use crate::core::api_locking;
+    use router::core::api_locking;
     let flow = Flow::PaymentsList;
     Box::pin(wrap::compatibility_api_wrap::<
         _,

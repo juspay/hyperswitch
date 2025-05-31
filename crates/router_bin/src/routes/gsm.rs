@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::gsm as gsm_api_types;
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, gsm},
+    routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::{instrument, tracing, Flow};
 
 /// Gsm - Create
 ///

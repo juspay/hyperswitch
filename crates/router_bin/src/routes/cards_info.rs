@@ -1,14 +1,13 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::cards_info as cards_info_api_types;
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, cards_info},
+    routes::AppState,
     services::{api, authentication as auth},
     types::domain,
 };
+use router_env::{instrument, tracing, Flow};
 
 #[cfg(feature = "v1")]
 /// Cards Info - Retrieve

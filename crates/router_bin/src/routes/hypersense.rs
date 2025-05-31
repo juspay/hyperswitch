@@ -1,15 +1,14 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::external_service_auth as external_service_auth_api;
-use router_env::Flow;
-
-use super::AppState;
-use crate::{
+use router::{
     core::{api_locking, external_service_auth},
+    routes::AppState,
     services::{
         api,
         authentication::{self, ExternalServiceType},
     },
 };
+use router_env::Flow;
 
 pub async fn get_hypersense_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::HypersenseTokenRequest;

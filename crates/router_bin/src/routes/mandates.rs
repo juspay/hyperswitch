@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, mandate},
+    routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{api::mandates, domain},
 };
+use router_env::{instrument, tracing, Flow};
 
 /// Mandates - Retrieve Mandate
 ///

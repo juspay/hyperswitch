@@ -3,13 +3,12 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user::theme as theme_api;
 use common_utils::types::user::ThemeLineage;
 use masking::Secret;
-use router_env::Flow;
-
-use crate::{
+use router::{
     core::{api_locking, user::theme as theme_core},
     routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::Flow;
 
 pub async fn get_theme_using_lineage(
     state: web::Data<AppState>,

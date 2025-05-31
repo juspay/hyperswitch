@@ -23,10 +23,10 @@ use hyperswitch_interfaces::{
 };
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
+use settings::Tenant;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
-use settings::Tenant;
 // #[cfg(any(feature = "olap", feature = "oltp"))]
 // use super::currency;
 // #[cfg(feature = "dummy_connector")]
@@ -74,7 +74,7 @@ use settings::Tenant;
 // #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 // #[cfg(feature = "olap")]
-use crate::{analytics::AnalyticsProvider};
+use crate::analytics::AnalyticsProvider;
 // #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 // #[cfg(feature = "v1")]
@@ -342,9 +342,10 @@ impl AppState {
                 .map(Arc::new);
 
             #[allow(clippy::expect_used)]
-            let cache_store = crate::services::get_cache_store(&conf.clone(), shut_down_signal, testable)
-                .await
-                .expect("Failed to create store");
+            let cache_store =
+                crate::services::get_cache_store(&conf.clone(), shut_down_signal, testable)
+                    .await
+                    .expect("Failed to create store");
             let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
@@ -427,9 +428,14 @@ impl AppState {
                 EventsHandler::Kafka(kafka_client) => Box::new(
                     KafkaStore::new(
                         #[allow(clippy::expect_used)]
-                        crate::services::get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
-                            .await
-                            .expect("Failed to create store"),
+                        crate::services::get_store(
+                            &conf.clone(),
+                            tenant,
+                            Arc::clone(&cache_store),
+                            testable,
+                        )
+                        .await
+                        .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
                         tenant,
@@ -503,4 +509,3 @@ impl AppState {
         })
     }
 }
-

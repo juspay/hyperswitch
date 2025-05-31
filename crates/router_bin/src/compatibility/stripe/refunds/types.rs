@@ -3,7 +3,7 @@ use std::{convert::From, default::Default};
 use common_utils::pii;
 use serde::{Deserialize, Serialize};
 
-use crate::types::api::{admin, refunds};
+use router::types::api::{admin, refunds};
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct StripeCreateRefundRequest {

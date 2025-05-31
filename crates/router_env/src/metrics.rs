@@ -23,13 +23,13 @@ macro_rules! global_meter {
 #[macro_export]
 macro_rules! counter_metric {
     ($name:ident, $meter:ident) => {
-        pub(crate) static $name: ::std::sync::LazyLock<
+        pub static $name: ::std::sync::LazyLock<
             $crate::opentelemetry::metrics::Counter<u64>,
         > = ::std::sync::LazyLock::new(|| $meter.u64_counter(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, description:literal) => {
         #[doc = $description]
-        pub(crate) static $name: ::std::sync::LazyLock<
+        pub static $name: ::std::sync::LazyLock<
             $crate::opentelemetry::metrics::Counter<u64>,
         > = ::std::sync::LazyLock::new(|| {
             $meter

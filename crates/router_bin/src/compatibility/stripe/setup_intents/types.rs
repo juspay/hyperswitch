@@ -7,16 +7,16 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{
-    compatibility::stripe::{
-        payment_intents::types as payment_intent, refunds::types as stripe_refunds,
-    },
+use crate::compatibility::stripe::{
+    payment_intents::types::{self as payment_intent, ForeignFrom, ForeignTryFrom}, refunds::types as stripe_refunds,
+};
+use router::{
+
     consts,
     core::errors,
     pii::{self, PeekInterface},
     types::{
         api::{self as api_types, admin, enums as api_enums},
-        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::OptionExt,
 };
@@ -279,7 +279,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 item.currency.to_owned(),
             ))?,
             browser_info: Some(
-                serde_json::to_value(crate::types::BrowserInformation {
+                serde_json::to_value(router::types::BrowserInformation {
                     ip_address,
                     user_agent: item.user_agent,
                     ..Default::default()

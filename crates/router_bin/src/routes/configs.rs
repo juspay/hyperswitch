@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, Responder};
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, configs},
+    routes::AppState,
     services::{api, authentication as auth},
     types::api as api_types,
 };
+use router_env::{instrument, tracing, Flow};
 
 #[instrument(skip_all, fields(flow = ?Flow::CreateConfigKey))]
 pub async fn config_key_create(

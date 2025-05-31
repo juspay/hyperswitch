@@ -1,11 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::Flow;
-
-use crate::{
+use router::{
     core::{api_locking, currency},
     routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::Flow;
 
 #[cfg(feature = "v1")]
 pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {

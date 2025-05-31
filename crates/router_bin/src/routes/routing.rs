@@ -5,16 +5,15 @@
 
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
-
-use crate::{
+use router::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
     types::domain,
+};
+use router_env::{
+    tracing::{self, instrument},
+    Flow,
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -954,7 +953,7 @@ pub async fn routing_retrieve_linked_config(
     query: web::Query<routing_types::RoutingRetrieveLinkQuery>,
     transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
-    use crate::services::authentication::AuthenticationData;
+    use router::services::authentication::AuthenticationData;
     let flow = Flow::RoutingRetrieveActiveConfig;
     let query = query.into_inner();
     if let Some(profile_id) = query.profile_id.clone() {

@@ -1,19 +1,21 @@
 use actix_web::{web, Responder};
 use router_env::{instrument, tracing, Flow};
 
-use crate::{
-    self as app,
+use router::{
     core::{api_locking, relay},
     services::{api, authentication as auth},
 };
+use router::routes::AppState;
+
 
 #[instrument(skip_all, fields(flow = ?Flow::Relay))]
 #[cfg(feature = "oltp")]
 pub async fn relay(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<api_models::relay::RelayRequest>,
 ) -> impl Responder {
+
     let flow = Flow::Relay;
     let payload = payload.into_inner();
     Box::pin(api::server_wrap(
@@ -22,8 +24,8 @@ pub async fn relay(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
+            let merchant_context = router::types::domain::MerchantContext::NormalMerchant(Box::new(
+                router::types::domain::Context(auth.merchant_account, auth.key_store),
             ));
             relay::relay_flow_decider(
                 state,
@@ -47,7 +49,7 @@ pub async fn relay(
 #[instrument(skip_all, fields(flow = ?Flow::RelayRetrieve))]
 #[cfg(feature = "oltp")]
 pub async fn relay_retrieve(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     path: web::Path<common_utils::id_type::RelayId>,
     req: actix_web::HttpRequest,
     query_params: web::Query<api_models::relay::RelayRetrieveBody>,
@@ -63,8 +65,8 @@ pub async fn relay_retrieve(
         &req,
         relay_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
+            let merchant_context = router::types::domain::MerchantContext::NormalMerchant(Box::new(
+                router::types::domain::Context(auth.merchant_account, auth.key_store),
             ));
             relay::relay_retrieve(
                 state,

@@ -14,7 +14,7 @@ pub mod utils;
 pub mod webhook_events;
 
 #[cfg(feature = "v1")]
-pub(crate) use self::{
+pub use self::{
     incoming::incoming_webhooks_wrapper,
     outgoing::{
         create_event_and_trigger_outgoing_webhook, get_outgoing_webhook_request,

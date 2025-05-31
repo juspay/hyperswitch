@@ -1,8 +1,8 @@
 use actix_web::{web, HttpRequest, Responder};
+use router::routes::AppState;
 use router_env::{instrument, tracing, Flow};
 
-use super::app::AppState;
-use crate::{
+use router::{
     core::{
         api_locking,
         webhooks::{self, types},

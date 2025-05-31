@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, Responder};
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_keys, api_locking},
+    routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api as api_types,
 };
+use router_env::{instrument, tracing, Flow};
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]

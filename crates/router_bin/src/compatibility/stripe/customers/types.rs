@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::logger;
-use crate::types::{api, api::enums as api_enums};
+use router::types::{api, api::enums as api_enums};
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {

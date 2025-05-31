@@ -1,14 +1,13 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
+use router::{core::api_locking, services::authorization::permissions::Permission};
 use router_env::{instrument, tracing, Flow};
-
-use crate::{core::api_locking, services::authorization::permissions::Permission};
 pub mod utils;
 
-use super::app::AppState;
-use crate::{
+use router::{
     core::disputes,
+    routes::AppState,
     services::{api, authentication as auth},
     types::{api::disputes as dispute_types, domain},
 };

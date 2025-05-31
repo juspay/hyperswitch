@@ -1,10 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user_role::{self as user_role_api, role as role_api};
 use common_enums::TokenPurpose;
+use router::routes::AppState;
 use router_env::Flow;
 
-use super::AppState;
-use crate::{
+use router::{
     core::{
         api_locking,
         user_role::{self as user_role_core, role as role_core},

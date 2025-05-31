@@ -13,15 +13,15 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    compatibility::stripe::refunds::types as stripe_refunds,
+use crate::compatibility::stripe::refunds::types as stripe_refunds;
+
+use router::{
     connector::utils::AddressData,
     consts,
     core::errors,
     pii::{Email, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
-        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
@@ -386,7 +386,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             payment_method_type: item.payment_method_types,
             routing,
             browser_info: Some(
-                serde_json::to_value(crate::types::BrowserInformation {
+                serde_json::to_value(router::types::BrowserInformation {
                     ip_address,
                     user_agent: item.user_agent,
                     ..Default::default()
@@ -711,6 +711,16 @@ pub struct MandateOption {
     pub start_date: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub end_date: Option<PrimitiveDateTime>,
+}
+
+pub(crate) trait ForeignFrom<F> {
+    fn foreign_from(from: F) -> Self;
+}
+
+pub(crate) trait ForeignTryFrom<F>: Sized {
+    type Error;
+
+    fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
 impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::MandateData> {

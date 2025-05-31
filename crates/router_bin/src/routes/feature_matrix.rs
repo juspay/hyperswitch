@@ -5,16 +5,14 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use router_env::{instrument, tracing, Flow};
-use strum::IntoEnumIterator;
-
-use crate::{
-    self as app,
+use router::{
     core::{api_locking::LockAction, errors::RouterResponse},
+    routes::{app, app::settings, AppState},
     services::{api, authentication as auth, connector_integration_interface::ConnectorEnum},
-    settings,
     types::api::{self as api_types, payments as payment_types},
 };
+use router_env::{instrument, tracing, Flow};
+use strum::IntoEnumIterator;
 
 #[instrument(skip_all)]
 pub async fn fetch_feature_matrix(

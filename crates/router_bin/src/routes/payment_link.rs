@@ -1,11 +1,11 @@
 use actix_web::{web, Responder};
 use router_env::{instrument, tracing, Flow};
 
-use crate::{
+use router::{
     core::{api_locking, payment_link::*},
     services::{api, authentication as auth},
     types::domain,
-    AppState,
+    routes::AppState,
 };
 
 /// Payments Link - Retrieve
@@ -86,7 +86,7 @@ pub async fn initiate_payment_link(
                 payload.payment_id.clone(),
             )
         },
-        &crate::services::authentication::MerchantIdAuth(merchant_id),
+        &router::services::authentication::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -124,7 +124,7 @@ pub async fn initiate_secure_payment_link(
                 headers,
             )
         },
-        &crate::services::authentication::MerchantIdAuth(merchant_id),
+        &router::services::authentication::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -209,7 +209,7 @@ pub async fn payment_link_status(
                 payload.payment_id.clone(),
             )
         },
-        &crate::services::authentication::MerchantIdAuth(merchant_id),
+        &router::services::authentication::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await

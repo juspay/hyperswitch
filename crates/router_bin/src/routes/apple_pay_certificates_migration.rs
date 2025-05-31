@@ -1,11 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::Flow;
-
-use super::AppState;
-use crate::{
+use router::{
     core::{api_locking, apple_pay_certificates_migration},
+    routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::Flow;
 
 pub async fn apple_pay_certificates_migration(
     state: web::Data<AppState>,

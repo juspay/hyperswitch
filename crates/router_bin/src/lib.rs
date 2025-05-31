@@ -1,7 +1,6 @@
-pub mod routes;
 #[cfg(all(feature = "stripe", feature = "v1"))]
 pub mod compatibility;
-
+pub mod routes;
 
 use actix_web::{
     body::MessageBody,
@@ -10,21 +9,19 @@ use actix_web::{
 };
 use http::StatusCode;
 use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
+pub use router::env::logger;
+use router::{
+    configs::settings,
+    core::errors,
+    routes::{AppState, SessionState},
+};
 use router_env::tracing::Instrument;
-use routes::{AppState, SessionState};
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
-
-pub use self::env::logger;
-pub(crate) use self::macros::*;
-use crate::{configs::settings, core::errors};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
-// Import translate fn in root
-use crate::locale::{_rust_i18n_t, _rust_i18n_try_translate};
 
 /// Header Constants
 pub mod headers {
@@ -73,8 +70,6 @@ pub mod headers {
     pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
 }
-
-
 
 pub fn mk_app(
     state: AppState,
@@ -232,9 +227,9 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let api_client = Box::new(services::ProxyClient::new(&conf.proxy).map_err(|error| {
-        errors::ApplicationError::ApiClientError(error.current_context().clone())
-    })?);
+    let api_client = Box::new(router::services::ProxyClient::new(&conf.proxy).map_err(
+        |error| errors::ApplicationError::ApiClientError(error.current_context().clone()),
+    )?);
     let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
 
@@ -345,7 +340,7 @@ pub fn get_application_builder(
     let json_cfg = actix_web::web::JsonConfig::default()
         .limit(request_body_limit)
         .content_type_required(true)
-        .error_handler(utils::error_parser::custom_json_error_handler);
+        .error_handler(router::utils::error_parser::custom_json_error_handler);
 
     actix_web::App::new()
         .app_data(json_cfg)
@@ -357,13 +352,13 @@ pub fn get_application_builder(
             StatusCode::METHOD_NOT_ALLOWED,
             errors::error_handlers::custom_error_handlers,
         ))
-        .wrap(middleware::default_response_headers())
-        .wrap(middleware::RequestId)
-        .wrap(cors::cors(cors))
+        .wrap(router::middleware::default_response_headers())
+        .wrap(router::middleware::RequestId)
+        .wrap(router::cors::cors(cors))
         // this middleware works only for Http1.1 requests
-        .wrap(middleware::Http400RequestDetailsLogger)
-        .wrap(middleware::AddAcceptLanguageHeader)
-        .wrap(middleware::RequestResponseMetrics)
-        .wrap(middleware::LogSpanInitializer)
+        .wrap(router::middleware::Http400RequestDetailsLogger)
+        .wrap(router::middleware::AddAcceptLanguageHeader)
+        .wrap(router::middleware::RequestResponseMetrics)
+        .wrap(router::middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

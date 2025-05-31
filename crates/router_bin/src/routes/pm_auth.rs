@@ -1,13 +1,12 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models as api_types;
-use router_env::{instrument, tracing, types::Flow};
-
-use crate::{
+use router::{
     core::api_locking,
     routes::AppState,
     services::{api, authentication as auth},
     types::transformers::ForeignTryFrom,
 };
+use router_env::{instrument, tracing, types::Flow};
 
 #[instrument(skip_all, fields(flow = ?Flow::PmAuthLinkTokenCreate))]
 pub async fn link_token_create(
@@ -19,7 +18,7 @@ pub async fn link_token_create(
     let flow = Flow::PmAuthLinkTokenCreate;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
+    let (auth, _) = match router::services::authentication::check_client_secret_and_get_auth(
         req.headers(),
         &payload,
         api_auth,
@@ -42,10 +41,10 @@ pub async fn link_token_create(
         &req,
         payload,
         |state, auth, payload, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
+            let merchant_context = router::types::domain::MerchantContext::NormalMerchant(Box::new(
+                router::types::domain::Context(auth.merchant_account, auth.key_store),
             ));
-            crate::core::pm_auth::create_link_token(
+            router::core::pm_auth::create_link_token(
                 state,
                 merchant_context,
                 payload,
@@ -68,7 +67,7 @@ pub async fn exchange_token(
     let flow = Flow::PmAuthExchangeToken;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
+    let (auth, _) = match router::services::authentication::check_client_secret_and_get_auth(
         req.headers(),
         &payload,
         api_auth,
@@ -82,10 +81,10 @@ pub async fn exchange_token(
         &req,
         payload,
         |state, auth, payload, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
+            let merchant_context = router::types::domain::MerchantContext::NormalMerchant(Box::new(
+                router::types::domain::Context(auth.merchant_account, auth.key_store),
             ));
-            crate::core::pm_auth::exchange_token_core(state, merchant_context, payload)
+            router::core::pm_auth::exchange_token_core(state, merchant_context, payload)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

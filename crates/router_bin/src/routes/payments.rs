@@ -1,5 +1,5 @@
-use crate::{
-    core::api_locking::{self, GetLockingInput},
+use router::{
+    core::api_locking::{self, LockAction},
     services::authorization::permissions::Permission,
 };
 pub mod helpers;
@@ -7,16 +7,12 @@ use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::payments::HeaderPayload;
 use masking::PeekInterface;
-use router_env::{env, instrument, logger, tracing, types, Flow};
-
-use super::app::ReqState;
-use crate::{
-    self as app,
+use router::{
     core::{
         errors::{self, http_not_implemented},
         payments::{self, PaymentRedirectFlow},
     },
-    routes::lock_utils,
+    routes::{lock_utils, AppState, app::ReqState, SessionState},
     services::{api, authentication as auth},
     types::{
         api::{
@@ -27,11 +23,12 @@ use crate::{
         transformers::ForeignTryFrom,
     },
 };
+use router_env::{env, instrument, logger, tracing, types, Flow};
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payments_create(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
 ) -> impl Responder {
@@ -118,7 +115,7 @@ pub async fn payments_create(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateIntent, payment_id))]
 pub async fn payments_create_intent(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCreateIntentRequest>,
 ) -> impl Responder {
@@ -185,7 +182,7 @@ pub async fn payments_create_intent(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsGetIntent, payment_id))]
 pub async fn payments_get_intent(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
@@ -250,7 +247,7 @@ pub async fn payments_get_intent(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateAndConfirmIntent, payment_id))]
 pub async fn payments_create_and_confirm_intent(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
 ) -> impl Responder {
@@ -304,7 +301,7 @@ pub async fn payments_create_and_confirm_intent(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdateIntent, payment_id))]
 pub async fn payments_update_intent(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsUpdateIntentRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -364,7 +361,7 @@ pub async fn payments_update_intent(
 #[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
 pub async fn payments_start(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<(
         common_utils::id_type::PaymentId,
@@ -421,7 +418,7 @@ pub async fn payments_start(
 #[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payments_retrieve(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentId>,
     json_payload: web::Query<payment_types::PaymentRetrieveBody>,
@@ -509,7 +506,7 @@ pub async fn payments_retrieve(
 #[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payments_retrieve_with_gateway_creds(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentRetrieveBodyWithCredentials>,
 ) -> impl Responder {
@@ -580,7 +577,7 @@ pub async fn payments_retrieve_with_gateway_creds(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate, payment_id))]
 pub async fn payments_update(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -643,7 +640,7 @@ pub async fn payments_update(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsPostSessionTokens, payment_id))]
 pub async fn payments_post_session_tokens(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsPostSessionTokensRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -703,7 +700,7 @@ pub async fn payments_post_session_tokens(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdateMetadata, payment_id))]
 pub async fn payments_update_metadata(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsUpdateMetadataRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -766,7 +763,7 @@ pub async fn payments_update_metadata(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payments_confirm(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -842,7 +839,7 @@ pub async fn payments_confirm(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 pub async fn payments_capture(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCaptureRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -899,7 +896,7 @@ pub async fn payments_capture(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::SessionUpdateTaxCalculation, payment_id))]
 pub async fn payments_dynamic_tax_calculation(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -960,7 +957,7 @@ pub async fn payments_dynamic_tax_calculation(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
 pub async fn payments_connector_session(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsSessionRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -1027,7 +1024,7 @@ pub async fn payments_connector_session(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
 pub async fn payments_connector_session(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsSessionRequest>,
 ) -> impl Responder {
@@ -1087,7 +1084,7 @@ pub async fn payments_connector_session(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(
@@ -1138,7 +1135,7 @@ pub async fn payments_redirect_response(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_redirect_response_with_creds_identifier(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<(
         common_utils::id_type::PaymentId,
@@ -1189,7 +1186,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_complete_authorize_redirect(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(
@@ -1240,7 +1237,7 @@ pub async fn payments_complete_authorize_redirect(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_complete_authorize_redirect_with_creds_identifier(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(
@@ -1292,7 +1289,7 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow =? Flow::PaymentsCompleteAuthorize, payment_id))]
 pub async fn payments_complete_authorize(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCompleteAuthorizeRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -1366,7 +1363,7 @@ pub async fn payments_complete_authorize(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payments_cancel(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsCancelRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -1420,7 +1417,7 @@ pub async fn payments_cancel(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_list(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<payment_types::PaymentListConstraints>,
 ) -> impl Responder {
@@ -1455,7 +1452,7 @@ pub async fn payments_list(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn payments_list(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<payment_types::PaymentListConstraints>,
 ) -> impl Responder {
@@ -1490,7 +1487,7 @@ pub async fn payments_list(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn profile_payments_list(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<payment_types::PaymentListConstraints>,
 ) -> impl Responder {
@@ -1530,7 +1527,7 @@ pub async fn profile_payments_list(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_list_by_filter(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<payment_types::PaymentListFilterConstraints>,
 ) -> impl Responder {
@@ -1558,7 +1555,7 @@ pub async fn payments_list_by_filter(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn profile_payments_list_by_filter(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<payment_types::PaymentListFilterConstraints>,
 ) -> impl Responder {
@@ -1591,7 +1588,7 @@ pub async fn profile_payments_list_by_filter(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_filters_for_payments(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<common_utils::types::TimeRange>,
 ) -> impl Responder {
@@ -1619,7 +1616,7 @@ pub async fn get_filters_for_payments(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(feature = "olap")]
 pub async fn get_payment_filters(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
 ) -> impl Responder {
     let flow = Flow::PaymentsFilters;
@@ -1645,7 +1642,7 @@ pub async fn get_payment_filters(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn get_payment_filters_profile(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
 ) -> impl Responder {
     let flow = Flow::PaymentsFilters;
@@ -1675,7 +1672,7 @@ pub async fn get_payment_filters_profile(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payment_filters_profile(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
 ) -> impl Responder {
     let flow = Flow::PaymentsFilters;
@@ -1705,7 +1702,7 @@ pub async fn get_payment_filters_profile(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
 #[cfg(feature = "olap")]
 pub async fn get_payments_aggregates(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<common_utils::types::TimeRange>,
 ) -> impl Responder {
@@ -1733,7 +1730,7 @@ pub async fn get_payments_aggregates(
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsApprove, payment_id))]
 pub async fn payments_approve(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     http_req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsApproveRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -1804,7 +1801,7 @@ pub async fn payments_approve(
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsReject, payment_id))]
 pub async fn payments_reject(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     http_req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsRejectRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -1877,7 +1874,7 @@ pub async fn payments_reject(
 #[allow(clippy::too_many_arguments)]
 async fn authorize_verify_select<Op>(
     operation: Op,
-    state: app::SessionState,
+    state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
@@ -1991,7 +1988,7 @@ where
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
 pub async fn payments_incremental_authorization(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsIncrementalAuthorizationRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -2045,7 +2042,7 @@ pub async fn payments_incremental_authorization(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsExternalAuthentication, payment_id))]
 pub async fn payments_external_authentication(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsExternalAuthenticationRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -2080,7 +2077,7 @@ pub async fn payments_external_authentication(
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAuthorize, payment_id))]
 pub async fn post_3ds_payments_authorize(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(
@@ -2131,7 +2128,7 @@ pub async fn post_3ds_payments_authorize(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_manual_update(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsManualUpdateRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
@@ -2162,7 +2159,7 @@ pub async fn payments_manual_update(
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
 pub async fn retrieve_extended_card_info(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
@@ -2215,6 +2212,14 @@ pub fn get_or_generate_payment_id(
 
     Ok(())
 }
+
+pub trait GetLockingInput {
+    fn get_locking_input<F>(&self, flow: F) -> LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>;
+}
+
 
 #[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsRequest {
@@ -2539,7 +2544,7 @@ impl GetLockingInput for payment_types::PaymentsManualUpdateRequest {
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_payments_aggregates_profile(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<common_utils::types::TimeRange>,
 ) -> impl Responder {
@@ -2571,7 +2576,7 @@ pub async fn get_payments_aggregates_profile(
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
 #[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn get_payments_aggregates_profile(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<common_utils::types::TimeRange>,
 ) -> impl Responder {
@@ -2647,7 +2652,7 @@ mod internal_payload_types {
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentStartRedirection, payment_id))]
 pub async fn payments_start_redirection(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<api_models::payments::PaymentStartRedirectionParams>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -2699,7 +2704,7 @@ pub async fn payments_start_redirection(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirmIntent, payment_id))]
 pub async fn payment_confirm_intent(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<api_models::payments::PaymentsConfirmIntentRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -2775,7 +2780,7 @@ pub async fn payment_confirm_intent(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::ProxyConfirmIntent, payment_id))]
 pub async fn proxy_confirm_intent(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<api_models::payments::ProxyPaymentsRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -2853,7 +2858,7 @@ pub async fn proxy_confirm_intent(
 #[cfg(feature = "v2")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payment_status(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Query<api_models::payments::PaymentsRetrieveRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -2934,7 +2939,7 @@ pub async fn payment_status(
 #[cfg(feature = "v2")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payment_get_intent_using_merchant_reference_id(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentReferenceId>,
 ) -> impl Responder {
@@ -2981,7 +2986,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
 pub async fn payments_finish_redirection(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(
@@ -3034,7 +3039,7 @@ pub async fn payments_finish_redirection(
 #[cfg(feature = "v2")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payments_capture(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<api_models::payments::PaymentsCaptureRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
@@ -3111,7 +3116,7 @@ pub async fn payments_capture(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_methods(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
     query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,

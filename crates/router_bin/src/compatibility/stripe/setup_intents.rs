@@ -9,11 +9,12 @@ use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::{
-    compatibility::{
-        stripe::{errors, payment_intents::types as stripe_payment_types},
-        wrap,
-    },
+use crate::compatibility::{
+    stripe::{errors, payment_intents::types as stripe_payment_types},
+    wrap,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use router::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},

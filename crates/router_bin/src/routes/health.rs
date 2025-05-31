@@ -1,14 +1,12 @@
 use actix_web::{web, HttpRequest};
 use api_models::health_check::RouterHealthCheckResponse;
-use router_env::{instrument, logger, tracing, Flow};
-
-use super::app;
-use crate::{
+use router::{
     core::{api_locking, health_check::HealthCheckInterface},
     errors::{self, RouterResponse},
-    routes::metrics,
+    routes::{app, metrics, AppState, SessionState},
     services::{api, authentication as auth},
 };
+use router_env::{instrument, logger, tracing, Flow};
 /// .
 // #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
 #[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
@@ -22,7 +20,7 @@ pub async fn health() -> impl actix_web::Responder {
 
 #[instrument(skip_all, fields(flow = ?Flow::DeepHealthCheck))]
 pub async fn deep_health_check(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     request: HttpRequest,
 ) -> impl actix_web::Responder {
     metrics::HEALTH_METRIC.add(1, &[]);
@@ -41,9 +39,7 @@ pub async fn deep_health_check(
     .await
 }
 
-async fn deep_health_check_func(
-    state: app::SessionState,
-) -> RouterResponse<RouterHealthCheckResponse> {
+async fn deep_health_check_func(state: SessionState) -> RouterResponse<RouterHealthCheckResponse> {
     logger::info!("Deep health check was called");
 
     logger::debug!("Database health check begin");

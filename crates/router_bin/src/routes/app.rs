@@ -21,6 +21,26 @@ use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
+#[cfg(feature = "olap")]
+pub use router::analytics::opensearch::OpenSearchClient;
+#[cfg(feature = "olap")]
+use router::analytics::AnalyticsProvider;
+#[cfg(feature = "dummy_connector")]
+use router::routes::dummy_connector::*;
+pub use router::{
+    configs::settings,
+    db::{
+        AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface, StorageImpl,
+        StorageInterface,
+    },
+    events::EventsHandler,
+    services::{get_cache_store, get_store},
+};
+use router::{
+    configs::{secrets_transformers, Settings},
+    db::kafka_store::{KafkaStore, TenantID},
+    routes::{app::AppStateInfo, AppState},
+};
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
@@ -29,8 +49,6 @@ use tokio::sync::oneshot;
 use self::settings::Tenant;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
-#[cfg(feature = "dummy_connector")]
-use super::dummy_connector::*;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -71,10 +89,6 @@ use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_e
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
-#[cfg(feature = "olap")]
-pub use crate::analytics::opensearch::OpenSearchClient;
-#[cfg(feature = "olap")]
-use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
 #[cfg(feature = "v1")]
@@ -85,58 +99,15 @@ use crate::routes::cards_info::{
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+use crate::routes::hypersense as hypersense_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-pub use crate::{
-    configs::settings,
-    db::{
-        AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface, StorageImpl,
-        StorageInterface,
-    },
-    events::EventsHandler,
-    services::{get_cache_store, get_store},
-};
-use crate::{
-    configs::{secrets_transformers, Settings},
-    db::kafka_store::{KafkaStore, TenantID},
-    routes::hypersense as hypersense_routes,
-};
 
 #[cfg(feature = "partial-auth")]
 static CHECKSUM_KEY: once_cell::sync::OnceCell<(
     masking::StrongSecret<String>,
     masking::StrongSecret<Vec<u8>>,
 )> = once_cell::sync::OnceCell::new();
-
-impl AppStateInfo for AppState {
-    fn conf(&self) -> settings::Settings<RawSecret> {
-        self.conf.as_ref().to_owned()
-    }
-    #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<Box<dyn EmailService>> {
-        self.email_client.to_owned()
-    }
-    fn event_handler(&self) -> EventsHandler {
-        self.event_handler.clone()
-    }
-    fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
-        self.request_id.replace(request_id);
-    }
-
-    fn add_flow_name(&mut self, flow_name: String) {
-        self.api_client.add_flow_name(flow_name);
-    }
-    fn get_request_id(&self) -> Option<String> {
-        self.api_client.get_request_id()
-    }
-}
-
-impl AsRef<Self> for AppState {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
 
 #[cfg(feature = "email")]
 pub async fn create_email_client(

@@ -8,7 +8,7 @@ pub mod webhooks;
 use actix_web::{web, Scope};
 pub mod errors;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::routes;
+use router::routes;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub struct StripeApis;

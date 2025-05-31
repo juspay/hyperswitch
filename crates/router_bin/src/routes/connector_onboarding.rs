@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::connector_onboarding as api_types;
-use router_env::Flow;
-
-use super::AppState;
-use crate::{
+use router::{
     core::{api_locking, connector_onboarding as core},
+    routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
+use router_env::Flow;
 
 pub async fn get_action_url(
     state: web::Data<AppState>,

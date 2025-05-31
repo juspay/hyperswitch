@@ -1,11 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::Flow;
-
-use super::AppState;
-use crate::{
+use router::{
     core::{api_locking, locker_migration},
+    routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::Flow;
 
 pub async fn rust_locker_migration(
     state: web::Data<AppState>,

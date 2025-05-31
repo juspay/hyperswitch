@@ -2,14 +2,14 @@ use std::{future::Future, sync::Arc, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use common_utils::errors::{CustomResult, ErrorSwitch};
+use router::routes::app::{AppStateInfo, ReqState};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
-use crate::{
+use router::{
     core::{api_locking, errors},
     events::api_logs::ApiEventMetric,
     routes::{
-        app::{AppStateInfo, ReqState},
         AppState, SessionState,
     },
     services::{self, api, authentication as auth, logger},

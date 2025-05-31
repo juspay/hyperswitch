@@ -173,9 +173,3 @@ impl LockAction {
     }
 }
 
-pub trait GetLockingInput {
-    fn get_locking_input<F>(&self, flow: F) -> LockAction
-    where
-        F: router_env::types::FlowMetric,
-        lock_utils::ApiIdentifier: From<F>;
-}

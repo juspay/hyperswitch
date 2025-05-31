@@ -1,11 +1,10 @@
 use actix_web::{web, HttpRequest, Responder};
-use router_env::{instrument, tracing, Flow};
-
-use super::AppState;
-use crate::{
+use router::{
     core::{api_locking, cache},
+    routes::AppState,
     services::{api, authentication as auth},
 };
+use router_env::{instrument, tracing, Flow};
 
 #[instrument(skip_all)]
 pub async fn invalidate(

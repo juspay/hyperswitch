@@ -49,7 +49,7 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub(crate) async fn create_event_and_trigger_outgoing_webhook(
+pub async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
@@ -245,7 +245,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub(crate) async fn trigger_webhook_and_raise_event(
+pub async fn trigger_webhook_and_raise_event(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -655,7 +655,7 @@ fn get_webhook_url_from_business_profile(
         .map(ExposeInterface::expose)
 }
 
-pub(crate) fn get_outgoing_webhook_request(
+pub fn get_outgoing_webhook_request(
     merchant_context: &domain::MerchantContext,
     outgoing_webhook: api::OutgoingWebhook,
     business_profile: &domain::Profile,

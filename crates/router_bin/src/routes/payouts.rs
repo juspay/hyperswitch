@@ -2,11 +2,9 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
 };
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, payouts::*},
+    routes::AppState,
     services::{
         api,
         authentication::{self as auth},
@@ -14,6 +12,7 @@ use crate::{
     },
     types::{api::payouts as payout_types, domain},
 };
+use router_env::{instrument, tracing, Flow};
 
 /// Payouts - Create
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]

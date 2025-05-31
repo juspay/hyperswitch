@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
-
-use super::app::AppState;
-use crate::{
+use router::{
     core::{admin::*, api_locking},
+    routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{api::admin, domain},
 };
+use router_env::{instrument, tracing, Flow};
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]

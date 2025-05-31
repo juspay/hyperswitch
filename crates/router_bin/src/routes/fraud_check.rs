@@ -1,11 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::Flow;
-
-use crate::{
+use router::{
     core::{api_locking, fraud_check as frm_core},
     services::{self, api},
     types::domain,
-    AppState,
+    routes::app::AppState,
 };
 
 #[cfg(feature = "v1")]
@@ -14,6 +12,8 @@ pub async fn frm_fulfillment(
     req: HttpRequest,
     json_payload: web::Json<frm_core::types::FrmFulfillmentRequest>,
 ) -> HttpResponse {
+    use router_env::Flow;
+
     let flow = Flow::FrmFulfillment;
     Box::pin(api::server_wrap(
         flow,

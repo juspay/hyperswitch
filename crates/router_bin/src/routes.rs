@@ -68,6 +68,9 @@ pub mod process_tracker;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod proxy;
 
+#[cfg(feature = "olap")]
+pub use router::analytics::routes::{self as analytics, Analytics};
+
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
@@ -79,11 +82,10 @@ pub use self::app::Recon;
 #[cfg(feature = "v2")]
 pub use self::app::Tokenization;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
-    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
-    Webhooks,
+    ApiKeys, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding, Customers,
+    Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates,
+    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
+    ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
@@ -95,5 +97,3 @@ pub use self::app::{PayoutLink, Payouts};
     not(feature = "customer_v2")
 ))]
 pub use super::compatibility::stripe::StripeApis;
-#[cfg(feature = "olap")]
-pub use crate::analytics::routes::{self as analytics, Analytics};

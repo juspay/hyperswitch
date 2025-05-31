@@ -21,21 +21,12 @@ pub mod services;
 pub mod types;
 pub mod utils;
 
-use actix_web::{
-    body::MessageBody,
-    dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
-    middleware::ErrorHandlers,
-};
-use http::StatusCode;
-use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
-use router_env::tracing::Instrument;
 use routes::{AppState, SessionState};
-use storage_impl::errors::ApplicationResult;
-use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
 pub(crate) use self::macros::*;
-use crate::{configs::settings, core::errors};
+use crate::configs::settings;
+pub use crate::core::errors;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -92,11 +83,10 @@ pub mod headers {
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
 }
 
-
 pub mod pii {
     //! Personal Identifiable Information protection.
 
-    pub(crate) use common_utils::pii::Email;
+    pub use common_utils::pii::Email;
     #[doc(inline)]
     pub use masking::*;
 }

@@ -1,9 +1,9 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
+use router::routes::AppState;
 use router_env::{instrument, tracing, Flow};
 
-use super::app::AppState;
-use crate::{
+use router::{
     core::{api_locking, verification},
     services::{api, authentication as auth, authorization::permissions::Permission},
 };

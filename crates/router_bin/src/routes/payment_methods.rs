@@ -14,15 +14,13 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
 };
-use router_env::{instrument, logger, tracing, Flow};
-
-use super::app::{AppState, SessionState};
-use crate::{
+use router::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards},
     },
+    routes::{AppState, SessionState},
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -34,10 +32,11 @@ use crate::{
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
     not(feature = "customer_v2")
 ))]
-use crate::{
+use router::{
     core::{customers, payment_methods::tokenize},
     types::api::customers::CustomerRequest,
 };
+use router_env::{instrument, logger, tracing, Flow};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -1027,7 +1026,6 @@ mod tests {
         assert!(de_query.is_err())
     }
 }
-
 
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),

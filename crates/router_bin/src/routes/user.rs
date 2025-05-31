@@ -9,11 +9,9 @@ use api_models::{
 };
 use common_enums::TokenPurpose;
 use common_utils::errors::ReportSwitchExt;
-use router_env::Flow;
-
-use super::AppState;
-use crate::{
+use router::{
     core::{api_locking, user as user_core},
+    routes::AppState,
     services::{
         api,
         authentication::{self as auth},
@@ -21,6 +19,7 @@ use crate::{
     },
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
+use router_env::Flow;
 
 pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetUserDetails;
@@ -333,7 +332,7 @@ pub async fn generate_sample_data(
     http_req: HttpRequest,
     payload: web::Json<SampleDataRequest>,
 ) -> impl actix_web::Responder {
-    use crate::core::user::sample_data;
+    use router::core::user::sample_data;
 
     let flow = Flow::GenerateSampleData;
     Box::pin(api::server_wrap(
@@ -356,7 +355,7 @@ pub async fn delete_sample_data(
     http_req: HttpRequest,
     payload: web::Json<SampleDataRequest>,
 ) -> impl actix_web::Responder {
-    use crate::core::user::sample_data;
+    use router::core::user::sample_data;
 
     let flow = Flow::DeleteSampleData;
     Box::pin(api::server_wrap(
