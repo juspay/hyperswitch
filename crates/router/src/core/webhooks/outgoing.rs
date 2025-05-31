@@ -21,8 +21,8 @@ use router_env::{
 };
 
 use super::{types, utils, MERCHANT_ID};
-#[cfg(feature = "stripe")]
-use crate::compatibility::stripe::webhooks as stripe_webhooks;
+// #[cfg(feature = "stripe")]
+// use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
     core::{
         errors::{self, CustomResult},
@@ -712,19 +712,21 @@ pub(crate) fn get_outgoing_webhook_request(
         })
     }
 
-    match merchant_context
-        .get_merchant_account()
-        .get_compatible_connector()
-    {
-        #[cfg(feature = "stripe")]
-        Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
-            stripe_webhooks::StripeOutgoingWebhook,
-        >(outgoing_webhook, business_profile),
-        _ => get_outgoing_webhook_request_inner::<webhooks::OutgoingWebhook>(
-            outgoing_webhook,
-            business_profile,
-        ),
-    }
+    // match merchant_context
+    //     .get_merchant_account()
+    //     .get_compatible_connector()
+    // {
+    //     #[cfg(feature = "stripe")]
+    //     Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
+    //         stripe_webhooks::StripeOutgoingWebhook,
+    //     >(outgoing_webhook, business_profile),
+    //     _ => get_outgoing_webhook_request_inner::<webhooks::OutgoingWebhook>(
+    //         outgoing_webhook,
+    //         business_profile,
+    //     ),
+    // }
+
+    todo!()
 }
 
 #[derive(Debug)]
