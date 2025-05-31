@@ -183,6 +183,12 @@
           ]
         },
         {
+          "group": "3DS Decision Rule",
+          "pages": [
+            "api-reference/3ds-decision-rule/execute-a-3ds-decision-rule-based-on-the-provided-input"
+          ]
+        },
+        {
           "group": "Schemas",
           "pages": [
             "api-reference/schemas/outgoing--webhook"

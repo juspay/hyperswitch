@@ -22,3 +22,4 @@ pub mod revenue_recovery;
 pub mod routing;
 pub mod tokenization;
 pub mod webhook_events;
+pub mod three_ds_decision_rule;
