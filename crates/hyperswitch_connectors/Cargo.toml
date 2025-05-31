@@ -28,6 +28,7 @@ image = { version = "0.25.1", default-features = false, features = ["png"] }
 josekit = { git = "https://github.com/sumanmaji4/josekit-rs.git", rev = "5ab54876c29a84f86aef8c169413a46026883efe", features = ["support-empty-payload"] }
 mime = "0.3.17"
 num-traits = "0.2.19"
+pem = "3.0.5"
 qrcode = "0.14.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
