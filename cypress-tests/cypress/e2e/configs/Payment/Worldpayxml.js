@@ -151,14 +151,57 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
-      Request: {},
+    CaptureCapturedAmount: {
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "cancelled",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+            code: "IR_14",
+          },
         },
       },
+    },
+    ConfirmSuccessfulPayment: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot confirm this payment because it has status processing",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    Void: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot cancel this payment because it has status processing",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    RefundGreaterAmount: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because the amount is greater than the amount of the payment. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      }
     },
     ZeroAuthMandate: {
       Response: {
@@ -166,8 +209,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Worldpayxml is not implemented",
-            code: "IR_00",
+            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
           },
         },
       },
@@ -243,7 +286,6 @@ export const connectorDetails = {
       },
     },
     VoidAfterConfirm: {
-      Request: {},
       Response: {
         status: 200,
         body: {
@@ -326,6 +368,6 @@ export const connectorDetails = {
           },
         },
       },
-    },
+    }
   },
 };
