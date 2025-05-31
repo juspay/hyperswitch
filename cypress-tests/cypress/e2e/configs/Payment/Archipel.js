@@ -463,6 +463,6 @@ export const connectorDetails = {
           },
         },
       },
-    }
+    },
   },
 };
