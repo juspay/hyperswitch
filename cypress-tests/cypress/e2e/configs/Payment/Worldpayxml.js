@@ -11,7 +11,7 @@ const successfulNo3DSCardDetails = {
 
 const successful3DSTestCardDetails = {
   ...successfulNo3DSCardDetails,
-  card_number: "4242424242424242"
+  card_number: "4242424242424242",
 };
 
 export const connectorDetails = {
