@@ -6536,6 +6536,7 @@ dependencies = [
  "regex",
  "reqwest 0.11.27",
  "ring 0.17.8",
+ "router_db",
  "router_derive",
  "router_env",
  "rust-i18n",
@@ -6677,6 +6678,31 @@ dependencies = [
  "validator",
  "wiremock",
  "x509-parser",
+]
+
+[[package]]
+name = "router_db"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "diesel_models",
+ "dyn-clone",
+ "error-stack",
+ "events",
+ "hyperswitch_domain_models",
+ "masking",
+ "payment_methods",
+ "rdkafka",
+ "redis_interface",
+ "router_env",
+ "scheduler",
+ "serde",
+ "serde_json",
+ "storage_impl",
+ "thiserror 1.0.63",
+ "time",
 ]
 
 [[package]]

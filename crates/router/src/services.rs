@@ -30,15 +30,9 @@ use tokio::sync::oneshot;
 pub use self::{api::*, encryption::*};
 use crate::{configs::Settings, core::errors};
 
-#[cfg(not(feature = "olap"))]
-pub type StoreType = storage_impl::database::store::Store;
-#[cfg(feature = "olap")]
-pub type StoreType = storage_impl::database::store::ReplicaStore;
 
-#[cfg(not(feature = "kv_store"))]
-pub type Store = RouterStore<StoreType>;
-#[cfg(feature = "kv_store")]
-pub type Store = KVRouterStore<StoreType>;
+pub use router_db::db::StoreType;
+pub use router_db::db::Store;
 
 /// # Panics
 ///

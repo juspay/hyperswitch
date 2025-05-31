@@ -1,5 +1,8 @@
 #[cfg(feature = "v2")]
-use crate::core::errors::{self, CustomResult};
+use common_utils::errors::CustomResult;
+#[cfg(feature = "v2")]
+use storage_impl::errors;
+
 use crate::db::MockDb;
 
 #[cfg(feature = "v2")]
@@ -44,16 +47,14 @@ impl PaymentMethodsSessionInterface for crate::services::Store {}
 
 #[cfg(feature = "v2")]
 mod storage {
+    use common_utils::errors::CustomResult;
     use error_stack::ResultExt;
     use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::RedisConnInterface;
+    use storage_impl::{errors, redis::kv_store::RedisConnInterface};
 
     use super::PaymentMethodsSessionInterface;
-    use crate::{
-        core::errors::{self, CustomResult},
-        services::Store,
-    };
+    use crate::db::Store;
 
     #[async_trait::async_trait]
     impl PaymentMethodsSessionInterface for Store {

@@ -41,12 +41,14 @@ pub mod user_key_store;
 pub mod user_role;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
+pub use common_utils::errors;
 use common_utils::id_type;
 use diesel_models::{
-    fraud_check::{FraudCheck, FraudCheckUpdate},
+    fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
+pub use errors::CustomResult;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
@@ -61,25 +63,24 @@ use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use router_env::logger;
+pub use scheduler::errors::ProcessTrackerError;
 use storage_impl::{
-    errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
+    errors::StorageError, kv_router_store::KVRouterStore, redis::kv_store::RedisConnInterface, tokenization, MockDb
 };
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
-pub use crate::{
-    core::errors::{self, ProcessTrackerError},
-    errors::CustomResult,
-    services::{
-        kafka::{KafkaError, KafkaProducer, MQResult},
-        Store,
-    },
-    types::{
-        domain,
-        storage::{self},
-        AccessToken,
-    },
-};
+
+#[cfg(not(feature = "olap"))]
+pub type StoreType = storage_impl::database::store::Store;
+#[cfg(feature = "olap")]
+pub type StoreType = storage_impl::database::store::ReplicaStore;
+
+#[cfg(not(feature = "kv_store"))]
+pub type Store = RouterStore<StoreType>;
+#[cfg(feature = "kv_store")]
+pub type Store = KVRouterStore<StoreType>;
+
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -330,7 +331,7 @@ impl RequestIdStore for KafkaStore {
 impl FraudCheckInterface for KafkaStore {
     async fn insert_fraud_check_response(
         &self,
-        new: storage::FraudCheckNew,
+        new: FraudCheckNew,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self.diesel_store.insert_fraud_check_response(new).await?;
         if let Err(er) = self
