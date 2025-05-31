@@ -5,16 +5,13 @@ const successfulNo3DSCardDetails = {
   card_number: "4444333322221111",
   card_exp_month: "01",
   card_exp_year: "27",
-  card_holder_name: "AUTHORISED",
+  card_holder_name: "Juspay Hyperswitch",
   card_cvc: "123",
 };
 
-const successfulThreeDSTestCardDetails = {
+const successful3DSTestCardDetails = {
+  ...successfulNo3DSCardDetails,
   card_number: "4242424242424242",
-  card_exp_month: "01",
-  card_exp_year: "27",
-  card_holder_name: "Joseph",
-  card_cvc: "123",
 };
 
 export const connectorDetails = {
@@ -72,7 +69,7 @@ export const connectorDetails = {
         amount: 5000,
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -84,7 +81,7 @@ export const connectorDetails = {
         payment_method: "card",
         amount: 5000,
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successful3DSTestCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -154,12 +151,55 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
-      Request: {},
+    CaptureCapturedAmount: {
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "cancelled",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    ConfirmSuccessfulPayment: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot confirm this payment because it has status processing",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    Void: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot cancel this payment because it has status processing",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    RefundGreaterAmount: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because the amount is greater than the amount of the payment. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -169,8 +209,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Worldpayxml is not implemented",
-            code: "IR_00",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
           },
         },
       },
@@ -246,7 +287,6 @@ export const connectorDetails = {
       },
     },
     VoidAfterConfirm: {
-      Request: {},
       Response: {
         status: 200,
         body: {
