@@ -54,12 +54,13 @@
       ]
     },
     {
-      "group": "API Reference",
+      "group": "Payments Core APIs",
       "pages": [
+        "api-reference/payments/setup--instructions",
+        "api-reference/payments/payment--flows",
         {
           "group": "Payments",
           "pages": [
-            "api-reference/payments/Introduction--to--payments",
             "api-reference/payments/payments--create",
             "api-reference/payments/payments--update",
             "api-reference/payments/payments--confirm",
@@ -136,62 +137,11 @@
             "api-reference/payouts/payouts--list-filters",
             "api-reference/payouts/payouts--filter"
           ]
-        },
-        {
-          "group": "Event",
-          "pages": [
-            "api-reference/event/events--list",
-            "api-reference/event/events--delivery-attempt-list",
-            "api-reference/event/events--manual-retry"
-          ]
-        },
-        {
-          "group": "Poll",
-          "pages": [
-            "api-reference/poll/poll--retrieve-poll-status"
-          ]
-        },
-        {
-          "group": "Blocklist",
-          "pages": [
-            "api-reference/blocklist/get-blocklist",
-            "api-reference/blocklist/post-blocklist",
-            "api-reference/blocklist/delete-blocklist",
-            "api-reference/blocklist/post-blocklisttoggle"
-          ]
-        },
-        {
-          "group": "Routing",
-          "pages": [
-            "api-reference/routing/routing--list",
-            "api-reference/routing/routing--create",
-            "api-reference/routing/routing--retrieve-config",
-            "api-reference/routing/routing--deactivate",
-            "api-reference/routing/routing--retrieve-default-config",
-            "api-reference/routing/routing--update-default-config",
-            "api-reference/routing/routing--retrieve-default-for-profile",
-            "api-reference/routing/routing--update-default-for-profile",
-            "api-reference/routing/routing--retrieve",
-            "api-reference/routing/routing--activate-config"
-          ]
-        },
-        {
-          "group": "Relay",
-          "pages": [
-            "api-reference/relay/relay",
-            "api-reference/relay/relay--retrieve"
-          ]
-        },
-        {
-          "group": "Schemas",
-          "pages": [
-            "api-reference/schemas/outgoing--webhook"
-          ]
         }
       ]
     },
     {
-      "group": "Admin API based",
+      "group": "Account management APIs",
       "pages": [
         {
           "group": "Organization",
@@ -249,13 +199,61 @@
             "api-reference/gsm/gsm--update",
             "api-reference/gsm/gsm--delete"
           ]
-        },
+        }
+      ]
+    },
+    {
+      "group": "Other APIs",
+      "pages": [
         {
           "group": "Event",
           "pages": [
             "api-reference/event/events--list",
             "api-reference/event/events--delivery-attempt-list",
             "api-reference/event/events--manual-retry"
+          ]
+        },
+        {
+          "group": "Poll",
+          "pages": [
+            "api-reference/poll/poll--retrieve-poll-status"
+          ]
+        },
+        {
+          "group": "Blocklist",
+          "pages": [
+            "api-reference/blocklist/get-blocklist",
+            "api-reference/blocklist/post-blocklist",
+            "api-reference/blocklist/delete-blocklist",
+            "api-reference/blocklist/post-blocklisttoggle"
+          ]
+        },
+        {
+          "group": "Routing",
+          "pages": [
+            "api-reference/routing/routing--list",
+            "api-reference/routing/routing--create",
+            "api-reference/routing/routing--retrieve-config",
+            "api-reference/routing/routing--deactivate",
+            "api-reference/routing/routing--retrieve-default-config",
+            "api-reference/routing/routing--update-default-config",
+            "api-reference/routing/routing--retrieve-default-for-profile",
+            "api-reference/routing/routing--update-default-for-profile",
+            "api-reference/routing/routing--retrieve",
+            "api-reference/routing/routing--activate-config"
+          ]
+        },
+        {
+          "group": "Relay",
+          "pages": [
+            "api-reference/relay/relay",
+            "api-reference/relay/relay--retrieve"
+          ]
+        },
+        {
+          "group": "Schemas",
+          "pages": [
+            "api-reference/schemas/outgoing--webhook"
           ]
         }
       ]
