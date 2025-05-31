@@ -264,26 +264,6 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    // Call to DE here
-    // Check if creation should be based on default profile
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.enabled {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
-    }
-
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
