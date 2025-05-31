@@ -853,6 +853,7 @@ where
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub payment_method: Option<crate::payment_methods::PaymentMethod>,
 }
 
 #[cfg(feature = "v2")]
@@ -869,6 +870,25 @@ impl<F: Clone> PaymentConfirmData<F> {
             None => self
                 .payment_intent
                 .get_connector_customer_id_from_feature_metadata(),
+        }
+    }
+
+    pub fn update_payment_method_data(
+        &mut self,
+        payment_method_data: Option<payment_method_data::PaymentMethodData>,
+    ) {
+        if let Some(payment_method_data) = payment_method_data {
+            self.payment_method_data = Some(payment_method_data);
+        }
+    }
+
+    pub fn update_payment_method(
+        &mut self,
+        payment_method: Option<crate::payment_methods::PaymentMethod>,
+    ) {
+        if let Some(pm) = payment_method {
+            self.payment_attempt.payment_method_id = Some(pm.get_id().clone());
+            self.payment_method = Some(pm);
         }
     }
 }

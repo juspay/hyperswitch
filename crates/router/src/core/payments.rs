@@ -169,6 +169,11 @@ where
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, profile, &mut payment_data)
+        .await?;
+
     let (_operation, customer) = operation
         .to_domain()?
         .get_customer_details(
@@ -245,6 +250,22 @@ where
         ConnectorCallType::SessionMultiple(vec) => todo!(),
         ConnectorCallType::Skip => payment_data,
     };
+
+    let payment_intent_status = payment_data.get_payment_intent().status;
+
+    // Delete the tokens after payment
+    payment_data
+        .get_payment_attempt()
+        .payment_token
+        .as_ref()
+        .zip(Some(payment_data.get_payment_attempt().payment_method_type))
+        .map(ParentPaymentMethodToken::create_key_for_token)
+        .async_map(|key_for_hyperswitch_token| async move {
+            if key_for_hyperswitch_token.should_delete_payment_method_token(payment_intent_status) {
+                let _ = key_for_hyperswitch_token.delete(state).await;
+            }
+        })
+        .await;
 
     Ok((payment_data, req, customer, None, None))
 }

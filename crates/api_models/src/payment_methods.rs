@@ -2078,6 +2078,10 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
 
+    /// Temporary Token for payment method in card vault which gets refreshed for every payment   
+    #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
+    pub payment_token: String,
+
     /// The unique identifier of the customer.
     #[schema(
         min_length = 32,

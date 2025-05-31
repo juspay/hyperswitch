@@ -899,7 +899,7 @@ pub async fn create_payment_method(
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let response =
+    let (response, _payment_method) =
         create_payment_method_core(state, request_state, req, merchant_context, profile).await?;
 
     Ok(services::ApplicationResponse::Json(response))
@@ -913,7 +913,7 @@ pub async fn create_payment_method_core(
     req: api::PaymentMethodCreate,
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
-) -> RouterResult<api::PaymentMethodResponse> {
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use common_utils::ext_traits::ValueExt;
 
     req.validate()?;
@@ -1055,7 +1055,7 @@ pub async fn create_payment_method_core(
         }
     }?;
 
-    Ok(response)
+    Ok((response, payment_method))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1798,7 +1798,7 @@ pub async fn create_pm_additional_data_update(
         .map(From::from);
 
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
-        status: Some(enums::PaymentMethodStatus::Active),
+        status: Some(enums::PaymentMethodStatus::Inactive), // Payment Method will be marked active after payment succeeds
         locker_id: vault_id,
         payment_method_type_v2: payment_method_type,
         payment_method_subtype,
@@ -2028,7 +2028,7 @@ fn get_pm_list_context(
                 card_details: api::CardDetailFromLocker::from(card),
                 token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
-                        Some(payment_method.get_id().clone()),
+                        payment_method.get_id().clone(),
                         payment_method
                             .locker_id
                             .as_ref()
@@ -2116,11 +2116,123 @@ pub async fn list_customer_payment_method_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let customer_payment_methods = saved_payment_methods
-        .into_iter()
-        .map(ForeignTryFrom::foreign_try_from)
-        .collect::<Result<Vec<api::CustomerPaymentMethod>, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let mut customer_payment_methods = Vec::new();
+
+    for pm in saved_payment_methods.into_iter() {
+        let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+        // For payment methods that are active we should always have the payment method subtype
+        let payment_method_subtype = pm
+            .payment_method_subtype
+            .get_required_value("payment_method_subtype")?;
+
+        // For payment methods that are active we should always have the payment method type
+        let payment_method_type = pm
+            .payment_method_type
+            .get_required_value("payment_method_type")?;
+
+        let pm_list_context = get_pm_list_context(payment_method_type, &pm, true)?;
+
+        if pm_list_context.is_none() {
+            continue;
+        }
+
+        let pm_list_context = pm_list_context.get_required_value("PaymentMethodListContext")?;
+
+        let payment_method_data = pm
+            .payment_method_data
+            .map(|payment_method_data| payment_method_data.into_inner())
+            .map(|payment_method_data| match payment_method_data {
+                payment_methods::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                    payment_methods::PaymentMethodListData::Card(card_details)
+                }
+                payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_methods::PaymentMethodsData::WalletDetails(..) => todo!(),
+            });
+
+        let payment_method_billing = pm
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from);
+
+        let network_token_pmd = pm
+            .network_token_payment_method_data
+            .clone()
+            .map(|data| data.into_inner())
+            .and_then(|data| match data {
+                domain::PaymentMethodsData::NetworkToken(token) => {
+                    Some(api::NetworkTokenDetailsPaymentMethod::from(token))
+                }
+                _ => None,
+            });
+
+        let network_token_resp = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
+            payment_method_data: pmd,
+        });
+
+        // TODO: check how we can get this field
+        let recurring_enabled = true;
+
+        let psp_tokenization_enabled = pm.connector_mandate_details.and_then(|details| {
+            details.payments.map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
+                })
+            })
+        });
+
+        let final_pm = api::CustomerPaymentMethod {
+            id: pm.id,
+            payment_token: parent_payment_method_token.to_owned(),
+            customer_id: pm.customer_id,
+            payment_method_type,
+            payment_method_subtype,
+            created: pm.created_at,
+            last_used_at: pm.last_used_at,
+            recurring_enabled,
+            payment_method_data,
+            bank: None,
+            requires_cvv: true,
+            is_default: false,
+            billing: payment_method_billing,
+            network_tokenization: network_token_resp,
+            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
+        };
+
+        customer_payment_methods.push(final_pm);
+
+        // let intent_fulfillment_time = business_profile
+        //     .as_ref()
+        //     .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        //     .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
+        let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+        let hyperswitch_token_data = match pm_list_context {
+            PaymentMethodListContext::Card {
+                card_details: _,
+                token_data,
+            } => token_data,
+            PaymentMethodListContext::Bank { token_data } => token_data,
+            PaymentMethodListContext::BankTransfer {
+                bank_transfer_details: _,
+                token_data,
+            } => token_data,
+            PaymentMethodListContext::TemporaryToken { token_data } => token_data,
+        };
+
+        if let Some(hyperswitch_token_data) = hyperswitch_token_data {
+            pm_routes::ParentPaymentMethodToken::create_key_for_token((
+                &parent_payment_method_token,
+                payment_method_type,
+            ))
+            .insert(intent_fulfillment_time, hyperswitch_token_data, state)
+            .await?;
+        }
+    }
 
     let response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods,
@@ -2809,6 +2921,7 @@ fn construct_zero_auth_payments_request(
         browser_info: None,
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
+        payment_token: None,
     })
 }
 
@@ -2895,7 +3008,7 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let payment_method = create_payment_method_core(
+    let (payment_method_response, _payment_method) = create_payment_method_core(
         &state,
         &req_state,
         create_payment_method_request.clone(),
@@ -2912,7 +3025,7 @@ pub async fn payment_methods_session_confirm(
             let zero_auth_request = construct_zero_auth_payments_request(
                 &request,
                 &payment_method_session,
-                &payment_method,
+                &payment_method_response,
             )?;
             let payments_response = Box::pin(create_zero_auth_payment(
                 state.clone(),
@@ -2935,7 +3048,7 @@ pub async fn payment_methods_session_confirm(
                 merchant_context.clone(),
                 profile.clone(),
                 &create_payment_method_request.clone(),
-                &payment_method,
+                &payment_method_response,
                 &payment_method_session,
             ))
             .await?;
