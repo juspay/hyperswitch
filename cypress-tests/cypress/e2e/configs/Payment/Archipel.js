@@ -1,7 +1,7 @@
 import { customerAcceptance } from "./Commons.js";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "5185570141917102",
   card_exp_month: "01",
   card_exp_year: "50",
   card_holder_name: "Joseph Doe",
@@ -30,12 +30,12 @@ const multiUseMandateData = {
 
 const paymentMethodDataNo3DSResponse = {
   card: {
-    last4: "4242",
-    card_type: "CREDIT",
+    last4: "7102",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
+    card_issuer: "MASTERCARD INTERNATIONAL",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "518557",
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
