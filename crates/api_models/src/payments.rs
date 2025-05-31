@@ -9,7 +9,7 @@ pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::ProductType;
+use common_enums::{enums, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -42,14 +42,11 @@ use crate::mandates;
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
-    enums as api_enums,
+    disputes, enums as api_enums,
+    ephemeral_key::EphemeralKeyCreateResponse,
     mandates::RecurringDetails,
+    refunds, ValidateFieldAndGet,
 };
-use common_enums::enums;
-use crate::refunds;
-use crate::disputes;
-use crate::ephemeral_key::EphemeralKeyCreateResponse;
-use crate::ValidateFieldAndGet;
 #[derive(serde::Deserialize)]
 pub struct ConnectorCode {
     pub connector: api_enums::Connector,
