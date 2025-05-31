@@ -10711,6 +10711,14 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for vault connector",
             "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18823,6 +18831,14 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          },
+          "external_vault_session_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultSessionDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24322,6 +24338,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
       },
       "Venmo": {
         "type": "object",
