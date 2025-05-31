@@ -16,6 +16,13 @@ pub struct BackendOutput<O> {
     pub connector_selection: O,
 }
 
+impl<O> BackendOutput<O> {
+    // get_connector_selection
+    pub fn get_output(&self) -> &O {
+        &self.connector_selection
+    }
+}
+
 pub trait EuclidBackend<O>: Sized {
     type Error: serde::Serialize;
 

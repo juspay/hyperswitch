@@ -54,6 +54,9 @@ impl Context {
         let payment = input.payment;
         let payment_method = input.payment_method;
         let meta_data = input.metadata;
+        let acquirer_data = input.acquirer_data;
+        let customer_device_data = input.customer_device_data;
+        let issuer_data = input.issuer_data;
         let payment_mandate = input.mandate;
 
         let mut enum_values: FxHashSet<EuclidValue> =
@@ -111,6 +114,33 @@ impl Context {
         }
         if let Some(mandate_acceptance_type) = payment_mandate.mandate_acceptance_type {
             enum_values.insert(EuclidValue::MandateAcceptanceType(mandate_acceptance_type));
+        }
+
+        if let Some(acquirer_country) = acquirer_data.clone().and_then(|data| data.country) {
+            enum_values.insert(EuclidValue::AcquirerCountry(acquirer_country));
+        }
+
+        // Handle customer device data
+        if let Some(device_data) = customer_device_data {
+            if let Some(platform) = device_data.platform {
+                enum_values.insert(EuclidValue::CustomerDevicePlatform(platform));
+            }
+            if let Some(device_type) = device_data.device_type {
+                enum_values.insert(EuclidValue::CustomerDeviceType(device_type));
+            }
+            if let Some(display_size) = device_data.display_size {
+                enum_values.insert(EuclidValue::CustomerDeviceDisplaySize(display_size));
+            }
+        }
+
+        // Handle issuer data
+        if let Some(issuer) = issuer_data {
+            if let Some(name) = issuer.name {
+                enum_values.insert(EuclidValue::IssuerName(StrValue { value: name }));
+            }
+            if let Some(country) = issuer.country {
+                enum_values.insert(EuclidValue::IssuerCountry(country));
+            }
         }
 
         let numeric_values: FxHashMap<EuclidKey, EuclidValue> = FxHashMap::from_iter([(

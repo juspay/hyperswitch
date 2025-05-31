@@ -249,8 +249,8 @@ pub fn get_surcharge_keys() -> JsResult {
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
-#[wasm_bindgen(js_name= getThreeDsDecisionRuleEngineKeys)]
-pub fn get_three_ds_decision_rule_engine_keys() -> JsResult {
+#[wasm_bindgen(js_name= getThreeDsDecisionRuleKeys)]
+pub fn get_three_ds_decision_rule_keys() -> JsResult {
     let keys = <ThreeDSDecisionRule as EuclidDirFilter>::ALLOWED;
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
