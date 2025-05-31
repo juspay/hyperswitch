@@ -108,7 +108,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::{app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, SessionState},
+    routes::{app::ReqState, metrics, SessionState},
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
@@ -839,7 +839,7 @@ where
             .payment_token
             .as_ref()
             .zip(payment_data.get_payment_attempt().payment_method)
-            .map(ParentPaymentMethodToken::create_key_for_token)
+            .map(types::ParentPaymentMethodToken::create_key_for_token)
             .async_map(|key_for_hyperswitch_token| async move {
                 if key_for_hyperswitch_token
                     .should_delete_payment_method_token(payment_intent_status)

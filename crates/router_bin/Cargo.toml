@@ -1,10 +1,12 @@
 [package]
-name = "router"
-version = "0.1.0"
+name = "router_bin"
+description = "Modern, fast and open payment router"
+version = "0.2.0"
+default-run = "router_bin"
 edition.workspace = true
 rust-version.workspace = true
-readme = "README.md"
 license.workspace = true
+
 
 [features]
 default = ["common_default", "v1"]
@@ -144,6 +146,8 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
+router = { version = "0.1.0", path = "../router" }
+
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
@@ -161,6 +165,13 @@ wiremock = "0.6.0"
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }
 
+[[bin]]
+name = "router"
+path = "src/bin/router.rs"
+
+[[bin]]
+name = "scheduler"
+path = "src/bin/scheduler.rs"
 
 [lints]
 workspace = true

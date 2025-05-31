@@ -77,7 +77,7 @@ use crate::{
         pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods as payment_methods_handler, SessionState},
+    routes::{metrics, SessionState},
     services,
     types::{
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
@@ -2729,7 +2729,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     .await?;
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
     let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
-        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
+        payments::types::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
             payment_method,
         ))

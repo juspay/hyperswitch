@@ -398,3 +398,74 @@ impl
         }
     }
 }
+
+#[derive(Clone)]
+pub struct ParentPaymentMethodToken {
+    key_for_token: String,
+}
+
+impl ParentPaymentMethodToken {
+    pub fn create_key_for_token(
+        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
+    ) -> Self {
+        Self {
+            key_for_token: format!(
+                "pm_token_{}_{}_hyperswitch",
+                parent_pm_token, payment_method
+            ),
+        }
+    }
+    pub async fn insert(
+        &self,
+        fulfillment_time: i64,
+        token: storage::PaymentTokenData,
+        state: &SessionState,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        redis_conn
+            .serialize_and_set_key_with_expiry(
+                &self.key_for_token.as_str().into(),
+                token,
+                fulfillment_time,
+            )
+            .await
+            .change_context(errors::StorageError::KVError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add token in redis")?;
+
+        Ok(())
+    }
+
+    pub fn should_delete_payment_method_token(&self, status: common_enums::IntentStatus) -> bool {
+        // RequiresMerchantAction: When the payment goes for merchant review incase of potential fraud allow payment_method_token to be stored until resolved
+        ![
+            common_enums::IntentStatus::RequiresCustomerAction,
+            common_enums::IntentStatus::RequiresMerchantAction,
+        ]
+        .contains(&status)
+    }
+
+    pub async fn delete(&self, state: &SessionState) -> CustomResult<(), errors::ApiErrorResponse> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        match redis_conn
+            .delete_key(&self.key_for_token.as_str().into())
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                {
+                    logger::info!("Error while deleting redis key: {:?}", err)
+                };
+                Ok(())
+            }
+        }
+    }
+}

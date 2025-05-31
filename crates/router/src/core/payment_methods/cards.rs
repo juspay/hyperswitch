@@ -105,7 +105,7 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
+    routes::{self, metrics},
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
@@ -4393,7 +4393,7 @@ pub async fn list_customer_payment_method(
             .hyperswitch_token_data
             .get_required_value("PaymentTokenData")?;
 
-        ParentPaymentMethodToken::create_key_for_token((
+        crate::core::payments::types::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
             pma.payment_method,
         ))
