@@ -1035,7 +1035,7 @@ pub async fn routing_retrieve_linked_config(
     path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
-    use crate::services::authentication::AuthenticationData;
+    use router::services::authentication::AuthenticationData;
     let flow = Flow::RoutingRetrieveActiveConfig;
     let wrapper = routing_types::RoutingRetrieveLinkQueryWrapper {
         routing_query: query.into_inner(),

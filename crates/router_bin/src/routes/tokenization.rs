@@ -22,7 +22,7 @@ use router_env::{instrument, logger, tracing, Flow};
 use serde::Serialize;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::{
+use router::{
     core::{
         api_locking,
         errors::{self, RouterResult},

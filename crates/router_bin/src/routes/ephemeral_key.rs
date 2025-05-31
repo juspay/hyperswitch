@@ -7,7 +7,7 @@ use router::{
 use router_env::{instrument, tracing, Flow};
 
 #[cfg(feature = "v2")]
-use crate::types::domain;
+use router::types::domain;
 
 #[cfg(all(feature = "v1", not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]

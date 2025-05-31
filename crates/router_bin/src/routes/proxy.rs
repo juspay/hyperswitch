@@ -1,8 +1,7 @@
 use actix_web::{web, Responder};
 use router_env::{instrument, tracing, Flow};
 
-use crate::{
-    self as app,
+use router::{
     core::{api_locking, proxy},
     services::{api, authentication as auth},
     types::domain,
@@ -10,7 +9,7 @@ use crate::{
 
 #[instrument(skip_all, fields(flow = ?Flow::Proxy))]
 pub async fn proxy(
-    state: web::Data<app::AppState>,
+    state: web::Data<router::routes::app::AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<api_models::proxy::ProxyRequest>,
 ) -> impl Responder {

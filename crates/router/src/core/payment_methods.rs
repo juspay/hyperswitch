@@ -75,7 +75,7 @@ use crate::{
     },
     db::errors::ConnectorErrorExt,
     headers, logger,
-    routes::{self, payment_methods as pm_routes},
+    routes::{self},
     services::{connector_integration_interface::RouterDataConversion, encryption},
     types::{
         self,
@@ -3027,7 +3027,7 @@ impl pm_types::SavedPMLPaymentsInfo {
             .get_order_fulfillment_time()
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
-        pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method_type))
+        payments_core::types::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method_type))
             .insert(intent_fulfillment_time, token_data, state)
             .await?;
 

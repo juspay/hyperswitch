@@ -1885,7 +1885,7 @@ where
 }
 
 /// A helper struct to extract headers from the request
-pub(crate) struct HeaderMapStruct<'a> {
+pub struct HeaderMapStruct<'a> {
     headers: &'a HeaderMap,
 }
 

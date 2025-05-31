@@ -35,7 +35,7 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub(crate) async fn create_event_and_trigger_outgoing_webhook(
+pub async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,

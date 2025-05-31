@@ -2082,7 +2082,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
-pub(crate) async fn payments_create_and_confirm_intent(
+pub async fn payments_create_and_confirm_intent(
     state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
