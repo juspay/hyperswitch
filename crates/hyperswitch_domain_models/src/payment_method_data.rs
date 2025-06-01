@@ -72,7 +72,9 @@ impl PaymentMethodData {
             Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(common_enums::PaymentMethod::MobilePayment),
             Self::CardToken(_) | Self::MandatePayment => None,
-            Self::ExternalProxyCardData(_) => Some(common_enums::PaymentMethod::ExternalProxyCardData)
+            Self::ExternalProxyCardData(_) => {
+                Some(common_enums::PaymentMethod::ExternalProxyCardData)
+            }
         }
     }
 
@@ -146,7 +148,7 @@ pub struct ProxyCard {
     pub card_type: Option<Secret<String>>,
     pub card_issuing_country: Option<Secret<String>>,
     pub bank_code: Option<Secret<String>>,
-    pub nick_name: Option<Secret<String>>, 
+    pub nick_name: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -810,9 +812,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => {
                 Self::MobilePayment(From::from(mobile_payment_data))
             }
-            api_models::payments::PaymentMethodData::ExternalProxyCardData(external_proxy_card_data) => {
-                Self::ExternalProxyCardData(From::from(external_proxy_card_data))
-            }
+            api_models::payments::PaymentMethodData::ExternalProxyCardData(
+                external_proxy_card_data,
+            ) => Self::ExternalProxyCardData(From::from(external_proxy_card_data)),
         }
     }
 }
