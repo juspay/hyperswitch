@@ -66,11 +66,83 @@ impl api::Refund for Authipay {}
 impl api::RefundExecute for Authipay {}
 impl api::RefundSync for Authipay {}
 impl api::PaymentToken for Authipay {}
+// This is being implemented by default_implementations, so we'll remove the duplicate
+// impl api::PaymentsPreProcessing for Authipay {}
 
-impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+impl ConnectorIntegration<hyperswitch_domain_models::router_flow_types::payments::PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Authipay
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/payment-tokens", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = authipay::AuthipayTokenRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&Self::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(Self::get_headers(self, req, connectors)?)
+                .set_body(Self::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError> {
+        let response: authipay::AuthipayTokenResponse = res
+            .response
+            .parse_struct("Authipay TokenizationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Authipay
@@ -135,18 +207,55 @@ impl ConnectorCommon for Authipay {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        // Map HTTP status codes to appropriate attempt status
+        let attempt_status = match res.status_code {
+            403 => Some(common_enums::AttemptStatus::AuthenticationFailed),
+            400 => Some(common_enums::AttemptStatus::Failure),
+            422 => Some(common_enums::AttemptStatus::Failure),
+            500..=599 => Some(common_enums::AttemptStatus::Failure),
+            _ => None,
+        };
+
+        // Extract specific error details if available
+        let (code, message, reason) = if let Some(error_code) = response.error.code.clone() {
+            // Map specific error codes to more detailed messages
+            let mapped_message = match error_code.as_str() {
+                "14004" => "Invalid payment card data",
+                "14007" => "Card security code validation failed",
+                "14008" => "Card expiration date validation failed",
+                "12007" => "Payment transaction declined by processor",
+                "12002" => "Payment transaction rejected due to risk",
+                "12006" => "Payment transaction declined by issuing bank",
+                "40007" => "Invalid store ID",
+                "40003" => "Invalid API key or authentication failed",
+                _ => response.error.message.as_deref().unwrap_or("Unknown error"),
+            }.to_string();
+
+            (
+                error_code,
+                mapped_message,
+                response.error.details.map(|details| {
+                    details
+                        .iter()
+                        .map(|detail| detail.message.clone())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                }),
+            )
+        } else {
+            (
+                "unknown_error".to_string(),
+                response.error.message.clone().unwrap_or_else(|| "Unknown error".to_string()),
+                None,
+            )
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.code.clone().unwrap_or_else(|| "".to_string()),
-            message: response.error.message.clone().unwrap_or_else(|| "".to_string()),
-            reason: response.error.details.map(|details| {
-                details
-                    .iter()
-                    .map(|detail| detail.message.clone())
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            }),
-            attempt_status: None,
+            code,
+            message,
+            reason,
+            attempt_status,
             connector_transaction_id: None,
             network_advice_code: None, 
             network_decline_code: None,
@@ -575,6 +684,86 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipa
         let response: authipay::RefundResponse = res
             .response
             .parse_struct("authipay RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<hyperswitch_domain_models::router_flow_types::payments::PaymentPreProcessing, hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, PaymentsResponseData> for Authipay {
+    fn get_headers(
+        &self,
+        req: &RouterData<&hyperswitch_domain_models::types::PaymentsPreProcessingRouterData, &hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, &PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<&hyperswitch_domain_models::types::PaymentsPreProcessingRouterData, &hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, &PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/card-verification", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<&hyperswitch_domain_models::types::PaymentsPreProcessingRouterData, &hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, &PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = authipay::AuthipayCardVerificationRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<&hyperswitch_domain_models::types::PaymentsPreProcessingRouterData, &hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, &PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<&hyperswitch_domain_models::types::PaymentsPreProcessingRouterData, &hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, &PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<&hyperswitch_domain_models::types::PaymentsPreProcessingRouterData, &hyperswitch_domain_models::router_request_types::PaymentsPreProcessingData, PaymentsResponseData>, errors::ConnectorError> {
+        let response: authipay::AuthipayCardVerificationResponse = res
+            .response
+            .parse_struct("Authipay CardVerificationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
