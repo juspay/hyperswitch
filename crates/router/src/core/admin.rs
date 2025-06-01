@@ -1559,7 +1559,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::HyperswitchVault => {
-                vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
+                hyperswitch_vault::transformers::HyperswitchVaultAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Iatapay => {

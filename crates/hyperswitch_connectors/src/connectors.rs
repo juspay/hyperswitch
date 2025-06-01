@@ -40,6 +40,7 @@ pub mod gocardless;
 pub mod gpayments;
 pub mod helcim;
 pub mod hipay;
+pub mod hyperswitch_vault;
 pub mod iatapay;
 pub mod inespay;
 pub mod itaubank;
@@ -112,12 +113,12 @@ pub use self::{
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx, elavon::Elavon,
     facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
     getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
-    gpayments::Gpayments, helcim::Helcim, hipay::Hipay, iatapay::Iatapay, inespay::Inespay,
-    itaubank::Itaubank, jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver,
-    klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
-    multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
-    nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei,
-    opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
+    gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault,
+    iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    juspaythreedsserver::Juspaythreedsserver, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
+    moneris::Moneris, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets,
+    nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
     payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
