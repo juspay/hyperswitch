@@ -59,7 +59,7 @@ pub(crate) mod vault {
 // pub mod payments;
 pub(crate) mod types;
 // #[cfg(feature = "olap")]
-pub(crate) mod user;
+pub mod user;
 pub(crate) mod user_key_store;
 
 pub(crate) use address::*;
@@ -71,10 +71,10 @@ pub(crate) use merchant_connector_account::*;
 // pub use merchant_context::*;
 pub(crate) use merchant_key_store::*;
 // pub use network_tokenization::*;
-pub use payment_method_data::*;
-pub use payment_methods::*;
+pub(crate) use payment_method_data::*;
+pub(crate) use payment_methods::*;
 // #[cfg(feature = "olap")]
-pub(crate) use user::*;
+pub use user::*;
 pub(crate) use user_key_store::*;
 // #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 // pub use vault::*;

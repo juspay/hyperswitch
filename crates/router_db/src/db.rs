@@ -50,7 +50,7 @@ use diesel_models::{
     organization::{Organization, OrganizationNew, OrganizationUpdate},
 };
 use error_stack::ResultExt;
-pub use self::CustomResult;
+use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,

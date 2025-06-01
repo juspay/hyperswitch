@@ -51,6 +51,7 @@ serde_json = "1.0.115"
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 uuid = { version = "1.8.0", features = ["v4"] }
+validator = "0.17.0"
 
 [dev-dependencies]
 tokio = "1.37.0"
