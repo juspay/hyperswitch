@@ -199,14 +199,9 @@ export const connectorDetails = {
     },
     Void: {
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "You cannot cancel this payment because it has status processing",
-            code: "IR_16",
-          },
+          status: "cancelled",
         },
       },
     },
