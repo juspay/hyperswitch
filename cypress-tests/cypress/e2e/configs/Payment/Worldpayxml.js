@@ -421,8 +421,8 @@ export const connectorDetails = {
               "A payment token or payment method data or ctp service details is required",
             code: "IR_06",
           },
-        }
-      }
+        },
+      },
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
