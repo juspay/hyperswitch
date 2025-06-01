@@ -6711,9 +6711,9 @@ pub async fn decide_connector(
         (Some((owned_connector_name, owned_merchant_connector_id)), _) => {
             api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                &owned_connector_name, 
+                &owned_connector_name,
                 api::GetToken::Connector,
-                Some(owned_merchant_connector_id.clone()), 
+                Some(owned_merchant_connector_id.clone()),
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name received in 'routed_through'")
@@ -6777,7 +6777,7 @@ pub async fn decide_connector(
                 merchant_context,
                 business_profile,
                 payment_dsl_input,
-                routing_data, 
+                routing_data,
                 mandate_type,
             )
             .await
