@@ -69,7 +69,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::{Mask as _, Maskable, PeekInterface};
+use masking::{Mask as _, Maskable, PeekInterface, ExposeInterface};
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
@@ -851,9 +851,25 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
+        // Check for external vault URL when using ExternalProxyCardData
+        if let PaymentMethodData::ExternalProxyCardData(_) = &req.request.payment_method_data {
+            if let Some(connector_metadata) = &req.connector_meta_data {
+                // connector_metadata is Secret<serde_json::Value>, so we need to clone and expose it
+                let metadata_value = connector_metadata.clone().expose();
+                
+                // Check if it's an object and get the external_vault_url
+                if let Some(url_value) = metadata_value.get("external_vault_url") {
+                    if let Some(url_str) = url_value.as_str() {
+                        return Ok(url_str.to_string());
+                    }
+                }
+            }
+        }
+        
+        // Default URL for all other cases
         Ok(format!(
             "{}{}",
             self.base_url(connectors),

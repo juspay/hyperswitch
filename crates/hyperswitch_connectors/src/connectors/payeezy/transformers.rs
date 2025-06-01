@@ -150,6 +150,7 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::MobilePayment
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
+            | PaymentMethod::ExternalProxyCardData
             | PaymentMethod::OpenBanking
             | PaymentMethod::GiftCard => {
                 Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
@@ -273,6 +274,7 @@ fn get_payment_method_data(
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::ExternalProxyCardData(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
             Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),

@@ -5006,6 +5006,7 @@ pub async fn get_additional_payment_data(
             },
         )),
         domain::PaymentMethodData::NetworkToken(_) => Ok(None),
+        domain::PaymentMethodData::ExternalProxyCardData(_) => Ok(None),
     }
 }
 
@@ -6181,6 +6182,7 @@ pub fn get_key_params_for_surcharge_details(
         )),
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
+        | domain::PaymentMethodData::ExternalProxyCardData(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => None,
     }
 }

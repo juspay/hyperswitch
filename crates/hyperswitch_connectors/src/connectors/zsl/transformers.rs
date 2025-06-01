@@ -188,6 +188,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::OpenBanking(_) => Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message(item.router_data.connector.as_str()),
             )),

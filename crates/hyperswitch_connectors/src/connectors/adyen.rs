@@ -328,6 +328,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBankingPIS
                 | PaymentMethodType::InstantBankTransfer
                 | PaymentMethodType::SepaBankTransfer
+                | PaymentMethodType::ProxyCard
                 | PaymentMethodType::RevolutPay => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }

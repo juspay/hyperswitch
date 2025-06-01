@@ -2534,6 +2534,7 @@ pub enum PaymentMethodDataType {
     DirectCarrierBilling,
     InstantBankTransfer,
     RevolutPay,
+    ExternalProxyCardData,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2729,6 +2730,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
                 hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
             },
+            domain::payments::PaymentMethodData::ExternalProxyCardData(_) => Self::ExternalProxyCardData,
         }
     }
 }

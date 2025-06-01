@@ -1972,6 +1972,49 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ProxyCard {
+        /// The card number
+        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+        pub card_number: Secret<String>,
+    
+        /// The card's expiry month
+        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+        pub card_exp_month: Secret<String>,
+    
+        /// The card's expiry year
+        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+        pub card_exp_year: Secret<String>,
+    
+        /// The card holder's name
+        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+        pub card_holder_name: Option<Secret<String>>,
+    
+        /// The CVC number for the card
+        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+        pub card_cvc: Secret<String>,
+    
+        /// The name of the issuer of card
+        #[schema(example = "chase")]
+        pub card_issuer: Option<String>,
+    
+        /// The card network for the card
+        #[schema(value_type = Option<Secret<String>>, example = "tok_sandbox_2eo812ry192812b")]
+        pub card_network: Option<Secret<String>>,
+    
+        #[schema(example = "tok_sandbox_2eo812ry192812b")]
+        pub card_type: Option<Secret<String>>,
+    
+        #[schema(example = "tok_sandbox_2eo812ry192812b")]
+        pub card_issuing_country: Option<Secret<String>>,
+    
+        #[schema(example = "tok_sandbox_2eo812ry192812b")]
+        pub bank_code: Option<Secret<String>>,
+        /// The card holder's nick name
+        #[schema(value_type = Option<String>, example = "tok_sandbox_2eo812ry192812b")]
+        pub nick_name: Option<Secret<String>>, 
+}
+
 #[cfg(feature = "v2")]
 impl TryFrom<payment_methods::CardDetail> for Card {
     type Error = error_stack::Report<ValidationError>;
@@ -2497,6 +2540,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::ExternalProxyCardData(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
                         payment_method_data_request.serialize(serializer)
@@ -2530,6 +2574,8 @@ pub struct PaymentMethodDataRequest {
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
     Card(Card),
+    #[schema(title = "ExternalProxyCardData")]
+    ExternalProxyCardData(ProxyCard),
     #[schema(title = "CardRedirect")]
     CardRedirect(CardRedirectData),
     #[schema(title = "Wallet")]
@@ -2587,6 +2633,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::CardToken(_)
             | Self::OpenBanking(_)
             | Self::MandatePayment
+            | Self::ExternalProxyCardData(_)
             | Self::MobilePayment(_) => None,
         }
     }
@@ -2626,6 +2673,7 @@ impl PaymentMethodData {
             Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
+            Self::ExternalProxyCardData(_) => Some(api_enums::PaymentMethod::ExternalProxyCardData),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }

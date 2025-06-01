@@ -231,6 +231,10 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::DirectCarrierBilling
         ),
+        api_enums::PaymentMethod::ExternalProxyCardData => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::ProxyCard
+        ),
     }
 }
 
