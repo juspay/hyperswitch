@@ -4,7 +4,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router::{
     core::{api_locking, refunds},
-    db::domain,
+    types::domain,
     logger, routes,
     services::{api, authentication as auth},
     types::{api::refunds as refund_types, stripe_errors::StripeErrorCode},

@@ -16,7 +16,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData, PaymentMethodChecker},
         utils as core_utils,
     },
-    db::errors::ConnectorErrorExt,
+    errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
     services,
     types::{
