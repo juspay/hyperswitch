@@ -18,8 +18,7 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     _state: &SessionState,
-    _merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    _merchant_context: &domain::MerchantContext,
     _req: &PaymentMethodCollectLinkRequest,
 ) -> RouterResult<PaymentMethodCollectLinkData> {
     todo!()
@@ -28,22 +27,21 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     req: &PaymentMethodCollectLinkRequest,
 ) -> RouterResult<PaymentMethodCollectLinkData> {
     // Validate customer_id
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
-    let merchant_id = merchant_account.get_id().clone();
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),
             &customer_id,
             &merchant_id,
-            key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
     {
@@ -76,7 +74,8 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let default_config = &state.conf.generic_link.payment_method_collect;
 
     #[cfg(feature = "v1")]
-    let merchant_config = merchant_account
+    let merchant_config = merchant_context
+        .get_merchant_account()
         .pm_collect_link_config
         .as_ref()
         .map(|config| {

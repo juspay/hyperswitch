@@ -78,13 +78,6 @@ pub async fn create_role(
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User trying to create org level custom role");
     }
-
-    // TODO: Remove in PR custom-role-write-pr
-    if matches!(role_entity_type, EntityType::Profile) {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User trying to create profile level custom role");
-    }
-
     let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
 
     if requestor_entity_from_role_scope < role_entity_type {
@@ -120,13 +113,15 @@ pub async fn create_role(
     .await?;
 
     let (org_id, merchant_id, profile_id) = match role_entity_type {
-        EntityType::Organization | EntityType::Tenant => {
-            (user_from_token.org_id, user_from_token.merchant_id, None)
-        }
-        EntityType::Merchant => (user_from_token.org_id, user_from_token.merchant_id, None),
+        EntityType::Organization | EntityType::Tenant => (user_from_token.org_id, None, None),
+        EntityType::Merchant => (
+            user_from_token.org_id,
+            Some(user_from_token.merchant_id),
+            None,
+        ),
         EntityType::Profile => (
             user_from_token.org_id,
-            user_from_token.merchant_id,
+            Some(user_from_token.merchant_id),
             Some(user_from_token.profile_id),
         ),
     };
@@ -219,6 +214,11 @@ pub async fn get_parent_info_for_role(
         role_info.get_entity_type(),
         role_info.get_permission_groups().to_vec(),
     )
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable(format!(
+        "No group descriptions found for role_id: {}",
+        role.role_id
+    ))?
     .into_iter()
     .map(|(parent_group, description)| role_api::ParentGroupInfo {
         name: parent_group.clone(),

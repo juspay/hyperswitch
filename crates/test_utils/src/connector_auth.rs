@@ -18,10 +18,12 @@ pub struct ConnectorAuthentication {
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<HeaderKey>,
+    pub archipel: Option<NoKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
     pub bankofamerica: Option<SignatureKey>,
+    pub barclaycard: Option<SignatureKey>,
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
@@ -67,6 +69,7 @@ pub struct ConnectorAuthentication {
     pub nexixpay: Option<HeaderKey>,
     pub nomupay: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
+    pub nordea: Option<BodyKey>,
     pub novalnet: Option<HeaderKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
@@ -95,16 +98,19 @@ pub struct ConnectorAuthentication {
     pub taxjar: Option<HeaderKey>,
     pub threedsecureio: Option<HeaderKey>,
     pub thunes: Option<HeaderKey>,
+    pub tokenio: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
     pub unified_authentication_service: Option<HeaderKey>,
+    pub vgs: Option<HeaderKey>,
     pub volt: Option<HeaderKey>,
     pub wellsfargo: Option<HeaderKey>,
     // pub wellsfargopayout: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
+    pub worldpayxml: Option<HeaderKey>,
     pub xendit: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
@@ -321,6 +327,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NoKey {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AutomationConfigs {

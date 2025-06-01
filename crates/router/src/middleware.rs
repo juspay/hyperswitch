@@ -5,7 +5,8 @@ use router_env::{
     tracing::{field::Empty, Instrument},
 };
 
-use crate::headers;
+use crate::{headers, routes::metrics};
+
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 
@@ -363,6 +364,7 @@ where
     type Future = futures::future::LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
     actix_web::dev::forward_ready!(service);
+
     fn call(&self, mut req: actix_web::dev::ServiceRequest) -> Self::Future {
         let svc = self.service.clone();
         Box::pin(async move {
@@ -392,6 +394,90 @@ where
             }
             let response_fut = svc.call(req);
             let response = response_fut.await?;
+            Ok(response)
+        })
+    }
+}
+
+/// Middleware for recording request-response metrics
+pub struct RequestResponseMetrics;
+
+impl<S: 'static, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest>
+    for RequestResponseMetrics
+where
+    S: actix_web::dev::Service<
+        actix_web::dev::ServiceRequest,
+        Response = actix_web::dev::ServiceResponse<B>,
+        Error = actix_web::Error,
+    >,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Transform = RequestResponseMetricsMiddleware<S>;
+    type InitError = ();
+    type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        std::future::ready(Ok(RequestResponseMetricsMiddleware {
+            service: std::rc::Rc::new(service),
+        }))
+    }
+}
+
+pub struct RequestResponseMetricsMiddleware<S> {
+    service: std::rc::Rc<S>,
+}
+
+impl<S, B> actix_web::dev::Service<actix_web::dev::ServiceRequest>
+    for RequestResponseMetricsMiddleware<S>
+where
+    S: actix_web::dev::Service<
+            actix_web::dev::ServiceRequest,
+            Response = actix_web::dev::ServiceResponse<B>,
+            Error = actix_web::Error,
+        > + 'static,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Future = futures::future::LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    actix_web::dev::forward_ready!(service);
+
+    fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        use std::borrow::Cow;
+
+        let svc = self.service.clone();
+
+        let request_path = req
+            .match_pattern()
+            .map(Cow::<'static, str>::from)
+            .unwrap_or_else(|| "UNKNOWN".into());
+        let request_method = Cow::<'static, str>::from(req.method().as_str().to_owned());
+
+        Box::pin(async move {
+            let mut attributes =
+                router_env::metric_attributes!(("path", request_path), ("method", request_method))
+                    .to_vec();
+
+            let response_fut = svc.call(req);
+
+            metrics::REQUESTS_RECEIVED.add(1, &attributes);
+
+            let (response_result, request_duration) =
+                common_utils::metrics::utils::time_future(response_fut).await;
+            let response = response_result?;
+
+            attributes.extend_from_slice(router_env::metric_attributes!((
+                "status_code",
+                i64::from(response.status().as_u16())
+            )));
+
+            metrics::REQUEST_TIME.record(request_duration.as_secs_f64(), &attributes);
+
             Ok(response)
         })
     }

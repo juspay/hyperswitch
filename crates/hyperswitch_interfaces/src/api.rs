@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod vault;
+pub mod vault_v2;
 
 use std::fmt::Debug;
 
@@ -71,7 +73,7 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{payments::*, refunds::*};
+pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
     connector_integration_v2::ConnectorIntegrationV2, consts, errors,
     events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
@@ -96,6 +98,7 @@ pub trait Connector:
     + TaxCalculation
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
+    + ExternalVault
 {
 }
 
@@ -116,7 +119,8 @@ impl<
             + authentication::ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + revenue_recovery::RevenueRecovery,
+            + revenue_recovery::RevenueRecovery
+            + ExternalVault,
     > Connector for T
 {
 }
@@ -264,8 +268,9 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 
@@ -354,8 +359,9 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }

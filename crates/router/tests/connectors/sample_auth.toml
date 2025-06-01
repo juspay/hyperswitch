@@ -13,6 +13,9 @@ api_secret = "Secondary key"
 [amazonpay]
 api_key="API Key"
 
+[archipel]
+api_key="CA Certificate PEM"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
@@ -46,6 +49,10 @@ key1 = "key1"
 [rapyd]
 api_key = "access_key"
 key1 = "secret_key"
+
+[facilitapay]
+api_key = "password"
+key1 = "username" # email id
 
 [fiserv]
 api_key = "MyApiKey"
@@ -279,6 +286,10 @@ api_secret = "Consumer Secret"
 [taxjar]
 api_key = "API Key"
 
+[nordea]
+api_key = "Client Secret"
+key1 = "Client ID"
+
 [novalnet]
 api_key="API Key"
 
@@ -324,3 +335,8 @@ api_key = "API Key"
 
 [recurly]
 api_key= "API Key"
+
+[barclaycard]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"

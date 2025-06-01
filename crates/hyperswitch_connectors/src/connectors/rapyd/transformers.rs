@@ -1,5 +1,9 @@
 use common_enums::enums;
-use common_utils::{ext_traits::OptionExt, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    ext_traits::OptionExt,
+    request::Method,
+    types::{FloatMajorUnit, MinorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -287,7 +291,7 @@ pub struct ResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DisputeResponseData {
     pub id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: api_models::enums::Currency,
     pub token: String,
     pub dispute_reason_description: String,
@@ -451,8 +455,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             connector_transaction_id: None,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         }),
                     ),
                     _ => {
@@ -497,8 +502,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                     reason: item.response.status.message,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
             ),
         };

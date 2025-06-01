@@ -219,9 +219,12 @@ pub fn payments_create() {}
     get,
     path = "/payments/{payment_id}",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        ("force_sync" = Option<bool>, Query, description = "Decider to enable or disable the connector call for retrieve request"),
+        ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
+        ("expand_attempts" = Option<bool>, Query, description = "If enabled provides list of attempts linked to payment intent"),
+        ("expand_captures" = Option<bool>, Query, description = "If enabled provides list of captures linked to latest attempt"),
     ),
-    request_body=PaymentRetrieveBody,
     responses(
         (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found")
@@ -415,7 +418,7 @@ pub fn payments_connector_session() {}
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create Session tokens for a Payment",
+    operation_id = "Create V2 Session tokens for a Payment",
     security(("publishable_key" = []))
 )]
 pub fn payments_connector_session() {}
@@ -462,15 +465,15 @@ pub fn payments_cancel() {}
     get,
     path = "/payments/list",
     params(
-        ("customer_id" = String, Query, description = "The identifier for the customer"),
-        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
-        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
-        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
-        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
-        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
-        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
-        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
-        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
+        ("customer_id" = Option<String>, Query, description = "The identifier for the customer"),
+        ("starting_after" = Option<String>, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+        ("ending_before" = Option<String>, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+        ("limit" = Option<i64>, Query, description = "Limit on the number of objects to return"),
+        ("created" = Option<PrimitiveDateTime>, Query, description = "The time at which payment is created"),
+        ("created_lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the payment created time"),
+        ("created_gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the payment created time"),
+        ("created_lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the payment created time"),
+        ("created_gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment created time")
     ),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
@@ -587,6 +590,9 @@ pub fn payments_dynamic_tax_calculation() {}
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/post_session_tokens",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
     request_body=PaymentsPostSessionTokensRequest,
     responses(
         (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
@@ -598,6 +604,24 @@ pub fn payments_dynamic_tax_calculation() {}
 )]
 
 pub fn payments_post_session_tokens() {}
+
+/// Payments - Update Metadata
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/update_metadata",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    request_body=PaymentsUpdateMetadataRequest,
+    responses(
+        (status = 200, description = "Metadata updated successfully", body = PaymentsUpdateMetadataResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Update Metadata for a Payment",
+    security(("api_key" = []))
+)]
+pub fn payments_update_metadata() {}
 
 /// Payments - Create Intent
 ///

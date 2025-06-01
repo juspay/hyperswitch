@@ -366,7 +366,7 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "{{api_key}}",
                       "type": "string"
                     },
                     {

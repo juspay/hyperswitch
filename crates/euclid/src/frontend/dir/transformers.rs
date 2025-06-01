@@ -8,6 +8,8 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
         match self.0 {
             global_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             global_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
+            #[cfg(feature = "v2")]
+            global_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
             global_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
             global_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),
             global_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
@@ -23,6 +25,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
             global_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             global_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
+            global_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
             global_enums::PaymentMethodType::CryptoCurrency => {
                 Ok(dirval!(CryptoType = CryptoCurrency))
             }

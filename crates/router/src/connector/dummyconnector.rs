@@ -125,8 +125,9 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             reason: response.error.reason,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -208,9 +209,12 @@ impl<const T: u8>
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
-            enums::PaymentMethod::Wallet => Ok(format!("{}/payment", self.base_url(connectors))),
-            enums::PaymentMethod::PayLater => Ok(format!("{}/payment", self.base_url(connectors))),
+            enums::PaymentMethod::Card
+            | enums::PaymentMethod::Upi
+            | enums::PaymentMethod::Wallet
+            | enums::PaymentMethod::PayLater => {
+                Ok(format!("{}/payment", self.base_url(connectors)))
+            }
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
                 connector: Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id(),

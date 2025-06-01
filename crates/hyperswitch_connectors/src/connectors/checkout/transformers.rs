@@ -131,7 +131,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
                 .into()),
@@ -271,7 +272,7 @@ pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
     eci: Option<String>,
-    cryptogram: Option<String>,
+    cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
 }
@@ -385,7 +386,8 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
             },
@@ -705,8 +707,9 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -759,8 +762,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -1265,7 +1269,7 @@ pub struct CheckoutDisputeWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
@@ -1371,7 +1375,7 @@ pub fn construct_file_upload_request(
                 .file_type
                 .as_ref()
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or_default()
         ))
         .mime_str(request.file_type.as_ref())

@@ -3,10 +3,6 @@ ALTER TABLE customers
     ALTER COLUMN status DROP NOT NULL,
     ALTER COLUMN status DROP DEFAULT;
 
----------------------business_profile---------------------
-ALTER TABLE business_profile ALTER COLUMN should_collect_cvv_during_payment DROP NOT NULL;
-
-
 ALTER TABLE merchant_connector_account
     ALTER COLUMN profile_id DROP NOT NULL;
 

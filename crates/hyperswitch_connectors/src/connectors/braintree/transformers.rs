@@ -1,6 +1,9 @@
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::{
+    pii,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -476,8 +479,9 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -568,8 +572,9 @@ fn get_error_response<T>(
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         },
     ))
 }
@@ -660,8 +665,9 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -747,8 +753,9 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -815,8 +822,9 @@ impl<F>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1008,8 +1016,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, BraintreeRefundResponse>>
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.id),
                             status_code: item.http_code,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
@@ -1369,8 +1378,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_data.id),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1571,8 +1581,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1676,8 +1687,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         attempt_status: None,
                         connector_transaction_id: None,
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1993,7 +2005,7 @@ pub(crate) fn get_status(status: &str) -> IncomingWebhookEvent {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeDisputeData {
-    pub amount_disputed: i64,
+    pub amount_disputed: MinorUnit,
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
@@ -2029,7 +2041,7 @@ pub struct DisputeEvidence {
 pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, errors::ConnectorError> {
     match code {
         "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
-        "PRE_ARBITATION" => Ok(enums::DisputeStage::PreArbitration),
+        "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
         "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
     }

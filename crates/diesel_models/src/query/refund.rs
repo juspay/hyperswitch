@@ -170,4 +170,26 @@ impl Refund {
         )
         .await
     }
+
+    pub async fn find_by_merchant_id_connector_transaction_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_transaction_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
 }

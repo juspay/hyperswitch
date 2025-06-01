@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-#[cfg(feature = "v1")]
-use common_types::primitive_wrappers::AlwaysRequestExtendedAuthorization;
+use common_types::primitive_wrappers;
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -15,7 +14,6 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -60,7 +58,7 @@ pub struct MerchantAccountCreate {
 
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -112,7 +110,7 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -167,8 +165,9 @@ impl MerchantAccountCreate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::RoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -284,6 +283,13 @@ pub struct AuthenticationConnectorDetails {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct ExternalVaultConnectorDetails {
+    /// Merchant Connector id to be stored for vault connector
+    #[schema(value_type = Option<String>)]
+    pub vault_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
 
@@ -320,7 +326,7 @@ pub struct MerchantAccountUpdate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -420,8 +426,9 @@ impl MerchantAccountUpdate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::RoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -512,7 +519,7 @@ pub struct MerchantAccountResponse {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -540,7 +547,7 @@ pub struct MerchantAccountResponse {
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
 
     /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
-    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
@@ -563,8 +570,12 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = MerchantAccountType, example = "standard")]
+    pub merchant_account_type: api_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v2")]
@@ -599,7 +610,7 @@ pub struct MerchantAccountResponse {
     pub recon_status: api_enums::ReconStatus,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -1892,7 +1903,7 @@ pub struct ProfileCreate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -1966,7 +1977,8 @@ pub struct ProfileCreate {
 
     /// Bool indicating if extended authentication must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
 
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
@@ -1993,6 +2005,12 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2125,6 +2143,15 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2178,7 +2205,7 @@ pub struct ProfileResponse {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2256,7 +2283,8 @@ pub struct ProfileResponse {
 
     /// Bool indicating if extended authentication must be requested for all payments
     #[schema(value_type = Option<bool>)]
-    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
@@ -2283,6 +2311,10 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2397,7 +2429,9 @@ pub struct ProfileResponse {
     pub is_network_tokenization_enabled: bool,
 
     /// Indicates if CVV should be collected during payment or not.
-    pub should_collect_cvv_during_payment: bool,
+    #[schema(value_type = Option<bool>)]
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
@@ -2421,6 +2455,15 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2467,7 +2510,7 @@ pub struct ProfileUpdate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2569,6 +2612,13 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2695,6 +2745,12 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2892,6 +2948,16 @@ pub struct PaymentLinkConfigRequest {
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
+    /// Optional header for the SDK's payment form
+    pub payment_form_header_text: Option<String>,
+    /// Label type in the SDK's payment form
+    #[schema(value_type = Option<PaymentLinkSdkLabelType>, example = "floating")]
+    pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
+    /// Boolean for controlling whether or not to show the explicit consent for storing cards
+    #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
+    pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2979,6 +3045,16 @@ pub struct PaymentLinkConfig {
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: bool,
+    /// Optional header for the SDK's payment form
+    pub payment_form_header_text: Option<String>,
+    /// Label type in the SDK's payment form
+    #[schema(value_type = Option<PaymentLinkSdkLabelType>, example = "floating")]
+    pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
+    /// Boolean for controlling whether or not to show the explicit consent for storing cards
+    #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
+    pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    /// Boolean to control payment button text for setup mandate calls
+    pub is_setup_mandate_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

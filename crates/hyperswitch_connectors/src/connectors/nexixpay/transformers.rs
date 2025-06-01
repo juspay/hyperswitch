@@ -8,7 +8,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
         SetupMandate,
@@ -25,9 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use strum::Display;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -305,6 +306,23 @@ fn update_nexi_meta_data(
     }))
 }
 
+pub fn get_error_response(
+    operation_result: NexixpayPaymentStatus,
+    status_code: u16,
+) -> ErrorResponse {
+    ErrorResponse {
+        status_code,
+        code: NO_ERROR_CODE.to_string(),
+        message: operation_result.to_string(),
+        reason: Some(operation_result.to_string()),
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSAuthData {
@@ -425,22 +443,35 @@ impl<F>
             is_auto_capture,
         })?);
 
-        Ok(Self {
-            status: AttemptStatus::from(item.response.operation.operation_result),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.operation.order_id.clone(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.operation.order_id),
-                incremental_authorization_allowed: None,
-                charges: None,
+        let status = AttemptStatus::from(item.response.operation.operation_result.clone());
+        match status {
+            AttemptStatus::Failure => {
+                let response = Err(get_error_response(
+                    item.response.operation.operation_result.clone(),
+                    item.http_code,
+                ));
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+            _ => Ok(Self {
+                status,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.operation.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.operation.order_id),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -632,7 +663,7 @@ impl TryFrom<&ConnectorAuthType> for NexixpayAuthType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Display, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexixpayPaymentStatus {
     Authorized,
@@ -821,51 +852,80 @@ impl<F>
                     },
                     psync_flow: NexixpayPaymentIntent::Authorize
                 }));
-                Ok(Self {
-                    status: AttemptStatus::from(response_body.operation.operation_result.clone()),
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            response_body.operation.order_id.clone(),
-                        ),
-                        redirection_data: Box::new(Some(redirection_form.clone())),
-                        mandate_reference: Box::new(Some(MandateReference {
-                            connector_mandate_id: item
-                                .data
-                                .connector_mandate_request_reference_id
-                                .clone(),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        })),
-                        connector_metadata,
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(
-                            response_body.operation.order_id.clone(),
-                        ),
-                        incremental_authorization_allowed: None,
-                        charges: None,
+                let status = AttemptStatus::from(response_body.operation.operation_result.clone());
+                match status {
+                    AttemptStatus::Failure => {
+                        let response = Err(get_error_response(
+                            response_body.operation.operation_result.clone(),
+                            item.http_code,
+                        ));
+                        Ok(Self {
+                            response,
+                            ..item.data
+                        })
+                    }
+                    _ => Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                response_body.operation.order_id.clone(),
+                            ),
+                            redirection_data: Box::new(Some(redirection_form.clone())),
+                            mandate_reference: Box::new(Some(MandateReference {
+                                connector_mandate_id: item
+                                    .data
+                                    .connector_mandate_request_reference_id
+                                    .clone(),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
+                            })),
+                            connector_metadata,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                response_body.operation.order_id.clone(),
+                            ),
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
                     }),
-                    ..item.data
-                })
+                }
             }
-            NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => Ok(Self {
-                status: AttemptStatus::from(mandate_response.operation.operation_result.clone()),
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        mandate_response.operation.order_id.clone(),
-                    ),
-                    redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(
-                        mandate_response.operation.order_id.clone(),
-                    ),
-                    incremental_authorization_allowed: None,
-                    charges: None,
-                }),
-                ..item.data
-            }),
+            NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => {
+                let status =
+                    AttemptStatus::from(mandate_response.operation.operation_result.clone());
+                match status {
+                    AttemptStatus::Failure => {
+                        let response = Err(get_error_response(
+                            mandate_response.operation.operation_result.clone(),
+                            item.http_code,
+                        ));
+                        Ok(Self {
+                            response,
+                            ..item.data
+                        })
+                    }
+                    _ => Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                mandate_response.operation.order_id.clone(),
+                            ),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: Some(
+                                mandate_response.operation.order_id.clone(),
+                            ),
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    }),
+                }
+            }
         }
     }
 }
@@ -975,27 +1035,42 @@ impl<F>
         } else {
             AttemptStatus::from(item.response.operation.operation_result.clone())
         };
-        Ok(Self {
-            status,
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.operation.order_id.clone(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(Some(MandateReference {
-                    connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
-                    payment_method_id: None,
-                    mandate_metadata: None,
-                    connector_mandate_request_reference_id: None,
-                })),
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.operation.order_id),
-                incremental_authorization_allowed: None,
-                charges: None,
+        match status {
+            AttemptStatus::Failure => {
+                let response = Err(get_error_response(
+                    item.response.operation.operation_result.clone(),
+                    item.http_code,
+                ));
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+            _ => Ok(Self {
+                status,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.operation.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(Some(MandateReference {
+                        connector_mandate_id: item
+                            .data
+                            .connector_mandate_request_reference_id
+                            .clone(),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    })),
+                    connector_metadata,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.operation.order_id),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -1122,25 +1197,32 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     .into())
                 }
             };
-        let contract_id = Secret::new(
-            item.router_data
-                .connector_mandate_request_reference_id
-                .clone()
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_mandate_request_reference_id",
-                })?,
-        );
+
+        let recurrence_request_obj = if item.router_data.request.is_mandate_payment() {
+            let contract_id = Secret::new(
+                item.router_data
+                    .connector_mandate_request_reference_id
+                    .clone()
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_request_reference_id",
+                    })?,
+            );
+            Some(RecurrenceRequest {
+                action: NexixpayRecurringAction::ContractCreation,
+                contract_id,
+                contract_type: ContractType::MitUnscheduled,
+            })
+        } else {
+            None
+        };
+
         Ok(Self {
             order: order_data,
             card: card?,
             operation_id,
             capture_type,
             three_d_s_auth_data,
-            recurrence: Some(RecurrenceRequest {
-                action: NexixpayRecurringAction::ContractCreation,
-                contract_id,
-                contract_type: ContractType::MitUnscheduled,
-            }),
+            recurrence: recurrence_request_obj,
         })
     }
 }
@@ -1159,25 +1241,41 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: AttemptStatus::from(item.response.operation_result),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(Some(MandateReference {
-                    connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
-                    payment_method_id: None,
-                    mandate_metadata: None,
-                    connector_mandate_request_reference_id: None,
-                })),
-                connector_metadata: item.data.request.connector_meta.clone(),
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id.clone()),
-                incremental_authorization_allowed: None,
-                charges: None,
+        let status = AttemptStatus::from(item.response.operation_result.clone());
+        match status {
+            AttemptStatus::Failure => {
+                let response = Err(get_error_response(
+                    item.response.operation_result.clone(),
+                    item.http_code,
+                ));
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+            _ => Ok(Self {
+                status,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(Some(MandateReference {
+                        connector_mandate_id: item
+                            .data
+                            .connector_mandate_request_reference_id
+                            .clone(),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    })),
+                    connector_metadata: item.data.request.connector_meta.clone(),
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.order_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -1349,26 +1447,43 @@ impl
             },
             psync_flow: NexixpayPaymentIntent::Authorize
         }));
-        Ok(Self {
-            status: AttemptStatus::from(item.response.operation.operation_result.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.operation.order_id.clone(),
-                ),
-                redirection_data: Box::new(Some(redirection_form.clone())),
-                mandate_reference: Box::new(Some(MandateReference {
-                    connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
-                    payment_method_id: None,
-                    mandate_metadata: None,
-                    connector_mandate_request_reference_id: None,
-                })),
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.operation.order_id.clone()),
-                incremental_authorization_allowed: None,
-                charges: None,
+
+        let status = AttemptStatus::from(item.response.operation.operation_result.clone());
+        match status {
+            AttemptStatus::Failure => {
+                let response = Err(get_error_response(
+                    item.response.operation.operation_result.clone(),
+                    item.http_code,
+                ));
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+            _ => Ok(Self {
+                status,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.operation.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(Some(redirection_form.clone())),
+                    mandate_reference: Box::new(Some(MandateReference {
+                        connector_mandate_id: item
+                            .data
+                            .connector_mandate_request_reference_id
+                            .clone(),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    })),
+                    connector_metadata,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.operation.order_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
