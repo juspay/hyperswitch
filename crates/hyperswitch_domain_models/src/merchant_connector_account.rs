@@ -94,6 +94,70 @@ impl MerchantConnectorAccount {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Clone)]
+pub enum MerchantConnectorAccountTypeDetails {
+    MerchantConnectorAccount(MerchantConnectorAccount),
+    MerchantConnectorDetails(api_models::payments::MerchantConnectorDetails),
+}
+
+#[cfg(feature = "v2")]
+impl MerchantConnectorAccountTypeDetails {
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        match self {
+            Self::MerchantConnectorAccount(domain_mca_details) => domain_mca_details
+                .connector_account_details
+                .peek()
+                .clone()
+                .parse_value("ConnectorAuthType"),
+            Self::MerchantConnectorDetails(api_mcd_details) => api_mcd_details
+                .merchant_connector_creds
+                .peek()
+                .clone()
+                .parse_value("ConnectorAuthType"),
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::MerchantConnectorAccount(domain_mca_details) => {
+                domain_mca_details.disabled.unwrap_or(false)
+            }
+            Self::MerchantConnectorDetails(_) => false,
+        }
+    }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        match self {
+            Self::MerchantConnectorAccount(domain_mca_details) => {
+                domain_mca_details.metadata.to_owned()
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
+        match self {
+            Self::MerchantConnectorAccount(domain_mca_details) => domain_mca_details.id.clone(),
+            Self::MerchantConnectorDetails(api_mcd_details) => {
+                let connector_name_string = api_mcd_details.connector_name.to_string();
+
+                match id_type::MerchantConnectorAccountId::wrap(connector_name_string.clone()) {
+                    Ok(id) => id,
+                    Err(_conversion_error) => {
+                        let hardcoded_id_string = "mca_hardcoded_fallback_id_123".to_string();
+                        id_type::MerchantConnectorAccountId::wrap(hardcoded_id_string)
+                                .expect("The hardcoded fallback ID string MUST be valid for MerchantConnectorAccountId. This is a programmer error.")
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,

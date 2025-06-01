@@ -95,7 +95,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v2")]
-use crate::{core::admin as core_admin, headers};
+use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
@@ -7278,5 +7278,54 @@ pub async fn allow_payment_update_enabled_for_client_auth(
             }
         }
         services::AuthFlow::Merchant => Ok(()),
+    }
+}
+
+pub async fn resolve_merchant_connector_account_type<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+    connector: &api::ConnectorData,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<domain::MerchantConnectorAccountTypeDetails>
+where
+    F: Send + Clone + Sync,
+    D: payments::OperationSessionGetters<F> + Send + Sync,
+{
+    match payment_data.get_merchant_connector_details() {
+        Some(api_details) => {
+            Ok(domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(api_details))
+        }
+        None => {
+            let merchant_connector_id = connector
+                .merchant_connector_id
+                .as_ref()
+                .get_required_value("merchant_connector_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Merchant connector ID is not set in ConnectorData for DB lookup",
+                )?;
+
+            let key_manager_state = state.into(); // Assuming this conversion is valid for KeyManagerState
+
+            let merchant_connector_account = state
+                .store
+                .find_merchant_connector_account_by_id(
+                    &key_manager_state,
+                    merchant_connector_id, // Pass the ID object itself
+                    merchant_context.get_merchant_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_owned(),
+                    },
+                )?;
+
+            Ok(
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+                    merchant_connector_account.clone(),
+                ),
+            )
+        }
     }
 }

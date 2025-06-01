@@ -20,7 +20,10 @@ use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{
+    behaviour, merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    merchant_key_store::MerchantKeyStore, type_encryption as types,
+};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -101,12 +104,18 @@ impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub fn get_connector_customer_id(
         &self,
-        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        merchant_connector_id: &MerchantConnectorAccountTypeDetails, //type
     ) -> Option<&str> {
-        self.connector_customer
-            .as_ref()
-            .and_then(|connector_customer_map| connector_customer_map.get(merchant_connector_id))
-            .map(|connector_customer_id| connector_customer_id.as_str())
+        match merchant_connector_id {
+            MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
+                let connector_account_id = account.get_id();
+                self.connector_customer
+                    .as_ref()?
+                    .get(&connector_account_id)
+                    .map(|connector_customer_id| connector_customer_id.as_str())
+            }
+            MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        }
     }
 }
 

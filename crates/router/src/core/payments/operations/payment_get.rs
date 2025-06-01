@@ -195,6 +195,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             false => None,
         };
 
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -202,6 +204,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             payment_address,
             attempts,
             should_sync_with_connector,
+            merchant_connector_details,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

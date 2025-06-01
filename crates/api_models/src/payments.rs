@@ -270,6 +270,20 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<Secret<String>>)]
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "v2")]
+pub struct MerchantConnectorDetails {
+    /// The connector used for the payment
+    pub connector_name: api_enums::Connector,
+
+    /// The merchant connector credentials used for the payment
+    pub merchant_connector_creds: pii::SecretSerdeValue,
 }
 
 #[cfg(feature = "v2")]
@@ -5321,6 +5335,10 @@ pub struct PaymentsConfirmIntentRequest {
     /// The payment_method_id to be associated with the payment
     #[schema(value_type = Option<String>)]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<Secret<String>>)]
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5493,6 +5511,10 @@ pub struct PaymentsRequest {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<Secret<String>>)]
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5527,6 +5549,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
                 .request_external_three_ds_authentication
                 .clone(),
             force_3ds_challenge: request.force_3ds_challenge,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5543,6 +5566,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             customer_acceptance: request.customer_acceptance.clone(),
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5567,6 +5591,9 @@ pub struct PaymentsRetrieveRequest {
     pub param: Option<String>,
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<Secret<String>>)]
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 /// Error details for the payment

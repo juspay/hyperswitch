@@ -1,6 +1,6 @@
 use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
-use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::PeekInterface;
@@ -241,6 +241,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             Some(true),
         );
 
+        let merchant_connector_details = request.merchant_connector_details.clone();
+        println!(
+            "$$$$$$$C Merchant Connector Details: {:?}",
+            merchant_connector_details
+        );
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -248,6 +254,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method_data,
             payment_address,
             mandate_data: None,
+            merchant_connector_details,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -335,37 +342,59 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
-        // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
-    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
+    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse>
+    where
+        F: Clone,
+    {
         use crate::core::payments::OperationSessionSetters;
 
-        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        match &payment_data.merchant_connector_details {
+            Some(details) => {
+                let connector_name_str = details.connector_name.to_string();
 
-        let first_chosen_connector = fallback_config
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+                payment_data.set_connector_in_payment_attempt(Some(connector_name_str.clone()));
 
-        let connector_name = first_chosen_connector.connector.to_string();
-        let merchant_connector_id = first_chosen_connector
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")?;
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector_name_str,
+                    api::GetToken::Connector,
+                    None,
+                )?;
 
-        payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
-        payment_data.set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
+                Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+            }
+            None => {
+                let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
+                    .get_default_fallback_list_of_connector_under_profile()
+                    .change_context(errors::RoutingError::FallbackConfigFetchFailed)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-            Some(merchant_connector_id),
-        )?;
+                let first_chosen_connector = fallback_config
+                    .first()
+                    .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
-        Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+                let connector_name = first_chosen_connector.connector.to_string();
+                let merchant_connector_id = first_chosen_connector
+                    .merchant_connector_id
+                    .clone()
+                    .get_required_value("merchant_connector_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
+                payment_data
+                    .set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
+
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector_name,
+                    api::GetToken::Connector,
+                    Some(merchant_connector_id),
+                )?;
+
+                Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+            }
+        }
     }
 }
 
@@ -403,13 +432,43 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        // let merchant_connector_id = payment_data
+        //     .payment_attempt
+        //     .merchant_connector_id
+        //     .clone()
+        //     .get_required_value("merchant_connector_id")
+        //     .change_context(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Merchant connector id is none when constructing response")?;
+
+        let determined_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>;
+
+        match &payment_data.merchant_connector_details {
+            Some(details) => {
+                // connector = details.connector_name.to_string();
+                determined_merchant_connector_id = None;
+            }
+            None => {
+                // connector = payment_data
+                //         .payment_attempt
+                //         .connector
+                //         .clone()
+                //         .get_required_value("connector")
+                //         .change_context(errors::ApiErrorResponse::InternalServerError)
+                //         .attach_printable("Connector is None in payment_attempt and no merchant_connector_details provided")?;
+
+                determined_merchant_connector_id = Some(
+                    payment_data
+                        .payment_attempt
+                        .merchant_connector_id
+                        .clone()
+                        .get_required_value("merchant_connector_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Merchant connector id is none when constructing response",
+                        )?,
+                );
+            }
+        }
 
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
@@ -424,7 +483,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
-            merchant_connector_id,
+            merchant_connector_id: determined_merchant_connector_id,
             authentication_type,
         };
 

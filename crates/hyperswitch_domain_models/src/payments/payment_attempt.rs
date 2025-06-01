@@ -1744,7 +1744,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         updated_by: String,
         connector: String,
-        merchant_connector_id: id_type::MerchantConnectorAccountId,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         authentication_type: storage_enums::AuthenticationType,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
@@ -2529,7 +2529,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 error_code: None,
                 error_reason: None,
                 updated_by,
-                merchant_connector_id: Some(merchant_connector_id),
+                merchant_connector_id,
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,

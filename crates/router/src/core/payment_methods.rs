@@ -2803,6 +2803,7 @@ fn construct_zero_auth_payments_request(
         browser_info: None,
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
+        merchant_connector_details: None,
     })
 }
 

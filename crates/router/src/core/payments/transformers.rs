@@ -183,7 +183,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsAuthorizeRouterData> {
@@ -192,7 +192,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
-
+    //
     let auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -404,7 +404,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsCaptureRouterData> {
@@ -567,7 +567,7 @@ pub async fn construct_router_data_for_psync<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsSyncRouterData> {
@@ -695,7 +695,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -856,7 +856,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::SetupMandateRouterData> {
@@ -881,7 +881,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
 
     let connector_customer_id = customer.as_ref().and_then(|customer| {
         customer
-            .get_connector_customer_id(&merchant_connector_account.get_id())
+            .get_connector_customer_id(&merchant_connector_account)
             .map(String::from)
     });
 
@@ -896,7 +896,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_id,
         None,
     ));
-
+    ////// Sai Harsha
     let webhook_url = Some(helpers::create_webhook_url(
         router_base_url,
         &attempt.merchant_id,
@@ -1817,12 +1817,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
 
         let error = payment_attempt
             .error
@@ -1877,7 +1872,7 @@ where
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             connector_token_details,
-            merchant_connector_id: Some(merchant_connector_id),
+            merchant_connector_id,
             browser_info: None,
             error,
             return_url,

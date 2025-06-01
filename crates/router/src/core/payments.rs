@@ -98,7 +98,7 @@ use crate::core::routing::helpers as routing_helpers;
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
-    consts,
+    connector, consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
@@ -1812,6 +1812,7 @@ pub async fn record_attempt_core(
         attempts: None,
         should_sync_with_connector: false,
         payment_address: payment_data.payment_address.clone(),
+        merchant_connector_details: None,
     };
 
     let payment_status_data = (req.triggered_by == common_enums::TriggeredBy::Internal)
@@ -1834,6 +1835,7 @@ pub async fn record_attempt_core(
                 expand_attempts: false,
                 param: None,
                 all_keys_required: None,
+                merchant_connector_details: None,
             },
             operations::GetTrackerResponse {
                 payment_data: PaymentStatusData {
@@ -1843,6 +1845,7 @@ pub async fn record_attempt_core(
                     attempts: None,
                     should_sync_with_connector: true,
                     payment_address: payment_data.payment_address.clone(),
+                    merchant_connector_details: None,
                 },
             },
             CallConnectorAction::Trigger,
@@ -2705,6 +2708,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             force_sync: true,
             expand_attempts: false,
             all_keys_required: None,
+            merchant_connector_details: None,
         };
 
         let operation = operations::PaymentGet;
@@ -3418,30 +3422,19 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_id = connector
-        .merchant_connector_id
-        .as_ref()
-        .get_required_value("merchant_connector_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("connector id is not set")?;
-
-    let merchant_connector_account = state
-        .store
-        .find_merchant_connector_account_by_id(
-            &state.into(),
-            merchant_connector_id,
-            merchant_context.get_merchant_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_connector_id.get_string_repr().to_owned(),
-        })?;
+    let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+        state,
+        payment_data, // Pass as &D, which is compatible with &mut D
+        &connector,
+        merchant_context,
+    )
+    .await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
         merchant_context,
-        &merchant_connector_account,
+        &merchant_connector_account_type,
         payment_data,
     )
     .await?;
@@ -3452,7 +3445,7 @@ where
             connector.connector.id(),
             merchant_context,
             customer,
-            &merchant_connector_account,
+            &merchant_connector_account_type, //option
             None,
             None,
         )
@@ -3735,24 +3728,13 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_id = connector
-        .merchant_connector_id
-        .as_ref()
-        .get_required_value("merchant_connector_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("connector id is not set")?;
-
-    let merchant_connector_account = state
-        .store
-        .find_merchant_connector_account_by_id(
-            &state.into(),
-            merchant_connector_id,
-            merchant_context.get_merchant_key_store(),
+        let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+            state,
+            payment_data, // Pass as &D, which is compatible with &mut D
+            &connector,
+            merchant_context,
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_connector_id.get_string_repr().to_owned(),
-        })?;
+        .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -3760,7 +3742,7 @@ where
             connector.connector.id(),
             merchant_context,
             &None,
-            &merchant_connector_account,
+            &merchant_connector_account_type,
             None,
             None,
         )
@@ -4081,7 +4063,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, D>(
 ) -> RouterResult<D>
 where
     Op: Debug,
-    F: Send + Clone,
+    F: Send + Clone + Sync,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4095,25 +4077,15 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
     for session_connector_data in connectors.iter() {
-        let merchant_connector_id = session_connector_data
-            .connector
-            .merchant_connector_id
-            .as_ref()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("connector id is not set")?;
-        // TODO: make this DB call parallel
-        let merchant_connector_account = state
-            .store
-            .find_merchant_connector_account_by_id(
-                &state.into(),
-                merchant_connector_id,
-                merchant_context.get_merchant_key_store(),
+
+            let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+                state,
+                &payment_data,
+                &session_connector_data.connector,
+                merchant_context,
             )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.get_string_repr().to_owned(),
-            })?;
+            .await?;
+
         let connector_id = session_connector_data.connector.connector.id();
         let router_data = payment_data
             .construct_router_data(
@@ -4121,7 +4093,7 @@ where
                 connector_id,
                 merchant_context,
                 customer,
-                &merchant_connector_account,
+                &merchant_connector_account_type,
                 None,
                 None,
             )
@@ -4605,7 +4577,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
     merchant_context: &domain::MerchantContext,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
@@ -4639,7 +4611,7 @@ where
                     state,
                     &connector,
                     customer,
-                    &merchant_connector_id,
+                    &merchant_connector_account,
                 );
 
             if should_call_connector {
@@ -4661,7 +4633,7 @@ where
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
-                    merchant_connector_id,
+                    merchant_connector_account,
                     customer.as_ref(),
                     connector_customer_id.clone(),
                 )
@@ -8255,6 +8227,10 @@ pub trait OperationSessionGetters<F> {
     fn get_all_keys_required(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
+    #[cfg(feature = "v2")]
+    fn get_merchant_connector_details(
+        &self,
+    ) -> Option<api_models::payments::MerchantConnectorDetails>;
 
     #[cfg(feature = "v1")]
     fn get_connector_customer_id(&self) -> Option<String>;
@@ -8725,6 +8701,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn get_merchant_connector_details(
+        &self,
+    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+        todo!()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -8875,6 +8857,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
+    }
+
+    fn get_merchant_connector_details(
+        &self,
+    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+        self.merchant_connector_details.clone()
     }
 
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod> {
@@ -9121,6 +9109,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         &self.payment_intent
     }
 
+    fn get_merchant_connector_details(
+        &self,
+    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+        self.merchant_connector_details.clone()
+    }
+
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod> {
         todo!()
     }
@@ -9362,6 +9356,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     }
     fn get_payment_intent(&self) -> &storage::PaymentIntent {
         &self.payment_intent
+    }
+
+    fn get_merchant_connector_details(
+        &self,
+    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+        todo!()
     }
 
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod> {
