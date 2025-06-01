@@ -14,8 +14,8 @@ use storage_impl::errors::StorageError;
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
+    errors::StorageErrorExt,
     db::{
-        errors::StorageErrorExt,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
     routes::SessionState,

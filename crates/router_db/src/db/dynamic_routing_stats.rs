@@ -6,7 +6,7 @@ use super::Store;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::kafka_store::KafkaStore,
+    // db::kafka_store::KafkaStore,
     types::storage,
 };
 
@@ -101,36 +101,36 @@ impl DynamicRoutingStatsInterface for MockDb {
     }
 }
 
-#[async_trait::async_trait]
-impl DynamicRoutingStatsInterface for KafkaStore {
-    #[instrument(skip_all)]
-    async fn insert_dynamic_routing_stat_entry(
-        &self,
-        dynamic_routing_stat: storage::DynamicRoutingStatsNew,
-    ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        self.diesel_store
-            .insert_dynamic_routing_stat_entry(dynamic_routing_stat)
-            .await
-    }
+// #[async_trait::async_trait]
+// impl DynamicRoutingStatsInterface for KafkaStore {
+//     #[instrument(skip_all)]
+//     async fn insert_dynamic_routing_stat_entry(
+//         &self,
+//         dynamic_routing_stat: storage::DynamicRoutingStatsNew,
+//     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
+//         self.diesel_store
+//             .insert_dynamic_routing_stat_entry(dynamic_routing_stat)
+//             .await
+//     }
 
-    async fn find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(
-        &self,
-        attempt_id: String,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<Option<storage::DynamicRoutingStats>, errors::StorageError> {
-        self.diesel_store
-            .find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(attempt_id, merchant_id)
-            .await
-    }
+//     async fn find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(
+//         &self,
+//         attempt_id: String,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//     ) -> CustomResult<Option<storage::DynamicRoutingStats>, errors::StorageError> {
+//         self.diesel_store
+//             .find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(attempt_id, merchant_id)
+//             .await
+//     }
 
-    async fn update_dynamic_routing_stats(
-        &self,
-        attempt_id: String,
-        merchant_id: &common_utils::id_type::MerchantId,
-        data: storage::DynamicRoutingStatsUpdate,
-    ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        self.diesel_store
-            .update_dynamic_routing_stats(attempt_id, merchant_id, data)
-            .await
-    }
-}
+//     async fn update_dynamic_routing_stats(
+//         &self,
+//         attempt_id: String,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         data: storage::DynamicRoutingStatsUpdate,
+//     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
+//         self.diesel_store
+//             .update_dynamic_routing_stats(attempt_id, merchant_id, data)
+//             .await
+//     }
+// }

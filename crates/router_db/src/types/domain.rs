@@ -30,8 +30,8 @@ mod network_tokenization {
 pub(crate) use customers::*;
 pub(crate) use merchant_account::*;
 
-mod address;
-mod event;
+pub mod address;
+pub mod event;
 mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -60,13 +60,13 @@ pub(crate) mod vault {
 pub(crate) mod types;
 // #[cfg(feature = "olap")]
 pub mod user;
-pub(crate) mod user_key_store;
+pub mod user_key_store;
 
-pub(crate) use address::*;
+pub use address::*;
 pub(crate) use business_profile::*;
 pub(crate) use callback_mapper::*;
 // pub use consts::*;
-pub(crate) use event::*;
+pub use event::*;
 pub(crate) use merchant_connector_account::*;
 // pub use merchant_context::*;
 pub(crate) use merchant_key_store::*;

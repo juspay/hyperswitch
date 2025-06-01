@@ -30,7 +30,7 @@ mod network_tokenization {
 pub use customers::*;
 pub use merchant_account::*;
 
-mod address;
+// mod address;
 mod event;
 mod merchant_connector_account;
 mod merchant_key_store {
@@ -62,7 +62,8 @@ pub mod types;
 pub mod user;
 pub mod user_key_store;
 
-pub use address::*;
+// pub use address::*;
+
 pub use business_profile::*;
 pub use callback_mapper::*;
 pub use consts::*;
@@ -73,6 +74,7 @@ pub use merchant_key_store::*;
 pub use network_tokenization::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
+pub use router_db::types::domain::address::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;

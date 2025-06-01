@@ -1,8 +1,5 @@
 use common_utils::{
-    crypto::{Encryptable, OptionalEncryptableSecretString},
-    encryption::Encryption,
-    type_name,
-    types::keymanager::{KeyManagerState, ToEncryptable},
+    crypto::{Encryptable, OptionalEncryptableSecretString}, encryption::Encryption, ext_traits::StringExt, type_name, types::keymanager::{KeyManagerState, ToEncryptable}
 };
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
@@ -202,6 +199,86 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
+        })
+    }
+}
+
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
+
+#[cfg(feature = "olap")]
+impl TryFrom<Event> for api_models::webhook_events::EventListItemResponse {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(item: Event) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+
+        // We only allow retrieving events with merchant_id, business_profile_id
+        // and initial_attempt_id populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let merchant_id = item
+            .merchant_id
+            .get_required_value("merchant_id")
+            .change_context(ApiErrorResponse::InternalServerError)?;
+        let profile_id = item
+            .business_profile_id
+            .get_required_value("business_profile_id")
+            .change_context(ApiErrorResponse::InternalServerError)?;
+        let initial_attempt_id = item
+            .initial_attempt_id
+            .get_required_value("initial_attempt_id")
+            .change_context(ApiErrorResponse::InternalServerError)?;
+
+        Ok(Self {
+            event_id: item.event_id,
+            merchant_id,
+            profile_id,
+            object_id: item.primary_object_id,
+            event_type: item.event_type,
+            event_class: item.event_class,
+            is_delivery_successful: item.is_overall_delivery_successful,
+            initial_attempt_id,
+            created: item.created_at,
+        })
+    }
+}
+
+
+#[cfg(feature = "olap")]
+impl TryFrom<Event> for api_models::webhook_events::EventRetrieveResponse {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(item: Event) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+
+        // We only allow retrieving events with all required fields in `EventListItemResponse`, and
+        // `request` and `response` populated.
+        // We cannot retrieve events with only some of these fields populated.
+        let event_information =
+            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
+
+        let request = item
+            .request
+            .get_required_value("request")
+            .change_context(ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookRequestContent")
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event request information")?;
+        let response = item
+            .response
+            .get_required_value("response")
+            .change_context(ApiErrorResponse::InternalServerError)?
+            .peek()
+            .parse_struct("OutgoingWebhookResponseContent")
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse webhook event response information")?;
+
+        Ok(Self {
+            event_information,
+            request,
+            response,
+            delivery_attempt: item.delivery_attempt,
         })
     }
 }

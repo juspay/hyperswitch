@@ -5,7 +5,7 @@ use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
 
 use super::errors;
-use crate::{db::errors::StorageErrorExt, routes, types::domain};
+use crate::{errors::StorageErrorExt, routes, types::domain};
 
 #[cfg(all(
     feature = "v2",

@@ -32,7 +32,7 @@ use crate::{
             UNIFIED_AUTHENTICATION_SERVICE,
         },
     },
-    db::domain,
+    types::domain,
     routes::SessionState,
 };
 

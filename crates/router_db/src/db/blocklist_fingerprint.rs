@@ -6,7 +6,7 @@ use super::Store;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::kafka_store::KafkaStore,
+    // db::kafka_store::KafkaStore,
     types::storage,
 };
 
@@ -73,26 +73,26 @@ impl BlocklistFingerprintInterface for MockDb {
     }
 }
 
-#[async_trait::async_trait]
-impl BlocklistFingerprintInterface for KafkaStore {
-    #[instrument(skip_all)]
-    async fn insert_blocklist_fingerprint_entry(
-        &self,
-        pm_fingerprint_new: storage::BlocklistFingerprintNew,
-    ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        self.diesel_store
-            .insert_blocklist_fingerprint_entry(pm_fingerprint_new)
-            .await
-    }
+// #[async_trait::async_trait]
+// impl BlocklistFingerprintInterface for KafkaStore {
+//     #[instrument(skip_all)]
+//     async fn insert_blocklist_fingerprint_entry(
+//         &self,
+//         pm_fingerprint_new: storage::BlocklistFingerprintNew,
+//     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
+//         self.diesel_store
+//             .insert_blocklist_fingerprint_entry(pm_fingerprint_new)
+//             .await
+//     }
 
-    #[instrument(skip_all)]
-    async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        fingerprint: &str,
-    ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
-            .await
-    }
-}
+//     #[instrument(skip_all)]
+//     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         fingerprint: &str,
+//     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
+//         self.diesel_store
+//             .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
+//             .await
+//     }
+// }

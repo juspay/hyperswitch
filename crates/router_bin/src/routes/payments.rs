@@ -2943,7 +2943,7 @@ pub async fn payment_get_intent_using_merchant_reference_id(
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::PaymentReferenceId>,
 ) -> impl Responder {
-    use router::db::domain::merchant_context;
+    use router::types::domain::merchant_context;
 
     let flow = Flow::PaymentsRetrieveUsingMerchantReferenceId;
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
@@ -3121,7 +3121,7 @@ pub async fn list_payment_methods(
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
     query_payload: web::Query<api_models::payments::PaymentMethodsListRequest>,
 ) -> impl Responder {
-    use router::db::domain::merchant_context;
+    use router::types::domain::merchant_context;
 
     let flow = Flow::PaymentMethodsList;
     let payload = query_payload.into_inner();

@@ -28,7 +28,7 @@ use crate::{
             operations::{self, ValidateStatusForOperation},
         },
     },
-    db::errors::StorageErrorExt,
+    errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
     types::{
         api,

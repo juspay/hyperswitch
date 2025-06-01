@@ -6,7 +6,7 @@ use super::Store;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::kafka_store::KafkaStore,
+    // db::kafka_store::KafkaStore,
     types::storage,
 };
 
@@ -96,37 +96,37 @@ impl BlocklistLookupInterface for MockDb {
     }
 }
 
-#[async_trait::async_trait]
-impl BlocklistLookupInterface for KafkaStore {
-    #[instrument(skip_all)]
-    async fn insert_blocklist_lookup_entry(
-        &self,
-        blocklist_lookup_entry: storage::BlocklistLookupNew,
-    ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        self.diesel_store
-            .insert_blocklist_lookup_entry(blocklist_lookup_entry)
-            .await
-    }
+// #[async_trait::async_trait]
+// impl BlocklistLookupInterface for KafkaStore {
+//     #[instrument(skip_all)]
+//     async fn insert_blocklist_lookup_entry(
+//         &self,
+//         blocklist_lookup_entry: storage::BlocklistLookupNew,
+//     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
+//         self.diesel_store
+//             .insert_blocklist_lookup_entry(blocklist_lookup_entry)
+//             .await
+//     }
 
-    #[instrument(skip_all)]
-    async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        fingerprint: &str,
-    ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
-            .await
-    }
+//     #[instrument(skip_all)]
+//     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         fingerprint: &str,
+//     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
+//         self.diesel_store
+//             .find_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
+//             .await
+//     }
 
-    #[instrument(skip_all)]
-    async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        fingerprint: &str,
-    ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        self.diesel_store
-            .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
-            .await
-    }
-}
+//     #[instrument(skip_all)]
+//     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         fingerprint: &str,
+//     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
+//         self.diesel_store
+//             .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
+//             .await
+//     }
+// }

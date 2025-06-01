@@ -49,6 +49,68 @@ pub struct Address {
     pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
 }
 
+impl From<Address> for api_models::payments::AddressDetails {
+    fn from(addr: Address) -> Self {
+        Self {
+            city: addr.city,
+            country: addr.country,
+            line1: addr.line1.map(Encryptable::into_inner),
+            line2: addr.line2.map(Encryptable::into_inner),
+            line3: addr.line3.map(Encryptable::into_inner),
+            zip: addr.zip.map(Encryptable::into_inner),
+            state: addr.state.map(Encryptable::into_inner),
+            first_name: addr.first_name.map(Encryptable::into_inner),
+            last_name: addr.last_name.map(Encryptable::into_inner),
+        }
+    }
+}
+
+impl From<&Address> for hyperswitch_domain_models::address::Address {
+    fn from(address: &Address) -> Self {
+        // If all the fields of address are none, then pass the address as None
+        let address_details = if address.city.is_none()
+            && address.line1.is_none()
+            && address.line2.is_none()
+            && address.line3.is_none()
+            && address.state.is_none()
+            && address.country.is_none()
+            && address.zip.is_none()
+            && address.first_name.is_none()
+            && address.last_name.is_none()
+        {
+            None
+        } else {
+            Some(hyperswitch_domain_models::address::AddressDetails {
+                city: address.city.clone(),
+                country: address.country,
+                line1: address.line1.clone().map(Encryptable::into_inner),
+                line2: address.line2.clone().map(Encryptable::into_inner),
+                line3: address.line3.clone().map(Encryptable::into_inner),
+                state: address.state.clone().map(Encryptable::into_inner),
+                zip: address.zip.clone().map(Encryptable::into_inner),
+                first_name: address.first_name.clone().map(Encryptable::into_inner),
+                last_name: address.last_name.clone().map(Encryptable::into_inner),
+            })
+        };
+
+        // If all the fields of phone are none, then pass the phone as None
+        let phone_details = if address.phone_number.is_none() && address.country_code.is_none() {
+            None
+        } else {
+            Some(hyperswitch_domain_models::address::PhoneDetails {
+                number: address.phone_number.clone().map(Encryptable::into_inner),
+                country_code: address.country_code.clone(),
+            })
+        };
+
+        Self {
+            address: address_details,
+            phone: phone_details,
+            email: address.email.clone().map(pii::Email::from),
+        }
+    }
+}
+
 /// Based on the flow, appropriate address has to be used
 /// In case of Payments, The `PaymentAddress`[PaymentAddress] has to be used
 /// which contains only the `Address`[Address] object and `payment_id` and optional `customer_id`

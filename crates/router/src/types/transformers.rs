@@ -774,51 +774,6 @@ impl ForeignFrom<&api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
-    fn from(address: &domain::Address) -> Self {
-        // If all the fields of address are none, then pass the address as None
-        let address_details = if address.city.is_none()
-            && address.line1.is_none()
-            && address.line2.is_none()
-            && address.line3.is_none()
-            && address.state.is_none()
-            && address.country.is_none()
-            && address.zip.is_none()
-            && address.first_name.is_none()
-            && address.last_name.is_none()
-        {
-            None
-        } else {
-            Some(hyperswitch_domain_models::address::AddressDetails {
-                city: address.city.clone(),
-                country: address.country,
-                line1: address.line1.clone().map(Encryptable::into_inner),
-                line2: address.line2.clone().map(Encryptable::into_inner),
-                line3: address.line3.clone().map(Encryptable::into_inner),
-                state: address.state.clone().map(Encryptable::into_inner),
-                zip: address.zip.clone().map(Encryptable::into_inner),
-                first_name: address.first_name.clone().map(Encryptable::into_inner),
-                last_name: address.last_name.clone().map(Encryptable::into_inner),
-            })
-        };
-
-        // If all the fields of phone are none, then pass the phone as None
-        let phone_details = if address.phone_number.is_none() && address.country_code.is_none() {
-            None
-        } else {
-            Some(hyperswitch_domain_models::address::PhoneDetails {
-                number: address.phone_number.clone().map(Encryptable::into_inner),
-                country_code: address.country_code.clone(),
-            })
-        };
-
-        Self {
-            address: address_details,
-            phone: phone_details,
-            email: address.email.clone().map(pii::Email::from),
-        }
-    }
-}
 
 impl ForeignFrom<domain::Address> for api_types::Address {
     fn foreign_from(address: domain::Address) -> Self {
@@ -1805,21 +1760,6 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
     }
 }
 
-impl From<domain::Address> for payments::AddressDetails {
-    fn from(addr: domain::Address) -> Self {
-        Self {
-            city: addr.city,
-            country: addr.country,
-            line1: addr.line1.map(Encryptable::into_inner),
-            line2: addr.line2.map(Encryptable::into_inner),
-            line3: addr.line3.map(Encryptable::into_inner),
-            zip: addr.zip.map(Encryptable::into_inner),
-            state: addr.state.map(Encryptable::into_inner),
-            first_name: addr.first_name.map(Encryptable::into_inner),
-            last_name: addr.last_name.map(Encryptable::into_inner),
-        }
-    }
-}
 
 impl ForeignFrom<ConnectorSelection> for routing_types::StaticRoutingAlgorithm {
     fn foreign_from(value: ConnectorSelection) -> Self {
@@ -1963,82 +1903,6 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 is_delivered: item.is_delivered,
             }),
         }
-    }
-}
-
-#[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
-        use crate::utils::OptionExt;
-
-        // We only allow retrieving events with merchant_id, business_profile_id
-        // and initial_attempt_id populated.
-        // We cannot retrieve events with only some of these fields populated.
-        let merchant_id = item
-            .merchant_id
-            .get_required_value("merchant_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let profile_id = item
-            .business_profile_id
-            .get_required_value("business_profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let initial_attempt_id = item
-            .initial_attempt_id
-            .get_required_value("initial_attempt_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        Ok(Self {
-            event_id: item.event_id,
-            merchant_id,
-            profile_id,
-            object_id: item.primary_object_id,
-            event_type: item.event_type,
-            event_class: item.event_class,
-            is_delivery_successful: item.is_overall_delivery_successful,
-            initial_attempt_id,
-            created: item.created_at,
-        })
-    }
-}
-
-#[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
-        use crate::utils::OptionExt;
-
-        // We only allow retrieving events with all required fields in `EventListItemResponse`, and
-        // `request` and `response` populated.
-        // We cannot retrieve events with only some of these fields populated.
-        let event_information =
-            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
-
-        let request = item
-            .request
-            .get_required_value("request")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .peek()
-            .parse_struct("OutgoingWebhookRequestContent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse webhook event request information")?;
-        let response = item
-            .response
-            .get_required_value("response")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .peek()
-            .parse_struct("OutgoingWebhookResponseContent")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse webhook event response information")?;
-
-        Ok(Self {
-            event_information,
-            request,
-            response,
-            delivery_attempt: item.delivery_attempt,
-        })
     }
 }
 

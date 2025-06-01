@@ -1,6 +1,6 @@
 pub(crate) mod connection;
 pub mod db;
-pub(crate) mod types;
+pub mod types;
 
 use common_utils::errors as common_errors;
 use diesel_models::errors as storage_errors;

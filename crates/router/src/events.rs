@@ -11,10 +11,7 @@ use storage_impl::{
 };
 use time::PrimitiveDateTime;
 
-use crate::{
-    db::KafkaProducer,
-    services::kafka::{KafkaMessage, KafkaSettings},
-};
+use crate::services::kafka::{KafkaMessage, KafkaProducer, KafkaSettings};
 
 pub mod api_logs;
 pub mod audit_events;

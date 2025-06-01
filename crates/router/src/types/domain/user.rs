@@ -90,83 +90,85 @@ impl TryFrom<pii::Email> for UserName {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct UserEmail(pii::Email);
 
-static BLOCKED_EMAIL: LazyLock<HashSet<String>> = LazyLock::new(|| {
-    let blocked_emails_content = include_str!("../../utils/user/blocker_emails.txt");
-    let blocked_emails: HashSet<String> = blocked_emails_content
-        .lines()
-        .map(|s| s.trim().to_owned())
-        .collect();
-    blocked_emails
-});
+pub use router_db::types::domain::UserEmail;
+// #[derive(Clone, Debug)]
+// pub struct UserEmail(pii::Email);
 
-impl UserEmail {
-    pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
-        use validator::ValidateEmail;
+// static BLOCKED_EMAIL: LazyLock<HashSet<String>> = LazyLock::new(|| {
+//     let blocked_emails_content = include_str!("../../utils/user/blocker_emails.txt");
+//     let blocked_emails: HashSet<String> = blocked_emails_content
+//         .lines()
+//         .map(|s| s.trim().to_owned())
+//         .collect();
+//     blocked_emails
+// });
 
-        let email_string = email.expose().to_lowercase();
-        let email =
-            pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
+// impl UserEmail {
+//     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
+//         use validator::ValidateEmail;
 
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.as_str().split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
+//         let email_string = email.expose().to_lowercase();
+//         let email =
+//             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
-    }
+//         if email_string.validate_email() {
+//             let (_username, domain) = match email_string.as_str().split_once('@') {
+//                 Some((u, d)) => (u, d),
+//                 None => return Err(UserErrors::EmailParsingError.into()),
+//             };
 
-    pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        let email_string = email.expose().map(|inner| inner.to_lowercase());
-        Self::new(email_string)
-    }
+//             if BLOCKED_EMAIL.contains(domain) {
+//                 return Err(UserErrors::InvalidEmailError.into());
+//             }
+//             Ok(Self(email))
+//         } else {
+//             Err(UserErrors::EmailParsingError.into())
+//         }
+//     }
 
-    pub fn into_inner(self) -> pii::Email {
-        self.0
-    }
+//     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
+//         let email_string = email.expose().map(|inner| inner.to_lowercase());
+//         Self::new(email_string)
+//     }
 
-    pub fn get_inner(&self) -> &pii::Email {
-        &self.0
-    }
+//     pub fn into_inner(self) -> pii::Email {
+//         self.0
+//     }
 
-    pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
-        (*self.0).clone()
-    }
+//     pub fn get_inner(&self) -> &pii::Email {
+//         &self.0
+//     }
 
-    pub fn extract_domain(&self) -> UserResult<&str> {
-        let (_username, domain) = self
-            .peek()
-            .split_once('@')
-            .ok_or(UserErrors::InternalServerError)?;
+//     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
+//         (*self.0).clone()
+//     }
 
-        Ok(domain)
-    }
-}
+//     pub fn extract_domain(&self) -> UserResult<&str> {
+//         let (_username, domain) = self
+//             .peek()
+//             .split_once('@')
+//             .ok_or(UserErrors::InternalServerError)?;
 
-impl TryFrom<pii::Email> for UserEmail {
-    type Error = error_stack::Report<UserErrors>;
+//         Ok(domain)
+//     }
+// }
 
-    fn try_from(value: pii::Email) -> Result<Self, Self::Error> {
-        Self::from_pii_email(value)
-    }
-}
+// impl TryFrom<pii::Email> for UserEmail {
+//     type Error = error_stack::Report<UserErrors>;
 
-impl Deref for UserEmail {
-    type Target = Secret<String, pii::EmailStrategy>;
+//     fn try_from(value: pii::Email) -> Result<Self, Self::Error> {
+//         Self::from_pii_email(value)
+//     }
+// }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+// impl Deref for UserEmail {
+//     type Target = Secret<String, pii::EmailStrategy>;
+
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
 #[derive(Clone)]
 pub struct UserPassword(Secret<String>);

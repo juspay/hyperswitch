@@ -38,7 +38,8 @@ pub use router::{
 };
 use router::{
     configs::{secrets_transformers, Settings},
-    db::kafka_store::{KafkaStore, TenantID},
+    // db::kafka_store::TenantID,
+    services::kafka::TenantID,
     routes::{app::AppStateInfo, AppState},
 };
 use router_env::tracing_actix_web::RequestId;

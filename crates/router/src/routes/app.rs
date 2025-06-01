@@ -97,7 +97,8 @@ pub use crate::{
 };
 use crate::{
     configs::{secrets_transformers, Settings},
-    db::kafka_store::{KafkaStore, TenantID},
+    // db::kafka_store::{KafkaStore, TenantID},
+    services::kafka::TenantID,
 };
 
 #[derive(Clone)]
@@ -425,23 +426,25 @@ impl AppState {
     ) -> Box<dyn CommonStorageInterface> {
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
-                EventsHandler::Kafka(kafka_client) => Box::new(
-                    KafkaStore::new(
-                        #[allow(clippy::expect_used)]
-                        crate::services::get_store(
-                            &conf.clone(),
-                            tenant,
-                            Arc::clone(&cache_store),
-                            testable,
-                        )
-                        .await
-                        .expect("Failed to create store"),
-                        kafka_client.clone(),
-                        TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
-                        tenant,
-                    )
-                    .await,
-                ),
+                // EventsHandler::Kafka(kafka_client) => Box::new(
+                //     KafkaStore::new(
+                //         #[allow(clippy::expect_used)]
+                //         crate::services::get_store(
+                //             &conf.clone(),
+                //             tenant,
+                //             Arc::clone(&cache_store),
+                //             testable,
+                //         )
+                //         .await
+                //         .expect("Failed to create store"),
+                //         kafka_client.clone(),
+                //         TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
+                //         tenant,
+                //     )
+                //     .await,
+                // ),
+                EventsHandler::Kafka(kafka_client) => todo!(),
+
                 EventsHandler::Logs(_) => Box::new(
                     #[allow(clippy::expect_used)]
                     crate::services::get_store(conf, tenant, Arc::clone(&cache_store), testable)

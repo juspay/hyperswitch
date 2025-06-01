@@ -20,7 +20,7 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
-pub mod kafka_store;
+// pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -72,7 +72,7 @@ use storage_impl::{
 
 
 
-pub use self::kafka_store::KafkaStore;
+// pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
 
 #[cfg(not(feature = "olap"))]
@@ -325,109 +325,109 @@ dyn_clone::clone_trait_object!(StorageInterface);
 dyn_clone::clone_trait_object!(GlobalStorageInterface);
 dyn_clone::clone_trait_object!(AccountsStorageInterface);
 
-impl RequestIdStore for KafkaStore {
-    fn add_request_id(&mut self, request_id: String) {
-        self.diesel_store.add_request_id(request_id)
-    }
-}
+// impl RequestIdStore for KafkaStore {
+//     fn add_request_id(&mut self, request_id: String) {
+//         self.diesel_store.add_request_id(request_id)
+//     }
+// }
 
-#[async_trait::async_trait]
-impl FraudCheckInterface for KafkaStore {
-    async fn insert_fraud_check_response(
-        &self,
-        new: FraudCheckNew,
-    ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self.diesel_store.insert_fraud_check_response(new).await?;
-        if let Err(er) = self
-            .kafka_producer
-            .log_fraud_check(&frm, None, self.tenant_id.clone())
-            .await
-        {
-            logger::error!(message = "Failed to log analytics event for fraud check", error_message = ?er);
-        }
-        Ok(frm)
-    }
-    async fn update_fraud_check_response_with_attempt_id(
-        &self,
-        this: FraudCheck,
-        fraud_check: FraudCheckUpdate,
-    ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self
-            .diesel_store
-            .update_fraud_check_response_with_attempt_id(this, fraud_check)
-            .await?;
-        if let Err(er) = self
-            .kafka_producer
-            .log_fraud_check(&frm, None, self.tenant_id.clone())
-            .await
-        {
-            logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
-        }
-        Ok(frm)
-    }
-    async fn find_fraud_check_by_payment_id(
-        &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
-    ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id(payment_id, merchant_id)
-            .await?;
-        if let Err(er) = self
-            .kafka_producer
-            .log_fraud_check(&frm, None, self.tenant_id.clone())
-            .await
-        {
-            logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
-        }
-        Ok(frm)
-    }
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
-            .await?;
+// #[async_trait::async_trait]
+// impl FraudCheckInterface for KafkaStore {
+//     async fn insert_fraud_check_response(
+//         &self,
+//         new: FraudCheckNew,
+//     ) -> CustomResult<FraudCheck, StorageError> {
+//         let frm = self.diesel_store.insert_fraud_check_response(new).await?;
+//         if let Err(er) = self
+//             .kafka_producer
+//             .log_fraud_check(&frm, None, self.tenant_id.clone())
+//             .await
+//         {
+//             logger::error!(message = "Failed to log analytics event for fraud check", error_message = ?er);
+//         }
+//         Ok(frm)
+//     }
+//     async fn update_fraud_check_response_with_attempt_id(
+//         &self,
+//         this: FraudCheck,
+//         fraud_check: FraudCheckUpdate,
+//     ) -> CustomResult<FraudCheck, StorageError> {
+//         let frm = self
+//             .diesel_store
+//             .update_fraud_check_response_with_attempt_id(this, fraud_check)
+//             .await?;
+//         if let Err(er) = self
+//             .kafka_producer
+//             .log_fraud_check(&frm, None, self.tenant_id.clone())
+//             .await
+//         {
+//             logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
+//         }
+//         Ok(frm)
+//     }
+//     async fn find_fraud_check_by_payment_id(
+//         &self,
+//         payment_id: id_type::PaymentId,
+//         merchant_id: id_type::MerchantId,
+//     ) -> CustomResult<FraudCheck, StorageError> {
+//         let frm = self
+//             .diesel_store
+//             .find_fraud_check_by_payment_id(payment_id, merchant_id)
+//             .await?;
+//         if let Err(er) = self
+//             .kafka_producer
+//             .log_fraud_check(&frm, None, self.tenant_id.clone())
+//             .await
+//         {
+//             logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
+//         }
+//         Ok(frm)
+//     }
+//     async fn find_fraud_check_by_payment_id_if_present(
+//         &self,
+//         payment_id: id_type::PaymentId,
+//         merchant_id: id_type::MerchantId,
+//     ) -> CustomResult<Option<FraudCheck>, StorageError> {
+//         let frm = self
+//             .diesel_store
+//             .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
+//             .await?;
 
-        if let Some(fraud_check) = frm.clone() {
-            if let Err(er) = self
-                .kafka_producer
-                .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
-                .await
-            {
-                logger::error!(message="Failed to log analytics event for frm {frm:?}", error_message=?er);
-            }
-        }
-        Ok(frm)
-    }
-}
+//         if let Some(fraud_check) = frm.clone() {
+//             if let Err(er) = self
+//                 .kafka_producer
+//                 .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
+//                 .await
+//             {
+//                 logger::error!(message="Failed to log analytics event for frm {frm:?}", error_message=?er);
+//             }
+//         }
+//         Ok(frm)
+//     }
+// }
 
-#[async_trait::async_trait]
-impl OrganizationInterface for KafkaStore {
-    async fn insert_organization(
-        &self,
-        organization: OrganizationNew,
-    ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store.insert_organization(organization).await
-    }
-    async fn find_organization_by_org_id(
-        &self,
-        org_id: &id_type::OrganizationId,
-    ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store.find_organization_by_org_id(org_id).await
-    }
+// #[async_trait::async_trait]
+// impl OrganizationInterface for KafkaStore {
+//     async fn insert_organization(
+//         &self,
+//         organization: OrganizationNew,
+//     ) -> CustomResult<Organization, StorageError> {
+//         self.diesel_store.insert_organization(organization).await
+//     }
+//     async fn find_organization_by_org_id(
+//         &self,
+//         org_id: &id_type::OrganizationId,
+//     ) -> CustomResult<Organization, StorageError> {
+//         self.diesel_store.find_organization_by_org_id(org_id).await
+//     }
 
-    async fn update_organization_by_org_id(
-        &self,
-        org_id: &id_type::OrganizationId,
-        update: OrganizationUpdate,
-    ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store
-            .update_organization_by_org_id(org_id, update)
-            .await
-    }
-}
+//     async fn update_organization_by_org_id(
+//         &self,
+//         org_id: &id_type::OrganizationId,
+//         update: OrganizationUpdate,
+//     ) -> CustomResult<Organization, StorageError> {
+//         self.diesel_store
+//             .update_organization_by_org_id(org_id, update)
+//             .await
+//     }
+// }

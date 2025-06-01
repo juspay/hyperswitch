@@ -23,7 +23,7 @@ use crate::{
             operations::{self, ValidateStatusForOperation},
         },
     },
-    db::{domain::types, errors::RouterResult},
+    errors::RouterResult,
     routes::{app::ReqState, SessionState},
     services,
     types::{

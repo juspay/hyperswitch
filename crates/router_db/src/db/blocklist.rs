@@ -6,7 +6,7 @@ use super::Store;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::kafka_store::KafkaStore,
+    // db::kafka_store::KafkaStore,
     types::storage,
 };
 
@@ -157,58 +157,58 @@ impl BlocklistInterface for MockDb {
     }
 }
 
-#[async_trait::async_trait]
-impl BlocklistInterface for KafkaStore {
-    #[instrument(skip_all)]
-    async fn insert_blocklist_entry(
-        &self,
-        pm_blocklist: storage::BlocklistNew,
-    ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store.insert_blocklist_entry(pm_blocklist).await
-    }
+// #[async_trait::async_trait]
+// impl BlocklistInterface for KafkaStore {
+//     #[instrument(skip_all)]
+//     async fn insert_blocklist_entry(
+//         &self,
+//         pm_blocklist: storage::BlocklistNew,
+//     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
+//         self.diesel_store.insert_blocklist_entry(pm_blocklist).await
+//     }
 
-    #[instrument(skip_all)]
-    async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        fingerprint: &str,
-    ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
-            .await
-    }
+//     #[instrument(skip_all)]
+//     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         fingerprint: &str,
+//     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
+//         self.diesel_store
+//             .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
+//             .await
+//     }
 
-    #[instrument(skip_all)]
-    async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        fingerprint: &str,
-    ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
-            .await
-    }
+//     #[instrument(skip_all)]
+//     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         fingerprint: &str,
+//     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
+//         self.diesel_store
+//             .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
+//             .await
+//     }
 
-    #[instrument(skip_all)]
-    async fn list_blocklist_entries_by_merchant_id_data_kind(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        data_kind: common_enums::BlocklistDataKind,
-        limit: i64,
-        offset: i64,
-    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_merchant_id_data_kind(merchant_id, data_kind, limit, offset)
-            .await
-    }
+//     #[instrument(skip_all)]
+//     async fn list_blocklist_entries_by_merchant_id_data_kind(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//         data_kind: common_enums::BlocklistDataKind,
+//         limit: i64,
+//         offset: i64,
+//     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+//         self.diesel_store
+//             .list_blocklist_entries_by_merchant_id_data_kind(merchant_id, data_kind, limit, offset)
+//             .await
+//     }
 
-    #[instrument(skip_all)]
-    async fn list_blocklist_entries_by_merchant_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_merchant_id(merchant_id)
-            .await
-    }
-}
+//     #[instrument(skip_all)]
+//     async fn list_blocklist_entries_by_merchant_id(
+//         &self,
+//         merchant_id: &common_utils::id_type::MerchantId,
+//     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+//         self.diesel_store
+//             .list_blocklist_entries_by_merchant_id(merchant_id)
+//             .await
+//     }
+// }

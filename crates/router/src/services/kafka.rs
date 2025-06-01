@@ -46,7 +46,9 @@ use crate::{services::kafka::fraud_check::KafkaFraudCheck, types::storage::Dispu
 
 // Using message queue result here to avoid confusion with Kafka result provided by library
 pub type MQResult<T> = CustomResult<T, KafkaError>;
-use crate::db::kafka_store::TenantID;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TenantID(pub String);
 
 pub trait KafkaMessage
 where

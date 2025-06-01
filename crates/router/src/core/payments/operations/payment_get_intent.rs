@@ -11,7 +11,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations},
     },
-    db::errors::StorageErrorExt,
+    errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
     types::{
         api, domain,

@@ -6,11 +6,9 @@ use hyperswitch_domain_models::{router_data::ErrorResponse, types};
 
 use crate::{
     core::payments,
-    db::{
-        domain,
-        errors::{self, RouterResult},
-    },
+    errors::{self, RouterResult},
     routes::SessionState,
+    types::domain,
 };
 
 const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";

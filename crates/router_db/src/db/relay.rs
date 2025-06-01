@@ -8,7 +8,7 @@ use crate::types::domain;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::kafka_store::KafkaStore,
+    // db::kafka_store::KafkaStore,
     services::Store,
 };
 
@@ -180,61 +180,61 @@ impl RelayInterface for MockDb {
     }
 }
 
-#[async_trait::async_trait]
-impl RelayInterface for KafkaStore {
-    async fn insert_relay(
-        &self,
-        key_manager_state: &KeyManagerState,
-        merchant_key_store: &domain::MerchantKeyStore,
-        new: hyperswitch_domain_models::relay::Relay,
-    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .insert_relay(key_manager_state, merchant_key_store, new)
-            .await
-    }
+// #[async_trait::async_trait]
+// impl RelayInterface for KafkaStore {
+//     async fn insert_relay(
+//         &self,
+//         key_manager_state: &KeyManagerState,
+//         merchant_key_store: &domain::MerchantKeyStore,
+//         new: hyperswitch_domain_models::relay::Relay,
+//     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+//         self.diesel_store
+//             .insert_relay(key_manager_state, merchant_key_store, new)
+//             .await
+//     }
 
-    async fn update_relay(
-        &self,
-        key_manager_state: &KeyManagerState,
-        merchant_key_store: &domain::MerchantKeyStore,
-        current_state: hyperswitch_domain_models::relay::Relay,
-        relay_update: hyperswitch_domain_models::relay::RelayUpdate,
-    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .update_relay(
-                key_manager_state,
-                merchant_key_store,
-                current_state,
-                relay_update,
-            )
-            .await
-    }
+//     async fn update_relay(
+//         &self,
+//         key_manager_state: &KeyManagerState,
+//         merchant_key_store: &domain::MerchantKeyStore,
+//         current_state: hyperswitch_domain_models::relay::Relay,
+//         relay_update: hyperswitch_domain_models::relay::RelayUpdate,
+//     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+//         self.diesel_store
+//             .update_relay(
+//                 key_manager_state,
+//                 merchant_key_store,
+//                 current_state,
+//                 relay_update,
+//             )
+//             .await
+//     }
 
-    async fn find_relay_by_id(
-        &self,
-        key_manager_state: &KeyManagerState,
-        merchant_key_store: &domain::MerchantKeyStore,
-        relay_id: &common_utils::id_type::RelayId,
-    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .find_relay_by_id(key_manager_state, merchant_key_store, relay_id)
-            .await
-    }
+//     async fn find_relay_by_id(
+//         &self,
+//         key_manager_state: &KeyManagerState,
+//         merchant_key_store: &domain::MerchantKeyStore,
+//         relay_id: &common_utils::id_type::RelayId,
+//     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+//         self.diesel_store
+//             .find_relay_by_id(key_manager_state, merchant_key_store, relay_id)
+//             .await
+//     }
 
-    async fn find_relay_by_profile_id_connector_reference_id(
-        &self,
-        key_manager_state: &KeyManagerState,
-        merchant_key_store: &domain::MerchantKeyStore,
-        profile_id: &common_utils::id_type::ProfileId,
-        connector_reference_id: &str,
-    ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .find_relay_by_profile_id_connector_reference_id(
-                key_manager_state,
-                merchant_key_store,
-                profile_id,
-                connector_reference_id,
-            )
-            .await
-    }
-}
+//     async fn find_relay_by_profile_id_connector_reference_id(
+//         &self,
+//         key_manager_state: &KeyManagerState,
+//         merchant_key_store: &domain::MerchantKeyStore,
+//         profile_id: &common_utils::id_type::ProfileId,
+//         connector_reference_id: &str,
+//     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
+//         self.diesel_store
+//             .find_relay_by_profile_id_connector_reference_id(
+//                 key_manager_state,
+//                 merchant_key_store,
+//                 profile_id,
+//                 connector_reference_id,
+//             )
+//             .await
+//     }
+// }

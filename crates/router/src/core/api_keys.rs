@@ -9,7 +9,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
-    db::domain,
+    types::domain,
     routes::{metrics, SessionState},
     services::{authentication, ApplicationResponse},
     types::{api, storage, transformers::ForeignInto},

@@ -16,7 +16,7 @@ use crate::{
         errors::RouterResult,
         payments::{helpers::MerchantConnectorAccountType, PaymentData},
     },
-    db::domain,
+    types::domain,
     routes::SessionState,
 };
 

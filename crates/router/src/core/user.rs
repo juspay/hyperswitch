@@ -37,13 +37,13 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
-    db::{
-        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
-        user_role::ListUserRolesByUserIdPayload,
-    },
+    db::user_role::ListUserRolesByUserIdPayload,
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
-    types::{domain, transformers::ForeignInto},
+    types::{
+        domain, domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
+        transformers::ForeignInto,
+    },
     utils::{
         self,
         user::{theme as theme_utils, two_factor_auth as tfa_utils},

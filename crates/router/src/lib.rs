@@ -27,6 +27,10 @@ pub(crate) use self::macros::*;
 use crate::configs::settings;
 pub use crate::core::errors;
 
+pub mod db {
+    pub use router_db::db::*;
+}
+
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
