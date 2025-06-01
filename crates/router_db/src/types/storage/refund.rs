@@ -17,7 +17,7 @@ use diesel_models::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 
-use crate::{connection::PgPooledConn, logger};
+use crate::connection::PgPooledConn;
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
@@ -246,7 +246,7 @@ impl RefundDbExt for Refund {
 
         filter = filter.limit(limit).offset(offset);
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        // logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             filter.get_results_async(conn),
@@ -463,7 +463,7 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status));
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        // logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
             .get_result_async::<i64>(conn)

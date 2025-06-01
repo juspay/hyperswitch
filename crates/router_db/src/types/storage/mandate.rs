@@ -7,7 +7,8 @@ pub use diesel_models::mandate::{
 use diesel_models::{errors, schema::mandate::dsl};
 use error_stack::ResultExt;
 
-use crate::{connection::PgPooledConn, logger};
+// use crate::{connection::PgPooledConn, logger};
+use crate::connection::PgPooledConn;
 
 #[async_trait::async_trait]
 pub trait MandateDbExt: Sized {
@@ -58,7 +59,7 @@ impl MandateDbExt for Mandate {
             filter = filter.offset(offset);
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        // logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
             .get_results_async(conn)

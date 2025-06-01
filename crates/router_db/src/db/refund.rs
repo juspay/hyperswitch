@@ -357,7 +357,7 @@ mod storage {
     use super::RefundInterface;
     use crate::{
         connection,
-        core::errors::{self, utils::RedisErrorExt, CustomResult},
+        core::errors::{self, RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{self as storage_types, enums, kv},

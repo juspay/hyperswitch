@@ -27,8 +27,8 @@ mod network_tokenization {
     pub use hyperswitch_domain_models::network_tokenization::*;
 }
 
-pub use customers::*;
-pub use merchant_account::*;
+pub(crate) use customers::*;
+pub(crate) use merchant_account::*;
 
 mod address;
 mod event;
@@ -36,45 +36,45 @@ mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
-pub use hyperswitch_domain_models::bulk_tokenization::*;
-pub mod payment_methods {
+pub(crate) use hyperswitch_domain_models::bulk_tokenization::*;
+pub(crate) mod payment_methods {
     pub use hyperswitch_domain_models::payment_methods::*;
 }
-pub mod consts {
+pub(crate) mod consts {
     pub use hyperswitch_domain_models::consts::*;
 }
-pub mod payment_method_data {
+pub(crate) mod payment_method_data {
     pub use hyperswitch_domain_models::payment_method_data::*;
 }
 
-pub mod authentication {
+pub(crate) mod authentication {
     pub use hyperswitch_domain_models::router_request_types::authentication::*;
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub mod vault {
+pub(crate) mod vault {
     pub use hyperswitch_domain_models::vault::*;
 }
 
 // pub mod payments;
-// pub mod types;
+pub(crate) mod types;
 // #[cfg(feature = "olap")]
-// pub mod user;
-// pub mod user_key_store;
+pub(crate) mod user;
+pub(crate) mod user_key_store;
 
-// pub use address::*;
-// pub use business_profile::*;
-// pub use callback_mapper::*;
+pub(crate) use address::*;
+pub(crate) use business_profile::*;
+pub(crate) use callback_mapper::*;
 // pub use consts::*;
-// pub use event::*;
-// pub use merchant_connector_account::*;
+pub(crate) use event::*;
+pub(crate) use merchant_connector_account::*;
 // pub use merchant_context::*;
-// pub use merchant_key_store::*;
+pub(crate) use merchant_key_store::*;
 // pub use network_tokenization::*;
-// pub use payment_method_data::*;
-// pub use payment_methods::*;
+pub use payment_method_data::*;
+pub use payment_methods::*;
 // #[cfg(feature = "olap")]
-// pub use user::*;
-// pub use user_key_store::*;
+pub(crate) use user::*;
+pub(crate) use user_key_store::*;
 // #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 // pub use vault::*;

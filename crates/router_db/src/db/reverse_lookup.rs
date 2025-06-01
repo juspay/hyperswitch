@@ -76,7 +76,7 @@ mod storage {
     use super::{ReverseLookupInterface, Store};
     use crate::{
         connection,
-        core::errors::utils::RedisErrorExt,
+        core::errors::RedisErrorExt,
         core::errors::{self, CustomResult},
         types::storage::{
             enums, kv,

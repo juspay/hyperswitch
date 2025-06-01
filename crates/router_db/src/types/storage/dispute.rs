@@ -6,7 +6,8 @@ use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
-use crate::{connection::PgPooledConn, logger};
+// use crate::{connection::PgPooledConn, logger};
+use crate::connection::PgPooledConn;
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
@@ -98,7 +99,7 @@ impl DisputeDbExt for Dispute {
             filter = filter.offset(offset.into());
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        // logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             filter.get_results_async(conn),
@@ -132,7 +133,7 @@ impl DisputeDbExt for Dispute {
             None => query,
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+        // logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn),

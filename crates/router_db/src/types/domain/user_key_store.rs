@@ -8,7 +8,7 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use crate::errors::{CustomResult, ValidationError};
+use crate::core::errors::{CustomResult, ValidationError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct UserKeyStore {

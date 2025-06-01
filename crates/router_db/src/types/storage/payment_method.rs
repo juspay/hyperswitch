@@ -1,11 +1,12 @@
-use api_models::payment_methods;
+use api_models::payment_methods::{self, CardDetailFromLocker};
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
 
-use crate::types::{api, domain};
+use api_models::payouts::Bank as BankPayout;
+use crate::types::domain;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -125,7 +126,7 @@ pub struct PaymentMethodListContext {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PaymentMethodListContext {
     Card {
-        card_details: api::CardDetailFromLocker,
+        card_details: CardDetailFromLocker,
         token_data: Option<PaymentTokenData>,
     },
     Bank {
@@ -133,7 +134,7 @@ pub enum PaymentMethodListContext {
     },
     #[cfg(feature = "payouts")]
     BankTransfer {
-        bank_transfer_details: api::BankPayout,
+        bank_transfer_details: BankPayout,
         token_data: Option<PaymentTokenData>,
     },
     TemporaryToken {

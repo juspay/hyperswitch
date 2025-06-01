@@ -6684,6 +6684,7 @@ dependencies = [
 name = "router_db"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-bb8-diesel",
  "async-trait",
  "bb8",
@@ -6700,7 +6701,9 @@ dependencies = [
  "payment_methods",
  "rdkafka",
  "redis_interface",
+ "router_derive",
  "router_env",
+ "rustc-hash",
  "scheduler",
  "serde",
  "serde_json",
@@ -6708,6 +6711,7 @@ dependencies = [
  "thiserror 1.0.63",
  "time",
  "tokio 1.40.0",
+ "uuid",
 ]
 
 [[package]]

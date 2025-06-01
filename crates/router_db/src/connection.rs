@@ -3,7 +3,7 @@ use diesel::PgConnection;
 use error_stack::ResultExt;
 use storage_impl::errors as storage_errors;
 
-use crate::errors;
+use crate::core::errors;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 

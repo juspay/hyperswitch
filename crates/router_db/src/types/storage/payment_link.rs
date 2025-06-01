@@ -9,7 +9,7 @@ use error_stack::ResultExt;
 use crate::{
     connection::PgPooledConn,
     core::errors::{self, CustomResult},
-    logger,
+    // logger,
 };
 
 #[async_trait::async_trait]
@@ -52,7 +52,7 @@ impl PaymentLinkDbExt for PaymentLink {
             filter = filter.limit(limit);
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        // logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
             .get_results_async(conn)

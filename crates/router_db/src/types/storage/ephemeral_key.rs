@@ -3,7 +3,7 @@ pub use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 pub use diesel_models::ephemeral_key::{EphemeralKey, EphemeralKeyNew};
 
 #[cfg(feature = "v2")]
-use crate::db::errors;
+use crate::core::errors;
 #[cfg(feature = "v2")]
 use crate::types::transformers::ForeignTryFrom;
 #[cfg(feature = "v2")]

@@ -13,7 +13,7 @@ use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    errors::{CustomResult, ValidationError},
+    core::errors::{CustomResult, ValidationError},
     types::domain::types,
 };
 

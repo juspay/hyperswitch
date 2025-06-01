@@ -1,3 +1,3 @@
 pub use diesel_models::address::{Address, AddressNew, AddressUpdateInternal};
 
-pub use crate::types::domain::AddressUpdate;
+pub(crate) use crate::types::domain::AddressUpdate;

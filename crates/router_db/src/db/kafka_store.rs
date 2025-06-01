@@ -49,8 +49,8 @@ use super::{
     user_key_store::UserKeyStoreInterface,
     user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload, UserRoleInterface},
 };
-#[cfg(feature = "payouts")]
-use crate::services::kafka::payout::KafkaPayout;
+// #[cfg(feature = "payouts")]
+// use crate::services::kafka::payout::KafkaPayout;
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
@@ -85,7 +85,8 @@ use crate::{
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
     },
-    services::{kafka::KafkaProducer, Store},
+    // services::{kafka::KafkaProducer, Store},
+    services::Store,
     types::{domain, storage, AccessToken},
 };
 #[derive(Debug, Clone, Serialize)]
