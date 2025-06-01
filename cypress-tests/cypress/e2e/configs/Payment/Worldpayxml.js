@@ -14,12 +14,22 @@ const successful3DSTestCardDetails = {
   card_number: "4242424242424242",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
         currency: "USD",
-        amount: 5000,
+        amount: 6000,
         customer_acceptance: null,
       },
       Response: {
@@ -32,14 +42,14 @@ export const connectorDetails = {
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
-        amount: 5000,
+        amount: 6000,
         shipping_cost: 50,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
-          amount: 5000,
+          amount: 6000,
           shipping_cost: 50,
         },
       },
@@ -59,14 +69,14 @@ export const connectorDetails = {
           status: "processing",
           shipping_cost: 50,
           amount_received: null,
-          amount: 5000,
+          amount: 6000,
           net_amount: 5050,
         },
       },
     },
     "3DSManualCapture": getCustomExchange({
       Request: {
-        amount: 5000,
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successful3DSTestCardDetails,
@@ -79,7 +89,7 @@ export const connectorDetails = {
     "3DSAutoCapture": getCustomExchange({
       Request: {
         payment_method: "card",
-        amount: 5000,
+        amount: 6000,
         payment_method_data: {
           card: successful3DSTestCardDetails,
         },
@@ -92,7 +102,7 @@ export const connectorDetails = {
       Request: {
         description: "Test description",
         payment_method: "card",
-        amount: 5000,
+        amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -109,7 +119,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: 5000,
+        amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -127,13 +137,13 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        amount_to_capture: 5000,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "processing",
-          amount: 5000,
+          amount: 6000,
           amount_received: null,
         },
       },
@@ -146,7 +156,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 5000,
+          amount: 6000,
           amount_received: null,
         },
       },
@@ -253,7 +263,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: 5000,
+        amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -271,7 +281,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        amount: 5000,
+        amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -291,13 +301,13 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 5000,
+          amount: 6000,
         },
       },
     },
     manualPaymentPartialRefund: {
       Request: {
-        amount: 5000,
+        amount: 6000,
       },
       Response: {
         status: 400,
@@ -313,7 +323,7 @@ export const connectorDetails = {
     },
     manualPaymentRefund: {
       Request: {
-        amount: 5000,
+        amount: 6000,
       },
       Response: {
         status: 400,
@@ -340,7 +350,7 @@ export const connectorDetails = {
     }),
     Refund: {
       Request: {
-        amount: 5000,
+        amount: 6000,
       },
       Response: {
         status: 400,
@@ -366,6 +376,64 @@ export const connectorDetails = {
             message:
               "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
             code: "IR_14",
+          },
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
+          },
+        }
+      }
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MITManualCapture: {
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
           },
         },
       },
