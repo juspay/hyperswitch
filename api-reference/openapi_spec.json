@@ -10094,6 +10094,7 @@
           "bambora",
           "bamboraapac",
           "bankofamerica",
+          "barclaycard",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -10173,6 +10174,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayxml",
           "signifyd",
           "plaid",
           "riskified",
@@ -12066,8 +12068,7 @@
             "description": "The identifier for payment_attempt"
           },
           "amount": {
-            "type": "string",
-            "description": "The dispute amount"
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -12265,6 +12266,19 @@
           }
         }
       },
+      "DynamicRoutingAlgorithm": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EliminationRoutingConfig"
+          },
+          {
+            "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+          },
+          {
+            "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+          }
+        ]
+      },
       "DynamicRoutingConfigParams": {
         "type": "string",
         "enum": [
@@ -12339,6 +12353,51 @@
             }
           }
         ]
+      },
+      "EliminationAnalyserConfig": {
+        "type": "object",
+        "properties": {
+          "bucket_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "bucket_leak_interval_in_secs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "EliminationRoutingConfig": {
+        "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "elimination_analyser_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EliminationAnalyserConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineEliminationData"
+          }
+        },
+        "additionalProperties": false
       },
       "EnabledPaymentMethod": {
         "type": "object",
@@ -14778,7 +14837,7 @@
           "payout_routing_algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -14964,7 +15023,8 @@
           "primary_business_details",
           "organization_id",
           "is_recon_enabled",
-          "recon_status"
+          "recon_status",
+          "merchant_account_type"
         ],
         "properties": {
           "merchant_id": {
@@ -15024,7 +15084,7 @@
           "payout_routing_algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -15070,7 +15130,7 @@
           "frm_routing_algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -15110,8 +15170,19 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
           }
         }
+      },
+      "MerchantAccountType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "platform",
+          "connected"
+        ]
       },
       "MerchantAccountUpdate": {
         "type": "object",
@@ -15157,7 +15228,7 @@
           "payout_routing_algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -16098,7 +16169,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/RoutingAlgorithmWrapper"
           },
           "created_at": {
             "type": "integer",
@@ -22776,7 +22847,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -23722,7 +23793,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -23945,7 +24016,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -24525,7 +24596,7 @@
           "payout_routing_algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -24805,7 +24876,7 @@
           "payout_routing_algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -24993,6 +25064,26 @@
           },
           "rules": {
             "$ref": "#/components/schemas/RuleConnectorSelection"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "ProgramThreeDsDecisionRule": {
+        "type": "object",
+        "required": [
+          "defaultSelection",
+          "rules",
+          "metadata"
+        ],
+        "properties": {
+          "defaultSelection": {
+            "$ref": "#/components/schemas/ThreeDSDecisionRule"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/RuleThreeDsDecisionRule"
           },
           "metadata": {
             "type": "object",
@@ -26128,6 +26219,7 @@
           "archipel",
           "authorizedotnet",
           "bankofamerica",
+          "barclaycard",
           "billwerk",
           "bitpay",
           "bambora",
@@ -26203,97 +26295,12 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayxml",
           "xendit",
           "zen",
           "plaid",
           "zsl"
         ]
-      },
-      "RoutingAlgorithm": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "single"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/RoutableConnectorChoice"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "priority"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/RoutableConnectorChoice"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "advanced"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/ProgramConnectorSelection"
-              }
-            }
-          }
-        ],
-        "description": "Routing Algorithm kind",
-        "discriminator": {
-          "propertyName": "type"
-        }
       },
       "RoutingAlgorithmKind": {
         "type": "string",
@@ -26302,7 +26309,18 @@
           "priority",
           "volume_split",
           "advanced",
-          "dynamic"
+          "dynamic",
+          "three_ds_decision_rule"
+        ]
+      },
+      "RoutingAlgorithmWrapper": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicRoutingAlgorithm"
+          }
         ]
       },
       "RoutingConfigRequest": {
@@ -26319,13 +26337,21 @@
           "algorithm": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
           },
           "profile_id": {
             "type": "string",
+            "nullable": true
+          },
+          "transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26428,6 +26454,19 @@
           }
         }
       },
+      "RoutingVolumeSplitResponse": {
+        "type": "object",
+        "required": [
+          "split"
+        ],
+        "properties": {
+          "split": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "RuleConnectorSelection": {
         "type": "object",
         "description": "Represents a rule\n\n```text\nrule_name: [stripe, adyen, checkout]\n{\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n\npayment.method.cardtype = credit\n}\n}\n```",
@@ -26442,6 +26481,28 @@
           },
           "connectorSelection": {
             "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            }
+          }
+        }
+      },
+      "RuleThreeDsDecisionRule": {
+        "type": "object",
+        "required": [
+          "name",
+          "connectorSelection",
+          "statements"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectorSelection": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
           },
           "statements": {
             "type": "array",
@@ -27287,6 +27348,109 @@
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
       },
+      "StaticRoutingAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "advanced"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramConnectorSelection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_decision_rule"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramThreeDsDecisionRule"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "StraightThroughAlgorithm": {
         "oneOf": [
           {
@@ -27356,6 +27520,10 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StringMinorUnit": {
+        "type": "string",
+        "description": "Connector specific types to send"
       },
       "StripeChargeResponseData": {
         "type": "object",
@@ -27460,7 +27628,8 @@
           "decision_engine_configs": {
             "$ref": "#/components/schemas/DecisionEngineSuccessRateData"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "SuccessBasedRoutingConfigBody": {
         "type": "object",
@@ -27492,6 +27661,11 @@
           },
           "specificity_level": {
             "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
+          },
+          "exploration_percent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
         }
       },
@@ -27671,6 +27845,30 @@
         "properties": {
           "secrets": {
             "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
+          }
+        }
+      },
+      "ThreeDSDecision": {
+        "type": "string",
+        "description": "Enum representing the possible outcomes of the 3DS Decision Rule Engine.",
+        "enum": [
+          "no_three_ds",
+          "challenge_requested",
+          "challenge_preferred",
+          "three_ds_exemption_requested_tra",
+          "three_ds_exemption_requested_low_value",
+          "issuer_three_ds_exemption_requested"
+        ]
+      },
+      "ThreeDSDecisionRule": {
+        "type": "object",
+        "description": "Struct representing the output configuration for the 3DS Decision Rule Engine.",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
           }
         }
       },
@@ -28024,7 +28222,8 @@
         "type": "string",
         "enum": [
           "payment",
-          "payout"
+          "payout",
+          "three_ds_authentication"
         ]
       },
       "TriggeredBy": {

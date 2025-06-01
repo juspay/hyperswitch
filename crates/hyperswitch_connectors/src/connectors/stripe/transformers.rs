@@ -3720,7 +3720,7 @@ pub struct WebhookPaymentMethodDetails {
 pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
-    pub amount: Option<i32>,
+    pub amount: Option<MinorUnit>,
     #[serde(default, deserialize_with = "convert_uppercase")]
     pub currency: enums::Currency,
     pub payment_intent: Option<String>,

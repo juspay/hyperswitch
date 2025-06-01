@@ -188,7 +188,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
-barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/pts/v2/"
+barclaycard.base_url = "https://api.smartpayfuse-test.barclaycard/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
@@ -1042,7 +1042,7 @@ delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id

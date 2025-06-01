@@ -14,19 +14,19 @@ payouts = []
 v2 = []
 
 [dependencies]
-diesel = { version = "2.2.3", features = ["postgres", "128-column-tables"] }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
+diesel = { version = "2.2.10", features = ["postgres", "128-column-tables"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
-thiserror = "1.0.58"
-utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
+thiserror = "1.0.69"
+utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
 
 # First party crates
 router_derive = { version = "0.1.0", path = "../router_derive" }
 masking = { version = "0.1.0", path = "../masking" }
 
 [dev-dependencies]
-serde_json = "1.0.115"
+serde_json = "1.0.140"
 
 [lints]
 workspace = true

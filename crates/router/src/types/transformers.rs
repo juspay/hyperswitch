@@ -219,7 +219,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bamboraapac => Self::Bamboraapac,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
-            // api_enums::Connector::Barclaycard => Self::Barclaycard,
+            api_enums::Connector::Barclaycard => Self::Barclaycard,
             api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
@@ -340,7 +340,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
-            // api_enums::Connector::Worldpayxml => Self::Worldpayxml,
+            api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,
             api_enums::Connector::Zen => Self::Zen,
             api_enums::Connector::Zsl => Self::Zsl,
@@ -1821,7 +1821,7 @@ impl From<domain::Address> for payments::AddressDetails {
     }
 }
 
-impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
+impl ForeignFrom<ConnectorSelection> for routing_types::StaticRoutingAlgorithm {
     fn foreign_from(value: ConnectorSelection) -> Self {
         match value {
             ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
