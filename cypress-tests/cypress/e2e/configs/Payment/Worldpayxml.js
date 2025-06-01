@@ -224,8 +224,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "Setup Mandate flow for Worldpayxml is not implemented",
+            message: "Setup Mandate flow for Worldpayxml is not implemented",
             code: "IR_00",
           },
         },
