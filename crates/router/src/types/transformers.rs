@@ -619,7 +619,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
             payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
             payments::PaymentMethodData::OpenBanking(..) => Ok(Self::OpenBanking),
             payments::PaymentMethodData::MobilePayment(..) => Ok(Self::MobilePayment),
-            payments::PaymentMethodData::ExternalProxyCardData(..) => Ok(Self::ExternalProxyCardData)
+            payments::PaymentMethodData::ExternalProxyCardData(..) => Ok(Self::ExternalProxyCardData),
             payments::PaymentMethodData::MandatePayment => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
