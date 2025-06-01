@@ -1,6 +1,6 @@
 use super::{MockDb, Store};
 use crate::{
-    errors::{self, CustomResult},
+    core::errors::{self, CustomResult},
     types::storage::{
         enums,
         reverse_lookup::{ReverseLookup, ReverseLookupNew},
@@ -77,7 +77,7 @@ mod storage {
     use crate::{
         connection,
         core::errors::utils::RedisErrorExt,
-        errors::{self, CustomResult},
+        core::errors::{self, CustomResult},
         types::storage::{
             enums, kv,
             reverse_lookup::{ReverseLookup, ReverseLookupNew},

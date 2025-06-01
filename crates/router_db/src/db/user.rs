@@ -3,7 +3,8 @@ use error_stack::report;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::{domain, MockDb};
+use crate::types::domain;
+use crate::db::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},

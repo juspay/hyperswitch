@@ -6684,13 +6684,17 @@ dependencies = [
 name = "router_db"
 version = "0.1.0"
 dependencies = [
+ "async-bb8-diesel",
  "async-trait",
+ "bb8",
  "common_enums",
  "common_utils",
+ "diesel",
  "diesel_models",
  "dyn-clone",
  "error-stack",
  "events",
+ "futures 0.3.30",
  "hyperswitch_domain_models",
  "masking",
  "payment_methods",
@@ -6703,6 +6707,7 @@ dependencies = [
  "storage_impl",
  "thiserror 1.0.63",
  "time",
+ "tokio 1.40.0",
 ]
 
 [[package]]

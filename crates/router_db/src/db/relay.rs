@@ -4,7 +4,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 use storage_impl::MockDb;
 
-use super::domain;
+use crate::types::domain;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
