@@ -6696,80 +6696,93 @@ pub async fn decide_connector(
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
     // with the connector have to be made using the same connector account.
-    if let Some((ref connector_name, merchant_connector_id)) = routing_data
+
+    let predetermined_info_cloned = routing_data
         .routed_through
-        .clone()
+        .as_ref()
         .zip(routing_data.merchant_connector_id.as_ref())
-    {
-        // Connector was already decided previously, use the same connector
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            connector_name,
-            api::GetToken::Connector,
-            Some(merchant_connector_id.clone()),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in 'routed_through'")?;
+        .map(|(cn_ref, mci_ref)| (cn_ref.clone(), mci_ref.clone()));
 
-        routing_data.routed_through = Some(connector_name.clone());
-        return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
-    }
-
-    if let Some(routable_connector_choice) = &routing_data.pre_routing_connector_choice {
-        let routable_connector_list = match routable_connector_choice {
-            storage::PreRoutingConnectorChoice::Single(routable_connector) => {
-                vec![routable_connector.clone()]
-            }
-            storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
-                routable_connector_list.clone()
-            }
-        };
-
-        let mut pre_routing_connector_data_list = vec![];
-
-        let first_routable_connector = routable_connector_list
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
-
-        routing_data.routed_through = Some(first_routable_connector.connector.to_string());
-
-        routing_data
-            .merchant_connector_id
-            .clone_from(&first_routable_connector.merchant_connector_id);
-
-        for connector_choice in routable_connector_list.clone() {
-            let connector_data = api::ConnectorData::get_connector_by_name(
+    match (
+        predetermined_info_cloned,
+        routing_data.pre_routing_connector_choice.as_ref(),
+    ) {
+        // Condition 1: Connector was already decided previously
+        (Some((owned_connector_name, owned_merchant_connector_id)), _) => {
+            api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                &connector_choice.connector.to_string(),
+                &owned_connector_name, 
                 api::GetToken::Connector,
-                connector_choice.merchant_connector_id.clone(),
+                Some(owned_merchant_connector_id.clone()), 
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-
-            pre_routing_connector_data_list.push(connector_data);
+            .attach_printable("Invalid connector name received in 'routed_through'")
+            .map(|connector_data| {
+                routing_data.routed_through = Some(owned_connector_name);
+                ConnectorCallType::PreDetermined(connector_data.into())
+            })
         }
+        // Condition 2: Pre-routing connector choice
+        (None, Some(routable_connector_choice)) => {
+            let routable_connector_list = match routable_connector_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    vec![routable_connector.clone()]
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.clone()
+                }
+            };
 
-        let first_pre_routing_connector_data_list = pre_routing_connector_data_list
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+            routable_connector_list
+                .first()
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                        .attach_printable("No first routable connector in pre_routing_connector_choice")
+                })
+                .and_then(|first_routable_connector| {
+                    routing_data.routed_through = Some(first_routable_connector.connector.to_string());
+                    routing_data
+                        .merchant_connector_id
+                        .clone_from(&first_routable_connector.merchant_connector_id);
 
-        // helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+                    let pre_routing_connector_data_list_result: RouterResult<Vec<api::ConnectorData>> = routable_connector_list
+                        .iter()
+                        .map(|connector_choice| {
+                            api::ConnectorData::get_connector_by_name(
+                                &state.conf.connectors,
+                                &connector_choice.connector.to_string(),
+                                api::GetToken::Connector,
+                                connector_choice.merchant_connector_id.clone(),
+                            )
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name received while processing pre_routing_connector_choice")
+                        })
+                        .collect::<Result<Vec<_>, _>>(); // Collects into RouterResult<Vec<ConnectorData>>
 
-        return Ok(ConnectorCallType::PreDetermined(
-            first_pre_routing_connector_data_list.clone().into(),
-        ));
+                    pre_routing_connector_data_list_result
+                        .and_then(|list| {
+                            list.first()
+                                .cloned()
+                                .ok_or_else(|| {
+                                    report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                                        .attach_printable("Empty pre_routing_connector_data_list after mapping")
+                                })
+                                .map(|first_data| ConnectorCallType::PreDetermined(first_data.into()))
+                        })
+                })
+        }
+        (None, None) => {
+            route_connector_v2_for_payments(
+                &state,
+                merchant_context,
+                business_profile,
+                payment_dsl_input,
+                routing_data, 
+                mandate_type,
+            )
+            .await
+        }
     }
-
-    route_connector_v2_for_payments(
-        &state,
-        merchant_context,
-        business_profile,
-        payment_dsl_input,
-        routing_data,
-        mandate_type,
-    )
-    .await
 }
 
 #[allow(clippy::too_many_arguments)]

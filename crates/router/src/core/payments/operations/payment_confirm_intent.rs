@@ -338,7 +338,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        crate::core::payments::connector_selection(
+        payments::connector_selection(
             state,
             merchant_context,
             business_profile,
