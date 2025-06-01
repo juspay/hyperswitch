@@ -197,15 +197,23 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
+    Void: getCustomExchange({
       Response: {
         status: 200,
         body: {
           status: "cancelled",
         },
       },
-    },
-    RefundGreaterAmount: {
+      ResponseCustom: {
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot cancel this payment because it has status processing",
+          code: "IR_16",
+        },
+      },
+    }),
+    RefundGreaterAmount: getCustomExchange({
       Response: {
         status: 400,
         body: {
@@ -217,7 +225,16 @@ export const connectorDetails = {
           },
         },
       },
-    },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+          code: "IR_14",
+        },
+      }
+    }),
     ZeroAuthMandate: {
       Response: {
         status: 501,
