@@ -305,14 +305,17 @@ impl ConnectorData {
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-
         let connector_enum = Self::convert_connector(&connector.to_string())?;
-        let external_vault_connector_name = api_enums::VaultConnectors::from_str(&connector.to_string())
-            .change_context(errors::ConnectorError::InvalidConnectorName)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!("unable to parse external vault connector name {:?}", connector)
-            })?;
+        let external_vault_connector_name =
+            api_enums::VaultConnectors::from_str(&connector.to_string())
+                .change_context(errors::ConnectorError::InvalidConnectorName)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "unable to parse external vault connector name {:?}",
+                        connector
+                    )
+                })?;
         let connector_name = api_enums::Connector::from(external_vault_connector_name);
         Ok(Self {
             connector: connector_enum,
