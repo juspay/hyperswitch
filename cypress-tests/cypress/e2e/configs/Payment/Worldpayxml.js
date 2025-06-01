@@ -24,6 +24,16 @@ const singleUseMandateData = {
   },
 };
 
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -70,7 +80,7 @@ export const connectorDetails = {
           shipping_cost: 50,
           amount_received: null,
           amount: 6000,
-          net_amount: 5050,
+          net_amount: 6050,
         },
       },
     },
@@ -337,17 +347,22 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
+    MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: customerAcceptance,
-        setup_future_usage: "off_session",
+        mandate_data: multiUseMandateData,
       },
-    }),
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
     Refund: {
       Request: {
         amount: 6000,
