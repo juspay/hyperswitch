@@ -23,7 +23,6 @@ use crate::{
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
-#[cfg(feature = "km_forward_x_request_id")]
 const X_REQUEST_ID: &str = "X-Request-Id";
 
 /// Get keymanager client constructed from the url and state
@@ -39,21 +38,21 @@ fn get_api_encryption_client(
                 state.client_idle_timeout.unwrap_or_default(),
             ));
 
-        #[cfg(feature = "keymanager_mtls")]
-        {
-            let cert = state.cert.clone();
-            let ca = state.ca.clone();
+        client = client.use_rustls_tls().https_only(true);
+
+        if state.mtls_enabled {
+            let cert = state.cert.clone().ok_or(error_stack::Report::new(
+                errors::KeyManagerClientError::CertificateNotFound,
+            ))?;
+            let ca = state.ca.clone().ok_or(error_stack::Report::new(
+                errors::KeyManagerClientError::CertificateNotFound,
+            ))?;
 
             let identity = reqwest::Identity::from_pem(cert.peek().as_ref())
                 .change_context(errors::KeyManagerClientError::ClientConstructionFailed)?;
             let ca_cert = reqwest::Certificate::from_pem(ca.peek().as_ref())
                 .change_context(errors::KeyManagerClientError::ClientConstructionFailed)?;
-
-            client = client
-                .use_rustls_tls()
-                .identity(identity)
-                .add_root_certificate(ca_cert)
-                .https_only(true);
+            client = client.identity(identity).add_root_certificate(ca_cert);
         }
 
         client
@@ -113,7 +112,7 @@ where
         HeaderValue::from_str("application/json")
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
-    #[cfg(feature = "km_forward_x_request_id")]
+
     if let Some(request_id) = state.request_id {
         header.push((
             HeaderName::from_str(X_REQUEST_ID)

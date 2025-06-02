@@ -15,8 +15,6 @@ pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
-#[cfg(feature = "keymanager")]
-pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
 pub mod new_type;
@@ -34,6 +32,9 @@ pub mod validation;
 pub mod hashing;
 #[cfg(feature = "metrics")]
 pub mod metrics;
+
+#[cfg(feature = "keymanager")]
+pub mod keymanager;
 
 pub use base64_serializer::Base64Serializer;
 
