@@ -529,8 +529,12 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             }
         };
 
-        payment_data.update_payment_method_data(payment_method_data);
-        payment_data.update_payment_method(payment_method);
+        if let Some(pm_data) = payment_method_data {
+            payment_data.update_payment_method_data(pm_data);
+        }
+        if let Some(pm) = payment_method {
+            payment_data.update_payment_data(pm.get_id().clone(), pm);
+        }
 
         Ok(())
     }
