@@ -250,77 +250,93 @@ pub async fn generate_vault_session_details(
         None,
         merchant_context.get_merchant_key_store(),
         profile.get_id(),
-        "",
+        "", // This is a placeholder for the connector name, which is not used in this context
         external_vault_source,
     )
     .await?;
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from the merchant_connector_account
-    let connector = api_enums::VaultConnectors::from_str(&connector_name);
+        .unwrap_or_default(); // should not panic since we should always have a connector name
+    let connector = api_enums::VaultConnectors::from_str(&connector_name)
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    match connector {
-        Ok(api_enums::VaultConnectors::Vgs) => match connector_auth_type {
-            router_types::ConnectorAuthType::SignatureKey { api_secret, .. } => {
-                let sdk_env = match state.conf.env {
-                    Env::Sandbox | Env::Development => "sandbox",
-                    Env::Production => "live",
-                }
-                .to_string();
-                Ok(Some(api::VaultSessionDetails::Vgs(
-                    api::VgsSessionDetails {
-                        external_vault_id: api_secret,
-                        sdk_env,
-                    },
-                )))
+    match (connector, connector_auth_type) {
+        // create session for vgs vault
+        (
+            api_enums::VaultConnectors::Vgs,
+            router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
+        ) => {
+            let sdk_env = match state.conf.env {
+                Env::Sandbox | Env::Development => "sandbox",
+                Env::Production => "live",
             }
-            _ => Ok(None),
-        },
-        Ok(api_enums::VaultConnectors::HyperswitchVault) => match connector_auth_type {
+            .to_string();
+            Ok(Some(api::VaultSessionDetails::Vgs(
+                api::VgsSessionDetails {
+                    external_vault_id: api_secret,
+                    sdk_env,
+                },
+            )))
+        }
+        // create session for hyperswitch vault
+        (
+            api_enums::VaultConnectors::HyperswitchVault,
             router_types::ConnectorAuthType::SignatureKey {
                 key1, api_secret, ..
-            } => {
-                let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &connector_name,
-                    api::GetToken::Connector,
-                    merchant_connector_account.get_mca_id(),
-                )?;
+            },
+        ) => {
+            let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+                merchant_connector_account.get_mca_id(),
+            )?;
 
-                let connector_response = call_external_vault_create(
-                    state,
-                    merchant_context,
-                    &connector_data,
-                    &merchant_connector_account,
-                )
-                .await?;
+            let connector_response = call_external_vault_create(
+                state,
+                merchant_context,
+                &connector_data,
+                &merchant_connector_account,
+            )
+            .await?;
 
-                match connector_response.response {
-                    Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
-                        session_id,
+            match connector_response.response {
+                Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
+                    session_id,
+                    client_secret,
+                }) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
+                    api::HyperswitchVaultSessionDetails {
+                        payment_method_session_id: session_id,
                         client_secret,
-                    }) => {
-                        let vault_session_details = api::VaultSessionDetails::HyperswitchVault(
-                            api::HyperswitchVaultSessionDetails {
-                                payment_method_session_id: session_id,
-                                client_secret,
-                                publishable_key: key1,
-                                profile_id: api_secret,
-                            },
-                        );
-                        Ok(Some(vault_session_details))
-                    }
-                    _ => Ok(None),
+                        publishable_key: key1,
+                        profile_id: api_secret,
+                    },
+                ))),
+                Ok(res) => {
+                    router_env::logger::warn!("Unexpected response from external vault create API");
+                    Ok(None)
+                }
+                Err(_) => {
+                    router_env::logger::error!(
+                        "Failed to create external vault session for connector: {}",
+                        connector_name
+                    );
+                    Err(errors::ApiErrorResponse::InternalServerError.into())
                 }
             }
-            _ => Ok(None),
-        },
-        _ => Ok(None),
+        }
+        _ => {
+            router_env::logger::warn!(
+                "External vault session creation is not supported for connector: {}",
+                connector_name
+            );
+            Ok(None)
+        }
     }
 }
 
