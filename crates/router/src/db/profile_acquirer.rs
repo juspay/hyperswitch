@@ -42,9 +42,16 @@ impl ProfileAcquirerInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<Vec<ProfileAcquirer>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        ProfileAcquirer::list_by_profile_id(&conn, profile_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        match ProfileAcquirer::list_by_profile_id(&conn, profile_id).await {
+            Ok(list) => Ok(list),
+            Err(err_report) => {
+                let storage_err = errors::StorageError::from(err_report);
+                match storage_err {
+                    errors::StorageError::ValueNotFound(_) => Ok(Vec::new()),
+                    _ => Err(report!(storage_err)),
+                }
+            }
+        }
     }
 }
 

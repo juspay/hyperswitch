@@ -596,6 +596,8 @@ pub enum Flow {
     Proxy,
     /// Profile Acquirer Create Flow
     ProfileAcquirerCreate,
+    /// Profile Acquirer List Flow
+    ProfileAcquirerList,
 }
 
 /// Trait for providing generic behaviour to flow metric

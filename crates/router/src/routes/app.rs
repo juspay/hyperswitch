@@ -2628,8 +2628,11 @@ impl MerchantAcquirer {
         web::scope("/profile_acquirer")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("create")
-                    .route(web::post().to(profile_acquirer::create_profile_acquirer)),
+                web::resource("").route(web::post().to(profile_acquirer::create_profile_acquirer)),
+            )
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(profile_acquirer::list_profile_acquirers)),
             )
     }
 }

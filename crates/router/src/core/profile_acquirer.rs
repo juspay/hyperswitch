@@ -1,14 +1,12 @@
 use api_models::profile_acquirer;
 use common_utils::{date_time, types::keymanager::KeyManagerState};
 use diesel_models::profile_acquirer::{ProfileAcquirer, ProfileAcquirerNew};
+use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
     services::api,
-    types::{
-        domain,
-        transformers::{ForeignFrom, ForeignInto},
-    },
+    types::{domain, transformers::ForeignFrom},
     SessionState,
 };
 
@@ -52,19 +50,13 @@ pub async fn create_profile_acquirer(
             id: request.profile_id.get_string_repr().to_owned(),
         })?;
 
-    let existing_profile_acquirers = match db
+    let existing_profile_acquirers = db
         .list_profile_acquirer_based_on_profile_id(business_profile.get_id())
         .await
-    {
-        Ok(list) => list,
-        Err(err_report) => match err_report.current_context() {
-            errors::StorageError::ValueNotFound(_) => Vec::new(),
-            _ => {
-                let api_err = errors::ApiErrorResponse::InternalServerError;
-                Err(err_report.change_context(api_err))?
-            }
-        },
-    };
+        .inspect_err(|error| {
+            router_env::logger::error!("Failed to list profile acquirers: {:?}", error);
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     (!existing_profile_acquirers.is_empty())
         .then(|| {
@@ -102,7 +94,7 @@ pub async fn create_profile_acquirer(
         })?;
 
     Ok(api::ApplicationResponse::Json(
-        created_acquirer.foreign_into(),
+        profile_acquirer::ProfileAcquirerResponse::foreign_from(created_acquirer),
     ))
 }
 
@@ -131,4 +123,38 @@ fn has_duplicate_profile_acquirer(
         }
     }
     Ok(())
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn list_merchant_acquirers(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResponse<Vec<profile_acquirer::ProfileAcquirerResponse>> {
+    let db = state.store.as_ref();
+    let key_manager_state: KeyManagerState = (&state).into();
+    let merchant_key_store = merchant_context.get_merchant_key_store();
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_manager_state, merchant_key_store, &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let profile_acquirers = db
+        .list_profile_acquirer_based_on_profile_id(business_profile.get_id())
+        .await
+        .inspect_err(|error| {
+            router_env::logger::error!("Failed to list profile acquirers: {:?}", error);
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let response = api::ApplicationResponse::Json(
+        profile_acquirers
+            .into_iter()
+            .map(profile_acquirer::ProfileAcquirerResponse::foreign_from)
+            .collect(),
+    );
+    Ok(response)
 }

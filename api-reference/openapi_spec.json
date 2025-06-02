@@ -5740,6 +5740,39 @@
           }
         ]
       }
+    },
+    "/profile_acquirers/{profile_id}": {
+      "get": {
+        "tags": [
+          "Profile Acquirer"
+        ],
+        "summary": "Profile Acquirer - List",
+        "description": "List all Profile Acquirers for a specific Profile.",
+        "operationId": "List Profile Acquirers",
+        "responses": {
+          "200": {
+            "description": "Profile Acquirers listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileAcquirerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {

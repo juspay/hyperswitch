@@ -205,6 +205,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for profile acquirer account
         routes::profile_acquirer::profile_acquirer_create,
+        routes::profile_acquirer::profile_acquirer_list,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
