@@ -134,8 +134,10 @@ impl
             &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         >,
     ) -> Result<Self, Self::Error> {
-        let return_url = item.router_data.request.get_router_return_url()?;
-        // Iatapay processes transactions through the payment method selected based on the country
+        // let return_url = item.router_data.request.get_router_return_url()?;
+        let return_url = "https://google.com".to_string();
+        let notification_url = "https://google.com".to_string(); // TODO: Remove this hardcoded value and use the actual return_url from the request.
+                                                                 // Iatapay processes transactions through the payment method selected based on the country
         let (country, payer_info, preferred_checkout_method) = match item
             .router_data
             .request
@@ -226,7 +228,7 @@ impl
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
-            notification_url: item.router_data.request.get_webhook_url()?,
+            notification_url,
             preferred_checkout_method,
         };
         Ok(payload)

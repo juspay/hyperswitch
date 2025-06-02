@@ -348,7 +348,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         F: Clone,
     {
         use crate::core::payments::OperationSessionSetters;
-
+        // Since the connector name is provided in the request, we directly construct ConnectorData, bypassing routing logic.
         match &payment_data.merchant_connector_details {
             Some(details) => {
                 let connector_name_str = details.connector_name.to_string();
