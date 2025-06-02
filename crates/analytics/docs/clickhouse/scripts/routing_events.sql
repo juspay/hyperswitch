@@ -1,16 +1,21 @@
 -- Need to discuss with the team about the structure of this table.
 CREATE TABLE routing_events_queue
 (
+    `merchant_id` String,
     `profile_id` String,
     `payment_id` String,
-    `routable_connectors` Array(String),
+    `refund_id` Nullable(String),
+    `dispute_id` Nullable(String),
+    `routable_connectors` String,
+    `payment_connector` Nullable(String),
     `request_id` String,
     `flow` LowCardinality(String),
+    `url` Nullable(String),
     `request` String,
-    `masked_response` Nullable(String),
+    `response` Nullable(String),
     `error` Nullable(String),
     `status_code` Nullable(UInt32),
-    `created_at` DateTime64(3),
+    `created_at` DateTime64(9),
     `method` LowCardinality(String),
     `routing_engine` LowCardinality(String),
 )
@@ -38,59 +43,141 @@ WHERE
     length(_error) > 0;
 
 CREATE TABLE routing_events (
+    `merchant_id` String,
     `profile_id` String,
     `payment_id` String,
-    `routable_connectors` Array(String),
+    `refund_id` Nullable(String),
+    `dispute_id` Nullable(String),
+    `routable_connectors` String,
+    `payment_connector` Nullable(String),
     `request_id` String,
     `flow` LowCardinality(String),
+    `url` Nullable(String),
     `request` String,
     `response` Nullable(String),
-    `masked_response` Nullable(String),
     `error` Nullable(String),
     `status_code` Nullable(UInt32),
-    `created_at` DateTime64(3),
+    `created_at` DateTime64(9),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `method` LowCardinality(String),
+    `routing_engine` LowCardinality(String),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX profileIndex profile_id TYPE bloom_filter GRANULARITY 1
-) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at)
-ORDER BY
-    (
-        created_at,
-        profile_id,
-        flow
-    ) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+) ENGINE = MergeTree 
+PARTITION BY (merchant_id)
+ORDER BY ( merchant_id, payment_id ) 
+SETTINGS index_granularity = 8192;
+
+CREATE TABLE routing_events_audit (
+    `merchant_id` String,
+    `profile_id` String,
+    `payment_id` String,
+    `refund_id` Nullable(String),
+    `dispute_id` Nullable(String),
+    `routable_connectors` String,
+    `payment_connector` Nullable(String),
+    `request_id` String,
+    `flow` LowCardinality(String),
+    `url` Nullable(String),
+    `request` String,
+    `response` Nullable(String),
+    `error` Nullable(String),
+    `status_code` Nullable(UInt32),
+    `created_at` DateTime64(9),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `method` LowCardinality(String),
+    `routing_engine` LowCardinality(String),
+    INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
+    INDEX profileIndex profile_id TYPE bloom_filter GRANULARITY 1
+) ENGINE = MergeTree 
+PARTITION BY (merchant_id)
+ORDER BY ( merchant_id, payment_id ) 
+SETTINGS index_granularity = 8192;
 
 
 CREATE MATERIALIZED VIEW routing_events_mv TO routing_events (
+    `merchant_id` String,
     `profile_id` String,
     `payment_id` String,
-    `routable_connectors` Array(String),
+    `refund_id` Nullable(String),
+    `dispute_id` Nullable(String),
+    `routable_connectors` String,
+    `payment_connector` Nullable(String),
     `request_id` String,
     `flow` LowCardinality(String),
+    `url` Nullable(String),
     `request` String,
     `response` Nullable(String),
-    `masked_response` Nullable(String),
     `error` Nullable(String),
     `status_code` Nullable(UInt32),
-    `created_at` DateTime64(3),
+    `created_at` DateTime64(9),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
-    `method` LowCardinality(String)
+    `method` LowCardinality(String),
+    `routing_engine` LowCardinality(String)
 ) AS
 SELECT
+    merchant_id,
     profile_id,
     payment_id,
+    refund_id,
+    dispute_id,
     routable_connectors,
+    payment_connector,
     request_id,
     flow,
+    url,
     request,
-    masked_response AS response,
-    masked_response,
+    response,
     error,
     status_code,
     created_at,
-    now64() AS inserted_at,
-    method
+    now() AS inserted_at,
+    method,
+    routing_engine
+FROM
+    routing_events_queue
+WHERE
+    length(_error) = 0;
+
+CREATE MATERIALIZED VIEW routing_events_audit_mv TO routing_events_audit (
+    `merchant_id` String,
+    `profile_id` String,
+    `payment_id` String,
+    `refund_id` Nullable(String),
+    `dispute_id` Nullable(String),
+    `routable_connectors` String,
+    `payment_connector` Nullable(String),
+    `request_id` String,
+    `flow` LowCardinality(String),
+    `url` Nullable(String),
+    `request` String,
+    `response` Nullable(String),
+    `error` Nullable(String),
+    `status_code` Nullable(UInt32),
+    `created_at` DateTime64(9),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `method` LowCardinality(String),
+    `routing_engine` LowCardinality(String)
+) AS
+SELECT
+    merchant_id,
+    profile_id,
+    payment_id,
+    refund_id,
+    dispute_id,
+    routable_connectors,
+    payment_connector,
+    request_id,
+    flow,
+    url,
+    request,
+    response,
+    error,
+    status_code,
+    created_at,
+    now() AS inserted_at,
+    method,
+    routing_engine
 FROM
     routing_events_queue
 WHERE

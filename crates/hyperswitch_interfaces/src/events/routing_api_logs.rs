@@ -5,7 +5,7 @@ use common_utils::request::Method;
 use router_env::tracing_actix_web::RequestId;
 use serde::Serialize;
 use serde_json::json;
-use strum::Display;
+use std::fmt;
 use time::OffsetDateTime;
 
 /// RoutingEngine enum
@@ -19,7 +19,7 @@ pub enum RoutingEngine {
 }
 
 /// Method type enum
-#[derive(Debug, Clone, Copy, Serialize, Display)]
+#[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApiMethod {
     /// grpc call
@@ -28,19 +28,30 @@ pub enum ApiMethod {
     Rest(Method),
 }
 
+impl fmt::Display for ApiMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiMethod::Grpc => write!(f, "Grpc"),
+            ApiMethod::Rest(method) => write!(f, "Rest ({})", method.to_string()),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 /// RoutingEvent type
 pub struct RoutingEvent {
     tenant_id: common_utils::id_type::TenantId,
-    routable_connectors: Vec<RoutableConnectorChoice>,
+    routable_connectors: String,
+    payment_connctor: Option<String>,
     flow: String,
     request: String,
-    masked_response: Option<String>,
+    response: Option<String>,
     error: Option<String>,
     url: String,
     method: String,
     payment_id: String,
     profile_id: common_utils::id_type::ProfileId,
+    merchant_id: common_utils::id_type::MerchantId,
     created_at: i128,
     status_code: Option<u16>,
     request_id: String,
@@ -52,13 +63,14 @@ impl RoutingEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         tenant_id: common_utils::id_type::TenantId,
-        routable_connectors: Vec<RoutableConnectorChoice>,
+        routable_connectors: String,
         flow: &str,
         request: serde_json::Value,
         url: String,
         method: ApiMethod,
         payment_id: String,
         profile_id: common_utils::id_type::ProfileId,
+        merchant_id: common_utils::id_type::MerchantId,
         request_id: Option<RequestId>,
         routing_engine: RoutingEngine,
     ) -> Self {
@@ -67,18 +79,20 @@ impl RoutingEvent {
             routable_connectors,
             flow: flow.to_string(),
             request: request.to_string(),
-            masked_response: None,
+            response: None,
             error: None,
             url,
             method: method.to_string(),
             payment_id,
             profile_id,
-            created_at: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            merchant_id,
+            created_at: OffsetDateTime::now_utc().unix_timestamp_nanos(),
             status_code: None,
             request_id: request_id
                 .map(|i| i.as_hyphenated().to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             routing_engine,
+            payment_connctor: None,
         }
     }
 
@@ -86,7 +100,7 @@ impl RoutingEvent {
     pub fn set_response_body<T: Serialize>(&mut self, response: &T) {
         match masking::masked_serialize(response) {
             Ok(masked) => {
-                self.masked_response = Some(masked.to_string());
+                self.response = Some(masked.to_string());
             }
             Err(er) => self.set_error(json!({"error": er.to_string()})),
         }
@@ -114,11 +128,51 @@ impl RoutingEvent {
 
     /// set response status code
     pub fn set_routable_connectors(&mut self, connectors: Vec<RoutableConnectorChoice>) {
+        let connectors = connectors
+            .into_iter()
+            .map(|c| {
+                format!(
+                    "{:?}:{:?}",
+                    c.connector,
+                    c.merchant_connector_id
+                        .map(|id| id.get_string_repr().to_string())
+                        .unwrap_or(String::from(""))
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
         self.routable_connectors = connectors;
+    }
+
+    /// set payment connector
+    pub fn set_payment_connector(&mut self, connector: RoutableConnectorChoice) {
+        self.payment_connctor = Some(format!(
+            "{:?}:{:?}",
+            connector.connector,
+            connector
+                .merchant_connector_id
+                .map(|id| id.get_string_repr().to_string())
+                .unwrap_or(String::from(""))
+        ));
     }
 
     /// Returns the request ID of the event.
     pub fn get_request_id(&self) -> &str {
         &self.request_id
+    }
+
+    /// Returns the merchant ID of the event.
+    pub fn get_merchant_id(&self) -> &str {
+        &self.merchant_id.get_string_repr()
+    }
+
+    /// Returns the payment ID of the event.
+    pub fn get_payment_id(&self) -> &str {
+        &self.payment_id
+    }
+
+    /// Returns the profile ID of the event.
+    pub fn get_profile_id(&self) -> &str {
+        &self.profile_id.get_string_repr()
     }
 }

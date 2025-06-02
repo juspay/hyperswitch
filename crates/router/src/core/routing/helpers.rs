@@ -804,6 +804,7 @@ pub async fn update_gateway_score_helper_with_open_router(
             state,
             routable_connector.clone(),
             profile_id,
+            &payment_attempt.merchant_id,
             &payment_attempt.payment_id,
             payment_attempt.status,
         )
@@ -1092,13 +1093,14 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let mut routing_event = routing_events::RoutingEvent::new(
                 state.tenant.tenant_id.clone(),
-                vec![],
+                "".to_string(),
                 "Intelligent-router UpdateSuccessRateWindow",
                 serialized_request,
                 "SuccessRateCalculator.UpdateSuccessRateWindow".to_string(),
                 routing_events::ApiMethod::Grpc,
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
+                payment_attempt.merchant_id.to_owned(),
                 state.request_id,
                 routing_events::RoutingEngine::IntelligentRouter,
             );
@@ -1109,7 +1111,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     success_based_routing_configs,
                     success_based_routing_config_params,
                     vec![routing_types::RoutableConnectorChoiceWithStatus::new(
-                        routable_connector,
+                        routable_connector.clone(),
                         payment_status_attribute == common_enums::AttemptStatus::Charged,
                     )],
                     state.get_grpc_headers(),
@@ -1139,6 +1141,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             routing_event.set_response_body(&event_response);
             routing_event.set_status_code(200);
+            routing_event.set_payment_connector(routable_connector);
             state.event_handler().log_event(&routing_event);
 
             Ok(())
@@ -1248,13 +1251,14 @@ pub async fn update_window_for_elimination_routing(
 
             let mut routing_event = routing_events::RoutingEvent::new(
                 state.tenant.tenant_id.clone(),
-                vec![],
+                "".to_string(),
                 "Intelligent-router UpdateEliminationBucket",
                 serialized_request,
                 "EliminationAnalyser.UpdateEliminationBucket".to_string(),
                 routing_events::ApiMethod::Grpc,
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
+                payment_attempt.merchant_id.to_owned(),
                 state.request_id,
                 routing_events::RoutingEngine::IntelligentRouter,
             );
@@ -1292,6 +1296,13 @@ pub async fn update_window_for_elimination_routing(
 
             routing_event.set_response_body(&event_response);
             routing_event.set_status_code(200);
+            routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
+                choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                connector: common_enums::RoutableConnectors::from_str(payment_connector.as_str())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+            });
             state.event_handler().log_event(&routing_event);
             Ok(())
         } else {
@@ -1408,13 +1419,14 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 let mut routing_event = routing_events::RoutingEvent::new(
                     state.tenant.tenant_id.clone(),
-                    vec![],
+                    "".to_string(),
                     "Intelligent-router UpdateContract",
                     serialized_request,
                     "ContractScoreCalculator.UpdateContract".to_string(),
                     routing_events::ApiMethod::Grpc,
                     payment_attempt.payment_id.get_string_repr().to_string(),
                     profile_id.to_owned(),
+                    payment_attempt.merchant_id.to_owned(),
                     state.request_id,
                     routing_events::RoutingEngine::IntelligentRouter,
                 );
@@ -1453,6 +1465,15 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     };
 
                 routing_event.set_response_body(&event_response);
+                routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
+                    choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                    connector: common_enums::RoutableConnectors::from_str(
+                        final_label_info.label.as_str(),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to infer routable_connector from connector")?,
+                    merchant_connector_id: Some(final_label_info.mca_id.clone()),
+                });
                 routing_event.set_status_code(200);
                 state.event_handler().log_event(&routing_event);
             }

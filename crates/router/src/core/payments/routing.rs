@@ -1570,6 +1570,7 @@ pub async fn perform_dynamic_routing_with_open_router(
                     state,
                     connector.clone(),
                     profile.get_id(),
+                    &payment_data.merchant_id,
                     &payment_data.payment_id,
                     common_enums::AttemptStatus::AuthenticationPending,
                 )
@@ -1678,6 +1679,7 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
                 state,
                 routable_connectors.clone(),
                 profile.get_id(),
+                &payment_attempt.merchant_id,
                 &payment_attempt.payment_id,
                 dynamic_routing_config_params_interpolator.clone(),
                 algorithm.clone(),
@@ -1700,6 +1702,7 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
                         state,
                         routable_connectors.clone(),
                         profile.get_id(),
+                        &payment_attempt.merchant_id,
                         &payment_attempt.payment_id,
                         dynamic_routing_config_params_interpolator.clone(),
                         algorithm.clone(),
@@ -1722,6 +1725,7 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
                 state,
                 connector_list.clone(),
                 profile.get_id(),
+                &payment_attempt.merchant_id,
                 &payment_attempt.payment_id,
                 dynamic_routing_config_params_interpolator.clone(),
                 algorithm.clone(),
@@ -1779,13 +1783,14 @@ pub async fn perform_decide_gateway_call_with_open_router(
 
     let mut routing_event = RoutingEvent::new(
         state.tenant.tenant_id.clone(),
-        vec![],
+        "".to_string(),
         "open_router_decide_gateway_call",
         serialized_request,
         url.clone(),
         ApiMethod::Rest(services::Method::Post),
         payment_attempt.payment_id.get_string_repr().to_string(),
         profile_id.to_owned(),
+        payment_attempt.merchant_id.to_owned(),
         state.request_id,
         RoutingEngine::DecisionEngine,
     );
@@ -1856,6 +1861,7 @@ pub async fn update_gateway_score_with_open_router(
     state: &SessionState,
     payment_connector: api_routing::RoutableConnectorChoice,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: &common_utils::id_type::PaymentId,
     payment_status: common_enums::AttemptStatus,
 ) -> RoutingResult<()> {
@@ -1888,16 +1894,19 @@ pub async fn update_gateway_score_with_open_router(
 
     let mut routing_event = RoutingEvent::new(
         state.tenant.tenant_id.clone(),
-        vec![payment_connector.clone()],
+        "".to_string(),
         "open_router_update_gateway_score_call",
         serialized_request,
         url.clone(),
         ApiMethod::Rest(services::Method::Post),
         payment_id.get_string_repr().to_string(),
         profile_id.to_owned(),
+        merchant_id.to_owned(),
         state.request_id,
         RoutingEngine::DecisionEngine,
     );
+
+    routing_event.set_payment_connector(payment_connector.clone()); // check this in review
 
     match response {
         Ok(resp) => {
@@ -1949,6 +1958,7 @@ pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: &common_utils::id_type::PaymentId,
     success_based_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
@@ -2015,13 +2025,14 @@ pub async fn perform_success_based_routing(
 
         let mut routing_event = RoutingEvent::new(
             state.tenant.tenant_id.clone(),
-            vec![],
+            "".to_string(),
             "Intelligent-router FetchSuccessRate",
             serialized_request,
             "SuccessRateCalculator.FetchSuccessRate".to_string(),
             ApiMethod::Grpc,
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
+            merchant_id.to_owned(),
             state.request_id,
             RoutingEngine::IntelligentRouter,
         );
@@ -2105,6 +2116,7 @@ pub async fn perform_elimination_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: &common_utils::id_type::PaymentId,
     elimination_routing_configs_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     elimination_algo_ref: api_routing::EliminationRoutingAlgorithm,
@@ -2173,13 +2185,14 @@ pub async fn perform_elimination_routing(
 
         let mut routing_event = RoutingEvent::new(
             state.tenant.tenant_id.clone(),
-            vec![],
+            "".to_string(),
             "Intelligent-router GetEliminationStatus",
             serialized_request,
             "EliminationAnalyser.GetEliminationStatus".to_string(),
             ApiMethod::Grpc,
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
+            merchant_id.to_owned(),
             state.request_id,
             RoutingEngine::IntelligentRouter,
         );
@@ -2300,6 +2313,7 @@ pub async fn perform_contract_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: &common_utils::id_type::PaymentId,
     _dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     contract_based_algo_ref: api_routing::ContractRoutingAlgorithm,
@@ -2377,13 +2391,14 @@ pub async fn perform_contract_based_routing(
 
         let mut routing_event = RoutingEvent::new(
             state.tenant.tenant_id.clone(),
-            vec![],
+            "".to_string(),
             "Intelligent-router CalContractScore",
             serialized_request,
             "ContractScoreCalculator.FetchContractScore".to_string(),
             ApiMethod::Grpc,
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
+            merchant_id.to_owned(),
             state.request_id,
             RoutingEngine::IntelligentRouter,
         );

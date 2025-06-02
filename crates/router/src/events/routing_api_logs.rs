@@ -9,6 +9,11 @@ impl KafkaMessage for RoutingEvent {
     }
 
     fn key(&self) -> String {
-        self.get_request_id().to_string()
+        format!(
+            "{}-{}-{}",
+            self.get_merchant_id(),
+            self.get_profile_id(),
+            self.get_payment_id()
+        )
     }
 }
