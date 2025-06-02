@@ -2018,9 +2018,15 @@ pub async fn decode_and_decrypt_locker_data(
     key_store: &domain::MerchantKeyStore,
     enc_card_data: String,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
+    // Check if data is already plain JSON (not encrypted)
+    if serde_json::from_str::<serde_json::Value>(&enc_card_data).is_ok() {
+        logger::debug!("Data appears to be plain JSON, returning as-is");
+        return Ok(Secret::new(enc_card_data));
+    }
+
     // Fetch key
+
     let key = key_store.key.get_inner().peek();
-    // Decode
     let decoded_bytes = hex::decode(&enc_card_data)
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;

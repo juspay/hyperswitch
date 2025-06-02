@@ -1722,10 +1722,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Tokenio => {
-            //     tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Tokenio => {
+                tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Tsys => {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -4968,7 +4968,6 @@ async fn process_open_banking_connectors(
                         .locker_based_open_banking_connectors
                         .connector_list
                         .contains(connector_name.as_str());
-
                     let recipient_id = if recipient_creation_not_supported {
                         locker_recipient_create_call(state, merchant_id, acc_data).await
                     } else {
@@ -5010,6 +5009,56 @@ async fn process_open_banking_connectors(
                             name: name.clone(),
                             connector_recipient_id: conn_recipient_id.clone(),
                         },
+                        types::MerchantAccountData::FasterPayments {
+                            account_number,
+                            sort_code,
+                            name,
+                            ..
+                        } => types::MerchantAccountData::FasterPayments {
+                            account_number: account_number.clone(),
+                            sort_code: sort_code.clone(),
+                            name: name.clone(),
+                            connector_recipient_id: conn_recipient_id.clone(),
+                        },
+                        types::MerchantAccountData::Sepa { iban, name, .. } => {
+                            types::MerchantAccountData::Sepa {
+                                iban: iban.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::SepaInstant { iban, name, .. } => {
+                            types::MerchantAccountData::SepaInstant {
+                                iban: iban.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::Elixir {
+                            account_number,
+                            iban,
+                            name,
+                            ..
+                        } => types::MerchantAccountData::Elixir {
+                            account_number: account_number.clone(),
+                            iban: iban.clone(),
+                            name: name.clone(),
+                            connector_recipient_id: conn_recipient_id.clone(),
+                        },
+                        types::MerchantAccountData::Bankgiro { number, name, .. } => {
+                            types::MerchantAccountData::Bankgiro {
+                                number: number.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::Plusgiro { number, name, .. } => {
+                            types::MerchantAccountData::Plusgiro {
+                                number: number.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
                     };
 
                     types::MerchantRecipientData::AccountData(account_data)
@@ -5021,85 +5070,30 @@ async fn process_open_banking_connectors(
 
     Ok(new_merchant_data)
 }
-
 fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
     match data {
-        types::MerchantAccountData::Iban { iban, .. } => {
-            // IBAN check algorithm
-            if iban.peek().len() > IBAN_MAX_LENGTH {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "IBAN length must be up to 34 characters".to_string(),
-                }
-                .into());
-            }
-            let pattern = Regex::new(r"^[A-Z0-9]*$")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to create regex pattern")?;
+        types::MerchantAccountData::Iban { iban, .. } => validate_iban(iban),
 
-            let mut iban = iban.peek().to_string();
+        types::MerchantAccountData::Sepa { iban, .. } => validate_iban(iban),
 
-            if !pattern.is_match(iban.as_str()) {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "IBAN data must be alphanumeric".to_string(),
-                }
-                .into());
-            }
+        types::MerchantAccountData::SepaInstant { iban, .. } => validate_iban(iban),
 
-            // MOD check
-            let first_4 = iban.chars().take(4).collect::<String>();
-            iban.push_str(first_4.as_str());
-            let len = iban.len();
-
-            let rearranged_iban = iban
-                .chars()
-                .rev()
-                .take(len - 4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>();
-
-            let mut result = String::new();
-
-            rearranged_iban.chars().for_each(|c| {
-                if c.is_ascii_uppercase() {
-                    let digit = (u32::from(c) - u32::from('A')) + 10;
-                    result.push_str(&format!("{:02}", digit));
-                } else {
-                    result.push(c);
-                }
-            });
-
-            let num = result
-                .parse::<u128>()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to validate IBAN")?;
-
-            if num % 97 != 1 {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid IBAN".to_string(),
-                }
-                .into());
-            }
-
-            Ok(())
-        }
         types::MerchantAccountData::Bacs {
             account_number,
             sort_code,
             ..
-        } => {
-            if account_number.peek().len() > BACS_MAX_ACCOUNT_NUMBER_LENGTH
-                || sort_code.peek().len() != BACS_SORT_CODE_LENGTH
-            {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid BACS numbers".to_string(),
-                }
-                .into());
-            }
+        } => validate_uk_account(account_number, sort_code, "BACS"),
 
-            Ok(())
-        }
+        types::MerchantAccountData::FasterPayments {
+            account_number,
+            sort_code,
+            ..
+        } => validate_uk_account(account_number, sort_code, "FasterPayments"),
+
+        // Skip validation for unknown payment systems
+        types::MerchantAccountData::Elixir { .. }
+        | types::MerchantAccountData::Bankgiro { .. }
+        | types::MerchantAccountData::Plusgiro { .. } => Ok(()),
     }
 }
 
@@ -5146,8 +5140,61 @@ async fn connector_recipient_create_call(
             },
             address: None,
         },
+        types::MerchantAccountData::FasterPayments {
+            account_number,
+            sort_code,
+            name,
+            ..
+        } => pm_auth_types::RecipientCreateRequest {
+            name: name.clone(),
+            account_data: pm_auth_types::RecipientAccountData::FasterPayments {
+                sort_code: sort_code.clone(),
+                account_number: account_number.clone(),
+            },
+            address: None,
+        },
+        types::MerchantAccountData::Sepa { iban, name, .. } => {
+            pm_auth_types::RecipientCreateRequest {
+                name: name.clone(),
+                account_data: pm_auth_types::RecipientAccountData::Sepa(iban.clone()),
+                address: None,
+            }
+        }
+        types::MerchantAccountData::SepaInstant { iban, name, .. } => {
+            pm_auth_types::RecipientCreateRequest {
+                name: name.clone(),
+                account_data: pm_auth_types::RecipientAccountData::SepaInstant(iban.clone()),
+                address: None,
+            }
+        }
+        types::MerchantAccountData::Elixir {
+            account_number,
+            iban,
+            name,
+            ..
+        } => pm_auth_types::RecipientCreateRequest {
+            name: name.clone(),
+            account_data: pm_auth_types::RecipientAccountData::Elixir {
+                account_number: account_number.clone(),
+                iban: iban.clone(),
+            },
+            address: None,
+        },
+        types::MerchantAccountData::Bankgiro { number, name, .. } => {
+            pm_auth_types::RecipientCreateRequest {
+                name: name.clone(),
+                account_data: pm_auth_types::RecipientAccountData::Bankgiro(number.clone()),
+                address: None,
+            }
+        }
+        types::MerchantAccountData::Plusgiro { number, name, .. } => {
+            pm_auth_types::RecipientCreateRequest {
+                name: name.clone(),
+                account_data: pm_auth_types::RecipientAccountData::Plusgiro(number.clone()),
+                address: None,
+            }
+        }
     };
-
     let router_data = pm_auth_types::RecipientCreateRouterData {
         flow: std::marker::PhantomData,
         merchant_id: Some(merchant_id.to_owned()),
@@ -5253,4 +5300,80 @@ pub async fn enable_platform_account(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error while enabling platform merchant account")
     .map(|_| services::ApplicationResponse::StatusOk)
+}
+
+fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
+    if iban.peek().len() > IBAN_MAX_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "IBAN length must be up to 34 characters".to_string(),
+        }
+        .into());
+    }
+
+    let pattern = Regex::new(r"^[A-Z0-9]*$")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to create regex pattern")?;
+
+    let mut iban = iban.peek().to_string();
+
+    if !pattern.is_match(iban.as_str()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "IBAN data must be alphanumeric".to_string(),
+        }
+        .into());
+    }
+
+    // MOD check
+    let first_4 = iban.chars().take(4).collect::<String>();
+    iban.push_str(first_4.as_str());
+    let len = iban.len();
+
+    let rearranged_iban = iban
+        .chars()
+        .rev()
+        .take(len - 4)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+
+    let mut result = String::new();
+
+    rearranged_iban.chars().for_each(|c| {
+        if c.is_ascii_uppercase() {
+            let digit = (u32::from(c) - u32::from('A')) + 10;
+            result.push_str(&format!("{:02}", digit));
+        } else {
+            result.push(c);
+        }
+    });
+
+    let num = result
+        .parse::<u128>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to validate IBAN")?;
+
+    if num % 97 != 1 {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid IBAN".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+fn validate_uk_account(
+    account_number: &Secret<String>,
+    sort_code: &Secret<String>,
+    payment_type: &str,
+) -> RouterResult<()> {
+    if account_number.peek().len() > BACS_MAX_ACCOUNT_NUMBER_LENGTH
+        || sort_code.peek().len() != BACS_SORT_CODE_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Invalid {} numbers", payment_type),
+        }
+        .into());
+    }
+    Ok(())
 }

@@ -87,6 +87,12 @@ pub struct ConfigMerchantAdditionalDetails {
     pub bacs: Option<Vec<InputData>>,
     pub connector_recipient_id: Option<InputData>,
     pub wallet_id: Option<InputData>,
+    pub faster_payments: Option<Vec<InputData>>,
+    pub sepa: Option<Vec<InputData>>,
+    pub sepa_instant: Option<Vec<InputData>>,
+    pub elixir: Option<Vec<InputData>>,
+    pub bankgiro: Option<Vec<InputData>>,
+    pub plusgiro: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -433,6 +439,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),

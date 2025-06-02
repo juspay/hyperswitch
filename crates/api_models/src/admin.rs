@@ -1011,6 +1011,58 @@ pub enum MerchantAccountData {
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+    FasterPayments {
+        #[schema(value_type= String)]
+        account_number: Secret<String>,
+        #[schema(value_type= String)]
+        sort_code: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    Sepa {
+        #[schema(value_type= String)]
+        iban: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    SepaInstant {
+        #[schema(value_type= String)]
+        iban: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    Elixir {
+        #[schema(value_type= String)]
+        account_number: Secret<String>,
+        #[schema(value_type= String)]
+        iban: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    Bankgiro {
+        #[schema(value_type= String)]
+        number: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    Plusgiro {
+        #[schema(value_type= String)]
+        number: Secret<String>,
+        name: String,
+        #[schema(value_type= Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]

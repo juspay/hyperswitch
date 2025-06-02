@@ -5280,6 +5280,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Taxjar,
     connectors::Thunes,
     connectors::Tokenio,
+    connectors::Tokenio,
     connectors::Trustpay,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,

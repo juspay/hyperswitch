@@ -330,7 +330,59 @@ impl DecodeMessage for GcmAes256 {
         Ok(result.to_vec())
     }
 }
+/// Represents the ED25519 signature verification algorithm
+#[derive(Debug)]
+pub struct Ed25519;
 
+impl VerifySignature for Ed25519 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],    
+        signature: &[u8], // ED25519 signature bytes (must be 64 bytes)
+        msg: &[u8],       // Message that was signed
+    ) -> CustomResult<bool, errors::CryptoError> {
+        if secret.len() != 32 {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 public key length: expected 32 bytes, got {}",
+                secret.len()
+            ));
+        }
+        if signature.len() != 64 {
+            return Err(errors::CryptoError::SignatureVerificationFailed).attach_printable(
+                format!(
+                    "Invalid ED25519 signature length: expected 64 bytes, got {}",
+                    signature.len()
+                ),
+            );
+        }
+        let public_key = ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, secret);
+        match public_key.verify(msg, signature) {
+            Ok(()) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
+}
+
+impl SignMessage for Ed25519 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        if secret.len() != 32 {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 private key length: expected 32 bytes, got {}",
+                secret.len()
+            ));
+        }
+        let key_pair = ring::signature::Ed25519KeyPair::from_seed_unchecked(secret)
+            .change_context(errors::CryptoError::MessageSigningFailed)
+            .attach_printable("Failed to create ED25519 key pair from seed")?;
+
+        let signature = key_pair.sign(msg);
+        Ok(signature.as_ref().to_vec())
+    }
+}
 /// Secure Hash Algorithm 512
 #[derive(Debug)]
 pub struct Sha512;
