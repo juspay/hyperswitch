@@ -589,7 +589,7 @@ impl PaymentAttempt {
                 .map(Encode::encode_to_value)
                 .transpose()
                 .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to decode billing address")?
+                .attach_printable("Unable to encode customer_acceptance")?
                 .map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
