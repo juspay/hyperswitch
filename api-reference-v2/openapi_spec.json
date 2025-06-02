@@ -8110,6 +8110,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperswitch_vault",
           "inespay",
           "iatapay",
           "itaubank",
@@ -12215,6 +12216,29 @@
             "type": "boolean",
             "description": "indicates if retry with pan is possible",
             "nullable": true
+          }
+        }
+      },
+      "HyperswitchVaultSessionDetails": {
+        "type": "object",
+        "required": [
+          "payment_method_session_id",
+          "client_secret",
+          "publishable_key",
+          "profile_id"
+        ],
+        "properties": {
+          "payment_method_session_id": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "client_secret": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "publishable_key": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "profile_id": {
+            "$ref": "#/components/schemas/Secret"
           }
         }
       },
@@ -18833,10 +18857,10 @@
             },
             "description": "The list of session token object"
           },
-          "external_vault_session_details": {
+          "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ExternalVaultSessionDetails"
+                "$ref": "#/components/schemas/VaultSessionDetails"
               }
             ],
             "nullable": true
@@ -24257,6 +24281,32 @@
           "hyperswitch_sdk"
         ]
       },
+      "VaultSessionDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Vgs"
+            ],
+            "properties": {
+              "Vgs": {
+                "$ref": "#/components/schemas/VgsSessionDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "HyperswitchVault"
+            ],
+            "properties": {
+              "HyperswitchVault": {
+                "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
+              }
+            }
+          }
+        ]
+      },
       "Venmo": {
         "type": "object",
         "required": [
@@ -24279,6 +24329,22 @@
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
             "nullable": true
+          }
+        }
+      },
+      "VgsSessionDetails": {
+        "type": "object",
+        "required": [
+          "external_vault_id",
+          "sdk_env"
+        ],
+        "properties": {
+          "external_vault_id": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
           }
         }
       },
