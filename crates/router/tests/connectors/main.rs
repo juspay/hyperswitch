@@ -90,6 +90,7 @@ mod stax;
 mod stripe;
 mod stripebilling;
 mod taxjar;
+mod tokenio;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;

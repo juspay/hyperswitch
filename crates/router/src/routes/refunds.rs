@@ -35,12 +35,11 @@ mod internal_payload_types {
     {
         fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
             let refund_id = self.global_refund_id.clone();
-            self.payment_id
-                .clone()
-                .map(|payment_id| common_utils::events::ApiEventsType::Refund {
-                    payment_id,
-                    refund_id,
-                })
+            let payment_id = self.payment_id.clone();
+            Some(common_utils::events::ApiEventsType::Refund {
+                payment_id,
+                refund_id,
+            })
         }
     }
 }
@@ -105,16 +104,32 @@ pub async fn refunds_create(
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
 
+    let global_refund_id =
+        common_utils::id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
+    let payload = json_payload.into_inner();
+
+    let internal_refund_create_payload =
+        internal_payload_types::RefundsGenericRequestWithResourceId {
+            global_refund_id: global_refund_id.clone(),
+            payment_id: Some(payload.payment_id.clone()),
+            payload,
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        internal_refund_create_payload,
         |state, auth: auth::AuthenticationData, req, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            refund_create_core(state, merchant_context, req)
+            refund_create_core(
+                state,
+                merchant_context,
+                req.payload,
+                global_refund_id.clone(),
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
