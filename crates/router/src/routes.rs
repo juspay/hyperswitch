@@ -86,9 +86,9 @@ pub use self::app::Tokenization;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
-    Mandates, MerchantAccount, MerchantAcquirer, MerchantConnectorAccount, PaymentLink,
-    PaymentMethods, Payments, Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay,
-    RelayWebhooks, SessionState, User, Webhooks,
+    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
+    Poll, ProcessTracker, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
+    SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

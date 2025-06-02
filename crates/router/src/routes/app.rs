@@ -2620,10 +2620,10 @@ impl ProcessTracker {
 }
 
 #[cfg(feature = "olap")]
-pub struct MerchantAcquirer;
+pub struct ProfileAcquirer;
 
 #[cfg(all(feature = "olap", feature = "v1"))]
-impl MerchantAcquirer {
+impl ProfileAcquirer {
     pub fn server(state: AppState) -> Scope {
         web::scope("/profile_acquirer")
             .app_data(web::Data::new(state))

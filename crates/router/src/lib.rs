@@ -133,7 +133,7 @@ pub fn mk_app(
                 server_app = server_app
                     .service(routes::ProfileNew::server(state.clone()))
                     .service(routes::Forex::server(state.clone()))
-                    .service(routes::MerchantAcquirer::server(state.clone()));
+                    .service(routes::ProfileAcquirer::server(state.clone()));
             }
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
