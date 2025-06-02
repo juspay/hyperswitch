@@ -909,7 +909,7 @@ impl PaymentAttemptUpdateInternal {
             // connector_payment_id: connector_payment_id
             //     .map(ConnectorTransactionId::new_id)
             //     .or(source.connector_payment_id),
-            modified_at : common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
             browser_info: browser_info
                 .and_then(|val| {
                     serde_json::from_value::<common_utils::types::BrowserInformation>(val).ok()
