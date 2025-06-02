@@ -112,7 +112,7 @@ impl std::fmt::Display for PartitionKey<'_> {
             )),
 
             #[cfg(all(feature = "v2", feature = "customer_v2"))]
-            PartitionKey::GlobalId { id } => f.write_str(&format!("cust_{id}",)),
+            PartitionKey::GlobalId { id } => f.write_str(&format!("global_cust_{id}",)),
             #[cfg(feature = "v2")]
             PartitionKey::GlobalPaymentId { id } => {
                 f.write_str(&format!("global_payment_{}", id.get_string_repr()))
