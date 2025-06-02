@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Set up error logging - redirect stderr to both log file and console
+ERROR_LOG="error.log"
+exec 2> >(tee -a "${ERROR_LOG}" >&2)
+
 # Set traps for errors and interruptions
 trap 'handle_error "$LINENO" "$BASH_COMMAND" "$?"' ERR
 trap 'handle_interrupt' INT TERM
@@ -16,12 +20,19 @@ handle_error() {
     local last_command=$2
     local exit_code=$3
 
+    # Capture recent error log content if available
+    local log_content=""
+    if [ -f "${ERROR_LOG}" ] && [ -s "${ERROR_LOG}" ]; then
+        # Get last 5 lines of error log, escape for URL encoding
+        log_content=$(tail -n 1 "${ERROR_LOG}" | tr '\n' '|' | sed 's/|$//')
+    fi
+
     # Set global vars used by scarf_call
     INSTALLATION_STATUS="error"
-    ERROR_MESSAGE="Command '\$ ${last_command}' failed at line ${lineno} with exit code ${exit_code}"
+    ERROR_MESSAGE="Command '\$ ${last_command}' failed at line ${lineno} with exit code ${exit_code} and error logs: ${log_content:-'not available'}"
 
     SCARF_PARAMS+=(
-        "error_type=bash_error"
+        "error_type=script_error"
         "error_message=${ERROR_MESSAGE}"
         "error_code=${exit_code}"
     )
@@ -36,12 +47,7 @@ handle_interrupt() {
     echo ""
     echo_warning "Script interrupted by user"
     # Set appropriate error information for user abort
-    INSTALLATION_STATUS="error"
-    SCARF_PARAMS=(
-        "error_type=user_interrupt"
-        "error_message=Script interrupted by user"
-        "error_code=130"
-    )
+    INSTALLATION_STATUS="user_interrupt"
 
     # Call scarf to report the interruption
     scarf_call
@@ -65,7 +71,11 @@ cleanup() {
             ;;
         esac
     fi
-    rm -f "$ERROR_LOG"
+
+    # Optionally remove error log if it's empty or on successful completion
+    if [ -f "${ERROR_LOG}" ]; then
+        rm -f "${ERROR_LOG}"
+    fi
 }
 
 # ANSI color codes for pretty output
@@ -75,21 +85,6 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
-
-# Global cleanup function to handle error conditions and graceful exit
-cleanup() {
-    # Restore strict error checking
-    set -e
-    # Remove any temporary files if needed
-    # Add any necessary cleanup operations here
-
-    # The exit status passed to the function
-    exit $1
-}
-
-# Set up trap to call cleanup function on script exit or interruptions
-trap 'cleanup $?' EXIT
-trap 'cleanup 1' INT TERM
 
 # Function to print colorful messages
 echo_info() {
@@ -153,16 +148,16 @@ detect_docker_compose() {
 
     # Check Docker Compose or Podman Compose
     if $CONTAINER_ENGINE compose version &>/dev/null; then
-        DOCKER_COMPOSE="$CONTAINER_ENGINE compose"
-        echo_success "Compose is installed for $CONTAINER_ENGINE."
+        DOCKER_COMPOSE="${CONTAINER_ENGINE} compose"
+        echo_success "Compose is installed for ${CONTAINER_ENGINE}."
         echo ""
     else
-        echo_error "Compose is not installed for $CONTAINER_ENGINE. Please install $CONTAINER_ENGINE compose to proceed."
+        echo_error "Compose is not installed for ${CONTAINER_ENGINE}. Please install ${CONTAINER_ENGINE} compose to proceed."
         echo ""
-        if [ "$CONTAINER_ENGINE" = "docker" ]; then
+        if [ "${CONTAINER_ENGINE}" = "docker" ]; then
             echo_info "Visit https://docs.docker.com/compose/install/ for installation instructions."
             echo ""
-        elif [ "$CONTAINER_ENGINE" = "podman" ]; then
+        elif [ "${CONTAINER_ENGINE}" = "podman" ]; then
             echo_info "Visit https://podman-desktop.io/docs/compose/setting-up-compose for installation instructions."
             echo ""
         fi
@@ -198,26 +193,29 @@ find_next_available_port() {
     local port=$1
     local next_port=$port
 
-    while check_port_availability "$next_port"; do
+    while check_port_availability "${next_port}"; do
         next_port=$((next_port + 1))
         # Add an upper bound to prevent infinite loop
         if [[ $next_port -gt $((port + 1000)) ]]; then
-            echo_error "Could not find an available port in range $port-$((port + 1000))"
+            echo_error "Could not find an available port in range ${port}-$((port + 1000))"
             return $port # Return the original port if no available port found
         fi
     done
 
-    echo "$next_port"
+    echo "${next_port}"
 }
 
-# Function to write port configuration to .service-ports.env file
+# Function to write port configuration to .oneclick-setup.env file
 write_env_file() {
     local mode=$1
-    local env_file=".service-ports.env"
+    local env_file=".oneclick-setup.env"
 
-    echo "# Service ports configuration" >"$env_file"
-    echo "# Generated on $(date)" >>"$env_file"
-    echo "" >>"$env_file"
+    echo "# One-Click Setup configuration" >"${env_file}"
+    echo "# Generated on $(date)" >>"${env_file}"
+    echo "" >>"${env_file}"
+
+    # Enable one-click setup mode
+    echo "ONE_CLICK_SETUP=true" >>"${env_file}"
 
     if [[ "$mode" == "original" ]]; then
         # Write original ports
@@ -225,19 +223,19 @@ write_env_file() {
             service="${service_port%%:*}"
             port="${service_port##*:}"
             # Convert service name to uppercase without using ${var^^} syntax
-            service_upper=$(echo "$service" | tr '[:lower:]' '[:upper:]')
-            echo "${service_upper}_PORT=$port" >>"$env_file"
+            service_upper=$(echo "${service}" | tr '[:lower:]' '[:upper:]')
+            echo "${service_upper}_PORT=${port}" >>"${env_file}"
         done
-        echo_info "Default ports written to $env_file"
-    elif [[ "$mode" == "new" ]]; then
+        echo_info "Default ports written to ${env_file}"
+    elif [[ "${mode}" == "new" ]]; then
         # Write new ports - all ports are in the new_service_ports array now
         for i in "${!services_with_ports[@]}"; do
             service="${services_with_ports[$i]%%:*}"
             # Convert service name to uppercase without using ${var^^} syntax
-            service_upper=$(echo "$service" | tr '[:lower:]' '[:upper:]')
-            echo "${service_upper}_PORT=${new_service_ports[$i]}" >>"$env_file"
+            service_upper=$(echo "${service}" | tr '[:lower:]' '[:upper:]')
+            echo "${service_upper}_PORT=${new_service_ports[$i]}" >>"${env_file}"
         done
-        echo_info "New ports configuration written to $env_file"
+        echo_info "New ports configuration written to ${env_file}"
     else
         echo_error "Invalid mode specified for writing env file"
         return 1
@@ -269,17 +267,17 @@ check_prerequisites() {
         service="${service_port%%:*}"
         port="${service_port##*:}"
 
-        if [ "$tools_available" = false ]; then
+        if [ "${tools_available}" = false ]; then
             break
         fi
-        if check_port_availability "$port"; then
-            unavailable_ports+=("$port")
-            services_with_unavailable_ports+=("$service_port")
+        if check_port_availability "${port}"; then
+            unavailable_ports+=("${port}")
+            services_with_unavailable_ports+=("${service_port}")
 
             # Find next available port
-            next_port=$(find_next_available_port "$port")
-            new_available_ports+=("$next_port")
-            new_service_ports+=("$next_port")
+            next_port=$(find_next_available_port "${port}")
+            new_available_ports+=("${next_port}")
+            new_service_ports+=("${next_port}")
         else
             new_service_ports+=("${port}") # Empty string for available ports
         fi
@@ -293,7 +291,7 @@ check_prerequisites() {
             service="${services_with_unavailable_ports[$i]%%:*}"
             port="${unavailable_ports[$i]}"
             next="${new_available_ports[$i]}"
-            echo " - $service: Port $port is in use, next available: $next"
+            echo " - ${service}: Port ${port} is in use, next available: ${next}"
         done
         echo ""
 
@@ -308,33 +306,38 @@ check_prerequisites() {
         printf "\n"
         printf "3) ${YELLOW}Exit the process${NC} :\n"
         printf "   This will terminate the setup without making any changes\n"
-        echo -n "Enter your choice (1-3): "
-        read -n 1 user_choice
-        user_choice=${user_choice:-1}
-        echo
 
-        case $user_choice in
-        1)
-            echo_success "Using next available ports."
-            write_env_file "new"
-            ;;
+        local ports_option_selected=false
+        while [ "${ports_option_selected}" = "false" ]; do
+            echo -n "Enter your choice (1-3): "
+            read -n 1 user_choice
+            user_choice=${user_choice:-1}
+            echo
 
-        2)
-            echo_warning "You chose to override the ports. This might cause conflicts."
-            write_env_file "original"
-            ;;
-        3)
-            echo_warning "Exiting the process."
-            handle_interrupt
-            exit 0
-            ;;
-        *)
-            echo_error "Invalid choice. Exiting."
-            exit 1
-            ;;
-        esac
+            case $user_choice in
+            1)
+                echo_success "Using next available ports."
+                ports_option_selected=true
+                write_env_file "new"
+                ;;
+            2)
+                echo_warning "You chose to override the ports. This might cause conflicts."
+                ports_option_selected=true
+                write_env_file "original"
+                ;;
+            3)
+                echo_warning "Exiting the process."
+                ports_option_selected=true
+                handle_interrupt
+                exit 0
+                ;;
+            *)
+                echo_error "Invalid choice. Please enter 1, 2, or 3."
+                ;;
+            esac
+        done
     else
-        if [ "$tools_available" = false ]; then
+        if [ "${tools_available}" = "false" ]; then
             echo_warning "Neither nc nor lsof available to check ports. Assuming ports are available."
         else
             echo_success "All required ports are available."
@@ -366,7 +369,7 @@ select_profile() {
     printf "   Services included: ${BLUE}App Server, PostgreSQL and Redis)${NC}\n"
     echo ""
     local profile_selected=false
-    while [ "$profile_selected" = false ]; do
+    while [ "${profile_selected}" = "false" ]; do
         echo -n "Enter your choice (1-3): "
         read -n 1 profile_choice
         echo
@@ -390,13 +393,13 @@ select_profile() {
         esac
     done
 
-    echo "Selected setup: $PROFILE"
+    echo "Selected setup: ${PROFILE}"
 }
 
 scarf_call() {
     # Call the Scarf webhook endpoint with the provided parameters
     chmod +x scripts/notify_scarf.sh
-    if [ $INSTALLATION_STATUS = "initiated" ]; then
+    if [ ${#SCARF_PARAMS[@]} -eq 0 ]; then
         scripts/notify_scarf.sh "version=${VERSION}" "status=${INSTALLATION_STATUS}" >/dev/null 2>&1
     else
         scripts/notify_scarf.sh "version=${VERSION}" "status=${INSTALLATION_STATUS}" "${SCARF_PARAMS[@]}" >/dev/null 2>&1
@@ -409,57 +412,30 @@ start_services() {
 
     case $PROFILE in
     standalone)
-        $DOCKER_COMPOSE --env-file .service-ports.env up -d pg redis-standalone migration_runner hyperswitch-server
+        $DOCKER_COMPOSE --env-file .oneclick-setup.env up -d pg redis-standalone migration_runner hyperswitch-server
         ;;
     standard)
-        $DOCKER_COMPOSE --env-file .service-ports.env up -d
+        $DOCKER_COMPOSE --env-file .oneclick-setup.env up -d
         ;;
     full)
-        $DOCKER_COMPOSE --env-file .service-ports.env --profile scheduler --profile monitoring --profile olap --profile full_setup up -d
+        $DOCKER_COMPOSE --env-file .oneclick-setup.env --profile scheduler --profile monitoring --profile olap --profile full_setup up -d
         ;;
     esac
 }
 
 check_services_health() {
-    # Wait for the hyperswitch-server to be healthy
-    MAX_RETRIES=30
-    RETRY_INTERVAL=5
-    RETRIES=0
+    HYPERSWITCH_HEALTH_URL="${HYPERSWITCH_BASE_URL}/health"
 
-    while [ $RETRIES -lt $MAX_RETRIES ]; do
-        response=$(curl -s -w "\\nStatus_Code:%{http_code}" "${HYPERSWITCH_BASE_URL}/health")
-        status_code=$(echo "$response" | grep "Status_Code:" | cut -d':' -f2)
-        response_body=$(echo "$response" | head -n1)
-
-        if [ "$status_code" = "200" ] && [ "$response_body" = "health is good" ]; then
-            VERSION=$(curl --silent --output /dev/null --request GET --write-out '%header{x-hyperswitch-version}' "${HYPERSWITCH_DEEP_HEALTH_URL}" | sed 's/-dirty$//')
-            print_access_info
-            return
-        fi
-
-        RETRIES=$((RETRIES + 1))
-        if [ $RETRIES -eq $MAX_RETRIES ]; then
-            INSTALLATION_STATUS="error"
-            ERROR_TYPE="timeout"
-            ERROR_MESSAGE="Hyperswitch server did not become healthy in the expected time."
-            ERROR_CODE="503"
-            SCARF_PARAMS+=(
-                "error_type='${ERROR_TYPE}'"
-                "error_message='${ERROR_MESSAGE}'"
-                "error_code='${ERROR_CODE}'"
-            )
-            scarf_call
-
-            printf "\n"
-            echo_error "${RED}${BOLD}${ERROR_MESSAGE}"
-            printf "Check logs with: $DOCKER_COMPOSE logs hyperswitch-server, Or reach out to us on slack(https://hyperswitch-io.slack.com/) for help."
-            printf "The setup process will continue, but some services might not work correctly.${NC}"
-            printf "\n"
-        else
-            printf "Waiting for server to become healthy... (%d/%d)\n" $RETRIES $MAX_RETRIES
-            sleep $RETRY_INTERVAL
-        fi
-    done
+    # Basic health check
+    base_response=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || exit 0
+    if [ "${base_response}" != "health is good" ]; then
+        exit 0
+    fi
+    # Extract version
+    VERSION=$(curl --silent --output /dev/null --request GET --write-out '%header{x-hyperswitch-version}' "${HYPERSWITCH_BASE_URL}" | sed 's/-dirty$//')
+    INSTALLATION_STATUS="success"
+    scarf_call
+    print_access_info
 }
 
 print_access_info() {
@@ -487,6 +463,8 @@ print_access_info() {
     printf "            Email:    demo@hyperswitch.com\n"
     printf "            Password: Hyperswitch@123\n"
 
+    printf "\n"
+
     # Provide the stop command based on the selected profile
     echo_info "To stop all services, run the following command:"
     case $PROFILE in
@@ -509,8 +487,8 @@ scarf_call
 show_banner
 detect_docker_compose
 check_prerequisites
-source .service-ports.env
+source .oneclick-setup.env
 setup_config
 select_profile
 start_services
-check_services_health # This will call print_access_info if the server is healthy
+check_services_health

@@ -1,6 +1,14 @@
 #! /usr/bin/env bash
 set -euo pipefail
 
+ONE_CLICK_SETUP="${ONE_CLICK_SETUP:-false}"
+
+# Check if ONE_CLICK_SETUP is set to true; if so, skip execution
+if [ "${ONE_CLICK_SETUP}" = "true" ]; then
+    echo "ONE_CLICK_SETUP is true; skipping script execution."
+    exit 0
+fi
+
 # Define the URL and parameters
 WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/docker"
 VERSION="unknown"
