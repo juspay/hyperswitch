@@ -4,7 +4,6 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -24,8 +23,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
-        VaultRouterData,
+        RefundsRouterData, SetupMandateRouterData, TokenizationRouterData, VaultRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -42,20 +40,10 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as hyperswitch_vault;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Clone)]
-pub struct HyperswitchVault {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-}
-
-impl HyperswitchVault {
-    pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMinorUnitForConnector,
-        }
-    }
-}
+pub struct HyperswitchVault;
 
 impl api::Payment for HyperswitchVault {}
 impl api::PaymentSession for HyperswitchVault {}
@@ -161,8 +149,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 {
     fn build_request(
         &self,
-        req: &TokenizationRouterData,
-        connectors: &Connectors,
+        _req: &TokenizationRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentMethodTokenization".to_string(),
@@ -185,7 +173,7 @@ where
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let api_key = auth.api_key.expose();
 
-        let mut header = vec![
+        let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string().into(),
@@ -222,7 +210,7 @@ impl ConnectorCommon for HyperswitchVault {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
@@ -259,8 +247,8 @@ impl ConnectorValidation for HyperswitchVault {}
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for HyperswitchVault {
     fn build_request(
         &self,
-        req: &PaymentsSessionRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentsSession".to_string(),
@@ -275,8 +263,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
 {
     fn build_request(
         &self,
-        req: &RefreshTokenRouterData,
-        connectors: &Connectors,
+        _req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "AccessTokenAuthorize".to_string(),
@@ -291,8 +279,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 {
     fn build_request(
         &self,
-        req: &SetupMandateRouterData,
-        connectors: &Connectors,
+        _req: &SetupMandateRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "SetupMandate".to_string(),
@@ -307,8 +295,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 {
     fn build_request(
         &self,
-        req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentsAuthorize".to_string(),
@@ -321,8 +309,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for HyperswitchVault {
     fn build_request(
         &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentsSync".to_string(),
@@ -335,8 +323,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hyp
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for HyperswitchVault {
     fn build_request(
         &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentsCapture".to_string(),
@@ -349,8 +337,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for HyperswitchVault {
     fn build_request(
         &self,
-        req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentsCapture".to_string(),
@@ -363,8 +351,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hy
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for HyperswitchVault {
     fn build_request(
         &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
@@ -377,8 +365,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hypersw
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for HyperswitchVault {
     fn build_request(
         &self,
-        req: &RefundsRouterData<RSync>,
-        connectors: &Connectors,
+        _req: &RefundsRouterData<RSync>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "RefundsSync".to_string(),

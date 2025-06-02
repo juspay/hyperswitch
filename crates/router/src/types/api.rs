@@ -474,9 +474,9 @@ impl ConnectorData {
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
-                enums::Connector::HyperswitchVault => Ok(ConnectorEnum::Old(Box::new(
-                    connector::HyperswitchVault::new(),
-                ))),
+                enums::Connector::HyperswitchVault => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }

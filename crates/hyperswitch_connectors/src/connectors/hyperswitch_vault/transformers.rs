@@ -1,9 +1,6 @@
-use common_enums::enums;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::vault::ExternalVaultCreateFlow,
-    router_request_types::ResponseId,
     router_response_types::VaultResponseData,
     types::VaultRouterData,
 };
@@ -11,10 +8,7 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils,
-};
+use crate::{types::ResponseRouterData, utils};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize)]
@@ -35,7 +29,6 @@ impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCrea
 
 pub struct HyperswitchVaultAuthType {
     pub(super) api_key: Secret<String>,
-    pub(super) publishable_key: Secret<String>,
     pub(super) profile_id: Secret<String>,
 }
 
@@ -45,11 +38,10 @@ impl TryFrom<&ConnectorAuthType> for HyperswitchVaultAuthType {
         match auth_type {
             ConnectorAuthType::SignatureKey {
                 api_key,
-                key1,
                 api_secret,
+                ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
-                publishable_key: key1.to_owned(),
                 profile_id: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),

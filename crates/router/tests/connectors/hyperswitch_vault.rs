@@ -12,7 +12,7 @@ impl utils::Connector for HyperswitchVaultTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::HyperswitchVault;
         utils::construct_connector_data_old(
-            Box::new(HyperswitchVault::new()),
+            Box::new(&HyperswitchVault),
             types::Connector::HyperswitchVault,
             api::GetToken::Connector,
             None,

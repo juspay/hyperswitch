@@ -84,9 +84,9 @@ use crate::{
         domain::{self, types},
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
-        AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
-        ErrorResponse, MandateReference, MerchantAccountData, MerchantRecipientData,
-        PaymentsResponseData, RecipientIdType, RecurringMandatePaymentData, RouterData,
+        AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
+        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
+        RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
