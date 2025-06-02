@@ -65,9 +65,9 @@ CREATE TABLE routing_events (
     `routing_approach` Nullable(String),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX profileIndex profile_id TYPE bloom_filter GRANULARITY 1
-) ENGINE = MergeTree 
-PARTITION BY (merchant_id)
-ORDER BY ( merchant_id, payment_id ) 
+) ENGINE = MergeTree
+PARTITION BY toStartOfDay(created_at)
+ORDER BY ( created_at, merchant_id, profile_id, payment_id )
 SETTINGS index_granularity = 8192;
 
 CREATE TABLE routing_events_audit (

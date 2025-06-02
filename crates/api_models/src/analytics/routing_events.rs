@@ -1,7 +1,6 @@
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingEventsRequest {
     pub payment_id: common_utils::id_type::PaymentId,
-    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub refund_id: Option<String>,
     pub dispute_id: Option<String>,
 }

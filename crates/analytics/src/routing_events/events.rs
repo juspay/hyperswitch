@@ -33,12 +33,6 @@ where
         .add_filter_clause("payment_id", &query_param.payment_id)
         .switch()?;
 
-    if let Some(profile_id) = query_param.profile_id {
-        query_builder
-            .add_filter_clause("profile_id", profile_id)
-            .switch()?;
-    }
-
     if let Some(refund_id) = query_param.refund_id {
         query_builder
             .add_filter_clause("refund_id", &refund_id)
