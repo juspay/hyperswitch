@@ -178,7 +178,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             }
         })?;
 
-        let payment_attempt = db
+        let mut payment_attempt = db
             .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
@@ -188,6 +188,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not find payment attempt given the attempt id")?;
+
+        payment_attempt.encoded_data = request
+            .param
+            .as_ref()
+            .map(|val| masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();

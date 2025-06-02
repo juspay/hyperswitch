@@ -8,7 +8,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
         AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
-        StringMajorUnitForConnector,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
     },
 };
 use error_stack::{Report, ResultExt};
@@ -59,14 +59,18 @@ use crate::{
 #[derive(Clone)]
 pub struct Trustpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_to_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_to_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Trustpay {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
-            amount_converter_webhooks: &FloatMajorUnitForConnector,
+            amount_converter_to_float_major_unit: &FloatMajorUnitForConnector,
+            amount_converter_to_string_minor_unit: &StringMinorUnitForConnector,
         }
     }
 }
@@ -422,7 +426,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         if let trustpay::TrustpayPaymentsResponse::WebhookResponse(ref webhook_response) = response
         {
             let response_integrity_object = connector_utils::get_sync_integrity_object(
-                self.amount_converter_webhooks,
+                self.amount_converter_to_float_major_unit,
                 webhook_response.amount.amount,
                 webhook_response.amount.currency.to_string(),
             )?;
@@ -832,7 +836,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
 
         if let trustpay::RefundResponse::WebhookRefund(ref webhook_response) = response {
             let response_integrity_object = connector_utils::get_refund_integrity_object(
-                self.amount_converter_webhooks,
+                self.amount_converter_to_float_major_unit,
                 webhook_response.amount.amount,
                 webhook_response.amount.currency.to_string(),
             )?;
@@ -1017,8 +1021,17 @@ impl webhooks::IncomingWebhook for Trustpay {
             .references
             .payment_id
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let amount = utils::convert_back_amount_to_minor_units(
+            self.amount_converter_to_float_major_unit,
+            payment_info.amount.amount,
+            payment_info.amount.currency,
+        )?;
         Ok(DisputePayload {
-            amount: "100".to_string(),
+            amount: utils::convert_amount(
+                self.amount_converter_to_string_minor_unit,
+                amount,
+                payment_info.amount.currency,
+            )?,
             currency: payment_info.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id,

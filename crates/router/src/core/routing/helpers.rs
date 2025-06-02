@@ -242,25 +242,18 @@ pub async fn update_profile_active_algorithm_ref(
 
     let profile_id = current_business_profile.get_id().to_owned();
 
-    let routing_cache_key = cache::CacheKind::Routing(
-        format!(
-            "routing_config_{}_{}",
-            merchant_id.get_string_repr(),
-            profile_id.get_string_repr(),
-        )
-        .into(),
-    );
-
-    let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
-        storage::enums::TransactionType::Payment => (Some(ref_val), None),
-        #[cfg(feature = "payouts")]
-        storage::enums::TransactionType::Payout => (None, Some(ref_val)),
-    };
+    let (routing_algorithm, payout_routing_algorithm, three_ds_decision_rule_algorithm) =
+        match transaction_type {
+            storage::enums::TransactionType::Payment => (Some(ref_val), None, None),
+            #[cfg(feature = "payouts")]
+            storage::enums::TransactionType::Payout => (None, Some(ref_val), None),
+            storage::enums::TransactionType::ThreeDsAuthentication => (None, None, Some(ref_val)),
+        };
 
     let business_profile_update = domain::ProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
         payout_routing_algorithm,
-        three_ds_decision_rule_algorithm: None,
+        three_ds_decision_rule_algorithm,
     };
 
     db.update_profile_by_profile_id(
@@ -273,10 +266,22 @@ pub async fn update_profile_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [routing_cache_key])
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to invalidate routing cache")?;
+    // Invalidate the routing cache for Payments and Payouts transaction types
+    if !transaction_type.is_three_ds_authentication() {
+        let routing_cache_key = cache::CacheKind::Routing(
+            format!(
+                "routing_config_{}_{}",
+                merchant_id.get_string_repr(),
+                profile_id.get_string_repr(),
+            )
+            .into(),
+        );
+
+        cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [routing_cache_key])
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to invalidate routing cache")?;
+    }
     Ok(())
 }
 
@@ -452,6 +457,12 @@ impl RoutingAlgorithmHelpers<'_> {
                     check_connector_selection(&rule.connector_selection)?;
                 }
             }
+
+            routing_types::StaticRoutingAlgorithm::ThreeDsDecisionRule(_) => {
+                return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Invalid routing algorithm three_ds decision rule received",
+                )?;
+            }
         }
 
         Ok(())
@@ -560,6 +571,11 @@ pub async fn validate_connectors_in_routing_config(
                 check_connector_selection(&rule.connector_selection)?;
             }
         }
+
+        routing_types::StaticRoutingAlgorithm::ThreeDsDecisionRule(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid routing algorithm three_ds decision rule received")?
+        }
     }
 
     Ok(())
@@ -581,6 +597,9 @@ pub fn get_default_config_key(
         storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
         #[cfg(feature = "payouts")]
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
+        storage::enums::TransactionType::ThreeDsAuthentication => {
+            format!("three_ds_authentication_{merchant_id}")
+        }
     }
 }
 

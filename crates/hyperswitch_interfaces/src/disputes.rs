@@ -1,12 +1,12 @@
 //! Disputes interface
-
+use common_utils::types::StringMinorUnit;
 use time::PrimitiveDateTime;
 
 /// struct DisputePayload
 #[derive(Default, Debug)]
 pub struct DisputePayload {
     /// amount
-    pub amount: String,
+    pub amount: StringMinorUnit,
     /// currency
     pub currency: common_enums::enums::Currency,
     /// dispute_stage

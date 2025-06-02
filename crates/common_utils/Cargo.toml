@@ -26,54 +26,58 @@ crypto_openssl = ["dep:openssl"]
 tokenization_v2 = []
 
 [dependencies]
-async-trait = { version = "0.1.79", optional = true }
-base64 = "0.22.0"
+async-trait = { version = "0.1.88", optional = true }
+base64 = "0.22.1"
 base64-serde = "0.8.0"
-blake3 = { version = "1.5.1", features = ["serde"] }
-bytes = "1.6.0"
-diesel = "2.2.3"
+blake3 = { version = "1.8.2", features = ["serde"] }
+bytes = "1.10.1"
+diesel = "2.2.10"
 error-stack = "0.4.1"
-futures = { version = "0.3.30", optional = true }
-globset = "0.4.14"
+futures = { version = "0.3.31", optional = true }
+globset = "0.4.16"
 hex = "0.4.3"
 http = "0.2.12"
 md5 = "0.7.0"
 nanoid = "0.4.0"
-nutype = { version = "0.4.2", features = ["serde"] }
-once_cell = "1.19.0"
-phonenumber = "0.3.3"
+nutype = { version = "0.4.3", features = ["serde"] }
+once_cell = "1.21.3"
+openssl = {version = "0.10.72", optional = true}
+phonenumber = "0.3.7"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
-regex = "1.10.4"
+regex = "1.11.1"
 reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
-ring = { version = "0.17.8", features = ["std", "wasm32_unknown_unknown_js"] }
-rust_decimal = "1.35"
+ring = { version = "0.17.14", features = ["std", "wasm32_unknown_unknown_js"] }
+rust_decimal = "1.37"
 rustc-hash = "1.1.0"
-semver = { version = "1.0.22", features = ["serde"] }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
+semver = { version = "1.0.26", features = ["serde"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
 serde_urlencoded = "0.7.1"
-signal-hook = { version = "0.3.17", optional = true }
-strum = { version = "0.26.2", features = ["derive"] }
-thiserror = "1.0.58"
-time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"], optional = true }
-url = { version = "2.5.0", features = ["serde"] }
-utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
-uuid = { version = "1.8.0", features = ["v7"] }
-openssl = {version = "0.10.70", optional = true}
+signal-hook = { version = "0.3.18", optional = true }
+strum = { version = "0.26.3", features = ["derive"] }
+thiserror = "1.0.69"
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"], optional = true }
+url = { version = "2.5.4", features = ["serde"] }
+utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
+uuid = { version = "1.17.0", features = ["v7"] }
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies.uuid]
+version = "1.17.0"
+features = ["v7", "js"]
+
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
 
 [dev-dependencies]
-fake = "2.9.2"
-proptest = "1.4.0"
+fake = "2.10.0"
+proptest = "1.6.0"
 test-case = "3.3.1"
 
 [lints]
