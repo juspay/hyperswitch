@@ -196,4 +196,3 @@ pub async fn update_connector_customer_in_customers(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
     }
 }
-

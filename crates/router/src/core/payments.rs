@@ -3728,13 +3728,13 @@ where
 {
     let stime_connector = Instant::now();
 
-        let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
-            state,
-            payment_data, // Pass as &D, which is compatible with &mut D
-            &connector,
-            merchant_context,
-        )
-        .await?;
+    let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+        state,
+        payment_data, // Pass as &D, which is compatible with &mut D
+        &connector,
+        merchant_context,
+    )
+    .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -4077,14 +4077,13 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
     for session_connector_data in connectors.iter() {
-
-            let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
-                state,
-                &payment_data,
-                &session_connector_data.connector,
-                merchant_context,
-            )
-            .await?;
+        let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+            state,
+            &payment_data,
+            &session_connector_data.connector,
+            merchant_context,
+        )
+        .await?;
 
         let connector_id = session_connector_data.connector.connector.id();
         let router_data = payment_data
