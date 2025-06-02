@@ -1400,6 +1400,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,
             Self::Authentications => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("Authentications table is not implemented for Sqlx"))?,
+            Self::RoutingEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("RoutingEvents table is not implemented for Sqlx"))?,
         }
     }
 }
