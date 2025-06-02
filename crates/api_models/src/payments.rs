@@ -7012,7 +7012,6 @@ pub enum VaultSessionDetails {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
 pub struct VgsSessionDetails {
     /// The identifier of the external vault
     pub external_vault_id: Secret<String>,
@@ -7021,7 +7020,6 @@ pub struct VgsSessionDetails {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
 pub struct HyperswitchVaultSessionDetails {
     /// Session ID for Hyperswitch Vault
     pub payment_method_session_id: Secret<String>,
