@@ -546,13 +546,14 @@ impl RevenueRecoveryAttempt {
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
         let request_payload = self.create_payment_record_request(
+            state,
             billing_connector_account_id,
             payment_connector_id,
             payment_connector_account
                 .as_ref()
                 .map(|account| account.connector_name),
             common_enums::TriggeredBy::External,
-        );
+        ).await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
@@ -593,13 +594,14 @@ impl RevenueRecoveryAttempt {
         Ok(response)
     }
 
-    pub fn create_payment_record_request(
+    pub async fn create_payment_record_request(
         &self,
+        state: &SessionState,
         billing_merchant_connector_account_id: &id_type::MerchantConnectorAccountId,
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
-    ) -> api_payments::PaymentsAttemptRecordRequest {
+    ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
         let amount_details =
             api_payments::PaymentAttemptAmountDetails::from(revenue_recovery_attempt_data);
@@ -608,6 +610,24 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
             }),
+        };
+
+        let card_issuer = diesel_models::cards_info::CardInfo::find_by_iin(state.store, revenue_recovery_attempt_data.card_isin.clone()).await?;
+
+        let payment_method_data =  api_payments::AdditionalCardInfo {
+            card_network: Some(revenue_recovery_attempt_data.card_network),
+            card_issuer,
+            card_type: None,
+            card_issuing_country: None,
+            card_exp_month: None,
+            card_exp_year: None,
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
+            last4: None,
+            bank_code: None,
+            card_extended_bin: None,
+            card_isin: None,
         };
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);

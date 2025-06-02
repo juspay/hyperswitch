@@ -207,7 +207,8 @@ impl
                     payment_method_type: common_enums::PaymentMethod::from(
                         item.response.payment_method.object,
                     ),
-                    card_network: item.response.payment_method.card_type
+                    card_network: Some(item.response.payment_method.card_type),
+                    card_isin: Some(item.response.payment_method.first_six)
                 },
             ),
             ..item.data

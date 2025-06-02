@@ -184,6 +184,7 @@ pub async fn record_internal_attempt_api(
         })?;
 
     let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
+        state,
         &revenue_recovery_payment_data.billing_mca.id,
         Some(
             revenue_recovery_metadata
@@ -192,7 +193,7 @@ pub async fn record_internal_attempt_api(
         ),
         Some(revenue_recovery_metadata.connector),
         common_enums::TriggeredBy::Internal,
-    );
+    ).await?;
 
     let merchant_context_from_revenue_recovery_payment_data =
         MerchantContext::NormalMerchant(Box::new(Context(

@@ -508,7 +508,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             network_error_message: None,
             retry_count,
             invoice_next_billing_time,
-            card_network: payment_method_details.card.brand
+            card_network: Some(payment_method_details.card.brand),
+            card_isin: Some(payment_method_details.card.iin)
         })
     }
 }
