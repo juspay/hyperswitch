@@ -4,6 +4,7 @@ pub mod adyenplatform;
 pub mod airwallex;
 pub mod amazonpay;
 pub mod archipel;
+pub mod authipay;
 pub mod authorizedotnet;
 pub mod bambora;
 pub mod bamboraapac;
@@ -103,11 +104,11 @@ pub mod zen;
 pub mod zsl;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
-    amazonpay::Amazonpay, archipel::Archipel, authorizedotnet::Authorizedotnet, bambora::Bambora,
-    bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, barclaycard::Barclaycard,
-    billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    cashtocode::Cashtocode, chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase,
-    coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
+    amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
+    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
+    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
+    braintree::Braintree, cashtocode::Cashtocode, chargebee::Chargebee, checkout::Checkout,
+    coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx, elavon::Elavon,
     facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
