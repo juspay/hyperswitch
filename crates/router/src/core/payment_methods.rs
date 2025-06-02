@@ -1630,7 +1630,7 @@ struct RequiredFieldsForEnabledPaymentMethodTypes(Vec<RequiredFieldsForEnabledPa
 impl RequiredFieldsForEnabledPaymentMethodTypes {
     fn generate_response(
         self,
-        customer_payment_methods: Vec<payment_methods::CustomerPaymentMethod>,
+        customer_payment_methods: Vec<payment_methods::CustomerPaymentMethodResponseItem>,
     ) -> payment_methods::PaymentMethodListResponse {
         let response_payment_methods = self
             .0
@@ -2184,7 +2184,7 @@ pub async fn list_customer_payment_method_core(
             })
         });
 
-        let final_pm = api::CustomerPaymentMethod {
+        let final_pm = api::CustomerPaymentMethodResponseItem {
             id: pm.id,
             payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
@@ -3124,7 +3124,7 @@ impl pm_types::SavedPMLPaymentsInfo {
         &self,
         state: &SessionState,
         parent_payment_method_token: Option<String>,
-        pma: &api::CustomerPaymentMethod,
+        pma: &api::CustomerPaymentMethodResponseItem,
         pm_list_context: PaymentMethodListContext,
     ) -> RouterResult<()> {
         let token = parent_payment_method_token

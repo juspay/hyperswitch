@@ -1,7 +1,7 @@
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethod,
+    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethodResponseItem,
     CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
     GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
     NetworkTokenDetailsPaymentMethod, NetworkTokenDetailsResponse, NetworkTokenResponse,

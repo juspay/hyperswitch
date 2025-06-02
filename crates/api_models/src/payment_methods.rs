@@ -1230,7 +1230,7 @@ pub struct PaymentMethodListResponse {
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
 
     /// The list of saved payment methods of the customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<CustomerPaymentMethodResponseItem>,
 }
 
 #[cfg(all(
@@ -1934,7 +1934,7 @@ pub struct CustomerPaymentMethodsListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<CustomerPaymentMethodResponseItem>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -2073,7 +2073,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct CustomerPaymentMethod {
+pub struct CustomerPaymentMethodResponseItem {
     /// The unique identifier of the payment method.
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
