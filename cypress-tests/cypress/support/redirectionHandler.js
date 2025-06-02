@@ -322,154 +322,194 @@ function bankRedirectRedirection(
 
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.visit(redirectionUrl.href);
-  
+
   // Special handling for Airwallex which uses multiple domains in 3DS flow
   if (connectorId === "airwallex") {
     cy.log("Starting specialized Airwallex 3DS handling");
-    
-    // Initialize variables for easier use outside cy.origin
-    const WAIT_SHORT = 1000; // 1 second
-    const WAIT_MEDIUM = 2000; // 2 seconds
-    const WAIT_LONG = 3000; // 3 seconds
-    
-    // Initial wait to ensure full page load
-    cy.wait(WAIT_SHORT);
-    
+
+    // Wait for page to load completely by checking for document ready state
+    cy.document()
+      .should("have.property", "readyState")
+      .and("equal", "complete");
+
     // Check current URL to determine which stage of flow we're in
     cy.url().then((currentUrl) => {
       cy.log(`Current URL: ${currentUrl}`);
-      
+
       // If we're on api-demo.airwallex.com
       if (currentUrl.includes("api-demo.airwallex.com")) {
         cy.log("Detected api-demo.airwallex.com domain");
-        
+
         const currentOrigin = new URL(currentUrl).origin;
-        cy.origin(currentOrigin, { args: { timeout: CONSTANTS.TIMEOUT } }, ({ timeout }) => {
-          cy.log("Inside api-demo.airwallex.com origin");
-          
-          // Try to find and interact with the form
-          cy.get("form", { timeout: timeout })
-            .should("exist")
-            .then($form => {
-              cy.log(`Found form with ID: ${$form.attr('id') || 'unknown'}`);
-              
-              // Try to find the password input field with various selectors
-              cy.get('input[type="password"], input[type="text"], input[name="password"], input', { 
-                timeout: timeout 
-              }).then($inputs => {
-                cy.log(`Found ${$inputs.length} input fields`);
-                
-                if ($inputs.length > 0) {
-                  cy.wrap($inputs.first())
-                    .should("be.visible")
-                    .clear({ force: true })
-                    .type("1234", { force: true });
-                  
-                  // Try to find and click the submit button with various selectors
-                  cy.get('button[type="submit"], input[type="submit"], button, input[value="Submit"]', {
+        cy.origin(
+          currentOrigin,
+          { args: { timeout: CONSTANTS.TIMEOUT } },
+          ({ timeout }) => {
+            cy.log("Inside api-demo.airwallex.com origin");
+
+            // Try to find and interact with the form
+            cy.get("form", { timeout: timeout })
+              .should("exist")
+              .then(($form) => {
+                cy.log(`Found form with ID: ${$form.attr("id") || "unknown"}`);
+
+                // Try to find the password input field with various selectors
+                cy.get(
+                  'input[type="password"], input[type="text"], input[name="password"], input',
+                  {
                     timeout: timeout,
-                  }).then($buttons => {
-                    cy.log(`Found ${$buttons.length} possible submit buttons`);
-                    
-                    if ($buttons.length > 0) {
-                      cy.wrap($buttons.first())
-                        .click({ force: true });
-                      
-                      cy.log("Clicked submit button");
-                    } else {
-                      cy.log("No submit button found. Trying form submit");
-                      cy.get("form").submit();
-                    }
-                  });
-                } else {
-                  cy.log("No input fields found. Trying direct form submit");
-                  cy.get("form").submit();
-                }
+                  }
+                ).then(($inputs) => {
+                  cy.log(`Found ${$inputs.length} input fields`);
+
+                  if ($inputs.length > 0) {
+                    cy.wrap($inputs.first())
+                      .should("be.visible")
+                      .should("be.enabled")
+                      .clear()
+                      .type("1234");
+
+                    // Try to find and click the submit button with various selectors
+                    cy.get(
+                      'button[type="submit"], input[type="submit"], button, input[value="Submit"]',
+                      {
+                        timeout: timeout,
+                      }
+                    ).then(($buttons) => {
+                      cy.log(
+                        `Found ${$buttons.length} possible submit buttons`
+                      );
+
+                      if ($buttons.length > 0) {
+                        cy.wrap($buttons.first()).should("be.visible").click();
+
+                        cy.log("Clicked submit button");
+                      } else {
+                        cy.log("No submit button found. Trying form submit");
+                        cy.get("form").submit();
+                      }
+                    });
+                  } else {
+                    cy.log("No input fields found. Trying direct form submit");
+                    cy.get("form").submit();
+                  }
+                });
               });
-            });
-        });
-        
-        // Wait after form submission before continuing
-        cy.wait(WAIT_LONG);
-      } 
+          }
+        );
+
+        // Wait for any navigation or form submission effects to complete
+        cy.get("body").should("exist");
+      }
       // If we're on pci-api-demo.airwallex.com
       else if (currentUrl.includes("pci-api-demo.airwallex.com")) {
-        cy.log("Detected pci-api-demo.airwallex.com domain - waiting for auto-redirect");
-        
-        // Wait for auto-redirect to api-demo.airwallex.com
-        cy.wait(WAIT_LONG);
-        
+        cy.log(
+          "Detected pci-api-demo.airwallex.com domain - waiting for auto-redirect"
+        );
+
+        // Wait for redirect to complete by checking for URL changes
+        cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+          "not.include",
+          "pci-api-demo.airwallex.com"
+        );
+
         // Check if we've been redirected to api-demo.airwallex.com
         cy.url().then((newUrl) => {
           cy.log(`URL after waiting: ${newUrl}`);
-          
+
           if (newUrl.includes("api-demo.airwallex.com")) {
             const newOrigin = new URL(newUrl).origin;
-            
-            cy.origin(newOrigin, { args: { timeout: CONSTANTS.TIMEOUT } }, ({ timeout }) => {
-              cy.log("Redirected to api-demo.airwallex.com");
-              
-              // Try to find and interact with the form
-              cy.get("form", { timeout: timeout })
-                .should("exist")
-                .then($form => {
-                  cy.log(`Found form with ID: ${$form.attr('id') || 'unknown'}`);
-                  
-                  // Try to find the password input field with various selectors
-                  cy.get('input[type="password"], input[type="text"], input[name="password"], input', { 
-                    timeout: timeout 
-                  }).then($inputs => {
-                    cy.log(`Found ${$inputs.length} input fields`);
-                    
-                    if ($inputs.length > 0) {
-                      cy.wrap($inputs.first())
-                        .should("be.visible")
-                        .clear({ force: true })
-                        .type("1234", { force: true });
-                      
-                      // Try to find and click the submit button with various selectors
-                      cy.get('button[type="submit"], input[type="submit"], button, input[value="Submit"]', {
+
+            cy.origin(
+              newOrigin,
+              { args: { timeout: CONSTANTS.TIMEOUT } },
+              ({ timeout }) => {
+                cy.log("Redirected to api-demo.airwallex.com");
+
+                // Try to find and interact with the form
+                cy.get("form", { timeout: timeout })
+                  .should("exist")
+                  .then(($form) => {
+                    cy.log(
+                      `Found form with ID: ${$form.attr("id") || "unknown"}`
+                    );
+
+                    // Try to find the password input field with various selectors
+                    cy.get(
+                      'input[type="password"], input[type="text"], input[name="password"], input',
+                      {
                         timeout: timeout,
-                      }).then($buttons => {
-                        cy.log(`Found ${$buttons.length} possible submit buttons`);
-                        
-                        if ($buttons.length > 0) {
-                          cy.wrap($buttons.first())
-                            .click({ force: true });
-                          
-                          cy.log("Clicked submit button");
-                        } else {
-                          cy.log("No submit button found. Trying form submit");
-                          cy.get("form").submit();
-                        }
-                      });
-                    } else {
-                      cy.log("No input fields found. Trying direct form submit");
-                      cy.get("form").submit();
-                    }
+                      }
+                    ).then(($inputs) => {
+                      cy.log(`Found ${$inputs.length} input fields`);
+
+                      if ($inputs.length > 0) {
+                        cy.wrap($inputs.first())
+                          .should("be.visible")
+                          .should("be.enabled")
+                          .clear()
+                          .type("1234");
+
+                        // Try to find and click the submit button with various selectors
+                        cy.get(
+                          'button[type="submit"], input[type="submit"], button, input[value="Submit"]',
+                          {
+                            timeout: timeout,
+                          }
+                        ).then(($buttons) => {
+                          cy.log(
+                            `Found ${$buttons.length} possible submit buttons`
+                          );
+
+                          if ($buttons.length > 0) {
+                            cy.wrap($buttons.first())
+                              .should("be.visible")
+                              .click();
+
+                            cy.log("Clicked submit button");
+                          } else {
+                            cy.log(
+                              "No submit button found. Trying form submit"
+                            );
+                            cy.get("form").submit();
+                          }
+                        });
+                      } else {
+                        cy.log(
+                          "No input fields found. Trying direct form submit"
+                        );
+                        cy.get("form").submit();
+                      }
+                    });
                   });
-                });
-            });
-            
-            // Wait after form submission
-            cy.wait(WAIT_LONG);
+              }
+            );
+
+            // Wait for form submission to complete by checking URL or DOM changes
+            cy.document()
+              .should("have.property", "readyState")
+              .and("equal", "complete");
           }
         });
       }
     });
-    
+
     // After handling the 3DS authentication, go to the expected return URL
     cy.log(`Navigating to expected return URL: ${expectedUrl.href}`);
     cy.visit(expectedUrl.href);
-    cy.wait(WAIT_MEDIUM);
-    
+
+    // Wait for page to load completely by checking for document ready state
+    cy.document()
+      .should("have.property", "readyState")
+      .and("equal", "complete");
+
     // Skip the standard verification since we've manually navigated to expected URL
     return;
   }
-  
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
-  
+
   handleFlow(
     redirectionUrl,
     expectedUrl,
@@ -485,39 +525,49 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               cy.get("#buttonSubmit").click();
             });
           break;
-          
+
         case "airwallex":
           // Airwallex uses multiple domains during 3DS flow
           // Handle the domain changes specifically for Airwallex
           cy.url().then((url) => {
             const currentOrigin = new URL(url).origin;
-            
+
             if (currentOrigin.includes("pci-api-demo.airwallex.com")) {
-              cy.log("First Airwallex domain detected, waiting for redirect...");
+              cy.log(
+                "First Airwallex domain detected, waiting for redirect..."
+              );
               // Just wait for the automatic redirect to the next domain
               cy.wait(constants.TIMEOUT / 5); // 4 seconds
-            } 
-            else if (currentOrigin.includes("api-demo.airwallex.com")) {
-              cy.log("Second Airwallex domain detected, handling 3DS challenge...");
-              cy.origin(currentOrigin, { args: { constants } }, ({ constants }) => {
-                cy.get("form", { timeout: constants.TIMEOUT })
-                  .should("be.visible")
-                  .within(() => {
-                    cy.get('input[type="text"], input[type="password"], input[name="password"]', { 
-                      timeout: constants.TIMEOUT 
-                    })
-                      .should("be.visible")
-                      .should("be.enabled")
-                      .click()
-                      .type("1234");
-                      
-                    cy.get('button[type="submit"], input[type="submit"]', {
-                      timeout: constants.TIMEOUT,
-                    })
-                      .should("be.visible")
-                      .click();
-                  });
-              });
+            } else if (currentOrigin.includes("api-demo.airwallex.com")) {
+              cy.log(
+                "Second Airwallex domain detected, handling 3DS challenge..."
+              );
+              cy.origin(
+                currentOrigin,
+                { args: { constants } },
+                ({ constants }) => {
+                  cy.get("form", { timeout: constants.TIMEOUT })
+                    .should("be.visible")
+                    .within(() => {
+                      cy.get(
+                        'input[type="text"], input[type="password"], input[name="password"]',
+                        {
+                          timeout: constants.TIMEOUT,
+                        }
+                      )
+                        .should("be.visible")
+                        .should("be.enabled")
+                        .click()
+                        .type("1234");
+
+                      cy.get('button[type="submit"], input[type="submit"]', {
+                        timeout: constants.TIMEOUT,
+                      })
+                        .should("be.visible")
+                        .click();
+                    });
+                }
+              );
             }
           });
           break;
