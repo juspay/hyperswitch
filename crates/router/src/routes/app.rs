@@ -130,6 +130,7 @@ pub struct SessionState {
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
