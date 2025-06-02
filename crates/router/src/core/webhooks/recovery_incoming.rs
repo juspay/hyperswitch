@@ -1,5 +1,5 @@
 use std::{marker::PhantomData, str::FromStr};
-
+use services::kafka::revenue_recovery::RevenueRecovery;
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
@@ -152,6 +152,30 @@ pub async fn recovery_incoming_webhook_flow(
         .ok_or(report!(errors::RevenueRecoveryError::RetryCountFetchFailed))?;
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
+
+    state.event_handler.log_event(&RevenueRecovery{
+        attempt_id: &"string".to_string(),
+        // payment_id: &recovery_intent_from_payment_attempt.payment_id,
+        // attempt_amount: recovery_attempt_from_payment_attempt
+        //     .as_ref()
+        //     .map_or(0, |attempt| attempt.amount),
+        // attempt_currency: recovery_attempt_from_payment_attempt
+        //     .as_ref()
+        //     .map_or(&common_enums::Currency::default(), |attempt| &attempt.currency),
+        attempt_status: recovery_attempt_from_payment_attempt
+            .as_ref()
+            .map_or(&common_enums::AttemptStatus::default(), |attempt| &attempt.attempt_status),
+        // attempt_error_code: recovery_attempt_from_payment_attempt
+        //     .as_ref()
+        //     .and_then(|attempt| attempt.error_code.as_ref()),
+        // attempt_created_at: recovery_attempt_from_payment_attempt
+        //     .as_ref()
+        //     .and_then(
+        //         // || recovery_intent_from_payment_attempt.feature_metadata.as_ref().and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref().and_then(|rr_metadata| rr_metadata.)),
+        //         |attempt| attempt.,
+        //     )
+        //     .assume_utc(),
+    });
 
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),

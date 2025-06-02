@@ -28,6 +28,7 @@ mod payment_intent;
 mod payment_intent_event;
 mod refund;
 mod refund_event;
+pub mod revenue_recovery;
 use diesel_models::{authentication::Authentication, refund::Refund};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
@@ -40,7 +41,7 @@ use self::{
     dispute::KafkaDispute, dispute_event::KafkaDisputeEvent, payment_attempt::KafkaPaymentAttempt,
     payment_attempt_event::KafkaPaymentAttemptEvent, payment_intent::KafkaPaymentIntent,
     payment_intent_event::KafkaPaymentIntentEvent, refund::KafkaRefund,
-    refund_event::KafkaRefundEvent,
+    refund_event::KafkaRefundEvent, revenue_recovery::RevenueRecovery,
 };
 use crate::{services::kafka::fraud_check::KafkaFraudCheck, types::storage::Dispute};
 

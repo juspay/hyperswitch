@@ -1505,13 +1505,13 @@ impl PaymentAttemptInterface for KafkaStore {
             )
             .await?;
 
-        if let Err(er) = self
-            .kafka_producer
-            .log_payment_attempt(&attempt, None, self.tenant_id.clone())
-            .await
-        {
-            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
-        }
+        // if let Err(er) = self
+        //     .kafka_producer
+        //     .log_payment_attempt(&attempt, None, self.tenant_id.clone())
+        //     .await
+        // {
+        //     logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        // }
 
         Ok(attempt)
     }
@@ -1559,13 +1559,13 @@ impl PaymentAttemptInterface for KafkaStore {
             )
             .await?;
 
-        if let Err(er) = self
-            .kafka_producer
-            .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
-            .await
-        {
-            logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
-        }
+        // if let Err(er) = self
+        //     .kafka_producer
+        //     .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
+        //     .await
+        // {
+        //     logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
+        // }
 
         Ok(attempt)
     }
@@ -1863,7 +1863,7 @@ impl PaymentIntentInterface for KafkaStore {
                 storage_scheme,
             )
             .await?;
-
+        #[cfg(feature = "v1")]
         if let Err(er) = self
             .kafka_producer
             .log_payment_intent(&intent, Some(this), self.tenant_id.clone())
@@ -1887,7 +1887,7 @@ impl PaymentIntentInterface for KafkaStore {
             .diesel_store
             .insert_payment_intent(state, new, key_store, storage_scheme)
             .await?;
-
+        #[cfg(feature = "v1")]
         if let Err(er) = self
             .kafka_producer
             .log_payment_intent(&intent, None, self.tenant_id.clone())

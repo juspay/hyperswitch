@@ -28,6 +28,15 @@ sources:
       - hyperswitch-dispute-events
     decoding:
       codec: json
+  
+  revenue_events:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: hyperswitch_revenue_recovery
+    topics:
+      - hyperswitch-revenue-recovery-events
+    decoding:
+      codec: json
 
   sessionized_kafka_tx_events:
     type: kafka
@@ -260,3 +269,35 @@ sinks:
     bootstrap_servers: kafka0:29092
     topic: hyper-sdk-logs
     key_field: ".merchant_id"
+
+  revenue_recovery_s3:
+    type: aws_s3
+    inputs:
+      - revenue_events
+    bucket: r-r-test-2110
+    region: us-east-1
+    content_type: json
+    batch:
+      max_events: 1000
+      timeout_secs: 60
+    encoding:
+      codec: csv
+      csv:
+        fields:
+          - merchant_id
+          - attempt_id
+          - attempt_status
+    key_prefix: "{{ .merchant_id }}/%M/%d_%H_%M_%S"
+    timezone: "Europe/London"
+    auth: 
+      access_key_id: "AKIAT6O474TZRBY4M3KE"
+      secret_access_key: "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"
+      assume_role: arn:aws:iam::271583274227:role/nishantt
+    server_side_encryption: aws:kms
+    request:
+      max_retries: 3
+      retry_delay_secs: 5
+    filename_append_uuid: false
+    filename_time_format: "%"
+    filename_extension: csv
+    
