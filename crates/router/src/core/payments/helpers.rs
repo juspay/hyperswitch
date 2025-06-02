@@ -7283,6 +7283,7 @@ pub async fn allow_payment_update_enabled_for_client_auth(
     }
 }
 
+#[cfg(feature = "v2")]
 pub async fn resolve_merchant_connector_account_type<F, D>(
     state: &SessionState,
     payment_data: &D,
@@ -7324,9 +7325,9 @@ where
                 )?;
 
             Ok(
-                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     merchant_connector_account.clone(),
-                ),
+                )),
             )
         }
     }

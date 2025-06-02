@@ -229,10 +229,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         };
 
         let merchant_connector_details = request.merchant_connector_details.clone();
-        println!(
-            "$$$ get trackers Merchant Connector Details: {:?}",
-            merchant_connector_details
-        );
 
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
@@ -317,12 +313,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
                 .get_required_value("connector")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector is none when constructing response")?;
-
-            println!("$$$$$Connector: {}", connector);
-            println!(
-                "$$$$$Merchant Connector Details: {:?}",
-                payment_data.merchant_connector_details
-            );
 
             match &payment_data.merchant_connector_details {
                 Some(_) => {

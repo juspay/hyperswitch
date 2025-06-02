@@ -157,24 +157,27 @@ pub async fn update_connector_customer_in_customers(
         )
 }
 
+// #[cfg(all(feature = "v2", feature = "customer_v2"))]
+// #[instrument]
+// pub async fn update_connector_customer_in_customersf(
+//     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+//     customer: Option<&domain::Customer>,
+//     connector_customer_id: Option<String>,
+// ) -> Option<storage::CustomerUpdate> {
+//     connector_customer_id.map(|connector_customer_id| {
+//         let mut connector_customer_map = customer
+//             .and_then(|customer| customer.connector_customer.clone())
+//             .unwrap_or_default();
+//         connector_customer_map.insert(merchant_connector_id, connector_customer_id);
+
+//         storage::CustomerUpdate::ConnectorCustomer {
+//             connector_customer: Some(connector_customer_map),
+//         }
+//     })
+// }
+
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument]
-pub async fn update_connector_customer_in_customersf(
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    customer: Option<&domain::Customer>,
-    connector_customer_id: Option<String>,
-) -> Option<storage::CustomerUpdate> {
-    connector_customer_id.map(|connector_customer_id| {
-        let mut connector_customer_map = customer
-            .and_then(|customer| customer.connector_customer.clone())
-            .unwrap_or_default();
-        connector_customer_map.insert(merchant_connector_id, connector_customer_id);
-
-        storage::CustomerUpdate::ConnectorCustomer {
-            connector_customer: Some(connector_customer_map),
-        }
-    })
-}
 pub async fn update_connector_customer_in_customers(
     merchant_connector_id: &domain::MerchantConnectorAccountTypeDetails,
     customer: Option<&domain::Customer>,

@@ -20,10 +20,9 @@ use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-use crate::{
-    behaviour, merchant_connector_account::MerchantConnectorAccountTypeDetails,
-    merchant_key_store::MerchantKeyStore, type_encryption as types,
-};
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
+use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Clone, Debug, router_derive::ToEncryption)]

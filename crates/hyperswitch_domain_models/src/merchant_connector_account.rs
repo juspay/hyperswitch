@@ -94,9 +94,9 @@ impl MerchantConnectorAccount {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum MerchantConnectorAccountTypeDetails {
-    MerchantConnectorAccount(MerchantConnectorAccount),
+    MerchantConnectorAccount(Box<MerchantConnectorAccount>),
     MerchantConnectorDetails(api_models::payments::MerchantConnectorDetails),
 }
 
@@ -138,21 +138,12 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
-    pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
+    pub fn get_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
         match self {
-            Self::MerchantConnectorAccount(domain_mca_details) => domain_mca_details.id.clone(),
-            Self::MerchantConnectorDetails(api_mcd_details) => {
-                let connector_name_string = api_mcd_details.connector_name.to_string();
-
-                match id_type::MerchantConnectorAccountId::wrap(connector_name_string.clone()) {
-                    Ok(id) => id,
-                    Err(_conversion_error) => {
-                        let hardcoded_id_string = "mca_hardcoded_fallback_id_123".to_string();
-                        id_type::MerchantConnectorAccountId::wrap(hardcoded_id_string)
-                                .expect("The hardcoded fallback ID string MUST be valid for MerchantConnectorAccountId. This is a programmer error.")
-                    }
-                }
+            Self::MerchantConnectorAccount(domain_mca_details) => {
+                Some(domain_mca_details.id.clone())
             }
+            Self::MerchantConnectorDetails(_) => None,
         }
     }
 }

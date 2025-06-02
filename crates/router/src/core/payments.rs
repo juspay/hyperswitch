@@ -4594,17 +4594,15 @@ where
                 &state.conf.connectors,
                 &connector_name,
                 api::GetToken::Connector,
-                Some(merchant_connector_account.get_id()),
+                merchant_connector_account.get_id(),
             )?;
-
-            let merchant_connector_id = merchant_connector_account.get_id();
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
                     state,
                     &connector,
                     customer,
-                    &merchant_connector_account,
+                    merchant_connector_account,
                 );
 
             if should_call_connector {

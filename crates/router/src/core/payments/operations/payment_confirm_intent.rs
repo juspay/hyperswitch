@@ -148,7 +148,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
-        payment_id: &common_utils::id_type::GlobalPaymentId,
+        payment_id: &id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
@@ -242,10 +242,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         );
 
         let merchant_connector_details = request.merchant_connector_details.clone();
-        println!(
-            "$$$$$$$C Merchant Connector Details: {:?}",
-            merchant_connector_details
-        );
 
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
@@ -432,43 +428,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        // let merchant_connector_id = payment_data
-        //     .payment_attempt
-        //     .merchant_connector_id
-        //     .clone()
-        //     .get_required_value("merchant_connector_id")
-        //     .change_context(errors::ApiErrorResponse::InternalServerError)
-        //     .attach_printable("Merchant connector id is none when constructing response")?;
-
-        let determined_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>;
-
-        match &payment_data.merchant_connector_details {
-            Some(details) => {
-                // connector = details.connector_name.to_string();
-                determined_merchant_connector_id = None;
-            }
-            None => {
-                // connector = payment_data
-                //         .payment_attempt
-                //         .connector
-                //         .clone()
-                //         .get_required_value("connector")
-                //         .change_context(errors::ApiErrorResponse::InternalServerError)
-                //         .attach_printable("Connector is None in payment_attempt and no merchant_connector_details provided")?;
-
-                determined_merchant_connector_id = Some(
-                    payment_data
-                        .payment_attempt
-                        .merchant_connector_id
-                        .clone()
-                        .get_required_value("merchant_connector_id")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Merchant connector id is none when constructing response",
-                        )?,
-                );
-            }
-        }
+        let merchant_connector_id = match &payment_data.merchant_connector_details {
+            Some(_details) => None,
+            None => Some(
+                payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .get_required_value("merchant_connector_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant connector id is none when constructing response")?,
+            ),
+        };
 
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
@@ -483,7 +454,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
-            merchant_connector_id: determined_merchant_connector_id,
+            merchant_connector_id,
             authentication_type,
         };
 

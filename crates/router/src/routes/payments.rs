@@ -2870,7 +2870,7 @@ pub async fn payment_status(
 
     let payload = payment_types::PaymentsRetrieveRequest {
         force_sync: payload.force_sync.clone(),
-        expand_attempts: payload.expand_attempts.clone(),
+        expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
         all_keys_required: payload.all_keys_required,
         ..Default::default()
@@ -2958,10 +2958,10 @@ pub async fn payments_status_with_gateway_creds(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let payload = payment_types::PaymentsRetrieveRequest {
-        force_sync: payload.force_sync.clone(),
-        expand_attempts: payload.expand_attempts.clone(),
+        force_sync: payload.force_sync,
+        expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
-        all_keys_required: payload.all_keys_required.clone(),
+        all_keys_required: payload.all_keys_required,
         merchant_connector_details: payload.merchant_connector_details.clone(),
     };
 

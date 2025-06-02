@@ -223,11 +223,16 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         None,
     ));
 
-    let webhook_url = Some(helpers::create_webhook_url(
-        router_base_url,
-        &attempt.merchant_id,
-        merchant_connector_account.get_id().get_string_repr(),
-    ));
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
 
     let router_return_url = payment_data
         .payment_intent
@@ -892,12 +897,17 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_id,
         None,
     ));
-    ////// Sai Harsha
-    let webhook_url = Some(helpers::create_webhook_url(
-        router_base_url,
-        &attempt.merchant_id,
-        merchant_connector_account.get_id().get_string_repr(),
-    ));
+
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
 
     let router_return_url = payment_data
         .payment_intent
@@ -1879,6 +1889,7 @@ where
             billing: None,  //TODO: add this
             shipping: None, //TODO: add this
             is_iframe_redirection_enabled: None,
+            merchant_reference_id: payment_intent.merchant_reference_id.clone(),
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -1973,6 +1984,7 @@ where
             attempts,
             return_url,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
+            merchant_reference_id: payment_intent.merchant_reference_id.clone(),
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((

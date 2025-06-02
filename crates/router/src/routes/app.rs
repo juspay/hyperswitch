@@ -738,7 +738,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/sync")
-                        .route(web::post().to(payments::payments_status_with_gateway_creds)),
+                        .route(web::post().to(payments::payments_retrieve_with_gateway_creds)),
                 )
                 .service(
                     web::resource("/{payment_id}")
