@@ -1,11 +1,12 @@
 //! Routing API logs interface
 
+use std::fmt;
+
 use api_models::routing::RoutableConnectorChoice;
 use common_utils::request::Method;
 use router_env::tracing_actix_web::RequestId;
 use serde::Serialize;
 use serde_json::json;
-use std::fmt;
 use time::OffsetDateTime;
 
 /// RoutingEngine enum
