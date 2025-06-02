@@ -2070,21 +2070,8 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     };
 
     // Create merchant in Decision Engine if it is not already created
-    if !dynamic_routing_algo_ref.is_merchant_created_in_decision_engine {
-        logger::debug!(
-            "Creating merchant_account in decision engine for profile {}",
-            profile_id.get_string_repr()
-        );
-
-        create_decision_engine_merchant(state, profile_id)
-            .await
-            .map_err(|err| {
-                logger::warn!("Merchant creation error in decision_engine: {err:?}");
-            })
-            .ok();
-
-        dynamic_routing_algo_ref.update_merchant_creation_status_in_decision_engine(true);
-    }
+    create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
+        .await;
 
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
@@ -2160,21 +2147,8 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     };
 
     // Create merchant in Decision Engine if it is not already created
-    if !dynamic_routing_algo_ref.is_merchant_created_in_decision_engine {
-        logger::debug!(
-            "Creating merchant_account in decision engine for profile {}",
-            profile_id.get_string_repr()
-        );
-
-        create_decision_engine_merchant(state, profile_id)
-            .await
-            .map_err(|err| {
-                logger::warn!("Merchant creation error in decision_engine: {err:?}");
-            })
-            .ok();
-
-        dynamic_routing_algo_ref.update_merchant_creation_status_in_decision_engine(true);
-    }
+    create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
+        .await;
 
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
@@ -2222,21 +2196,8 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     };
 
     // Create merchant in Decision Engine if it is not already created
-    if !dynamic_routing_algo_ref.is_merchant_created_in_decision_engine {
-        logger::debug!(
-            "Creating merchant_account in decision engine for profile {}",
-            profile_id.get_string_repr()
-        );
-
-        create_decision_engine_merchant(state, profile_id)
-            .await
-            .map_err(|err| {
-                logger::warn!("Merchant creation error in decision_engine: {err:?}");
-            })
-            .ok();
-
-        dynamic_routing_algo_ref.update_merchant_creation_status_in_decision_engine(true);
-    }
+    create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
+        .await;
 
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
@@ -2250,6 +2211,31 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     .attach_printable("Unable to disable decision engine dynamic routing")?;
 
     Ok(())
+}
+
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn create_merchant_in_decision_engine_if_not_exists(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
+) {
+    if !dynamic_routing_algo_ref.is_merchant_created_in_decision_engine {
+        logger::debug!(
+            "Creating merchant_account in decision engine for profile {}",
+            profile_id.get_string_repr()
+        );
+
+        create_decision_engine_merchant(state, profile_id)
+            .await
+            .map_err(|err| {
+                logger::warn!("Merchant creation error in decision_engine: {err:?}");
+            })
+            .ok();
+
+        // TODO: Update the status based on the status code or error message from the API call
+        dynamic_routing_algo_ref.update_merchant_creation_status_in_decision_engine(true);
+    }
 }
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
