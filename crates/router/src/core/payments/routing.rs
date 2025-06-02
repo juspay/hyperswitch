@@ -1794,10 +1794,6 @@ pub async fn perform_decide_gateway_call_with_open_router(
         open_router_req_body,
     )));
 
-    let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
-        .await
-        .change_context(errors::RoutingError::OpenRouterCallFailed)?;
-
     let mut routing_event = RoutingEvent::new(
         state.tenant.tenant_id.clone(),
         "".to_string(),
@@ -1811,6 +1807,15 @@ pub async fn perform_decide_gateway_call_with_open_router(
         state.request_id,
         RoutingEngine::DecisionEngine,
     );
+
+    let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
+        .await
+        .inspect_err(|err| {
+            routing_event
+                .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+            state.event_handler().log_event(&routing_event);
+        })
+        .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
     let sr_sorted_connectors = match response {
         Ok(resp) => {
@@ -1907,11 +1912,6 @@ pub async fn update_gateway_score_with_open_router(
         open_router_req_body,
     )));
 
-    let response =
-        services::call_connector_api(state, request, "open_router_update_gateway_score_call")
-            .await
-            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
-
     let mut routing_event = RoutingEvent::new(
         state.tenant.tenant_id.clone(),
         "".to_string(),
@@ -1925,6 +1925,16 @@ pub async fn update_gateway_score_with_open_router(
         state.request_id,
         RoutingEngine::DecisionEngine,
     );
+
+    let response =
+        services::call_connector_api(state, request, "open_router_update_gateway_score_call")
+            .await
+            .inspect_err(|err| {
+                routing_event
+                    .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+                state.event_handler().log_event(&routing_event);
+            })
+            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
     routing_event.set_payment_connector(payment_connector.clone()); // check this in review
 
