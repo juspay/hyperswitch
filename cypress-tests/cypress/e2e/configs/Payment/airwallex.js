@@ -175,7 +175,6 @@ export const connectorDetails = {
         },
       },
     },
-
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
