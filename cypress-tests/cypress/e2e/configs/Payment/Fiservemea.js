@@ -8,6 +8,14 @@ const successfulNo3DSCardDetails = {
   card_cvc: "002",
 };
 
+const failedNo3DSCardDetails = {
+  card_number: "4000000000000069",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 const billingAddress = {
   address: {
     state: "New York",
@@ -111,12 +119,15 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "MYR",
+        currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: billingAddress,
@@ -124,11 +135,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -142,7 +156,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -311,7 +325,7 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSAutoCapture: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -341,12 +355,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -366,7 +380,7 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -376,6 +390,7 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -385,7 +400,7 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -405,7 +420,7 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -535,6 +550,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -658,6 +676,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -677,6 +698,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -691,7 +715,24 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
