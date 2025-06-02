@@ -12,7 +12,7 @@ CURL_COMMAND=("curl" "--get" "${WEBHOOK_URL}" "--data-urlencode" "${VERSION}" "-
 if [ $# -gt 2 ]; then
     # Starting from the 3rd argument (index 2 in $@)
     for param in "${@:3}"; do
-        CURL_COMMAND+=("--data-urlencode" "$param")
+        CURL_COMMAND+=("--data-urlencode" "${param}")
     done
 fi
 
