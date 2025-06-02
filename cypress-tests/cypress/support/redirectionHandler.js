@@ -369,7 +369,10 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             break;
 
           case "cybersource":
-            cy.url({ timeout: constants.TIMEOUT }).should("include", expectedUrl);
+            cy.url({ timeout: constants.TIMEOUT }).should(
+              "include",
+              expectedUrl
+            );
             break;
 
           case "checkout":
@@ -468,7 +471,9 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                   .invoke("text")
                   .then((otpText) => {
                     const otp = otpText.match(/\d+/)[0];
-                    cy.get("input#otp-input").should("not.be.disabled").type(otp);
+                    cy.get("input#otp-input")
+                      .should("not.be.disabled")
+                      .type(otp);
                     cy.get("button.pay-btn").click();
                   });
               });
