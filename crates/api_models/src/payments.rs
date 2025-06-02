@@ -5504,10 +5504,6 @@ pub struct PaymentsRequest {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
-
-    /// Provide a reference to a stored payment method
-    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
-    pub payment_token: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5558,7 +5554,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             customer_acceptance: request.customer_acceptance.clone(),
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
-            payment_token: request.payment_token.clone(),
+            payment_token: None,
         }
     }
 }
