@@ -699,7 +699,7 @@ where
             );
             err.current_context().status_code().as_u16().into()
         }
-    };
+    }
 
     let infra = state.infra_components.clone();
 
@@ -718,6 +718,7 @@ where
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
         request.method(),
+        infra.clone(),
     );
     state.event_handler().log_event(&api_event);
 
