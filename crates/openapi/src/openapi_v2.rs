@@ -163,6 +163,7 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     components(schemas(
         common_utils::types::MinorUnit,
+        common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,
         common_utils::types::BrowserInformation,
         common_utils::link_utils::GenericLinkUiConfig,
