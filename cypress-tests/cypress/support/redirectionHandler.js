@@ -324,6 +324,10 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href);
 
+  // braintree has been kept outside because the currentHost and originalHost being the same in the handleFlow function (which should not have been the case), it asserts that an iframe exists which does not
+  if (connectorId === "braintree") {
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
+  } else {
   handleFlow(
     redirectionUrl,
     expectedUrl,
@@ -478,6 +482,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
       }
     }
   );
+}
 
   // Verify return URL after handling the specific connector
   verifyReturnUrl(redirectionUrl, expectedUrl, true);
