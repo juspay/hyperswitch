@@ -103,6 +103,7 @@ pub struct Connectors {
     pub taxjar: ConnectorParams,
     pub threedsecureio: ConnectorParams,
     pub thunes: ConnectorParams,
+    pub tokenio: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub unified_authentication_service: ConnectorParams,
