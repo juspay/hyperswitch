@@ -15,10 +15,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct AuthenticationCount;
+pub(super) struct AuthenticationExemptionApprovedCount;
 
 #[async_trait::async_trait]
-impl<T> super::AuthEventMetric<T> for AuthenticationCount
+impl<T> super::AuthEventMetric<T> for AuthenticationExemptionApprovedCount
 where
     T: AnalyticsDataSource + super::AuthEventMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -64,6 +64,10 @@ where
 
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
+            .switch()?;
+
+        query_builder
+            .add_filter_clause(AuthEventDimensions::ExemptionAccepted, true)
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
         time_range
