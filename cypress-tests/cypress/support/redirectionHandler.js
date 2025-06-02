@@ -324,165 +324,160 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href);
 
-  // braintree has been kept outside because the currentHost and originalHost being the same in the handleFlow function (which should not have been the case), it asserts that an iframe exists which does not
-  if (connectorId === "braintree") {
-    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
-  } else {
-    handleFlow(
-      redirectionUrl,
-      expectedUrl,
-      connectorId,
-      ({ connectorId, constants, expectedUrl }) => {
-        switch (connectorId) {
-          case "adyen":
-            cy.get("iframe")
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get('input[type="password"]').click();
-                cy.get('input[type="password"]').type("password");
-                cy.get("#buttonSubmit").click();
-              });
-            break;
+  handleFlow(
+    redirectionUrl,
+    expectedUrl,
+    connectorId,
+    ({ connectorId, constants, expectedUrl }) => {
+      switch (connectorId) {
+        case "adyen":
+          cy.get("iframe")
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('input[type="password"]').click();
+              cy.get('input[type="password"]').type("password");
+              cy.get("#buttonSubmit").click();
+            });
+          break;
 
-          case "bankofamerica":
-          case "wellsfargo":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .should("be.visible")
-              .its("0.contentDocument.body")
-              .should("not.be.empty")
-              .within(() => {
-                cy.get(
-                  'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
-                  { timeout: constants.TIMEOUT }
-                )
-                  .should("be.visible")
-                  .should("be.enabled")
-                  .click()
-                  .type("1234");
+        case "bankofamerica":
+        case "wellsfargo":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .should("be.visible")
+            .its("0.contentDocument.body")
+            .should("not.be.empty")
+            .within(() => {
+              cy.get(
+                'input[type="text"], input[type="password"], input[name="challengeDataEntry"]',
+                { timeout: constants.TIMEOUT }
+              )
+                .should("be.visible")
+                .should("be.enabled")
+                .click()
+                .type("1234");
 
-                cy.get('input[value="SUBMIT"], button[type="submit"]', {
-                  timeout: constants.TIMEOUT,
-                })
-                  .should("be.visible")
-                  .click();
-              });
-            break;
+              cy.get('input[value="SUBMIT"], button[type="submit"]', {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+            });
+          break;
 
-          case "cybersource":
-            cy.url({ timeout: constants.TIMEOUT }).should("include", expectedUrl);
-            break;
+        case "cybersource":
+          cy.url({ timeout: constants.TIMEOUT }).should("include", expectedUrl);
+          break;
 
-          case "checkout":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get('form[id="form"]', { timeout: constants.WAIT_TIME })
-                  .should("exist")
-                  .then(() => {
-                    cy.get('input[id="password"]').click();
-                    cy.get('input[id="password"]').type("Checkout1!");
-                    cy.get("#txtButton").click();
-                  });
-              });
-            break;
+        case "checkout":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('form[id="form"]', { timeout: constants.WAIT_TIME })
+                .should("exist")
+                .then(() => {
+                  cy.get('input[id="password"]').click();
+                  cy.get('input[id="password"]').type("Checkout1!");
+                  cy.get("#txtButton").click();
+                });
+            });
+          break;
 
-          case "nmi":
-          case "noon":
-          case "xendit":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get("iframe", { timeout: constants.TIMEOUT })
-                  .its("0.contentDocument.body")
-                  .within(() => {
-                    cy.get('form[name="cardholderInput"]', {
-                      timeout: constants.TIMEOUT,
-                    })
-                      .should("exist")
-                      .then(() => {
-                        cy.get('input[name="challengeDataEntry"]')
-                          .click()
-                          .type("1234");
-                        cy.get('input[value="SUBMIT"]').click();
-                      });
-                  });
-              });
-            break;
+        case "nmi":
+        case "noon":
+        case "xendit":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get("iframe", { timeout: constants.TIMEOUT })
+                .its("0.contentDocument.body")
+                .within(() => {
+                  cy.get('form[name="cardholderInput"]', {
+                    timeout: constants.TIMEOUT,
+                  })
+                    .should("exist")
+                    .then(() => {
+                      cy.get('input[name="challengeDataEntry"]')
+                        .click()
+                        .type("1234");
+                      cy.get('input[value="SUBMIT"]').click();
+                    });
+                });
+            });
+          break;
 
-          case "novalnet":
-            cy.get("form", { timeout: constants.WAIT_TIME })
-              .should("exist")
-              .then(() => {
-                cy.get('input[id="submit"]').click();
-              });
-            break;
+        case "novalnet":
+          cy.get("form", { timeout: constants.WAIT_TIME })
+            .should("exist")
+            .then(() => {
+              cy.get('input[id="submit"]').click();
+            });
+          break;
 
-          case "stripe":
-            cy.get("iframe", { timeout: constants.TIMEOUT })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get("iframe")
-                  .its("0.contentDocument.body")
-                  .within(() => {
-                    cy.get("#test-source-authorize-3ds").click();
-                  });
-              });
-            break;
+        case "stripe":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get("iframe")
+                .its("0.contentDocument.body")
+                .within(() => {
+                  cy.get("#test-source-authorize-3ds").click();
+                });
+            });
+          break;
 
-          case "trustpay":
-            cy.get('form[name="challengeForm"]', {
-              timeout: constants.WAIT_TIME,
-            })
-              .should("exist")
-              .then(() => {
-                cy.get("#outcomeSelect")
-                  .select("Approve")
-                  .should("have.value", "Y");
-                cy.get('button[type="submit"]').click();
-              });
-            break;
+        case "trustpay":
+          cy.get('form[name="challengeForm"]', {
+            timeout: constants.WAIT_TIME,
+          })
+            .should("exist")
+            .then(() => {
+              cy.get("#outcomeSelect")
+                .select("Approve")
+                .should("have.value", "Y");
+              cy.get('button[type="submit"]').click();
+            });
+          break;
 
-          case "worldpay":
-            cy.get("iframe", { timeout: constants.WAIT_TIME })
-              .its("0.contentDocument.body")
-              .within(() => {
-                cy.get('form[name="cardholderInput"]', {
-                  timeout: constants.WAIT_TIME,
-                })
-                  .should("exist")
-                  .then(() => {
-                    cy.get('input[name="challengeDataEntry"]')
-                      .click()
-                      .type("1234");
-                    cy.get('input[value="SUBMIT"]').click();
-                  });
-              });
-            break;
+        case "worldpay":
+          cy.get("iframe", { timeout: constants.WAIT_TIME })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get('form[name="cardholderInput"]', {
+                timeout: constants.WAIT_TIME,
+              })
+                .should("exist")
+                .then(() => {
+                  cy.get('input[name="challengeDataEntry"]')
+                    .click()
+                    .type("1234");
+                  cy.get('input[value="SUBMIT"]').click();
+                });
+            });
+          break;
 
-          case "fiuu":
-            cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
-              .should("exist")
-              .then(() => {
-                cy.get('button.pay-btn[name="pay"]').click();
-                cy.get("div.otp")
-                  .invoke("text")
-                  .then((otpText) => {
-                    const otp = otpText.match(/\d+/)[0];
-                    cy.get("input#otp-input").should("not.be.disabled").type(otp);
-                    cy.get("button.pay-btn").click();
-                  });
-              });
-            break;
-          case "redsys":
-            cy.get("div.autenticada").click();
-            cy.get('input[value="Enviar"]').click();
-            break;
-          default:
-            cy.wait(constants.WAIT_TIME);
-        }
+        case "fiuu":
+          cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .then(() => {
+              cy.get('button.pay-btn[name="pay"]').click();
+              cy.get("div.otp")
+                .invoke("text")
+                .then((otpText) => {
+                  const otp = otpText.match(/\d+/)[0];
+                  cy.get("input#otp-input").should("not.be.disabled").type(otp);
+                  cy.get("button.pay-btn").click();
+                });
+            });
+          break;
+        case "redsys":
+          cy.get("div.autenticada").click();
+          cy.get('input[value="Enviar"]').click();
+          break;
+        default:
+          cy.wait(constants.WAIT_TIME);
       }
-    );
-  }
+    }
+  );
 
   // Verify return URL after handling the specific connector
   verifyReturnUrl(redirectionUrl, expectedUrl, true);
