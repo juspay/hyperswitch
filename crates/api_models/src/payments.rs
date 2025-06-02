@@ -7001,7 +7001,7 @@ pub enum SessionToken {
     /// The sessions response structure for ClickToPay
     ClickToPay(Box<ClickToPaySessionResponse>),
     /// Whenever there is no session token response or an error in session response
-    NoSessionTokenReceived, 
+    NoSessionTokenReceived,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
