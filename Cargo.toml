@@ -6,7 +6,7 @@ package.rust-version = "1.80.0"
 package.license = "Apache-2.0"
 
 [workspace.dependencies]
-tracing = { version = "0.1.40" }
+tracing = { version = "0.1.41" }
 
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
 [workspace.lints.rust]

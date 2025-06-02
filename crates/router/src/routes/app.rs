@@ -858,43 +858,23 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
-                    routing::routing_retrieve_linked_config(
-                        state,
-                        req,
-                        query_params,
-                        &TransactionType::Payment,
-                    )
+                    routing::routing_retrieve_linked_config(state, req, query_params, None)
                 })),
             )
             .service(
                 web::resource("")
                     .route(
                         web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
-                            routing::list_routing_configs(
-                                state,
-                                req,
-                                path,
-                                &TransactionType::Payment,
-                            )
+                            routing::list_routing_configs(state, req, path, None)
                         }),
                     )
                     .route(web::post().to(|state, req, payload| {
-                        routing::routing_create_config(
-                            state,
-                            req,
-                            payload,
-                            TransactionType::Payment,
-                        )
+                        routing::routing_create_config(state, req, payload, None)
                     })),
             )
             .service(web::resource("/list/profile").route(web::get().to(
                 |state, req, query: web::Query<RoutingRetrieveQuery>| {
-                    routing::list_routing_configs_for_profile(
-                        state,
-                        req,
-                        query,
-                        &TransactionType::Payment,
-                    )
+                    routing::list_routing_configs_for_profile(state, req, query, None)
                 },
             )))
             .service(
@@ -909,7 +889,7 @@ impl Routing {
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
-                    routing::routing_unlink_config(state, req, payload, &TransactionType::Payment)
+                    routing::routing_unlink_config(state, req, payload, None)
                 })),
             )
             .service(
@@ -954,7 +934,7 @@ impl Routing {
                                     state,
                                     req,
                                     path,
-                                    &TransactionType::Payout,
+                                    Some(TransactionType::Payout),
                                 )
                             },
                         ))
@@ -963,7 +943,7 @@ impl Routing {
                                 state,
                                 req,
                                 payload,
-                                TransactionType::Payout,
+                                Some(TransactionType::Payout),
                             )
                         })),
                 )
@@ -973,7 +953,7 @@ impl Routing {
                             state,
                             req,
                             query,
-                            &TransactionType::Payout,
+                            Some(TransactionType::Payout),
                         )
                     },
                 )))
@@ -983,7 +963,7 @@ impl Routing {
                             state,
                             req,
                             query_params,
-                            &TransactionType::Payout,
+                            Some(TransactionType::Payout),
                         )
                     },
                 )))
@@ -1007,8 +987,14 @@ impl Routing {
                 )
                 .service(
                     web::resource("/payouts/{algorithm_id}/activate").route(web::post().to(
-                        |state, req, path| {
-                            routing::routing_link_config(state, req, path, &TransactionType::Payout)
+                        |state, req, path, payload| {
+                            routing::routing_link_config(
+                                state,
+                                req,
+                                path,
+                                payload,
+                                Some(TransactionType::Payout),
+                            )
                         },
                     )),
                 )
@@ -1018,7 +1004,7 @@ impl Routing {
                             state,
                             req,
                             payload,
-                            &TransactionType::Payout,
+                            Some(TransactionType::Payout),
                         )
                     },
                 )))
@@ -1053,8 +1039,8 @@ impl Routing {
             )
             .service(
                 web::resource("/{algorithm_id}/activate").route(web::post().to(
-                    |state, req, path| {
-                        routing::routing_link_config(state, req, path, &TransactionType::Payment)
+                    |state, req, payload, path| {
+                        routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
             );
@@ -2081,6 +2067,10 @@ impl Profile {
                     .service(
                         web::resource("/set_volume_split")
                             .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                    )
+                    .service(
+                        web::resource("/get_volume_split")
+                            .route(web::get().to(routing::get_dynamic_routing_volume_split)),
                     )
                     .service(
                         web::scope("/elimination")

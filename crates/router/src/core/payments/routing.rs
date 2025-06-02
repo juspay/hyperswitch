@@ -521,6 +521,9 @@ async fn ensure_algorithm_cached_v1(
                     profile_id.get_string_repr()
                 )
             }
+            common_enums::TransactionType::ThreeDsAuthentication => {
+                Err(errors::RoutingError::InvalidTransactionType)?
+            }
         }
     };
 
@@ -628,6 +631,10 @@ pub async fn refresh_routing_cache_v1(
 
             CachedAlgorithm::Advanced(interpreter)
         }
+        api_models::routing::StaticRoutingAlgorithm::ThreeDsDecisionRule(_program) => {
+            Err(errors::RoutingError::InvalidRoutingAlgorithmStructure)
+                .attach_printable("Unsupported algorithm received")?
+        }
     };
 
     let arc_cached_algorithm = Arc::new(cached_algorithm);
@@ -725,6 +732,9 @@ pub async fn get_merchant_cgraph(
                     profile_id.get_string_repr()
                 )
             }
+            api_enums::TransactionType::ThreeDsAuthentication => {
+                Err(errors::RoutingError::InvalidTransactionType)?
+            }
         }
     };
 
@@ -779,12 +789,18 @@ pub async fn refresh_cgraph_cache(
             merchant_connector_accounts
                 .retain(|mca| mca.connector_type == storage_enums::ConnectorType::PayoutProcessor);
         }
+        api_enums::TransactionType::ThreeDsAuthentication => {
+            Err(errors::RoutingError::InvalidTransactionType)?
+        }
     };
 
     let connector_type = match transaction_type {
         api_enums::TransactionType::Payment => common_enums::ConnectorType::PaymentProcessor,
         #[cfg(feature = "payouts")]
         api_enums::TransactionType::Payout => common_enums::ConnectorType::PayoutProcessor,
+        api_enums::TransactionType::ThreeDsAuthentication => {
+            Err(errors::RoutingError::InvalidTransactionType)?
+        }
     };
 
     let merchant_connector_accounts = merchant_connector_accounts
@@ -1808,10 +1824,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
             routing_event.set_response_body(&decided_gateway);
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
-                logger::debug!(
-                    "open_router decide_gateway call response: {:?}",
-                    gateway_priority_map
-                );
+                logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
                         .get(&connector_choice_a.to_string())
