@@ -35,6 +35,7 @@ use external_services::grpc_client::dynamic_routing::{
     DynamicRoutingError,
 };
 use hyperswitch_domain_models::address::Address;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine, RoutingEvent};
 use kgraph_utils::{
     mca as mca_graph,
@@ -59,13 +60,13 @@ use crate::core::payouts;
 use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::headers;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::routes::app::SessionStateInfo;
 use crate::{
     core::{
         errors, errors as oss_errors, payments::routing::utils::DecisionEngineApiHandler, routing,
     },
-    logger,
-    routes::app::SessionStateInfo,
-    services,
+    logger, services,
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,

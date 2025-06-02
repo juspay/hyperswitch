@@ -28,6 +28,7 @@ use external_services::grpc_client::dynamic_routing::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_domain_models::api::ApplicationResponse;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::logger;
@@ -47,7 +48,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
-    routes::{app::SessionStateInfo, SessionState},
+    routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
 };
@@ -58,6 +59,7 @@ use crate::{
         payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
         routing,
     },
+    routes::app::SessionStateInfo,
     services,
     types::transformers::ForeignInto,
 };
