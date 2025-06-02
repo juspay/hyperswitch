@@ -12,20 +12,20 @@ proc-macro = true
 doctest = false
 
 [dependencies]
-indexmap = "2.2.6"
-proc-macro2 = "1.0.79"
-quote = "1.0.35"
-serde_json = "1.0.115"
-strum = { version = "0.26.2", features = ["derive"] }
-syn = { version = "2.0.57", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
+indexmap = "2.9.0"
+proc-macro2 = "1.0.95"
+quote = "1.0.40"
+serde_json = "1.0.140"
+strum = { version = "0.26.3", features = ["derive"] }
+syn = { version = "2.0.101", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
 
 [dev-dependencies]
-diesel = { version = "2.2.3", features = ["postgres"] }
+diesel = { version = "2.2.10", features = ["postgres"] }
 error-stack = "0.4.1"
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
-url = { version = "2.5.0", features = ["serde"] }
-utoipa = "4.2.0"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+url = { version = "2.5.4", features = ["serde"] }
+utoipa = "4.2.3"
 
 common_utils = { version = "0.1.0", path = "../common_utils" }
 

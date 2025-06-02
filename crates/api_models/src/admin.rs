@@ -572,6 +572,10 @@ pub struct MerchantAccountResponse {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = MerchantAccountType, example = "standard")]
+    pub merchant_account_type: api_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v2")]

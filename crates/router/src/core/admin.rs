@@ -4691,6 +4691,8 @@ impl ProfileWrapper {
             storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
             #[cfg(feature = "payouts")]
             storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
+            //TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
+            storage::enums::TransactionType::ThreeDsAuthentication => todo!(),
         };
 
         let profile_update = domain::ProfileUpdate::RoutingAlgorithmUpdate {
