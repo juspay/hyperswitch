@@ -31,8 +31,8 @@ pub enum ApiMethod {
 impl fmt::Display for ApiMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ApiMethod::Grpc => write!(f, "Grpc"),
-            ApiMethod::Rest(method) => write!(f, "Rest ({})", method.to_string()),
+            Self::Grpc => write!(f, "Grpc"),
+            Self::Rest(method) => write!(f, "Rest ({})", method),
         }
     }
 }
@@ -163,7 +163,7 @@ impl RoutingEvent {
 
     /// Returns the merchant ID of the event.
     pub fn get_merchant_id(&self) -> &str {
-        &self.merchant_id.get_string_repr()
+        self.merchant_id.get_string_repr()
     }
 
     /// Returns the payment ID of the event.
@@ -173,6 +173,6 @@ impl RoutingEvent {
 
     /// Returns the profile ID of the event.
     pub fn get_profile_id(&self) -> &str {
-        &self.profile_id.get_string_repr()
+        self.profile_id.get_string_repr()
     }
 }
