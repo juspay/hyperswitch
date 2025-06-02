@@ -3456,6 +3456,9 @@ where
         )
         .await?;
 
+    let connector_request_reference_id = router_data.connector_request_reference_id.clone();
+    payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+
     let add_access_token_result = router_data
         .add_access_token(
             state,
@@ -8319,6 +8322,9 @@ pub trait OperationSessionSetters<F> {
 
     #[cfg(feature = "v1")]
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
+
+    #[cfg(feature = "v2")]
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>);
 }
 
 #[cfg(feature = "v1")]
@@ -8864,6 +8870,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {
         todo!()
     }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9108,6 +9118,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
     }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_request_reference_id = reference_id;
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9350,6 +9364,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_request_reference_id = reference_id;
     }
 }
 
@@ -9595,5 +9613,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_request_reference_id = reference_id;
     }
 }
