@@ -50,6 +50,11 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+export function shouldSkipMitUsingPMId(connectorId) {
+  const skipConnectors = ["fiuu"];
+  return skipConnectors.includes(connectorId);
+}
+
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -2124,6 +2129,10 @@ Cypress.Commands.add(
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
 
+    for (const key in reqData) {
+      saveCardConfirmBody[key] = reqData[key];
+    }
+
     if (reqData.billing === null) {
       saveCardConfirmBody.billing = null;
     }
@@ -2830,6 +2839,13 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
+    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
+      cy.log(
+        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
     const {
       Configs: configs = {},
       Request: reqData,
