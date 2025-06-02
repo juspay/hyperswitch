@@ -18,6 +18,7 @@ CREATE TABLE routing_events_queue
     `created_at` DateTime64(9),
     `method` LowCardinality(String),
     `routing_engine` LowCardinality(String),
+    `routing_approach` Nullable(String)
 )
 ENGINE = Kafka
 SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-routing-api-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
@@ -61,6 +62,7 @@ CREATE TABLE routing_events (
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `method` LowCardinality(String),
     `routing_engine` LowCardinality(String),
+    `routing_approach` Nullable(String),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX profileIndex profile_id TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree 
@@ -87,6 +89,7 @@ CREATE TABLE routing_events_audit (
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `method` LowCardinality(String),
     `routing_engine` LowCardinality(String),
+    `routing_approach` Nullable(String),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX profileIndex profile_id TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree 
@@ -113,7 +116,8 @@ CREATE MATERIALIZED VIEW routing_events_mv TO routing_events (
     `created_at` DateTime64(9),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `method` LowCardinality(String),
-    `routing_engine` LowCardinality(String)
+    `routing_engine` LowCardinality(String),
+    `routing_approach` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -133,7 +137,8 @@ SELECT
     created_at,
     now() AS inserted_at,
     method,
-    routing_engine
+    routing_engine,
+    routing_approach
 FROM
     routing_events_queue
 WHERE
@@ -157,7 +162,8 @@ CREATE MATERIALIZED VIEW routing_events_audit_mv TO routing_events_audit (
     `created_at` DateTime64(9),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `method` LowCardinality(String),
-    `routing_engine` LowCardinality(String)
+    `routing_engine` LowCardinality(String),
+    `routing_approach` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -177,7 +183,8 @@ SELECT
     created_at,
     now() AS inserted_at,
     method,
-    routing_engine
+    routing_engine,
+    routing_approach
 FROM
     routing_events_queue
 WHERE

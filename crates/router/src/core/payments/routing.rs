@@ -1822,6 +1822,12 @@ pub async fn perform_decide_gateway_call_with_open_router(
 
             routing_event.set_status_code(resp.status_code);
             routing_event.set_response_body(&decided_gateway);
+            routing_event.set_routing_approach(
+                api_routing::RoutingApproach::from_decision_engine_approach(
+                    &decided_gateway.routing_approach,
+                )
+                .to_string(),
+            );
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
                 logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
@@ -2028,6 +2034,7 @@ pub async fn perform_success_based_routing(
                     min_aggregates_size: conf.min_aggregates_size,
                     default_success_rate: conf.default_success_rate,
                     specificity_level: conf.specificity_level,
+                    exploration_percent: conf.exploration_percent,
                 }
             }),
         };
@@ -2080,9 +2087,23 @@ pub async fn perform_success_based_routing(
                     },
                 )
                 .collect(),
+            routing_apporach: match success_based_connectors.routing_approach {
+                0 => api_routing::RoutingApproach::Exploration,
+                1 => api_routing::RoutingApproach::Exploitation,
+                _ => {
+                    return Err(errors::RoutingError::GenericNotFoundError {
+                        field: "routing_approach".to_string(),
+                    })
+                    .change_context(errors::RoutingError::GenericNotFoundError {
+                        field: "unknown routing approach from dynamic routing service".to_string(),
+                    })
+                    .attach_printable("unknown routing approach from dynamic routing service")
+                }
+            },
         };
 
         routing_event.set_response_body(&event_resposne);
+        routing_event.set_routing_approach(event_resposne.routing_apporach.to_string());
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
@@ -2259,6 +2280,7 @@ pub async fn perform_elimination_routing(
         };
 
         routing_event.set_response_body(&event_response);
+        routing_event.set_routing_approach(api_routing::RoutingApproach::Elimination.to_string());
 
         let mut connectors =
             Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
@@ -2428,6 +2450,8 @@ pub async fn perform_contract_based_routing(
             .inspect_err(|e| {
                 routing_event
                     .set_error(serde_json::json!({"error": e.current_context().to_string()}));
+                routing_event
+                    .set_routing_approach(api_routing::RoutingApproach::ContractBased.to_string());
                 state.event_handler().log_event(&routing_event);
             })
             .attach_printable(
@@ -2449,6 +2473,8 @@ pub async fn perform_contract_based_routing(
                 };
 
                 routing_event.set_response_body(&event_response);
+                routing_event
+                    .set_routing_approach(api_routing::RoutingApproach::ContractBased.to_string());
                 resp
             }
             Err(err) => match err.current_context() {

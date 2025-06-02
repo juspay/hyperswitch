@@ -16,7 +16,7 @@ CREATE TABLE connector_events_queue
     `refund_id` Nullable(String)
 )
 ENGINE = Kafka
-SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-connector-api-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
+SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-outgoing-connector-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
 
 CREATE MATERIALIZED VIEW connector_events_parse_errors (
     `topic` String,

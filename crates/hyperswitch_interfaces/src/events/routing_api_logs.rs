@@ -57,6 +57,7 @@ pub struct RoutingEvent {
     status_code: Option<u16>,
     request_id: String,
     routing_engine: RoutingEngine,
+    routing_approach: Option<String>,
 }
 
 impl RoutingEvent {
@@ -94,6 +95,7 @@ impl RoutingEvent {
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             routing_engine,
             payment_connector: None,
+            routing_approach: None,
         }
     }
 
@@ -155,6 +157,11 @@ impl RoutingEvent {
                 .map(|id| id.get_string_repr().to_string())
                 .unwrap_or(String::from(""))
         ));
+    }
+
+    /// set routing approach
+    pub fn set_routing_approach(&mut self, approach: String) {
+        self.routing_approach = Some(approach);
     }
 
     /// Returns the request ID of the event.

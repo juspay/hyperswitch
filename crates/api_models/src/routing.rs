@@ -1290,6 +1290,7 @@ pub struct CalSuccessRateConfigEventRequest {
     pub min_aggregates_size: Option<u32>,
     pub default_success_rate: Option<f64>,
     pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1300,30 +1301,6 @@ pub struct CalSuccessRateEventRequest {
     pub labels: Vec<String>,
     pub config: Option<CalSuccessRateConfigEventRequest>,
 }
-
-// impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfigEventRequest {
-//     type Error = error_stack::Report<DynamicRoutingError>;
-//     fn foreign_try_from(config: SuccessBasedRoutingConfigBody) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             min_aggregates_size: config
-//                 .min_aggregates_size
-//                 .get_required_value("min_aggregate_size")
-//                 .change_context(DynamicRoutingError::MissingRequiredField {
-//                     field: "min_aggregates_size".to_string(),
-//                 })?,
-//             default_success_rate: config
-//                 .default_success_rate
-//                 .get_required_value("default_success_rate")
-//                 .change_context(DynamicRoutingError::MissingRequiredField {
-//                     field: "default_success_rate".to_string(),
-//                 })?,
-//             specificity_level: match config.specificity_level {
-//                 SuccessRateSpecificityLevel::Merchant => Some(ProtoSpecificityLevel::Entity.into()),
-//                 SuccessRateSpecificityLevel::Global => Some(ProtoSpecificityLevel::Global.into()),
-//             },
-//         })
-//     }
-// }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1362,6 +1339,39 @@ pub struct LabelWithScoreEventResponse {
 #[serde(rename_all = "snake_case")]
 pub struct CalSuccessRateEventResponse {
     pub labels_with_score: Vec<LabelWithScoreEventResponse>,
+    pub routing_apporach: RoutingApproach,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingApproach {
+    Exploitation,
+    Exploration,
+    Elimination,
+    ContractBased,
+    Default,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
+            "SR_V3_HEDGING" => Self::Exploration,
+            _ => Self::Default,
+        }
+    }
+}
+
+impl std::fmt::Display for RoutingApproach {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exploitation => write!(f, "Exploitation"),
+            Self::Exploration => write!(f, "Exploration"),
+            Self::Elimination => write!(f, "Elimination"),
+            Self::ContractBased => write!(f, "ContractBased"),
+            Self::Default => write!(f, "Default"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
