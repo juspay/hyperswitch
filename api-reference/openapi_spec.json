@@ -24445,40 +24445,49 @@
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
+            "description": "The merchant id assigned by the acquirer",
             "example": "M123456789"
           },
           "merchant_name": {
             "type": "string",
+            "description": "merchant name",
             "example": "NewAge Retailer"
           },
           "mcc": {
             "type": "string",
+            "description": "Merchant category code assigned by acquirer",
             "example": "5812"
           },
           "merchant_country_code": {
             "type": "string",
+            "description": "Merchant country code assigned by acquirer",
             "example": "US"
           },
           "network": {
             "type": "string",
+            "description": "Network provider",
             "example": "VISA"
           },
           "acquirer_bin": {
             "type": "string",
+            "description": "Acquirer bin",
             "example": "456789"
           },
           "acquirer_ica": {
             "type": "string",
+            "description": "Acquirer ica provided by acquirer",
             "example": "401288",
             "nullable": true
           },
           "acquirer_fraud_rate": {
             "type": "number",
             "format": "double",
+            "description": "Fraud rate for the particular acquirer configuration",
             "example": "0.01"
           },
           "profile_id": {
             "type": "string",
+            "description": "Parent profile id to link the acquirer account with",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
           }
         }
@@ -24499,44 +24508,54 @@
         "properties": {
           "profile_acquirer_id": {
             "type": "string",
+            "description": "The unique identifier of the profile acquirer",
             "example": "pro_acq_LCRdERuylQvNQ4qh3QE0"
           },
           "acquirer_assigned_merchant_id": {
             "type": "string",
+            "description": "The merchant id assigned by the acquirer",
             "example": "M123456789"
           },
           "merchant_name": {
             "type": "string",
+            "description": "Merchant name",
             "example": "NewAge Retailer"
           },
           "mcc": {
             "type": "string",
+            "description": "Merchant category code assigned by acquirer",
             "example": "5812"
           },
           "merchant_country_code": {
             "type": "string",
+            "description": "Merchant country code assigned by acquirer",
             "example": "US"
           },
           "network": {
             "type": "string",
+            "description": "Network provider",
             "example": "VISA"
           },
           "acquirer_bin": {
             "type": "string",
+            "description": "Acquirer bin",
             "example": "456789"
           },
           "acquirer_ica": {
             "type": "string",
+            "description": "Acquirer ica provided by acquirer",
             "example": "401288",
             "nullable": true
           },
           "acquirer_fraud_rate": {
             "type": "number",
             "format": "double",
+            "description": "Fraud rate for the particular acquirer configuration",
             "example": "0.01"
           },
           "profile_id": {
             "type": "string",
+            "description": "Parent profile id to link the acquirer account with",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
           }
         }
