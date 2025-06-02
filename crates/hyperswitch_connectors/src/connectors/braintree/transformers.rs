@@ -1,6 +1,9 @@
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::{
+    pii,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -2002,7 +2005,7 @@ pub(crate) fn get_status(status: &str) -> IncomingWebhookEvent {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeDisputeData {
-    pub amount_disputed: i64,
+    pub amount_disputed: MinorUnit,
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
@@ -2038,7 +2041,7 @@ pub struct DisputeEvidence {
 pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, errors::ConnectorError> {
     match code {
         "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
-        "PRE_ARBITATION" => Ok(enums::DisputeStage::PreArbitration),
+        "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
         "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
     }

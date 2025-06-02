@@ -5,7 +5,7 @@ pub use hyperswitch_domain_models::payment_method_data::{
     GiftCardDetails, GoPayRedirection, GooglePayPaymentMethodInfo, GooglePayRedirectData,
     GooglePayThirdPartySdkData, GooglePayWalletData, GpayTokenizationData, IndomaretVoucherData,
     KakaoPayRedirection, MbWayRedirection, MifinityData, NetworkTokenData, OpenBankingData,
-    PayLaterData, PaymentMethodData, RealTimePaymentData, SamsungPayWalletData,
+    PayLaterData, PaymentMethodData, RealTimePaymentData, RevolutPayData, SamsungPayWalletData,
     SepaAndBacsBillingDetails, SwishQrData, TokenizedBankDebitValue1, TokenizedBankDebitValue2,
     TokenizedBankRedirectValue1, TokenizedBankRedirectValue2, TokenizedBankTransferValue1,
     TokenizedBankTransferValue2, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
