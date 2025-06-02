@@ -1894,6 +1894,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PayEasy => Self::Voucher,
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
+            PaymentMethodType::RevolutPay => Self::Wallet,
         }
     }
 }

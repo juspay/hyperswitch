@@ -23,6 +23,7 @@ message CalSuccessRateConfig {
     uint32 min_aggregates_size = 1;
     double default_success_rate = 2;
     optional SuccessRateSpecificityLevel specificity_level = 3;
+    optional double exploration_percent = 4;
 }
 
 enum SuccessRateSpecificityLevel {
@@ -32,6 +33,12 @@ enum SuccessRateSpecificityLevel {
 
 message CalSuccessRateResponse {
     repeated LabelWithScore labels_with_score = 1;
+    RoutingApproach routing_approach = 2;
+}
+
+enum RoutingApproach {
+    EXPLORATION = 0;
+    EXPLOITATION = 1;
 }
 
 message LabelWithScore {
