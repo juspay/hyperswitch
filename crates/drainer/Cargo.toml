@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-release = ["vergen", "external_services/aws_kms"]
+release = ["vergen", "external_services/aws_kms", "external_services/azure_key_vault"]
 vergen = ["router_env/vergen"]
 v1 = ["diesel_models/v1", "hyperswitch_interfaces/v1", "common_utils/v1"]
 

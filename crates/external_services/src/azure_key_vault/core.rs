@@ -18,13 +18,13 @@ use crate::{consts, metrics};
 #[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(default)]
 pub struct AzureKeyVaultConfig {
-    /// key name of Azure Key vault used to encrypt or decrypt data
+    /// The name of the Azure Key Vault key used to encrypt or decrypt data
     pub key_name: String,
-    /// The Azure vault url of the Key vault.
+    /// The Azure Vault base URL of the Key Vault
     pub vault_url: String,
-    /// version of the key name
+    /// The version of the key used to encrypt or decrypt data
     pub version: String,
-    /// algorithm used to encrypt and decrypt keys
+    /// The algorithm used to encrypt and decrypt data
     pub algorithm: Option<JsonWebKeyEncryptionAlgorithm>,
 }
 
@@ -52,16 +52,26 @@ pub struct AzureKeyVaultClient {
     algorithm: JsonWebKeyEncryptionAlgorithm,
 }
 
+/// Wrapper for KeyClient to implement Debug trait for KeyClient
+struct DebugKeyClient<'a>(&'a KeyClient);
+
+/// Implement Debug for DebugKeyClient
+impl<'a> fmt::Debug for DebugKeyClient<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KeyClient")
+            .field("endpoint", &self.0.endpoint())
+            .finish()
+    }
+}
+
 /// Implement Debug for AzureKeyVaultClient as KeyClient doesn't implement Debug Trait
 impl fmt::Debug for AzureKeyVaultClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "AzureKeyVaultClient(inner_client: KeyClient(endpoint: {}), key_name: {}, version: {})",
-            self.inner_client.endpoint(),
-            self.key_name,
-            self.version
-        )
+        f.debug_struct("AzureKeyVaultClient")
+                .field("inner_client",  &DebugKeyClient(&self.inner_client))
+                .field("key_name", &self.key_name)
+                .field("version", &self.version)
+                .finish()
     }
 }
 
@@ -167,7 +177,9 @@ impl AzureKeyVaultClient {
         let encrypt_params = KeyOperationsParameters {
             algorithm: Some(self.algorithm.clone()),
             value: Some(data.as_ref().to_vec()),
-            ..Default::default()
+            aad: None,
+            iv: None,
+            tag: None,
         };
 
         let encrypted_output = self
@@ -264,7 +276,7 @@ mod tests {
             key_name: "YOUR AZURE KEY VAULT KEY NAME".to_string(),
             vault_url: "YOUR AZURE KEY VAULT URL".to_string(),
             version: "".to_string(),
-            ..Default::default()
+            algorithm: None
         };
 
         let data = "hello".to_string();
@@ -289,7 +301,7 @@ mod tests {
             key_name: "YOUR AZURE KEY VAULT KEY NAME".to_string(),
             vault_url: "YOUR AZURE KEY VAULT URL".to_string(),
             version: "".to_string(),
-            ..Default::default()
+            algorithm: None
         };
 
         // Should decrypt to hello
