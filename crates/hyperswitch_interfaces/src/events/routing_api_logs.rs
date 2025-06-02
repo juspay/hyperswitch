@@ -42,7 +42,7 @@ impl fmt::Display for ApiMethod {
 pub struct RoutingEvent {
     tenant_id: common_utils::id_type::TenantId,
     routable_connectors: String,
-    payment_connctor: Option<String>,
+    payment_connector: Option<String>,
     flow: String,
     request: String,
     response: Option<String>,
@@ -92,7 +92,7 @@ impl RoutingEvent {
                 .map(|i| i.as_hyphenated().to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             routing_engine,
-            payment_connctor: None,
+            payment_connector: None,
         }
     }
 
@@ -146,7 +146,7 @@ impl RoutingEvent {
 
     /// set payment connector
     pub fn set_payment_connector(&mut self, connector: RoutableConnectorChoice) {
-        self.payment_connctor = Some(format!(
+        self.payment_connector = Some(format!(
             "{:?}:{:?}",
             connector.connector,
             connector

@@ -64,6 +64,7 @@ pub struct RoutingEventsResult {
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_id: String,
     pub routable_connectors: String,
+    pub payment_connector: Option<String>,
     pub request_id: Option<String>,
     pub flow: String,
     pub url: Option<String>,
