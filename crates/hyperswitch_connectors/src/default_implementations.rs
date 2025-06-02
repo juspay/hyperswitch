@@ -5878,7 +5878,6 @@ default_imp_for_external_vault_create!(
     connectors::Gpayments,
     connectors::Helcim,
     connectors::Hipay,
-    connectors::HyperswitchVault,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,

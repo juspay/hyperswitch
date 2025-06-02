@@ -292,7 +292,7 @@ pub async fn generate_vault_session_details(
                     merchant_connector_account.get_mca_id(),
                 )?;
 
-                let connector_response = call_external_vault_connector_service(
+                let connector_response = call_external_vault_create(
                     state,
                     merchant_context,
                     &connector_data,
@@ -325,7 +325,7 @@ pub async fn generate_vault_session_details(
 }
 
 #[cfg(feature = "v2")]
-async fn call_external_vault_connector_service(
+async fn call_external_vault_create(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     connector_data: &api::ConnectorData,
