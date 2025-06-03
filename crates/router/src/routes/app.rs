@@ -528,20 +528,23 @@ impl AppState {
         })
     }
 
-    pub fn process_env_mappings(mappings: Option<HashMap<String, String>>) -> Option<serde_json::Value> {
+    pub fn process_env_mappings(
+        mappings: Option<HashMap<String, String>>,
+    ) -> Option<serde_json::Value> {
         let result: HashMap<String, String> = mappings?
             .into_iter()
-            .filter_map(|(key, env_var)| {
-                std::env::var(&env_var)
-                    .ok()
-                    .map(|value| (key, value))
-            })
+            .filter_map(|(key, env_var)| std::env::var(&env_var).ok().map(|value| (key, value)))
             .collect();
-        
+
         if result.is_empty() {
             None
         } else {
-            Some(serde_json::Value::Object(result.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))).collect()))
+            Some(serde_json::Value::Object(
+                result
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::Value::String(v)))
+                    .collect(),
+            ))
         }
     }
 }
