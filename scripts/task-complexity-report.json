@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "generatedAt": "2025-05-27T15:40:35.379Z",
+    "tasksAnalyzed": 1,
+    "totalTasks": 12,
+    "analysisCount": 2,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 7,
+      "taskTitle": "Documentation Review Process Establishment",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the Documentation Review Process Establishment task into subtasks covering workflow definition, criteria development, checklist creation, role assignment, and feedback incorporation process.",
+      "reasoning": "This task involves creating a comprehensive review process with multiple components, requiring careful planning and coordination. It has medium complexity due to the need to define various elements and ensure they work together cohesively. The task can be logically divided into subtasks based on the components mentioned in the description."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "File Size Management Implementation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the File Size Management Implementation task into subtasks, including file identification, splitting strategy, index creation, cross-reference updates, and process documentation.",
+      "reasoning": "This task involves multiple steps that require careful planning and execution. It impacts the entire documentation structure and requires both technical implementation and process development. The complexity arises from the need to maintain system integrity while reorganizing content."
+    }
+  ]
+}
