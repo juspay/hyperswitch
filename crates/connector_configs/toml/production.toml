@@ -4591,3 +4591,35 @@ type = "Text"
 api_secret="Merchant Code"
 api_key="API Username"
 key1="API Password"
+
+
+[worldpayvantiv]
+[[worldpayvantiv.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayvantiv.credit]]
+  payment_method_type = "Visa"
+[[worldpayvantiv.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayvantiv.credit]]
+  payment_method_type = "JCB"
+[[worldpayvantiv.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayvantiv.credit]]
+  payment_method_type = "Discover"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Visa"
+[[worldpayvantiv.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayvantiv.debit]]
+  payment_method_type = "JCB"
+[[worldpayvantiv.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Discover"
+
+[worldpayvantiv.connector_auth.SignatureKey]
+api_key="Username"
+api_secret="Password"
+key1="Merchant ID"

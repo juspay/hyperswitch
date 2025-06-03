@@ -33,7 +33,7 @@ impl utils::Connector for WorldpayvantivTest {
     }
 }
 
-static CONNECTOR: WorldpayxmlTest = WorldpayxmlTest {};
+static CONNECTOR: WorldpayvantivTest = WorldpayvantivTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

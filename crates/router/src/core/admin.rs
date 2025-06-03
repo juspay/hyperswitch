@@ -1752,8 +1752,11 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Worldpayvantiv => {
                 worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
+                worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
-            },
+            }
             api_enums::Connector::Worldpayxml => {
                 worldpayxml::transformers::WorldpayxmlAuthType::try_from(self.auth_type)?;
                 Ok(())
