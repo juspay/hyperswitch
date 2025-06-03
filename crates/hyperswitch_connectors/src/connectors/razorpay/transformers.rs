@@ -182,7 +182,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
 
         let contact_number = item.router_data.get_billing_phone_number()?;
         let order_id = router_request.get_order_id()?;
-        let email = router_request.get_email()?;
+        let email = item.router_data.get_billing_email()?;
         let ip = router_request.get_ip_address_as_optional();
         let user_agent = router_request.get_optional_user_agent();
 
