@@ -155,6 +155,7 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    pub unified_connector_service: UnifiedConnectorService,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
@@ -173,6 +174,11 @@ pub struct DebitRoutingConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
     pub enabled: bool,
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct UnifiedConnectorService {
     pub url: String,
 }
 

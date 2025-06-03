@@ -426,22 +426,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         }
     }
 
-    async fn call_ucs_service<'a>(
+    async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
         merchant_connector_account: MerchantConnectorAccountType,
     ) -> RouterResult<()> {
-        let mut client = PaymentServiceClient::connect(
-            state
-                .conf
-                .connectors
-                .unified_connector_service
-                .base_url
-                .clone(),
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to connect to payment service")?;
+        let mut client =
+            PaymentServiceClient::connect(state.conf.unified_connector_service.url.clone())
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to connect to payment service")?;
 
         let request = construct_ucs_authorize_request(&self)?;
 

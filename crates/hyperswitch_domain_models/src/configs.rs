@@ -106,7 +106,6 @@ pub struct Connectors {
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub unified_authentication_service: ConnectorParams,
-    pub unified_connector_service: ConnectorParams,
     pub vgs: ConnectorParams,
     pub volt: ConnectorParams,
     pub wellsfargo: ConnectorParams,

@@ -338,7 +338,6 @@ xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8080/"
-unified_connector_service.base_url = "http://localhost:8000/"
 vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
@@ -1165,6 +1164,9 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 [open_router]
 enabled = false
 url = "http://localhost:8080"
+
+[unified_connector_service]
+url = "http://localhost:8000/"
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000

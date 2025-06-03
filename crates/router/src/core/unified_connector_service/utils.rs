@@ -5,16 +5,61 @@ use error_stack::ResultExt;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
+    merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
     router_flow_types::payments::Authorize,
     router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface};
+use rand::Rng;
 use rust_grpc_client::payments::{self as payments_grpc};
 use tonic::metadata::MetadataMap;
 
-use crate::core::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
+use crate::{
+    core::{
+        errors::RouterResult, payments::helpers::MerchantConnectorAccountType, utils::get_flow_name,
+    },
+    routes::SessionState,
+};
+
+pub async fn should_call_unified_connector_service<F: Clone, T>(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    merchant_connector_account: MerchantConnectorAccountType,
+    router_data: &RouterData<F, T, PaymentsResponseData>,
+) -> RouterResult<bool> {
+    let merchant_id = merchant_context
+        .get_merchant_account()
+        .get_id()
+        .get_string_repr();
+
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .ok_or(ApiErrorResponse::InternalServerError)?;
+
+    let payment_method = router_data.payment_method.to_string();
+
+    let flow_name = get_flow_name::<F>()?;
+
+    let config_key = format!(
+        "{}_{}_{}_{}",
+        merchant_id, connector_name, payment_method, flow_name
+    );
+
+    let db = state.store.as_ref();
+
+    let rollout_config = match db.find_config_by_key(&config_key).await {
+        Ok(config) => config,
+        Err(_) => return Ok(false),
+    };
+
+    let rollout_percent: f64 = rollout_config.config.parse().unwrap_or(0.0);
+
+    let random_value: f64 = rand::thread_rng().gen_range(0.1..=1.0);
+
+    Ok(random_value <= rollout_percent)
+}
 
 pub fn construct_ucs_authorize_request(
     router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,

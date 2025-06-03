@@ -739,7 +739,7 @@ where
                         .update_tracker(
                             state,
                             payment_data,
-                            router_data,
+                            router_data.clone(),
                             merchant_context.get_merchant_key_store(),
                             merchant_context.get_merchant_account().storage_scheme,
                             &locale,
@@ -3108,6 +3108,8 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    use super::unified_connector_service::utils::should_call_unified_connector_service;
+
     let stime_connector = Instant::now();
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
@@ -3241,15 +3243,21 @@ where
         )
         .await?;
 
-    //TODO: Staggering Logic
-    //TODO: Redirection Form for 3DS
-
-    if (true) {
-        println!("Connecting to UCS..");
-
+    if should_call_unified_connector_service(
+        state,
+        merchant_context,
+        merchant_connector_account.clone(),
+        &router_data,
+    )
+    .await?
+    {
         let _ = router_data
-            .call_ucs_service(state, merchant_connector_account.clone())
+            .call_unified_connector_service(state, merchant_connector_account.clone())
             .await;
+
+        let etime_connector = Instant::now();
+        let duration_connector = etime_connector.saturating_duration_since(stime_connector);
+        tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
         Ok((router_data, merchant_connector_account))
     } else {

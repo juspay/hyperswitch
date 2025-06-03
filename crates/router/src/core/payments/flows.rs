@@ -199,7 +199,7 @@ pub trait Feature<F, T> {
         Ok((None, true))
     }
 
-    async fn call_ucs_service<'a>(
+    async fn call_unified_connector_service<'a>(
         &mut self,
         _state: &SessionState,
         _merchant_connector_account: MerchantConnectorAccountType,
