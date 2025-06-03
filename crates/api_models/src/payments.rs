@@ -1974,45 +1974,45 @@ pub struct Card {
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ProxyCard {
-        /// The card number
-        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
-        pub card_number: Secret<String>,
-    
-        /// The card's expiry month
-        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
-        pub card_exp_month: Secret<String>,
-    
-        /// The card's expiry year
-        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
-        pub card_exp_year: Secret<String>,
-    
-        /// The card holder's name
-        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
-        pub card_holder_name: Option<Secret<String>>,
-    
-        /// The CVC number for the card
-        #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
-        pub card_cvc: Secret<String>,
-    
-        /// The name of the issuer of card
-        #[schema(example = "chase")]
-        pub card_issuer: Option<String>,
-    
-        /// The card network for the card
-        #[schema(value_type = Option<Secret<String>>, example = "tok_sandbox_2eo812ry192812b")]
-        pub card_network: Option<Secret<String>>,
-    
-        #[schema(example = "tok_sandbox_2eo812ry192812b")]
-        pub card_type: Option<Secret<String>>,
-    
-        #[schema(example = "tok_sandbox_2eo812ry192812b")]
-        pub card_issuing_country: Option<Secret<String>>,
-    
-        #[schema(example = "tok_sandbox_2eo812ry192812b")]
-        pub bank_code: Option<Secret<String>>,
-        /// The card holder's nick name
-        #[schema(value_type = Option<String>, example = "tok_sandbox_2eo812ry192812b")]
-        pub nick_name: Option<Secret<String>>, 
+    /// The card number
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_cvc: Secret<String>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<Secret<String>>, example = "tok_sandbox_2eo812ry192812b")]
+    pub card_network: Option<Secret<String>>,
+
+    #[schema(example = "tok_sandbox_2eo812ry192812b")]
+    pub card_type: Option<Secret<String>>,
+
+    #[schema(example = "tok_sandbox_2eo812ry192812b")]
+    pub card_issuing_country: Option<Secret<String>>,
+
+    #[schema(example = "tok_sandbox_2eo812ry192812b")]
+    pub bank_code: Option<Secret<String>>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "tok_sandbox_2eo812ry192812b")]
+    pub nick_name: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

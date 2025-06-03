@@ -259,7 +259,6 @@ pub struct StripeCardData {
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
 }
 
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeProxyCardData {
     #[serde(rename = "payment_method_data[type]")]
@@ -723,8 +722,9 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(value: enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match value {
-            enums::PaymentMethodType::Credit 
-            | enums::PaymentMethodType::ProxyCard => Ok(Self::Card),
+            enums::PaymentMethodType::Credit | enums::PaymentMethodType::ProxyCard => {
+                Ok(Self::Card)
+            }
             enums::PaymentMethodType::Debit => Ok(Self::Card),
             #[cfg(feature = "v2")]
             enums::PaymentMethodType::Card => Ok(Self::Card),
@@ -1793,13 +1793,13 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .clone()
                                     .and_then(get_stripe_card_network),
                         }),
-                        PaymentMethodData::ExternalProxyCardData( 
-                            ref proxy_card
-                        ) => {
+                        PaymentMethodData::ExternalProxyCardData(ref proxy_card) => {
                             StripePaymentMethodData::ProxyCard(StripeProxyCardData {
                                 payment_method_data_type: StripePaymentMethodType::Card,
                                 payment_method_data_card_number: proxy_card.card_number.clone(),
-                                payment_method_data_card_exp_month: proxy_card.card_exp_month.clone(),
+                                payment_method_data_card_exp_month: proxy_card
+                                    .card_exp_month
+                                    .clone(),
                                 payment_method_data_card_exp_year: proxy_card.card_exp_year.clone(),
                                 payment_method_data_card_cvc: Some(proxy_card.card_cvc.clone()),
                                 payment_method_auth_type: None,
@@ -4445,15 +4445,22 @@ pub trait PaymentMethodConverter {
     type Output;
     type PaymentMethodType;
 
-    fn convert_from_proxy(payment_method_type: Self::PaymentMethodType) -> CustomResult<Self::Output, ConnectorError>;
-    fn convert_from_card(card: &Card, payment_method_type: Self::PaymentMethodType) -> CustomResult<Self::Output, ConnectorError>;
+    fn convert_from_proxy(
+        payment_method_type: Self::PaymentMethodType,
+    ) -> CustomResult<Self::Output, ConnectorError>;
+    fn convert_from_card(
+        card: &Card,
+        payment_method_type: Self::PaymentMethodType,
+    ) -> CustomResult<Self::Output, ConnectorError>;
 }
 
 impl PaymentMethodConverter for StripeCardData {
     type Output = Self;
     type PaymentMethodType = StripePaymentMethodType;
 
-    fn convert_from_proxy(payment_method_type: Self::PaymentMethodType) -> CustomResult<Self::Output, ConnectorError> {
+    fn convert_from_proxy(
+        payment_method_type: Self::PaymentMethodType,
+    ) -> CustomResult<Self::Output, ConnectorError> {
         Ok(Self {
             payment_method_data_type: payment_method_type,
             payment_method_data_card_number: cards::CardNumber::default(),
@@ -4465,7 +4472,10 @@ impl PaymentMethodConverter for StripeCardData {
         })
     }
 
-    fn convert_from_card(card: &Card, payment_method_type: Self::PaymentMethodType) -> CustomResult<Self::Output, ConnectorError> {
+    fn convert_from_card(
+        card: &Card,
+        payment_method_type: Self::PaymentMethodType,
+    ) -> CustomResult<Self::Output, ConnectorError> {
         Ok(Self {
             payment_method_data_type: payment_method_type,
             payment_method_data_card_number: card.card_number.clone(),
@@ -4488,7 +4498,9 @@ macro_rules! convert_payment_method_data {
             payment_method_data::PaymentMethodData::Card(card) => {
                 <$converter>::convert_from_card(card, $payment_method_type)
             }
-            _ => Err(ConnectorError::NotImplemented("Payment method not supported".into())),
+            _ => Err(ConnectorError::NotImplemented(
+                "Payment method not supported".into(),
+            )),
         }
     };
 }
