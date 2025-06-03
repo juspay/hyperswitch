@@ -28,9 +28,9 @@ use external_services::grpc_client::dynamic_routing::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_domain_models::api::ApplicationResponse;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 use router_env::logger;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
@@ -50,14 +50,17 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(feature = "v1")]
+use crate::{
+    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    services,
+};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
     core::{
         metrics as core_metrics,
-        payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
         routing,
     },
-    services,
     types::transformers::ForeignInto,
 };
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -2213,7 +2216,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     Ok(())
 }
 
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn create_merchant_in_decision_engine_if_not_exists(
     state: &SessionState,
@@ -2238,7 +2241,7 @@ pub async fn create_merchant_in_decision_engine_if_not_exists(
     }
 }
 
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn create_decision_engine_merchant(
     state: &SessionState,
