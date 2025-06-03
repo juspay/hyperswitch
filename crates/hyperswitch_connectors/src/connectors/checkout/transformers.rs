@@ -1271,7 +1271,7 @@ pub struct CheckoutDisputeWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,

@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{errors::ParsingError, pii::IpAddress, request::Method};
+use common_utils::{errors::ParsingError, pii::IpAddress, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -915,7 +915,7 @@ pub struct AirwallexObjectData {
 #[derive(Debug, Deserialize)]
 pub struct AirwallexDisputeObject {
     pub payment_intent_id: String,
-    pub dispute_amount: i64,
+    pub dispute_amount: MinorUnit,
     pub dispute_currency: enums::Currency,
     pub stage: AirwallexDisputeStage,
     pub dispute_id: String,

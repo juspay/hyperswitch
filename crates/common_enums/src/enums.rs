@@ -7234,6 +7234,13 @@ pub enum TransactionType {
     Payment,
     #[cfg(feature = "payouts")]
     Payout,
+    ThreeDsAuthentication,
+}
+
+impl TransactionType {
+    pub fn is_three_ds_authentication(self) -> bool {
+        matches!(self, Self::ThreeDsAuthentication)
+    }
 }
 
 #[derive(
