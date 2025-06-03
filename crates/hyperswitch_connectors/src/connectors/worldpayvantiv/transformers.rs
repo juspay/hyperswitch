@@ -68,6 +68,14 @@ impl TryFrom<&ConnectorAuthType> for WorldpayvantivAuthType {
     }
 }
 
+// Represents the payment metadata for Worldpay Vantiv.
+// The `report_group` field is an Option<String> to account for cases where the report group might not be provided in the metadata.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct WorldpayvantivPaymentMetadata {
+    pub report_group: Option<String>,    
+}
+
+// Represents the merchant connector account metadata for Worldpay Vantiv
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayvantivMetadataObject {
     pub report_group: String,
@@ -282,12 +290,15 @@ impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
 impl TryFrom<&PaymentsSyncRouterData> for CnpOnlineRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
-        let report_group_metadata: WorldpayvantivMetadataObject =
+        let report_group_metadata: WorldpayvantivPaymentMetadata =
             connector_utils::to_connector_meta(item.request.connector_meta.clone())?;
+        let report_group = report_group_metadata.report_group.clone().ok_or( errors::ConnectorError::RequestEncodingFailedWithReason(
+            "Failed to obtain report_group from metadata".to_string(),
+        ))?;
         let api_call_id = format!("psync_{:?}", connector_utils::generate_12_digit_number());
         let query_transaction = Some(TransactionQuery {
             id: api_call_id,
-            report_group: report_group_metadata.report_group.clone(),
+            report_group,
             orig_cnp_txn_id: item
                 .request
                 .connector_transaction_id
@@ -552,12 +563,12 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .metadata
             .clone()
             .map(|payment_metadata| {
-                connector_utils::to_connector_meta::<WorldpayvantivMetadataObject>(Some(
+                connector_utils::to_connector_meta::<WorldpayvantivPaymentMetadata>(Some(
                     payment_metadata,
                 ))
             })
             .transpose()?
-            .map(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
+            .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
             .unwrap_or(default_report_group.report_group);
 
         let worldpayvantiv_auth_type =
@@ -613,12 +624,16 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
     fn try_from(
         item: &WorldpayvantivRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let report_group_metadata: WorldpayvantivMetadataObject =
+        let report_group_metadata: WorldpayvantivPaymentMetadata =
             connector_utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
+        let report_group = report_group_metadata.report_group.clone()
+            .ok_or( errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to obtain report_group from metadata".to_string(),
+            ))?;
         let api_call_id = format!("capture_{:?}", connector_utils::generate_12_digit_number());
         let capture = Some(Capture {
             id: api_call_id,
-            report_group: report_group_metadata.report_group.clone(),
+            report_group,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
         });
@@ -650,14 +665,20 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
     fn try_from(
         item: &WorldpayvantivRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let report_group_metadata: WorldpayvantivMetadataObject =
+        let report_group_metadata: WorldpayvantivPaymentMetadata =
             connector_utils::to_connector_meta(
                 item.router_data.request.connector_metadata.clone(),
             )?;
+
+        let report_group = report_group_metadata.report_group.clone()
+            .ok_or( errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to obtain report_group from metadata".to_string(),
+            ))?;
+        
         let api_call_id = format!("ref_{:?}", connector_utils::generate_12_digit_number());
         let credit = Some(RefundRequest {
             id: api_call_id,
-            report_group: report_group_metadata.report_group.clone(),
+            report_group,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
         });
@@ -687,12 +708,16 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
 impl TryFrom<&RefundSyncRouterData> for CnpOnlineRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let report_group_metadata: WorldpayvantivMetadataObject =
+        let report_group_metadata: WorldpayvantivPaymentMetadata =
             connector_utils::to_connector_meta(item.request.connector_metadata.clone())?;
+        let report_group = report_group_metadata.report_group.clone()
+            .ok_or( errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to obtain report_group from metadata".to_string(),
+            ))?;
         let api_call_id = format!("rsync_{:?}", connector_utils::generate_12_digit_number());
         let query_transaction = Some(TransactionQuery {
             id: api_call_id,
-            report_group: report_group_metadata.report_group.clone(),
+            report_group,
             orig_cnp_txn_id: item.request.get_connector_refund_id()?,
         });
 
@@ -1027,12 +1052,16 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
 impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let report_group_metadata: WorldpayvantivMetadataObject =
+        let report_group_metadata: WorldpayvantivPaymentMetadata =
             connector_utils::to_connector_meta(item.request.connector_meta.clone())?;
+        let report_group = report_group_metadata.report_group.clone()
+            .ok_or( errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Failed to obtain report_group from metadata".to_string(),
+            ))?;
         let api_call_id = format!("void_{:?}", connector_utils::generate_12_digit_number());
         let void = Some(Void {
             id: api_call_id,
-            report_group: report_group_metadata.report_group.clone(),
+            report_group,
             cnp_txn_id: item.request.connector_transaction_id.clone(),
         });
 
