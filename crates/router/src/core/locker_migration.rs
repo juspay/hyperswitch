@@ -234,7 +234,7 @@ pub async fn call_to_locker(
     Ok(cards_moved)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn call_to_locker(
     _state: &SessionState,
     _payment_methods: Vec<domain::PaymentMethod>,

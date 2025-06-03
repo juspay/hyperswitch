@@ -159,7 +159,7 @@ impl DBOperation {
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
                 )),
-                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                #[cfg(feature = "v2")]
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
                     v.orig.update_with_id(conn, v.update_data).await?,
                 )),

@@ -298,7 +298,7 @@ impl ConnectorData {
         })
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_external_vault_connector_by_name(
         _connectors: &Connectors,
         name: &str,

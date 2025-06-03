@@ -8,7 +8,7 @@ use api_models::{
     not(feature = "payment_methods_v2")
 ))]
 use common_utils::{ext_traits::StringExt, types as common_utils_types};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{OptionExt, StringExt},
     types as common_utils_types,
@@ -368,7 +368,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
 }
 
 // TODO: uncomment and resolve compiler error when required
-// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+// #[cfg(feature = "v2")]
 // pub async fn perform_surcharge_decision_management_for_saved_cards(
 //     state: &SessionState,
 //     algorithm_ref: routing::RoutingAlgorithmRef,

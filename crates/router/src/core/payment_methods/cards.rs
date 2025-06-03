@@ -116,7 +116,7 @@ use crate::{
     utils,
     utils::OptionExt,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::{
     core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
     utils::ConnectorResponseExt,
@@ -264,7 +264,7 @@ impl PaymentMethodsController for PmCards<'_> {
         (payment_method_response, None)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn store_default_payment_method(
         &self,
         _req: &api::PaymentMethodCreate,
@@ -359,7 +359,7 @@ impl PaymentMethodsController for PmCards<'_> {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn get_or_insert_payment_method(
         &self,
         _req: api::PaymentMethodCreate,
@@ -538,7 +538,7 @@ impl PaymentMethodsController for PmCards<'_> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
@@ -1957,7 +1957,7 @@ pub fn validate_payment_method_update(
             })
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn validate_payment_method_update(
     _card_updation_obj: CardDetailUpdate,
     _existing_card_data: api::CardDetailFromLocker,
@@ -2238,7 +2238,7 @@ pub async fn update_payment_method_and_last_used(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn update_payment_method_connector_mandate_details(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -4051,7 +4051,7 @@ pub async fn filter_payment_methods(
 
 // v2 type for PaymentMethodListRequest will not have the installment_payment_enabled field,
 // need to re-evaluate filter logic
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     _graph: &cgraph::ConstraintGraph<dir::DirValue>,
@@ -4633,7 +4633,7 @@ pub async fn get_mca_status(
     Ok(false)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn get_mca_status(
     state: &routes::SessionState,
@@ -4757,7 +4757,7 @@ pub async fn get_masked_bank_details(
         )
         .transpose()?;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
 
     match payment_method_data {

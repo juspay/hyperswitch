@@ -7,13 +7,13 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::types::{payment_methods as pm_types, transformers};
 use crate::{
     configs::settings,
@@ -272,7 +272,7 @@ pub async fn get_decrypted_vault_response_payload(
         .attach_printable("Jws Decryption failed for JwsBody for vault")
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_jwe_body_for_vault(
     jwekey: &settings::Jwekey,
     jws: &str,
@@ -499,7 +499,7 @@ pub fn mk_add_card_response_hs(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -509,7 +509,7 @@ pub fn mk_add_card_response_hs(
     todo!()
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn generate_pm_vaulting_req_from_update_request(
     pm_create: domain::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
@@ -536,7 +536,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
@@ -830,7 +830,7 @@ pub fn get_card_detail(
     Ok(card_detail)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn get_card_detail(
     _pm: &domain::PaymentMethod,
     response: Card,

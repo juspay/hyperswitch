@@ -7594,7 +7594,7 @@ pub struct PaymentMethodListResponseForPayments {
     pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethod>>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method type enabled

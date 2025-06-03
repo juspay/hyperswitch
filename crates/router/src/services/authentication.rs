@@ -6,7 +6,7 @@ use actix_web::http::header::HeaderMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodCreate;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "payouts")]
 use api_models::payouts;

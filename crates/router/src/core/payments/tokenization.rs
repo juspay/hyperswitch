@@ -812,7 +812,7 @@ where
 }
 
 // check in review
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
@@ -999,7 +999,7 @@ async fn skip_saving_card_in_locker(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn skip_saving_card_in_locker(
     merchant_context: &domain::MerchantContext,
     payment_method_request: api::PaymentMethodCreate,
@@ -1064,7 +1064,7 @@ pub async fn save_in_locker(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn save_in_locker(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -1076,7 +1076,7 @@ pub async fn save_in_locker(
     todo!()
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn save_network_token_in_locker(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -1470,7 +1470,7 @@ pub fn update_connector_mandate_details_status(
     }))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn add_token_for_payment_method(
     router_data: &mut types::RouterData<
         api::PaymentMethodToken,

@@ -15,7 +15,7 @@ use super::generics;
     not(feature = "payment_methods_v2")
 ))]
 use crate::schema::payment_methods::dsl;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::payment_methods::dsl::{self, id as pm_id};
 use crate::{
     enums as storage_enums, errors,
@@ -210,7 +210,7 @@ impl PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethod {
     pub async fn find_by_id(
         conn: &PgPooledConn,

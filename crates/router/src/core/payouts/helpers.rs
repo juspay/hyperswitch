@@ -694,7 +694,7 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn save_payout_data_to_locker(
     _state: &SessionState,
     _payout_data: &mut PayoutData,

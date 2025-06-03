@@ -2107,7 +2107,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2304,7 +2304,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2316,7 +2316,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &KeyManagerState,

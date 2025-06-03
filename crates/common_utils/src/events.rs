@@ -44,7 +44,7 @@ pub enum ApiEventsType {
         payment_method_type: Option<common_enums::PaymentMethod>,
         payment_method_subtype: Option<common_enums::PaymentMethodType>,
     },
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     PaymentMethodCreate,
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     Customer {

@@ -1,4 +1,4 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
     CardNetworkTokenizeResponse, CardType, CustomerPaymentMethod,
@@ -38,7 +38,7 @@ use crate::core::{
     errors::{self, RouterResult},
     payments::helpers::validate_payment_method_type_against_payment_method,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::utils;
 
 pub(crate) trait PaymentMethodCreateExt {
@@ -66,7 +66,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
@@ -98,7 +98,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
     fn validate(&self) -> RouterResult<()> {
         utils::when(

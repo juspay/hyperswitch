@@ -56,7 +56,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_method(
         &self,
@@ -134,7 +134,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn insert_payment_method(
         &self,
@@ -248,7 +248,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_payment_method(
         &self,
@@ -398,7 +398,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     }
 
     // Soft delete, Check if KV stuff is needed here
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &KeyManagerState,
@@ -411,7 +411,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     }
 
     // Check if KV stuff is needed here
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &KeyManagerState,
@@ -449,7 +449,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -571,7 +571,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_payment_method(
         &self,
@@ -715,7 +715,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &KeyManagerState,
@@ -737,7 +737,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &KeyManagerState,
@@ -779,7 +779,7 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -1015,7 +1015,7 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &KeyManagerState,
@@ -1042,7 +1042,7 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &KeyManagerState,

@@ -116,7 +116,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,

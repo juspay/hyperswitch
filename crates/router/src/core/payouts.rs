@@ -2109,7 +2109,7 @@ pub async fn create_recipient_disburse_account(
                             ))]
                             connector_mandate_details: Some(connector_mandate_details_value),
 
-                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                            #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
                         };
 
@@ -2509,7 +2509,7 @@ pub async fn response_handler(
             pm.payment_method_id.clone()
         }
 
-        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        #[cfg(feature = "v2")]
         {
             pm.id.clone().get_string_repr().to_string()
         }

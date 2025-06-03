@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use api_models::payouts;
 use api_models::{enums as api_enums, payment_methods as api};
 use common_enums::enums as common_enums;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::encryption;
 use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
 use error_stack::ResultExt;
@@ -81,7 +81,7 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
@@ -161,7 +161,7 @@ pub trait PaymentMethodsController {
         key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
@@ -208,7 +208,7 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
     ) -> (api::PaymentMethodResponse, Option<DataDuplicationCheck>);
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn store_default_payment_method(
         &self,
         req: &api::PaymentMethodCreate,

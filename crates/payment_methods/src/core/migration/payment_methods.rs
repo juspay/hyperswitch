@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use api_models::enums as api_enums;
 use api_models::{enums, payment_methods as pm_api};
 use common_utils::{
@@ -154,7 +154,7 @@ pub async fn migrate_payment_method(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn migrate_payment_method(
     _state: &state::PaymentMethodsState,
     _req: pm_api::PaymentMethodMigrate,
@@ -281,7 +281,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl
     ForeignTryFrom<(
         &api_models::payment_methods::MigrateCardDetail,

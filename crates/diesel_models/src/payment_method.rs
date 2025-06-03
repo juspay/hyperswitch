@@ -21,7 +21,7 @@ use time::PrimitiveDateTime;
     not(feature = "payment_methods_v2")
 ))]
 use crate::{enums as storage_enums, schema::payment_methods};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::{enums as storage_enums, schema_v2::payment_methods};
 
 #[cfg(all(
@@ -71,7 +71,7 @@ pub struct PaymentMethod {
     pub network_token_payment_method_data: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
@@ -101,15 +101,12 @@ pub struct PaymentMethod {
 }
 
 impl PaymentMethod {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
     }
@@ -160,7 +157,7 @@ pub struct PaymentMethodNew {
     pub network_token_payment_method_data: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
@@ -193,15 +190,12 @@ impl PaymentMethodNew {
         self.updated_by = Some(storage_scheme.to_string());
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
     }
@@ -266,7 +260,7 @@ pub enum PaymentMethodUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
     UpdatePaymentMethodDataAndLastUsed {
@@ -316,7 +310,7 @@ impl PaymentMethodUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
@@ -337,7 +331,7 @@ pub struct PaymentMethodUpdateInternal {
     external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodUpdateInternal {
     pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
         let Self {
@@ -704,7 +698,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
@@ -905,7 +899,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
@@ -957,7 +951,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,

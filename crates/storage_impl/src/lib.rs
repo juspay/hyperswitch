@@ -454,7 +454,7 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![self.id.get_string_repr().to_owned()]

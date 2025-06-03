@@ -354,7 +354,7 @@ async fn store_bank_details_in_payment_methods(
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_status(
             &((&state).into()),
@@ -514,7 +514,7 @@ async fn store_bank_details_in_payment_methods(
             ))]
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
 
-            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+            #[cfg(feature = "v2")]
             let pm_id = common_utils::id_type::GlobalPaymentMethodId::generate("random_cell_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to generate GlobalPaymentMethodId")?;
@@ -561,7 +561,7 @@ async fn store_bank_details_in_payment_methods(
                 network_token_payment_method_data: None,
             };
 
-            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+            #[cfg(feature = "v2")]
             let pm_new = domain::PaymentMethod {
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_context.get_merchant_account().get_id().clone(),
