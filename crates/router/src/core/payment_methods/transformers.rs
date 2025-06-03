@@ -930,10 +930,14 @@ pub fn mk_card_value2(
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)> for api::CustomerPaymentMethodResponseItem {
+impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
+    for api::CustomerPaymentMethodResponseItem
+{
     type Error = error_stack::Report<errors::ValidationError>;
 
-    fn foreign_try_from((item, payment_token): (domain::PaymentMethod, String)) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (item, payment_token): (domain::PaymentMethod, String),
+    ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
             item.payment_method_subtype

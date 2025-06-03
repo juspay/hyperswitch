@@ -2146,49 +2146,51 @@ pub async fn list_customer_payment_method_core(
 
     let mut customer_payment_methods = Vec::new();
 
-    let payment_method_results: Result<Vec<_>, error_stack::Report<errors::ApiErrorResponse>> = saved_payment_methods
-        .into_iter()
-        .map(|pm| async move {
-            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-
-            // For payment methods that are active we should always have the payment method type
-            let payment_method_type = pm
-                .payment_method_type
-                .get_required_value("payment_method_type")?;
-
-            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-
-            let token_data = get_pm_list_token_data(payment_method_type, &pm)?;
-
-            if let Some(token_data) = token_data {
-                pm_routes::ParentPaymentMethodToken::create_key_for_token((
-                    &parent_payment_method_token,
-                    payment_method_type,
-                ))
-                .insert(intent_fulfillment_time, token_data, state)
-                .await?;
-
-                let final_pm = api::CustomerPaymentMethodResponseItem::foreign_try_from((
-                    pm,
-                    parent_payment_method_token,
-                ))
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to convert payment method to response format")?;
-
-                Ok(Some(final_pm))
-            } else {
-                Ok(None)
-            }
-        })
-        .collect::<futures::stream::FuturesUnordered<_>>()
-        .try_collect::<Vec<_>>()
-        .await;
-
-    customer_payment_methods.extend(
-        payment_method_results?
+    let payment_method_results: Result<Vec<_>, error_stack::Report<errors::ApiErrorResponse>> =
+        saved_payment_methods
             .into_iter()
-            .filter_map(|opt| opt)
-    );
+            .map(|pm| async move {
+                let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+                // For payment methods that are active we should always have the payment method type
+                let payment_method_type = pm
+                    .payment_method_type
+                    .get_required_value("payment_method_type")?;
+
+                // let intent_fulfillment_time = business_profile
+                //     .as_ref()
+                //     .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+                //     .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
+                let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+                let token_data = get_pm_list_token_data(payment_method_type, &pm)?;
+
+                if let Some(token_data) = token_data {
+                    pm_routes::ParentPaymentMethodToken::create_key_for_token((
+                        &parent_payment_method_token,
+                        payment_method_type,
+                    ))
+                    .insert(intent_fulfillment_time, token_data, state)
+                    .await?;
+
+                    let final_pm = api::CustomerPaymentMethodResponseItem::foreign_try_from((
+                        pm,
+                        parent_payment_method_token,
+                    ))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to convert payment method to response format")?;
+
+                    Ok(Some(final_pm))
+                } else {
+                    Ok(None)
+                }
+            })
+            .collect::<futures::stream::FuturesUnordered<_>>()
+            .try_collect::<Vec<_>>()
+            .await;
+
+    customer_payment_methods.extend(payment_method_results?.into_iter().filter_map(|opt| opt));
 
     let response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods,
@@ -2196,11 +2198,6 @@ pub async fn list_customer_payment_method_core(
 
     Ok(response)
 }
-
-        // let intent_fulfillment_time = business_profile
-        //     .as_ref()
-        //     .and_then(|b_profile| b_profile.get_order_fulfillment_time())
-        //     .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn get_total_payment_method_count_core(
