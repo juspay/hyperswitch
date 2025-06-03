@@ -6968,19 +6968,19 @@ where
             .await;
         } else {
             let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id,
-                )
-                .map(|connector_data| connector_data.into())
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
+                .into_iter()
+                .map(|conn| {
+                    api::ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        &conn.connector.to_string(),
+                        api::GetToken::Connector,
+                        conn.merchant_connector_id,
+                    )
+                    .map(|connector_data| connector_data.into())
+                })
+                .collect::<CustomResult<Vec<_>, _>>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
 
             return decide_multiplex_connector_for_normal_or_recurring_payment(
                 &state,
@@ -6991,7 +6991,7 @@ where
                 business_profile.is_connector_agnostic_mit_enabled,
                 business_profile.is_network_tokenization_enabled,
             )
-            .await
+            .await;
         }
     }
 
@@ -7029,20 +7029,20 @@ where
             .await;
         } else {
             let connector_data = connectors
-            .into_iter()
-            .map(|conn| {
-                api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &conn.connector.to_string(),
-                    api::GetToken::Connector,
-                    conn.merchant_connector_id,
-                )
-                .map(|connector_data| connector_data.into())
-            })
-            .collect::<CustomResult<Vec<_>, _>>()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
-        
+                .into_iter()
+                .map(|conn| {
+                    api::ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        &conn.connector.to_string(),
+                        api::GetToken::Connector,
+                        conn.merchant_connector_id,
+                    )
+                    .map(|connector_data| connector_data.into())
+                })
+                .collect::<CustomResult<Vec<_>, _>>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name received")?;
+
             return decide_multiplex_connector_for_normal_or_recurring_payment(
                 &state,
                 payment_data,
@@ -7052,7 +7052,7 @@ where
                 business_profile.is_connector_agnostic_mit_enabled,
                 business_profile.is_network_tokenization_enabled,
             )
-            .await
+            .await;
         }
     }
 
