@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::PollConfigResponse;
+use api_models::payments::PollConfig;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -238,7 +238,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_metadata =
-            get_wait_screen_metadata(item.response.razorpay_payment_id.clone())?;
+            get_wait_screen_metadata()?;
 
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
@@ -263,18 +263,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
 pub struct WaitScreenData {
     display_from_timestamp: i128,
     display_to_timestamp: Option<i128>,
-    poll_config: Option<PollConfigResponse>,
+    poll_config: Option<PollConfig>,
 }
 
-pub fn get_wait_screen_metadata(
-    razorpay_payment_id: String,
-) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
     Ok(Some(serde_json::json!(WaitScreenData {
         display_from_timestamp: current_time,
         display_to_timestamp: Some(current_time + Duration::minutes(5).whole_nanoseconds()),
-        poll_config: Some(PollConfigResponse {
-            poll_id: razorpay_payment_id,
+        poll_config: Some(PollConfig {
             delay_in_secs: 5,
             frequency: 5,
         }),

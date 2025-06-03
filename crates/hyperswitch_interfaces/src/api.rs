@@ -387,8 +387,8 @@ pub trait ConnectorSpecifications {
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(
         &self,
-        payment_intent: hyperswitch_domain_models::payments::PaymentIntent,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
         payment_intent
             .merchant_reference_id

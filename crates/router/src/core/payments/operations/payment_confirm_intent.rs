@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -20,7 +21,7 @@ use crate::{
         utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
-    services,
+    services::{self, connector_integration_interface::ConnectorEnum},
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -366,6 +367,26 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         )?;
 
         Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+    }
+
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id =
+            connector_data.connector.generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(
+            Some(connector_request_reference_id),
+        );
+        Ok(())
     }
 }
 

@@ -3435,6 +3435,17 @@ where
             id: merchant_connector_id.get_string_repr().to_owned(),
         })?;
 
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -3455,9 +3466,6 @@ where
             None,
         )
         .await?;
-
-    let connector_request_reference_id = router_data.connector_request_reference_id.clone();
-    payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
 
     let add_access_token_result = router_data
         .add_access_token(
@@ -9367,7 +9375,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
-        self.payment_attempt.connector_request_reference_id = reference_id;
+        todo!()
     }
 }
 
@@ -9616,6 +9624,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
-        self.payment_attempt.connector_request_reference_id = reference_id;
+        todo!()
     }
 }

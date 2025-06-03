@@ -729,7 +729,7 @@ async fn create_order_at_connector<F: Clone>(
 ) -> RouterResult<types::CreateOrderResult> {
     if connector
         .connector_name
-        .supports_create_order(router_data.payment_method)
+        .requires_order_creation_before_payment(router_data.payment_method)
         && should_continue_payment
     {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -792,13 +792,19 @@ fn update_router_data_with_create_order_result<F>(
 ) -> bool {
     if create_order_result.is_create_order_performed {
         match create_order_result.create_order_result {
-            Ok(order_id) => {
-                router_data.request.order_id = order_id.clone();
+            Ok(Some(order_id)) => {
+                router_data.request.order_id = Some(order_id.clone());
                 router_data.response =
                     Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
-                        order_id: order_id.unwrap_or_default(),
+                        order_id
                     });
                 true
+            }
+            Ok(None) => {
+                router_data.response = Err(ApiErrorResponse::MissingRequiredField {
+                    field_name: "order_id",
+                }.into());
+                false
             }
             Err(err) => {
                 router_data.response = Err(err.clone());

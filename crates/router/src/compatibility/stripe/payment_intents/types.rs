@@ -832,7 +832,7 @@ pub enum StripeNextAction {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
-        poll_config: Option<payments::PollConfigResponse>,
+        poll_config: Option<payments::PollConfig>,
     },
     InvokeSdkClient {
         next_action_data: payments::SdkNextActionData,

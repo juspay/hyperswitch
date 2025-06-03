@@ -29,8 +29,6 @@ use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
-#[cfg(feature = "v2")]
-use crate::services::connector_integration_interface::ConnectorEnum;
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     core::{
@@ -246,18 +244,10 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();
 
-    let connector = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        connector_id,
-        api::GetToken::Connector,
-        payment_data.payment_attempt.merchant_connector_id.clone(),
-    )?;
-
-    let connector_request_reference_id =
-        connector.connector.generate_connector_request_reference_id(
-            payment_data.payment_intent.clone(),
-            payment_data.payment_attempt.clone(),
-        );
+    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
     let email = customer
         .as_ref()
@@ -455,11 +445,10 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         payment_data.payment_attempt.merchant_connector_id.clone(),
     )?;
 
-    let connector_request_reference_id =
-        connector.connector.generate_connector_request_reference_id(
-            payment_data.payment_intent.clone(),
-            payment_data.payment_attempt.clone(),
-        );
+    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
     let amount_to_capture = payment_data
         .payment_attempt
@@ -600,11 +589,11 @@ pub async fn construct_router_data_for_psync<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let attempt = &payment_data.payment_attempt;
-
-    let connector_request_reference_id = payment_intent
-        .merchant_reference_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or(attempt.id.get_string_repr().to_owned());
+    
+    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
     let request = types::PaymentsSyncData {
         amount: attempt.amount_details.get_net_amount(),
@@ -924,18 +913,10 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();
 
-    let connector = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        connector_id,
-        api::GetToken::Connector,
-        payment_data.payment_attempt.merchant_connector_id.clone(),
-    )?;
-
-    let connector_request_reference_id =
-        connector.connector.generate_connector_request_reference_id(
-            payment_data.payment_intent.clone(),
-            payment_data.payment_attempt.clone(),
-        );
+    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
     let email = customer
         .as_ref()
