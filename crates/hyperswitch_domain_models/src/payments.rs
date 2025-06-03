@@ -866,7 +866,7 @@ impl<F: Clone> PaymentConfirmData<F> {
     ) -> Option<String> {
         match merchant_connector_account {
             MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => customer
-                .and_then(|cust| cust.get_connector_customer_id(merchant_connector_account))
+                .and_then(|customer| customer.get_connector_customer_id(merchant_connector_account))
                 .map(|id| id.to_string())
                 .or_else(|| {
                     self.payment_intent

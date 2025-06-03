@@ -2869,7 +2869,7 @@ pub async fn payment_status(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let payload = payment_types::PaymentsRetrieveRequest {
-        force_sync: payload.force_sync.clone(),
+        force_sync: payload.force_sync,
         expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
         all_keys_required: payload.all_keys_required,

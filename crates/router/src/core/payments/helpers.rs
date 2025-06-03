@@ -7284,7 +7284,7 @@ pub async fn allow_payment_update_enabled_for_client_auth(
 }
 
 #[cfg(feature = "v2")]
-pub async fn resolve_merchant_connector_account_type<F, D>(
+pub async fn get_merchant_connector_account_details<F, D>(
     state: &SessionState,
     payment_data: &D,
     connector: &api::ConnectorData,
@@ -7304,17 +7304,15 @@ where
                 .as_ref()
                 .get_required_value("merchant_connector_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Merchant connector ID is not set in ConnectorData for DB lookup",
-                )?;
+                .attach_printable("connector id is not set")?;
 
-            let key_manager_state = state.into(); // Assuming this conversion is valid for KeyManagerState
+            let key_manager_state = state.into();
 
             let merchant_connector_account = state
                 .store
                 .find_merchant_connector_account_by_id(
                     &key_manager_state,
-                    merchant_connector_id, // Pass the ID object itself
+                    merchant_connector_id,
                     merchant_context.get_merchant_key_store(),
                 )
                 .await

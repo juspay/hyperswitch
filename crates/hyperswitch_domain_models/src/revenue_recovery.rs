@@ -211,7 +211,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             frm_metadata: None,
             request_external_three_ds_authentication: None,
             force_3ds_challenge: None,
-            merchant_connector_details: None,
+            merchant_connector_details123: None,
         }
     }
 }

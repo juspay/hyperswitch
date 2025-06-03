@@ -192,7 +192,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
-    //
+
     let auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -882,7 +882,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
 
     let connector_customer_id = customer.as_ref().and_then(|customer| {
         customer
-            .get_connector_customer_id(&merchant_connector_account)
+            .get_connector_customer_id(merchant_connector_account)
             .map(String::from)
     });
 

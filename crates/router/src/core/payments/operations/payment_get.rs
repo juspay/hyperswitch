@@ -314,12 +314,13 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector is none when constructing response")?;
 
+            // Since the connector name and merchant connector credentials is provided in the request, we directly construct ConnectorData, bypassing routing logic.
             match &payment_data.merchant_connector_details {
                 Some(_) => {
                     let connector_data: api::ConnectorData =
                         api::ConnectorData::get_connector_by_name(
                             &state.conf.connectors,
-                            &connector,
+                            connector,
                             api::GetToken::Connector,
                             None,
                         )

@@ -104,10 +104,10 @@ pub fn should_call_connector_create_customer<'a>(
     state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_id: &domain::MerchantConnectorAccountTypeDetails,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
-    match merchant_connector_id {
+    match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
             let connector_needs_customer = state
                 .conf
@@ -118,7 +118,7 @@ pub fn should_call_connector_create_customer<'a>(
             if connector_needs_customer {
                 let connector_customer_details = customer
                     .as_ref()
-                    .and_then(|cust| cust.get_connector_customer_id(merchant_connector_id));
+                    .and_then(|cust| cust.get_connector_customer_id(merchant_connector_account));
                 let should_call_connector = connector_customer_details.is_none();
                 (should_call_connector, connector_customer_details)
             } else {
@@ -157,33 +157,14 @@ pub async fn update_connector_customer_in_customers(
         )
 }
 
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// #[instrument]
-// pub async fn update_connector_customer_in_customersf(
-//     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-//     customer: Option<&domain::Customer>,
-//     connector_customer_id: Option<String>,
-// ) -> Option<storage::CustomerUpdate> {
-//     connector_customer_id.map(|connector_customer_id| {
-//         let mut connector_customer_map = customer
-//             .and_then(|customer| customer.connector_customer.clone())
-//             .unwrap_or_default();
-//         connector_customer_map.insert(merchant_connector_id, connector_customer_id);
-
-//         storage::CustomerUpdate::ConnectorCustomer {
-//             connector_customer: Some(connector_customer_map),
-//         }
-//     })
-// }
-
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument]
 pub async fn update_connector_customer_in_customers(
-    merchant_connector_id: &domain::MerchantConnectorAccountTypeDetails,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     customer: Option<&domain::Customer>,
     connector_customer_id: Option<String>,
 ) -> Option<storage::CustomerUpdate> {
-    match merchant_connector_id {
+    match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
             connector_customer_id.map(|new_conn_cust_id| {
                 let connector_account_id = account.get_id().clone();

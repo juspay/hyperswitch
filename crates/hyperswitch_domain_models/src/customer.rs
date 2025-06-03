@@ -103,9 +103,9 @@ impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub fn get_connector_customer_id(
         &self,
-        merchant_connector_id: &MerchantConnectorAccountTypeDetails, //type
+        merchant_connector_account: &MerchantConnectorAccountTypeDetails,
     ) -> Option<&str> {
-        match merchant_connector_id {
+        match merchant_connector_account {
             MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
                 let connector_account_id = account.get_id();
                 self.connector_customer

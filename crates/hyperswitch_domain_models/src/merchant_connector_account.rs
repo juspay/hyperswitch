@@ -107,23 +107,27 @@ impl MerchantConnectorAccountTypeDetails {
     ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
     {
         match self {
-            Self::MerchantConnectorAccount(domain_mca_details) => domain_mca_details
-                .connector_account_details
-                .peek()
-                .clone()
-                .parse_value("ConnectorAuthType"),
-            Self::MerchantConnectorDetails(api_mcd_details) => api_mcd_details
-                .merchant_connector_creds
-                .peek()
-                .clone()
-                .parse_value("ConnectorAuthType"),
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account
+                    .connector_account_details
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details
+                    .merchant_connector_creds
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
         }
     }
 
     pub fn is_disabled(&self) -> bool {
         match self {
-            Self::MerchantConnectorAccount(domain_mca_details) => {
-                domain_mca_details.disabled.unwrap_or(false)
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.disabled.unwrap_or(false)
             }
             Self::MerchantConnectorDetails(_) => false,
         }
@@ -131,8 +135,8 @@ impl MerchantConnectorAccountTypeDetails {
 
     pub fn get_metadata(&self) -> Option<Secret<Value>> {
         match self {
-            Self::MerchantConnectorAccount(domain_mca_details) => {
-                domain_mca_details.metadata.to_owned()
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.metadata.to_owned()
             }
             Self::MerchantConnectorDetails(_) => None,
         }
@@ -140,8 +144,8 @@ impl MerchantConnectorAccountTypeDetails {
 
     pub fn get_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
         match self {
-            Self::MerchantConnectorAccount(domain_mca_details) => {
-                Some(domain_mca_details.id.clone())
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.id.clone())
             }
             Self::MerchantConnectorDetails(_) => None,
         }

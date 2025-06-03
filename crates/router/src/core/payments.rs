@@ -98,7 +98,7 @@ use crate::core::routing::helpers as routing_helpers;
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
-    connector, consts,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
@@ -3416,9 +3416,9 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+    let merchant_connector_account = helpers::get_merchant_connector_account_details(
         state,
-        payment_data, // Pass as &D, which is compatible with &mut D
+        payment_data,
         &connector,
         merchant_context,
     )
@@ -3428,7 +3428,7 @@ where
         state,
         customer,
         merchant_context,
-        &merchant_connector_account_type,
+        &merchant_connector_account,
         payment_data,
     )
     .await?;
@@ -3439,7 +3439,7 @@ where
             connector.connector.id(),
             merchant_context,
             customer,
-            &merchant_connector_account_type, //option
+            &merchant_connector_account,
             None,
             None,
         )
@@ -3722,9 +3722,9 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+    let merchant_connector_account = helpers::get_merchant_connector_account_details(
         state,
-        payment_data, // Pass as &D, which is compatible with &mut D
+        payment_data,
         &connector,
         merchant_context,
     )
@@ -3736,7 +3736,7 @@ where
             connector.connector.id(),
             merchant_context,
             &None,
-            &merchant_connector_account_type,
+            &merchant_connector_account,
             None,
             None,
         )
@@ -4071,7 +4071,7 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
     for session_connector_data in connectors.iter() {
-        let merchant_connector_account_type = helpers::resolve_merchant_connector_account_type(
+        let merchant_connector_account = helpers::get_merchant_connector_account_details(
             state,
             &payment_data,
             &session_connector_data.connector,
@@ -4086,7 +4086,7 @@ where
                 connector_id,
                 merchant_context,
                 customer,
-                &merchant_connector_account_type,
+                &merchant_connector_account,
                 None,
                 None,
             )

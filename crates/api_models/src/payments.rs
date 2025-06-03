@@ -273,7 +273,7 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<Secret<String>>)]
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details123: Option<MerchantConnectorDetails>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -5556,7 +5556,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
                 .request_external_three_ds_authentication
                 .clone(),
             force_3ds_challenge: request.force_3ds_challenge,
-            merchant_connector_details: request.merchant_connector_details.clone(),
+            merchant_connector_details123: request.merchant_connector_details.clone(),
         }
     }
 }
