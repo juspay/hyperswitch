@@ -41,7 +41,8 @@
       "connector_type": "payment_processor",
       "connector_name": "archipel",
       "connector_account_details": {
-        "auth_type": "NoKey"
+        "auth_type": "HeaderKey",
+        "api_key": "connector_api_key"
       },
       "metadata": {
         "tenant_id": "{{archipel_tenant_id}}",
