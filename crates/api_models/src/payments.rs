@@ -4704,7 +4704,7 @@ pub struct WaitScreenInstructions {
     pub poll_config: Option<PollConfig>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PollConfig {
     /// Interval of the poll
     pub delay_in_secs: i8,

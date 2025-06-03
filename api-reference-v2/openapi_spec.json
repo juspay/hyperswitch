@@ -20277,18 +20277,13 @@
           }
         }
       },
-      "PollConfigResponse": {
+      "PollConfig": {
         "type": "object",
         "required": [
-          "poll_id",
           "delay_in_secs",
           "frequency"
         ],
         "properties": {
-          "poll_id": {
-            "type": "string",
-            "description": "Poll Id"
-          },
           "delay_in_secs": {
             "type": "integer",
             "format": "int32",
@@ -20301,13 +20296,18 @@
           }
         }
       },
-      "PollConfig": {
+      "PollConfigResponse": {
         "type": "object",
         "required": [
+          "poll_id",
           "delay_in_secs",
           "frequency"
         ],
         "properties": {
+          "poll_id": {
+            "type": "string",
+            "description": "Poll Id"
+          },
           "delay_in_secs": {
             "type": "integer",
             "format": "int32",
