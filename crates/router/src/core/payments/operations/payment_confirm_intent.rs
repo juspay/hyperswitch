@@ -338,34 +338,14 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        use crate::core::payments::OperationSessionSetters;
-
-        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        let first_chosen_connector = fallback_config
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
-
-        let connector_name = first_chosen_connector.connector.to_string();
-        let merchant_connector_id = first_chosen_connector
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")?;
-
-        payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
-        payment_data.set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
-
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-            Some(merchant_connector_id),
-        )?;
-
-        Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+        payments::connector_selection(
+            state,
+            merchant_context,
+            business_profile,
+            payment_data,
+            None,
+        )
+        .await
     }
 }
 
