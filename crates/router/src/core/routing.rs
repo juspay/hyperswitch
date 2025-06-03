@@ -2280,3 +2280,55 @@ impl RoutableConnectors {
         Ok(connector_data)
     }
 }
+
+pub async fn migrate_rules_for_profile(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResponse<()> {
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(1, &[]);
+
+    return Ok(());
+    // let routing_metadata: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
+    //     .store
+    //     .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+    //         merchant_context.get_merchant_account().get_id(),
+    //         &transaction_type,
+    //         i64::from(query_params.limit.unwrap_or_default()),
+    //         i64::from(query_params.offset.unwrap_or_default()),
+    //     )
+    //     .await
+    //     .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    // let routing_metadata = super::utils::filter_objects_based_on_profile_id_list(
+    //     profile_id_list.clone(),
+    //     routing_metadata,
+    // );
+    //
+    // let result = routing_metadata
+    //     .into_iter()
+    //     .map(ForeignInto::foreign_into)
+    //     .collect::<Vec<_>>();
+    //
+    // if let Some(profile_ids) = profile_id_list {
+    //     let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+    //     // DE_TODO: need to replace this with batch API call to reduce the number of network calls
+    //     for profile_id in profile_ids {
+    //         let list_request = ListRountingAlgorithmsRequest {
+    //             created_by: profile_id.get_string_repr().to_string(),
+    //         };
+    //         list_de_euclid_routing_algorithms(&state, list_request)
+    //             .await
+    //             .map_err(|e| {
+    //                 router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+    //             })
+    //             .ok() // Avoid throwing error if Decision Engine is not available or other errors
+    //             .map(|mut de_routing| de_result.append(&mut de_routing));
+    //     }
+    //     compare_and_log_result(de_result, result.clone(), "list_routing".to_string());
+    // }
+    //
+    // metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
+    // Ok(service_api::ApplicationResponse::Json(
+    //     routing_types::RoutingKind::RoutingAlgorithm(result),
+    // ))
+}

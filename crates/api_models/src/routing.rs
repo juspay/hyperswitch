@@ -1283,3 +1283,8 @@ impl RoutableConnectorChoiceWithBucketName {
         }
     }
 }
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+}

@@ -249,6 +249,8 @@ pub enum Flow {
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
     RoutingRetrieveDictionary,
+    /// Rule migration for decision-engine
+    RuleMigration,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config

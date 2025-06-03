@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
+use api_models::routing::RuleMigrationQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
@@ -887,6 +888,11 @@ impl Routing {
                     )
                 })),
             )
+            .service(web::resource("/rule/migrate").route(web::post().to(
+                |state, req, query: web::Query<RuleMigrationQuery>| {
+                    routing::migrate_routing_rules_for_profile(state, req, query)
+                },
+            )))
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
                     routing::routing_unlink_config(state, req, payload, None)

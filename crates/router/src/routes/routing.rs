@@ -1558,3 +1558,37 @@ pub async fn get_dynamic_routing_volume_split(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn migrate_routing_rules_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::RuleMigrationQuery>,
+) -> impl Responder {
+    let flow = Flow::RuleMigration;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, query_params, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::migrate_rules_for_profile(state, merchant_context, query.0)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRoutingRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
