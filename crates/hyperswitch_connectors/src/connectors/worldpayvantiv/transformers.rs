@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub mod worldpayvantiv_constants {
-    pub const WORLDPAYVANTIV_VERSION: &str = "12.1";
+    pub const WORLDPAYVANTIV_VERSION: &str = "12.23";
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
@@ -87,7 +87,7 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for WorldpayvantivMet
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename = "cnpOnlineRequest")]
+#[serde(rename = "cnpOnlineRequest", rename_all = "camelCase")]
 pub struct CnpOnlineRequest {
     #[serde(rename = "@version")]
     pub version: String,

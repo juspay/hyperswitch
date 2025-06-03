@@ -103,7 +103,7 @@ impl ConnectorCommon for Worldpayvantiv {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/xml"
+        "text/xml"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -196,7 +196,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = worldpayvantiv::WorldpayvantivRouterData::from((amount, req));
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
-
+        
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
@@ -283,7 +284,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
-
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
@@ -373,7 +374,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = worldpayvantiv::WorldpayvantivRouterData::from((amount, req));
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
-
+            router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
@@ -458,6 +459,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -634,6 +636,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -653,7 +656,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
