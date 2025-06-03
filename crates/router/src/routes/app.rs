@@ -49,6 +49,8 @@ use super::pm_auth;
 use super::poll;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use super::proxy;
+#[cfg(feature = "v2")]
+use super::recovery_decider;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -57,6 +59,8 @@ use super::refunds;
 use super::routing;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
+#[cfg(feature = "v2")]
+use super::trainer;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -667,6 +671,37 @@ impl Relay {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct Trainer;
+
+#[cfg(feature = "v2")]
+impl Trainer {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/trainer")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/jobs").route(web::post().to(trainer::trigger_training_job)))
+            .service(
+                web::resource("/jobs/{job_id}")
+                    .route(web::get().to(trainer::get_training_job_status)),
+            )
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct Decider;
+
+#[cfg(feature = "v2")]
+impl Decider {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/decider")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/should_retry")
+                    .route(web::post().to(recovery_decider::recovery_should_retry_test)),
+            )
     }
 }
 

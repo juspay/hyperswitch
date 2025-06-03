@@ -6,11 +6,14 @@ pub mod dynamic_routing;
 pub mod health_check_client;
 /// gRPC based Recovery Trainer Client interface implementation
 #[cfg(feature = "v2")]
-pub mod recovery_trainer_client;
+pub mod recovery_decider_client;
+/// gRPC based Trainer Client interface implementation
+#[cfg(feature = "v2")]
+pub mod trainer_client;
 
 use std::{fmt::Debug, sync::Arc};
 
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use common_utils::consts;
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
@@ -23,12 +26,14 @@ use hyper::body::Bytes;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "v2")]
-use recovery_trainer_client::{RecoveryTrainerClient, RecoveryTrainerClientConfig};
-#[cfg(feature = "dynamic_routing")]
+use recovery_decider_client::{RecoveryDeciderClient, RecoveryDeciderClientConfig};
+#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use router_env::logger;
 use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use tonic::Status;
+#[cfg(feature = "v2")]
+use trainer_client::{TrainerClient, TrainerClientConfig};
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
@@ -45,7 +50,10 @@ pub struct GrpcClients {
     pub health_client: HealthCheckClient,
     #[cfg(feature = "v2")]
     #[allow(missing_docs)]
-    pub recovery_trainer_client: RecoveryTrainerClient,
+    pub recovery_trainer_client: RecoveryDeciderClient,
+    #[cfg(feature = "v2")]
+    #[allow(missing_docs)]
+    pub trainer_client: TrainerClient,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -56,7 +64,11 @@ pub struct GrpcClientSettings {
     pub dynamic_routing_client: DynamicRoutingClientConfig,
     #[cfg(feature = "v2")]
     /// Configs for Recovery Trainer Client
-    pub recovery_trainer_client: RecoveryTrainerClientConfig,
+    pub recovery_trainer_client: RecoveryDeciderClientConfig,
+    #[cfg(feature = "v2")]
+    #[serde(default)]
+    /// Configs for Trainer Client
+    pub trainer_client: TrainerClientConfig,
 }
 
 impl GrpcClientSettings {
@@ -90,9 +102,17 @@ impl GrpcClientSettings {
         let recovery_trainer_client = {
             let config = self.recovery_trainer_client.clone();
 
-            RecoveryTrainerClient::get_recovery_trainer_connection(config, client.clone())
+            RecoveryDeciderClient::get_recovery_decider_connection(config, client.clone())
                 .await
                 .expect("Failed to establish a connection with the Recovery Trainer Server")
+        };
+
+        #[cfg(feature = "v2")]
+        let trainer_client = {
+            let config = self.trainer_client.clone();
+            TrainerClient::get_trainer_connection(config, client.clone())
+                .await
+                .expect("Failed to establish a connection with the Trainer Server")
         };
 
         Arc::new(GrpcClients {
@@ -102,6 +122,8 @@ impl GrpcClientSettings {
             health_client,
             #[cfg(feature = "v2")]
             recovery_trainer_client,
+            #[cfg(feature = "v2")]
+            trainer_client,
         })
     }
 }
@@ -115,14 +137,14 @@ pub struct GrpcHeaders {
     pub request_id: Option<String>,
 }
 
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Trait to add necessary headers to the tonic Request
 pub(crate) trait AddHeaders {
     /// Add necessary header fields to the tonic Request
     fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders);
 }
 
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 impl<T> AddHeaders for tonic::Request<T> {
     #[track_caller]
     fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders) {

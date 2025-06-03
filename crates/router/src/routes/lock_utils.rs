@@ -45,6 +45,8 @@ pub enum ApiIdentifier {
     ProcessTracker,
     Proxy,
     GenericTokenization,
+    TrainerClient,
+    DeciderClient,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -61,6 +63,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
             }
+
+            Flow::TriggerTrainingJob | Flow::GetTrainingJobStatus => Self::TrainerClient,
+
+            Flow::RecoveryDeciderShouldRetry => Self::DeciderClient,
 
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig

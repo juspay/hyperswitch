@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package recovery_decider;
+
+message RecoveryDeciderRequest {
+  string first_error_message = 1;
+  string billing_state = 2;
+  string card_funding = 3;
+  string card_network = 4;
+  string card_issuer = 5;
+  int64 txn_time = 6; 
+}
+
+message RecoveryDeciderResponse {
+  bool retryable = 1;
+  int64 trainer_time = 2; 
+}
+
+service RecoveryDeciderService {
+  rpc ShouldRetry (RecoveryDeciderRequest) returns (RecoveryDeciderResponse);
+}

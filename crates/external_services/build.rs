@@ -22,7 +22,8 @@ fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "v2")]
     {
-        proto_files_to_compile.push(proto_base_path.join("recovery_trainer.proto"));
+        proto_files_to_compile.push(proto_base_path.join("recovery_decider.proto"));
+        proto_files_to_compile.push(proto_base_path.join("trainer_client.proto"));
     }
 
     if !proto_files_to_compile.is_empty() {
@@ -35,6 +36,26 @@ fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
         // Compile the .proto file
         tonic_build::configure()
             .out_dir(out_dir)
+            .type_attribute(
+                "trainer.TriggerTrainingRequest",
+                "#[derive(masking::Deserialize, masking::Serialize)]",
+            )
+            .type_attribute(
+                "trainer.TriggerTrainingResponse",
+                "#[derive(serde::Serialize)]",
+            )
+            .type_attribute(
+                "trainer.GetTrainingJobStatusResponse",
+                "#[derive(serde::Serialize)]",
+            )
+            .type_attribute(
+                "recovery_decider.RecoveryDeciderResponse",
+                "#[derive(serde::Serialize)]",
+            )
+            .type_attribute(
+                "recovery_decider.RecoveryDeciderRequest",
+                "#[derive(masking::Serialize, masking::Deserialize)]",
+            )
             .compile(&proto_files_to_compile, &[proto_base_path])?;
     }
     Ok(())
