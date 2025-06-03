@@ -276,7 +276,7 @@ pub struct PaymentsCreateIntentRequest {
     pub merchant_connector_details123: Option<MerchantConnectorDetails>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
 pub struct MerchantConnectorDetails {
     /// The connector used for the payment
