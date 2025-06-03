@@ -27,20 +27,18 @@ revenue_recovery = []
 tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
-actix-multipart = { version = "0.6.1", optional = true }
-actix-web = { version = "4.5.1", optional = true }
+actix-multipart = { version = "0.6.2", optional = true }
+actix-web = { version = "4.11.0", optional = true }
 error-stack = "0.4.1"
-indexmap = "2.3.0"
 mime = "0.3.17"
 reqwest = { version = "0.11.27", optional = true }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
-time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
-url = { version = "2.5.0", features = ["serde"] }
-utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
-rustc-hash = "1.1.0"
-nutype = { version = "0.4.2", features = ["serde"] }
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+url = { version = "2.5.4", features = ["serde"] }
+utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
+nutype = { version = "0.4.3", features = ["serde"] }
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
