@@ -237,8 +237,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let connector_metadata =
-            get_wait_screen_metadata()?;
+        let connector_metadata = get_wait_screen_metadata()?;
 
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
@@ -266,7 +265,8 @@ pub struct WaitScreenData {
     poll_config: Option<PollConfig>,
 }
 
-pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, errors::ConnectorError>
+{
     let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
     Ok(Some(serde_json::json!(WaitScreenData {
         display_from_timestamp: current_time,

@@ -378,14 +378,13 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let connector_request_reference_id =
-            connector_data.connector.generate_connector_request_reference_id(
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
             );
-        payment_data.set_connector_request_reference_id(
-            Some(connector_request_reference_id),
-        );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
         Ok(())
     }
 }

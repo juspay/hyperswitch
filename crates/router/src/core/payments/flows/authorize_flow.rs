@@ -795,15 +795,14 @@ fn update_router_data_with_create_order_result<F>(
             Ok(Some(order_id)) => {
                 router_data.request.order_id = Some(order_id.clone());
                 router_data.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
-                        order_id
-                    });
+                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
                 true
             }
             Ok(None) => {
                 router_data.response = Err(ApiErrorResponse::MissingRequiredField {
                     field_name: "order_id",
-                }.into());
+                }
+                .into());
                 false
             }
             Err(err) => {

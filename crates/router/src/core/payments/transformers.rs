@@ -244,7 +244,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();
 
-    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+    let connector_request_reference_id = payment_data
+        .payment_attempt
+        .connector_request_reference_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
@@ -445,7 +447,9 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         payment_data.payment_attempt.merchant_connector_id.clone(),
     )?;
 
-    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+    let connector_request_reference_id = payment_data
+        .payment_attempt
+        .connector_request_reference_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
@@ -589,8 +593,10 @@ pub async fn construct_router_data_for_psync<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let attempt = &payment_data.payment_attempt;
-    
-    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+
+    let connector_request_reference_id = payment_data
+        .payment_attempt
+        .connector_request_reference_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
@@ -913,7 +919,9 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();
 
-    let connector_request_reference_id = payment_data.payment_attempt.connector_request_reference_id
+    let connector_request_reference_id = payment_data
+        .payment_attempt
+        .connector_request_reference_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
