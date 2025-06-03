@@ -97,7 +97,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
     
-    let infra_component_values = state.infra_components.clone();
+    let infra = state.infra_components.clone();
 
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
@@ -114,7 +114,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
-        None,
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)

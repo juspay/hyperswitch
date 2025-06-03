@@ -700,11 +700,7 @@ where
         }
     };
 
-    let infra = session_state.conf.infra_values.clone().map(|values| {
-        serde_json::to_value(values).unwrap_or_default()
-    });
-    
-    logger::info!("Infra values: {:?}", session_state.conf.infra_values);
+    let infra = state.infra_components.clone();
 
     let api_event = ApiEvent::new(
         tenant_id,
