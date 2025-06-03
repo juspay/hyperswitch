@@ -678,6 +678,13 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
 
+        case "deutschebank":
+          cy.get('button[id="submit"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .should("be.visible")
+            .click();
+          break;
+
         case "nmi":
         case "noon":
         case "xendit":
