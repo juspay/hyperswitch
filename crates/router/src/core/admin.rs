@@ -3898,7 +3898,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
 
         let dynamic_routing_algorithm = serde_json::to_value(dynamic_routing_algorithm_ref)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error serializing dynamic_routing_algorithm_ref  to JSON Value")?;
+            .attach_printable("error serializing dynamic_routing_algorithm_ref to JSON Value")?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -4433,7 +4433,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             let dynamic_routing_algo_ref_value = serde_json::to_value(dynamic_routing_algo_ref)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
-                    "error serializing dynamic_routing_algorithm_ref  to JSON Value",
+                    "error serializing dynamic_routing_algorithm_ref to JSON Value",
                 )?;
 
             Some(dynamic_routing_algo_ref_value)
