@@ -6019,3 +6019,10 @@ key1="API Password"
 api_key="Username"
 api_secret="Password"
 key1="Merchant ID"
+
+[worldpayvantiv.metadata.report_group]
+name="report_group"
+label="Default Report Group"
+placeholder="Enter default report group"
+required=true
+type="Text"
