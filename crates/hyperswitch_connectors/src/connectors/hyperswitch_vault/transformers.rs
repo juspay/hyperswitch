@@ -1,8 +1,9 @@
+use common_utils::pii::Email;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::vault::ExternalVaultCreateFlow,
-    router_response_types::VaultResponseData,
-    types::VaultRouterData,
+    router_response_types::{PaymentsResponseData, VaultResponseData},
+    types::{ConnectorCustomerRouterData, VaultRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -10,7 +11,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{types::ResponseRouterData, utils};
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize)]
 pub struct HyperswitchVaultCreateRequest {
     customer_id: String,
@@ -20,7 +20,8 @@ impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCrea
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<ExternalVaultCreateFlow>) -> Result<Self, Self::Error> {
         let customer_id = item
-            .connector_customer
+            .request
+            .connector_customer_id
             .clone()
             .ok_or_else(utils::missing_field_err("connector_customer"))?;
         Ok(Self { customer_id })
@@ -66,6 +67,49 @@ impl<F, T> TryFrom<ResponseRouterData<F, HyperswitchVaultCreateResponse, T, Vaul
             response: Ok(VaultResponseData::ExternalVaultCreateResponse {
                 session_id: item.response.id,
                 client_secret: item.response.client_secret,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct HyperswitchVaultCustomerCreateRequest {
+    name: Option<Secret<String>>,
+    email: Option<Email>,
+}
+
+impl TryFrom<&ConnectorCustomerRouterData> for HyperswitchVaultCustomerCreateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: item.request.name.clone(),
+            email: item.request.email.clone(),
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct HyperswitchVaultCustomerCreateResponse {
+    id: String,
+}
+
+impl<F, T>
+    TryFrom<ResponseRouterData<F, HyperswitchVaultCustomerCreateResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            HyperswitchVaultCustomerCreateResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
+                connector_customer_id: item.response.id,
             }),
             ..item.data
         })

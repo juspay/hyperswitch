@@ -10,20 +10,24 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, Session,
+            SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
         vault::ExternalVaultCreateFlow,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData, VaultRequestData,
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData, VaultRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData, VaultResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundsRouterData, SetupMandateRouterData, TokenizationRouterData, VaultRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
+        RefreshTokenRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
+        VaultRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -58,6 +62,7 @@ impl api::RefundExecute for HyperswitchVault {}
 impl api::RefundSync for HyperswitchVault {}
 impl api::PaymentToken for HyperswitchVault {}
 impl api::ExternalVaultCreate for HyperswitchVault {}
+impl api::ConnectorCustomer for HyperswitchVault {}
 
 impl ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>
     for HyperswitchVault
@@ -124,7 +129,7 @@ impl ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultRespon
     ) -> CustomResult<VaultRouterData<ExternalVaultCreateFlow>, errors::ConnectorError> {
         let response: hyperswitch_vault::HyperswitchVaultCreateResponse = res
             .response
-            .parse_struct("HyperswitchVault PaymentsAuthorizeResponse")
+            .parse_struct("HyperswitchVault HyperswitchVaultCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -239,6 +244,89 @@ impl ConnectorCommon for HyperswitchVault {
             network_advice_code: None,
             network_error_message: None,
         })
+    }
+}
+
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for HyperswitchVault
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/v2/customers", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req =
+            hyperswitch_vault::HyperswitchVaultCustomerCreateRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::ConnectorCustomerType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorCustomerType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorCustomerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError> {
+        let response: hyperswitch_vault::HyperswitchVaultCustomerCreateResponse = res
+            .response
+            .parse_struct("HyperswitchVault HyperswitchVaultCustomerCreateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 

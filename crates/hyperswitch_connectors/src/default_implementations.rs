@@ -982,7 +982,6 @@ default_imp_for_create_customer!(
     connectors::Gpayments,
     connectors::Hipay,
     connectors::Helcim,
-    connectors::HyperswitchVault,
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
