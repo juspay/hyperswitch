@@ -19,6 +19,10 @@ use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
+};
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use masking::ExposeOptionInterface;
 #[cfg(feature = "payouts")]
@@ -32,6 +36,8 @@ use super::payments::helpers;
 use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payments::helpers as payment_helpers;
 use crate::{
     configs::Settings,
     consts,
@@ -228,6 +234,7 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -383,6 +390,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -585,6 +593,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)
@@ -1025,6 +1034,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1122,6 +1132,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1225,6 +1236,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1347,6 +1359,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1447,6 +1460,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1541,6 +1555,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
     Ok(router_data)
 }
@@ -1720,6 +1735,38 @@ pub fn get_external_authentication_request_poll_id(
     payment_id: &common_utils::id_type::PaymentId,
 ) -> String {
     payment_id.get_external_authentication_request_poll_id()
+}
+pub fn get_html_redirect_response_popup(
+    return_url_with_query_params: String,
+) -> RouterResult<String> {
+    Ok(html! {
+        head {
+            title { "Redirect Form" }
+            (PreEscaped(format!(r#"
+                    <script>
+                        let return_url = "{return_url_with_query_params}";
+                        try {{
+                            // if inside iframe, send post message to parent for redirection
+                            if (window.self !== window.parent) {{
+                                window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                            // if parent, redirect self to return_url
+                            }} else {{
+                                window.location.href = return_url
+                            }}
+                        }}
+                        catch(err) {{
+                            // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
+                            window.parent.postMessage({{openurl_if_required: return_url}}, '*')
+                            setTimeout(function() {{
+                                window.location.href = return_url
+                            }}, 10000);
+                            console.log(err.message)
+                        }}
+                    </script>
+                    "#)))
+        }
+    }
+    .into_string())
 }
 
 #[cfg(feature = "v1")]
@@ -1985,4 +2032,40 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
         .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
         (None, None) | (None, Some(_)) => Ok(()),
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn construct_vault_router_data<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+    payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
+    connector_vault_id: Option<String>,
+) -> RouterResult<VaultRouterDataV2<F>> {
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let resource_common_data = VaultConnectorFlowData {
+        merchant_id: merchant_account.get_id().to_owned(),
+    };
+
+    let router_data = types::RouterDataV2 {
+        flow: PhantomData,
+        resource_common_data,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector_auth_type,
+        request: types::VaultRequestData {
+            payment_method_vaulting_data,
+            connector_vault_id,
+        },
+        response: Ok(types::VaultResponseData::default()),
+    };
+
+    Ok(router_data)
 }

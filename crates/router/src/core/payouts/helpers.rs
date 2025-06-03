@@ -234,6 +234,7 @@ pub async fn save_payout_data_to_locker(
     connector_mandate_details: Option<serde_json::Value>,
     merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
+    let mut pm_id: Option<String> = None;
     let payouts = &payout_data.payouts;
     let key_manager_state = state.into();
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
@@ -373,14 +374,17 @@ pub async fn save_payout_data_to_locker(
 
             match existing_pm_by_pmid {
                 // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_method's table
-                Ok(pm) => (
-                    false,
-                    if duplication_check == DataDuplicationCheck::MetaDataChanged {
-                        Some(pm.clone())
-                    } else {
-                        None
-                    },
-                ),
+                Ok(pm) => {
+                    pm_id = Some(pm.payment_method_id.clone());
+                    (
+                        false,
+                        if duplication_check == DataDuplicationCheck::MetaDataChanged {
+                            Some(pm.clone())
+                        } else {
+                            None
+                        },
+                    )
+                }
 
                 // If not found, use locker ref as locker_id
                 Err(err) => {
@@ -395,14 +399,17 @@ pub async fn save_payout_data_to_locker(
                             .await
                         {
                             // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_methods table
-                            Ok(pm) => (
-                                false,
-                                if duplication_check == DataDuplicationCheck::MetaDataChanged {
-                                    Some(pm.clone())
-                                } else {
-                                    None
-                                },
-                            ),
+                            Ok(pm) => {
+                                pm_id = Some(pm.payment_method_id.clone());
+                                (
+                                    false,
+                                    if duplication_check == DataDuplicationCheck::MetaDataChanged {
+                                        Some(pm.clone())
+                                    } else {
+                                        None
+                                    },
+                                )
+                            }
                             Err(err) => {
                                 // If not found, update locker's metadata [DELETE + INSERT OP], and insert in payment_methods table
                                 if err.current_context().is_db_not_found() {
@@ -495,6 +502,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: card_info.card_network,
                             card_type: card_info.card_type,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 })
@@ -515,6 +523,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: None,
                             card_type: None,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 });
@@ -659,7 +668,14 @@ pub async fn save_payout_data_to_locker(
     // Store card_reference in payouts table
     let payout_method_id = match &payout_data.payment_method {
         Some(pm) => pm.payment_method_id.clone(),
-        None => stored_resp.card_reference.to_owned(),
+        None => {
+            if let Some(id) = pm_id {
+                id
+            } else {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method was not found")?
+            }
+        }
     };
 
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id };
@@ -847,7 +863,7 @@ pub async fn decide_payout_connector(
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
-        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
+        return Ok(api::ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
     // Validate and get the business_profile from payout_attempt
@@ -897,6 +913,7 @@ pub async fn decide_payout_connector(
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -947,6 +964,7 @@ pub async fn decide_payout_connector(
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)

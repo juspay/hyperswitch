@@ -80,6 +80,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        tokenization::TokenizationInterface,
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
@@ -87,7 +88,6 @@ use crate::{
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
-
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 
@@ -4137,6 +4137,16 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store.find_theme_by_lineage(lineage).await
     }
 
+    async fn update_theme_by_theme_id(
+        &self,
+        theme_id: String,
+        theme_update: diesel_models::user::theme::ThemeUpdate,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .update_theme_by_theme_id(theme_id, theme_update)
+            .await
+    }
+
     async fn delete_theme_by_lineage_and_theme_id(
         &self,
         theme_id: String,
@@ -4224,3 +4234,34 @@ impl CallbackMapperInterface for KafkaStore {
         self.diesel_store.find_call_back_mapper_by_id(id).await
     }
 }
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[async_trait::async_trait]
+impl TokenizationInterface for KafkaStore {
+    async fn insert_tokenization(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
+            .await
+    }
+
+    async fn get_entity_id_vault_id_by_token_id(
+        &self,
+        token: &id_type::GlobalTokenId,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
+    }
+}
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+impl TokenizationInterface for KafkaStore {}

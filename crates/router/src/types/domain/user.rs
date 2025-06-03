@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     ops::{Deref, Not},
     str::FromStr,
+    sync::LazyLock,
 };
 
 use api_models::{
@@ -21,7 +22,6 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::{ExposeInterface, PeekInterface, Secret};
-use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
@@ -36,7 +36,10 @@ use crate::{
     },
     db::GlobalStorageInterface,
     routes::SessionState,
-    services::{self, authentication::UserFromToken},
+    services::{
+        self,
+        authentication::{AuthenticationDataWithOrg, UserFromToken},
+    },
     types::{domain, transformers::ForeignFrom},
     utils::{self, user::password},
 };
@@ -90,7 +93,7 @@ impl TryFrom<pii::Email> for UserName {
 #[derive(Clone, Debug)]
 pub struct UserEmail(pii::Email);
 
-static BLOCKED_EMAIL: Lazy<HashSet<String>> = Lazy::new(|| {
+static BLOCKED_EMAIL: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let blocked_emails_content = include_str!("../../utils/user/blocker_emails.txt");
     let blocked_emails: HashSet<String> = blocked_emails_content
         .lines()
@@ -518,13 +521,21 @@ impl NewUserMerchant {
         let merchant_account_create_request = self
             .create_merchant_account_request()
             .attach_printable("unable to construct merchant account create request")?;
-
-        let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?
+        let org_id = merchant_account_create_request
+            .clone()
+            .organization_id
+            .ok_or(UserErrors::InternalServerError)?;
+        let ApplicationResponse::Json(merchant_account_response) =
+            Box::pin(admin::create_merchant_account(
+                state.clone(),
+                merchant_account_create_request,
+                Some(AuthenticationDataWithOrg {
+                    organization_id: org_id,
+                }),
+            ))
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while creating a merchant")?
         else {
             return Err(UserErrors::InternalServerError.into());
         };
@@ -566,7 +577,7 @@ impl NewUserMerchant {
             .attach_printable("unable to construct merchant account create request")?;
 
         let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
+            admin::create_merchant_account(state.clone(), merchant_account_create_request, None),
         )
         .await
         .change_context(UserErrors::InternalServerError)

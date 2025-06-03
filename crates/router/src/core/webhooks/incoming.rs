@@ -4,7 +4,12 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
+use common_utils::{
+    errors::ReportSwitchExt,
+    events::ApiEventsType,
+    ext_traits::AsyncExt,
+    types::{AmountConvertor, StringMinorUnitForConnector},
+};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -659,6 +664,7 @@ async fn payments_incoming_webhook_flow(
                     client_secret: None,
                     expand_attempts: None,
                     expand_captures: None,
+                    all_keys_required: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow.clone(),
@@ -1186,7 +1192,16 @@ async fn get_or_update_dispute_object(
                 profile_id: Some(business_profile.get_id().to_owned()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
+                dispute_amount: StringMinorUnitForConnector::convert_back(
+                    &StringMinorUnitForConnector,
+                    dispute_details.amount,
+                    dispute_details.currency,
+                )
+                .change_context(
+                    errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "MinorUnit",
+                    },
+                )?,
                 organization_id: organization_id.clone(),
                 dispute_currency: Some(dispute_details.currency),
             };
@@ -1842,6 +1857,7 @@ async fn verify_webhook_source_verification_call(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await?;

@@ -863,7 +863,7 @@
         ],
         "summary": "Profile - Connector Accounts List",
         "description": "List Connector Accounts for the profile",
-        "operationId": "List all Merchant Connectors",
+        "operationId": "List all Merchant Connectors for Profile",
         "parameters": [
           {
             "name": "id",
@@ -2151,7 +2151,7 @@
         ],
         "summary": "Payments - Session token",
         "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
-        "operationId": "Create Session tokens for a Payment",
+        "operationId": "Create V2 Session tokens for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -2921,7 +2921,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id": {
+    "/v2/payment-method-session/{id}": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3018,7 +3018,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/list-payment-methods": {
+    "/v2/payment-method-session/{id}/list-payment-methods": {
       "get": {
         "tags": [
           "Payment Method Session"
@@ -3059,7 +3059,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/update-saved-payment-method": {
+    "/v2/payment-method-session/{id}/update-saved-payment-method": {
       "put": {
         "tags": [
           "Payment Method Session"
@@ -3122,7 +3122,7 @@
         ]
       }
     },
-    "/v2/payment-method-session/:id/confirm": {
+    "/v2/payment-method-session/{id}/confirm": {
       "post": {
         "tags": [
           "Payment Method Session"
@@ -3447,6 +3447,149 @@
         "security": [
           {
             "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/proxy": {
+      "post": {
+        "tags": [
+          "Proxy"
+        ],
+        "summary": "Proxy",
+        "description": "Create a proxy request",
+        "operationId": "Proxy Request",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyRequest"
+              },
+              "examples": {
+                "Create a proxy request": {
+                  "value": {
+                    "destination_url": "https://api.example.com/payments",
+                    "headers": {
+                      "Authorization": "Bearer sk_test_example",
+                      "Content-Type": "application/json"
+                    },
+                    "method": "POST",
+                    "request_body": {
+                      "amount": 6540,
+                      "capture": true,
+                      "currency": "USD",
+                      "reference": "ORD-5023-4E89",
+                      "source": {
+                        "billing_address": {
+                          "address_line1": "123 High St.",
+                          "city": "London",
+                          "country": "GB"
+                        },
+                        "expiry_month": "{{$card_exp_month}}",
+                        "expiry_year": "{{$card_exp_year}}",
+                        "number": "{{$card_number}}",
+                        "type": "card"
+                      }
+                    },
+                    "token": "pm_0196ea5a42a67583863d5b1253d62931",
+                    "token_type": "PaymentMethodId"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Proxy request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/tokenize": {
+      "post": {
+        "tags": [
+          "Tokenization"
+        ],
+        "operationId": "create_token_vault_api",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericTokenizationRequest"
+              },
+              "examples": {
+                "Create a token with customer_id": {
+                  "value": {
+                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "token_request": {
+                      "payment_method_data": {
+                        "card": {
+                          "card_holder_name": "test name"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericTokenizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          },
+          {
+            "api_key": []
           }
         ]
       }
@@ -7334,7 +7477,11 @@
           "UnionPay",
           "Interac",
           "RuPay",
-          "Maestro"
+          "Maestro",
+          "Star",
+          "Pulse",
+          "Accel",
+          "Nyce"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -7925,10 +8072,12 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bambora",
           "bamboraapac",
           "bankofamerica",
+          "barclaycard",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -8002,11 +8151,13 @@
           "threedsecureio",
           "trustpay",
           "tsys",
+          "vgs",
           "volt",
           "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
+          "worldpayxml",
           "signifyd",
           "plaid",
           "riskified",
@@ -8235,7 +8386,8 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
-          "billing_processor"
+          "billing_processor",
+          "vault_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -8285,6 +8437,54 @@
           }
         },
         "additionalProperties": false
+      },
+      "ContractBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          },
+          "label_info": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabelInformation"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "constants": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "nullable": true
+          },
+          "time_scale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContractBasedTimeScale"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ContractBasedTimeScale": {
+        "type": "string",
+        "enum": [
+          "day",
+          "month"
+        ]
       },
       "CountryAlpha2": {
         "type": "string",
@@ -8928,7 +9128,7 @@
             ],
             "nullable": true
           },
-          "encypted_payload": {
+          "encrypted_payload": {
             "type": "string",
             "description": "Encrypted payload",
             "nullable": true
@@ -9107,6 +9307,23 @@
           "ZMW",
           "ZWL"
         ]
+      },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -9615,6 +9832,123 @@
         },
         "additionalProperties": false
       },
+      "DecisionEngineEliminationData": {
+        "type": "object",
+        "required": [
+          "threshold"
+        ],
+        "properties": {
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineGatewayWiseExtraScore": {
+        "type": "object",
+        "required": [
+          "gatewayName",
+          "gatewaySigmaFactor"
+        ],
+        "properties": {
+          "gatewayName": {
+            "type": "string"
+          },
+          "gatewaySigmaFactor": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "DecisionEngineSRSubLevelInputConfig": {
+        "type": "object",
+        "properties": {
+          "paymentMethodType": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "latencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "bucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "hedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "upperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "gatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "DecisionEngineSuccessRateData": {
+        "type": "object",
+        "properties": {
+          "defaultLatencyThreshold": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultBucketSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "defaultHedgingPercent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultLowerResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultUpperResetFactor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "defaultGatewayExtraScore": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
+            },
+            "nullable": true
+          },
+          "subLevelInputConfig": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionEngineSRSubLevelInputConfig"
+            },
+            "nullable": true
+          }
+        }
+      },
       "DecoupledAuthenticationType": {
         "type": "string",
         "enum": [
@@ -9681,8 +10015,7 @@
             "description": "The identifier for payment_attempt"
           },
           "amount": {
-            "type": "string",
-            "description": "The dispute amount"
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -9880,6 +10213,31 @@
           }
         }
       },
+      "DynamicRoutingAlgorithm": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EliminationRoutingConfig"
+          },
+          {
+            "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
+          },
+          {
+            "$ref": "#/components/schemas/ContractBasedRoutingConfig"
+          }
+        ]
+      },
+      "DynamicRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "AuthenticationType",
+          "Currency",
+          "Country",
+          "CardNetwork",
+          "CardBin"
+        ]
+      },
       "ElementPosition": {
         "type": "string",
         "enum": [
@@ -9934,6 +10292,51 @@
             }
           }
         ]
+      },
+      "EliminationAnalyserConfig": {
+        "type": "object",
+        "properties": {
+          "bucket_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "bucket_leak_interval_in_secs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "EliminationRoutingConfig": {
+        "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "elimination_analyser_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EliminationAnalyserConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineEliminationData"
+          }
+        },
+        "additionalProperties": false
       },
       "EnablePaymentLinkRequest": {
         "type": "string",
@@ -10940,6 +11343,50 @@
             "example": "#4285F4",
             "nullable": true,
             "maxLength": 255
+          }
+        }
+      },
+      "GenericTokenizationRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "token_request"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer ID for which the tokenization is requested",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "token_request": {
+            "type": "object",
+            "description": "Request for tokenization which contains the data to be tokenized"
+          }
+        }
+      },
+      "GenericTokenizationResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "flag"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier returned by the tokenization service",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Created time of the tokenization id",
+            "example": "2024-02-24T11:04:09.922Z"
+          },
+          "flag": {
+            "type": "string",
+            "description": "Status of the tokenization id created",
+            "example": "enabled"
           }
         }
       },
@@ -11962,6 +12409,33 @@
           "session_id": {
             "type": "string",
             "description": "The identifier for the session"
+          }
+        }
+      },
+      "LabelInformation": {
+        "type": "object",
+        "required": [
+          "label",
+          "target_count",
+          "target_time",
+          "mca_id"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "target_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "target_time": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "mca_id": {
+            "type": "string"
           }
         }
       },
@@ -13148,7 +13622,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/RoutingAlgorithmWrapper"
           },
           "created_at": {
             "type": "integer",
@@ -13177,6 +13651,16 @@
             "type": "string"
           }
         }
+      },
+      "Method": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH"
+        ]
       },
       "MifinityData": {
         "type": "object",
@@ -13798,7 +14282,8 @@
           "trigger_api",
           "display_bank_transfer_information",
           "display_wait_screen",
-          "collect_otp"
+          "collect_otp",
+          "redirect_inside_popup"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -14125,6 +14610,9 @@
       },
       "OrganizationUpdateRequest": {
         "type": "object",
+        "required": [
+          "platform_merchant_id"
+        ],
         "properties": {
           "organization_name": {
             "type": "string",
@@ -14140,6 +14628,10 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
+          },
+          "platform_merchant_id": {
+            "type": "string",
+            "description": "Platform merchant id is unique distiguisher for special merchant in the platform org"
           }
         },
         "additionalProperties": false
@@ -16488,6 +16980,10 @@
             "example": 900,
             "nullable": true,
             "minimum": 0
+          },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
+            "nullable": true
           }
         }
       },
@@ -16533,6 +17029,10 @@
             ],
             "nullable": true
           },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
+            "nullable": true
+          },
           "expires_at": {
             "type": "string",
             "format": "date-time",
@@ -16570,6 +17070,12 @@
               "type": "string"
             },
             "description": "The payment method that was created using this payment method session",
+            "nullable": true
+          },
+          "associated_token_id": {
+            "type": "string",
+            "description": "The token-id created if there is tokenization_data present",
+            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           }
         }
@@ -16747,7 +17253,8 @@
           "mifinity",
           "open_banking_pis",
           "direct_carrier_billing",
-          "instant_bank_transfer"
+          "instant_bank_transfer",
+          "revolut_pay"
         ]
       },
       "PaymentMethodUpdate": {
@@ -16833,6 +17340,10 @@
                 "$ref": "#/components/schemas/NetworkTokenization"
               }
             ],
+            "nullable": true
+          },
+          "tokenization_data": {
+            "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
             "nullable": true
           }
         }
@@ -16920,6 +17431,11 @@
           "expand_attempts": {
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -18079,6 +18595,11 @@
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18250,6 +18771,11 @@
             ],
             "default": "no_three_ds",
             "nullable": true
+          },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
           }
         }
       },
@@ -18268,6 +18794,11 @@
           "param": {
             "type": "string",
             "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
@@ -18660,7 +19191,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StaticRoutingAlgorithm"
               }
             ],
             "nullable": true
@@ -20047,6 +20578,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20310,6 +20846,11 @@
             ],
             "nullable": true
           },
+          "is_iframe_redirection_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the redirection has to open in the iframe",
+            "nullable": true
+          },
           "is_external_vault_enabled": {
             "type": "boolean",
             "description": "Indicates if external vault is enabled or not.",
@@ -20343,6 +20884,84 @@
           "metadata": {
             "type": "object",
             "additionalProperties": {}
+          }
+        }
+      },
+      "ProgramThreeDsDecisionRule": {
+        "type": "object",
+        "required": [
+          "defaultSelection",
+          "rules",
+          "metadata"
+        ],
+        "properties": {
+          "defaultSelection": {
+            "$ref": "#/components/schemas/ThreeDSDecisionRule"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/RuleThreeDsDecisionRule"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "ProxyRequest": {
+        "type": "object",
+        "required": [
+          "request_body",
+          "destination_url",
+          "headers",
+          "method",
+          "token",
+          "token_type"
+        ],
+        "properties": {
+          "request_body": {
+            "description": "The request body that needs to be forwarded"
+          },
+          "destination_url": {
+            "type": "string",
+            "description": "The destination URL where the request needs to be forwarded",
+            "example": "https://api.example.com/endpoint"
+          },
+          "headers": {
+            "type": "object",
+            "description": "The headers that need to be forwarded"
+          },
+          "method": {
+            "$ref": "#/components/schemas/Method"
+          },
+          "token": {
+            "type": "string",
+            "description": "The vault token that is used to fetch sensitive data from the vault"
+          },
+          "token_type": {
+            "$ref": "#/components/schemas/TokenType"
+          }
+        }
+      },
+      "ProxyResponse": {
+        "type": "object",
+        "required": [
+          "response",
+          "status_code",
+          "response_headers"
+        ],
+        "properties": {
+          "response": {
+            "description": "The response received from the destination"
+          },
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The status code of the response",
+            "minimum": 0
+          },
+          "response_headers": {
+            "type": "object",
+            "description": "The headers of the response"
           }
         }
       },
@@ -20590,6 +21209,9 @@
           },
           {
             "type": "object",
+            "required": [
+              "refund_id"
+            ],
             "properties": {
               "payment_id": {
                 "type": "string",
@@ -20597,12 +21219,8 @@
                 "nullable": true
               },
               "refund_id": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/common_utils.id_type.GlobalRefundId"
-                  }
-                ],
-                "nullable": true
+                "type": "string",
+                "description": "The identifier for the refund"
               },
               "limit": {
                 "type": "integer",
@@ -21340,6 +21958,9 @@
           }
         }
       },
+      "RevolutPayData": {
+        "type": "object"
+      },
       "RewardData": {
         "type": "object",
         "required": [
@@ -21391,8 +22012,10 @@
           "aci",
           "adyen",
           "airwallex",
+          "archipel",
           "authorizedotnet",
           "bankofamerica",
+          "barclaycard",
           "billwerk",
           "bitpay",
           "bambora",
@@ -21468,97 +22091,12 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayxml",
           "xendit",
           "zen",
           "plaid",
           "zsl"
         ]
-      },
-      "RoutingAlgorithm": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "single"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/RoutableConnectorChoice"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "priority"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/RoutableConnectorChoice"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "volume_split"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "data"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "advanced"
-                ]
-              },
-              "data": {
-                "$ref": "#/components/schemas/ProgramConnectorSelection"
-              }
-            }
-          }
-        ],
-        "description": "Routing Algorithm kind",
-        "discriminator": {
-          "propertyName": "type"
-        }
       },
       "RoutingAlgorithmId": {
         "type": "object",
@@ -21578,7 +22116,18 @@
           "priority",
           "volume_split",
           "advanced",
-          "dynamic"
+          "dynamic",
+          "three_ds_decision_rule"
+        ]
+      },
+      "RoutingAlgorithmWrapper": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicRoutingAlgorithm"
+          }
         ]
       },
       "RoutingConfigRequest": {
@@ -21597,7 +22146,7 @@
             "type": "string"
           },
           "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
+            "$ref": "#/components/schemas/StaticRoutingAlgorithm"
           },
           "profile_id": {
             "type": "string"
@@ -21668,6 +22217,10 @@
               }
             ],
             "nullable": true
+          },
+          "decision_engine_routing_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -21712,6 +22265,28 @@
           },
           "connectorSelection": {
             "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            }
+          }
+        }
+      },
+      "RuleThreeDsDecisionRule": {
+        "type": "object",
+        "required": [
+          "name",
+          "connectorSelection",
+          "statements"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectorSelection": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
           },
           "statements": {
             "type": "array",
@@ -22550,6 +23125,109 @@
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
       },
+      "StaticRoutingAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/RoutableConnectorChoice"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "priority"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "volume_split"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorVolumeSplit"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "advanced"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramConnectorSelection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_decision_rule"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramThreeDsDecisionRule"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "StraightThroughAlgorithm": {
         "oneOf": [
           {
@@ -22619,6 +23297,10 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StringMinorUnit": {
+        "type": "string",
+        "description": "Connector specific types to send"
       },
       "StripeChargeResponseData": {
         "type": "object",
@@ -22698,6 +23380,78 @@
           }
         },
         "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "required": [
+          "decision_engine_configs"
+        ],
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          },
+          "decision_engine_configs": {
+            "$ref": "#/components/schemas/DecisionEngineSuccessRateData"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          },
+          "specificity_level": {
+            "$ref": "#/components/schemas/SuccessRateSpecificityLevel"
+          },
+          "exploration_percent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "SuccessRateSpecificityLevel": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "global"
+        ]
       },
       "SupportedPaymentMethod": {
         "allOf": [
@@ -22885,6 +23639,30 @@
           }
         }
       },
+      "ThreeDSDecision": {
+        "type": "string",
+        "description": "Enum representing the possible outcomes of the 3DS Decision Rule Engine.",
+        "enum": [
+          "no_three_ds",
+          "challenge_requested",
+          "challenge_preferred",
+          "three_ds_exemption_requested_tra",
+          "three_ds_exemption_requested_low_value",
+          "issuer_three_ds_exemption_requested"
+        ]
+      },
+      "ThreeDSDecisionRule": {
+        "type": "object",
+        "description": "Struct representing the output configuration for the 3DS Decision Rule Engine.",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
+          }
+        }
+      },
       "ThreeDsCompletionIndicator": {
         "type": "string",
         "enum": [
@@ -23065,6 +23843,13 @@
           }
         ]
       },
+      "TokenType": {
+        "type": "string",
+        "enum": [
+          "tokenization_id",
+          "payment_method_id"
+        ]
+      },
       "TokenizationType": {
         "type": "string",
         "description": "The type of tokenization to use for the payment method",
@@ -23227,7 +24012,8 @@
         "type": "string",
         "enum": [
           "payment",
-          "payout"
+          "payout",
+          "three_ds_authentication"
         ]
       },
       "TriggeredBy": {
@@ -24090,6 +24876,17 @@
             "properties": {
               "mifinity": {
                 "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
               }
             }
           }

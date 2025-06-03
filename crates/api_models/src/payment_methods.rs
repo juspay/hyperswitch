@@ -985,6 +985,15 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub co_badged_card_data: Option<CoBadgedCardData>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardData {
+    pub co_badged_card_networks: Vec<api_enums::CardNetwork>,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1313,6 +1322,7 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            co_badged_card_data: None,
         }
     }
 }
@@ -1321,8 +1331,10 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
-    fn from(item: CardDetailFromLocker) -> Self {
+impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaymentMethod {
+    fn from(
+        (item, co_badged_card_data): (CardDetailFromLocker, Option<&CoBadgedCardData>),
+    ) -> Self {
         Self {
             issuer_country: item.issuer_country,
             last4_digits: item.last4_digits,
@@ -1335,6 +1347,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: co_badged_card_data.cloned(),
         }
     }
 }
@@ -1354,6 +1367,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: None,
         }
     }
 }
@@ -2847,6 +2861,10 @@ pub struct PaymentMethodSessionRequest {
     /// If not provided, the session will expire in 15 minutes
     #[schema(example = 900, default = 900)]
     pub expires_in: Option<u32>,
+
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2863,6 +2881,10 @@ pub struct PaymentMethodsSessionUpdateRequest {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2927,6 +2949,10 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
+
     /// The iso timestamp when the session will expire
     /// Trying to retrieve the session or any operations on the session after this time will result in an error
     #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
@@ -2952,6 +2978,10 @@ pub struct PaymentMethodSessionResponse {
     /// The payment method that was created using this payment method session
     #[schema(value_type = Option<Vec<String>>)]
     pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+
+    /// The token-id created if there is tokenization_data present
+    #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
+    pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
 
 #[cfg(feature = "v2")]

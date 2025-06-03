@@ -287,7 +287,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
         let routing = routable_connector
             .map(|connector| {
-                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                api_models::routing::StaticRoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
@@ -854,6 +854,14 @@ pub(crate) fn into_stripe_next_action(
                 redirect_to_url: RedirectUrl {
                     return_url,
                     url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::RedirectInsidePopup { popup_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(popup_url),
                 },
             }
         }

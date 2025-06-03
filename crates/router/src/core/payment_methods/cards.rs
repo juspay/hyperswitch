@@ -424,7 +424,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 logger::debug!("Network token added to locker");
                 let (token_pm_resp, _duplication_check) = resp;
                 let pm_token_details = token_pm_resp.card.as_ref().map(|card| {
-                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
                 });
                 let pm_network_token_data_encrypted = pm_token_details
                     .async_map(|pm_card| {
@@ -502,10 +502,9 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::RouterResult<domain::PaymentMethod> {
-        let pm_card_details = resp
-            .card
-            .clone()
-            .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+        let pm_card_details = resp.card.clone().map(|card| {
+            PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
+        });
         let key_manager_state = self.state.into();
         let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
             .clone()
@@ -1278,7 +1277,10 @@ impl PaymentMethodsController for PmCards<'_> {
                         });
 
                         let updated_pmd = updated_card.as_ref().map(|card| {
-                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
+                                card.clone(),
+                                None,
+                            )))
                         });
                         let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                             updated_pmd
@@ -1593,6 +1595,7 @@ pub async fn add_payment_method_data(
                             card_issuer: card_info.as_ref().and_then(|ci| ci.card_issuer.clone()),
                             card_type: card_info.as_ref().and_then(|ci| ci.card_type.clone()),
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         };
                         let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
                             create_encrypted_data(
@@ -1836,9 +1839,9 @@ pub async fn update_customer_payment_method(
                 saved_to_locker: true,
             });
 
-            let updated_pmd = updated_card
-                .as_ref()
-                .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+            let updated_pmd = updated_card.as_ref().map(|card| {
+                PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
+            });
             let key_manager_state = (&state).into();
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
                 .async_map(|updated_pmd| {
@@ -5120,7 +5123,12 @@ pub async fn tokenize_card_flow(
             );
             let builder =
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::default();
-            execute_payment_method_tokenization(executor, builder, payment_method).await
+            Box::pin(execute_payment_method_tokenization(
+                executor,
+                builder,
+                payment_method,
+            ))
+            .await
         }
     }
 }

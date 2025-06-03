@@ -43,6 +43,8 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    Proxy,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -289,7 +291,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UploadFileToThemeStorage
             | Flow::CreateTheme
             | Flow::UpdateTheme
-            | Flow::DeleteTheme => Self::User,
+            | Flow::DeleteTheme
+            | Flow::CloneConnector => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
@@ -339,6 +342,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+            Flow::Proxy => Self::Proxy,
+
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

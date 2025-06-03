@@ -214,10 +214,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
             // api_enums::Connector::Amazonpay => Self::Amazonpay,
+            api_enums::Connector::Archipel => Self::Archipel,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bamboraapac => Self::Bamboraapac,
             api_enums::Connector::Bankofamerica => Self::Bankofamerica,
+            api_enums::Connector::Barclaycard => Self::Barclaycard,
             api_enums::Connector::Billwerk => Self::Billwerk,
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
@@ -286,6 +288,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
+            // api_enums::Connector::Nordea => Self::Nordea,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
@@ -320,18 +323,24 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
+            // api_enums::Connector::Tokenio => Self::Tokenio,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             // api_enums::Connector::UnifiedAuthenticationService => {
             //     Self::UnifiedAuthenticationService
             // }
+            api_enums::Connector::Vgs => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Vgs is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Volt => Self::Volt,
             api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             // api_enums::Connector::Wellsfargopayout => Self::Wellsfargopayout,
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
-            // api_enums::Connector::Worldpayxml => Self::Worldpayxml,
+            api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,
             api_enums::Connector::Zen => Self::Zen,
             api_enums::Connector::Zsl => Self::Zsl,
@@ -499,7 +508,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Cashapp
             | api_enums::PaymentMethodType::KakaoPay
             | api_enums::PaymentMethodType::Venmo
-            | api_enums::PaymentMethodType::Mifinity => Self::Wallet,
+            | api_enums::PaymentMethodType::Mifinity
+            | api_enums::PaymentMethodType::RevolutPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -1811,7 +1821,7 @@ impl From<domain::Address> for payments::AddressDetails {
     }
 }
 
-impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
+impl ForeignFrom<ConnectorSelection> for routing_types::StaticRoutingAlgorithm {
     fn foreign_from(value: ConnectorSelection) -> Self {
         match value {
             ConnectorSelection::Priority(connectors) => Self::Priority(connectors),

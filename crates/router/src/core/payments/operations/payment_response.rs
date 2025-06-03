@@ -170,6 +170,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|address| address.get_optional_full_name());
         let mut should_avoid_saving = false;
+        let vault_operation = payment_data.vault_operation.clone();
+        let payment_method_info = payment_data.payment_method_info.clone();
 
         if let Some(payment_method_info) = &payment_data.payment_method_info {
             if payment_data.payment_intent.off_session.is_none() && resp.response.is_ok() {
@@ -207,6 +209,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             business_profile,
             connector_mandate_reference_id.clone(),
             merchant_connector_id.clone(),
+            vault_operation.clone(),
+            payment_method_info.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -321,6 +325,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         &business_profile,
                         connector_mandate_reference_id,
                         merchant_connector_id.clone(),
+                        vault_operation.clone(),
+                        payment_method_info.clone(),
                     ))
                     .await;
 
@@ -1178,7 +1184,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             .connector_mandate_detail
             .as_ref()
             .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
-
+        let vault_operation = payment_data.vault_operation.clone();
+        let payment_method_info = payment_data.payment_method_info.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,
@@ -1196,6 +1203,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             business_profile,
             connector_mandate_reference_id,
             merchant_connector_id.clone(),
+            vault_operation,
+            payment_method_info,
         ))
         .await?;
 
@@ -1406,6 +1415,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
+    payment_data.whole_connector_response = router_data.whole_connector_response.clone();
 
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]
@@ -2583,12 +2593,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let payment_attempt_update =
             response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
 
-        let payment_attempt = payment_data
-            .payment_attempt
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Payment attempt not found in payment data in post update trackers",
-            )?;
+        let payment_attempt = payment_data.payment_attempt;
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -2615,7 +2620,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
             .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_intent = updated_payment_intent;
-        payment_data.payment_attempt = Some(updated_payment_attempt);
+        payment_data.payment_attempt = updated_payment_attempt;
 
         Ok(payment_data)
     }
@@ -2719,7 +2724,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         >,
         merchant_context: &domain::MerchantContext,
         payment_data: &mut PaymentConfirmData<F>,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -2794,6 +2799,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                 payment_methods::update_payment_method_core(
                     state,
                     merchant_context,
+                    business_profile,
                     payment_method_update_request,
                     &payment_method_id,
                 )

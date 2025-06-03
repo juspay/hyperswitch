@@ -11,7 +11,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -61,11 +64,13 @@ use crate::{
 #[derive(Clone)]
 pub struct Rapyd {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 impl Rapyd {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &FloatMajorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -927,7 +932,11 @@ impl IncomingWebhook for Rapyd {
             _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
         }?;
         Ok(DisputePayload {
-            amount: webhook_dispute_data.amount.to_string(),
+            amount: convert_amount(
+                self.amount_converter_webhooks,
+                webhook_dispute_data.amount,
+                webhook_dispute_data.currency,
+            )?,
             currency: webhook_dispute_data.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_dispute_data.token,

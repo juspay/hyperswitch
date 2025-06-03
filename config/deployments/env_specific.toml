@@ -93,6 +93,7 @@ payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts an
 consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
+routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 
 # File storage configuration
 [file_storage]
@@ -362,3 +363,7 @@ background_color = "#FFFFFF"                     # Background color of email bod
 
 [connectors.unified_authentication_service] #Unified Authentication Service Configuration
 base_url = "http://localhost:8000" #base url to call unified authentication service
+
+[clone_connector_allowlist]
+merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
+connector_names = "connector_names"     # Comma-separated list of allowed connector names

@@ -136,10 +136,18 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsUpdateIntentRequest,
         merchant_context: &domain::MerchantContext,
-        _profile: &domain::Profile,
+        profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
+        if let Some(routing_algorithm_id) = request.routing_algorithm_id.as_ref() {
+            helpers::validate_routing_id_with_profile_id(
+                db,
+                routing_algorithm_id,
+                profile.get_id(),
+            )
+            .await?;
+        }
         let key_manager_state = &state.into();
         let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_intent = db
@@ -366,6 +374,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 tax_details: intent.amount_details.tax_details,
                 active_attempt_id: Some(intent.active_attempt_id),
                 force_3ds_challenge: intent.force_3ds_challenge,
+                is_iframe_redirection_enabled: intent.is_iframe_redirection_enabled,
             }));
 
         let new_payment_intent = db
