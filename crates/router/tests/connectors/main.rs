@@ -94,11 +94,11 @@ mod tokenio;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;
-mod worldpayvantiv;
 mod utils;
 mod vgs;
 mod volt;
 mod wellsfargo;
+mod worldpayvantiv;
 // mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;

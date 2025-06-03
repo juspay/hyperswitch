@@ -3,7 +3,6 @@ pub mod dummyconnector;
 pub mod utils;
 
 pub use hyperswitch_connectors::connectors::{
-    worldpayvantiv, worldpayvantiv::Worldpayvantiv,
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
     airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel,
     authorizedotnet, authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
@@ -38,8 +37,8 @@ pub use hyperswitch_connectors::connectors::{
     unified_authentication_service, unified_authentication_service::UnifiedAuthenticationService,
     vgs, vgs::Vgs, volt, volt::Volt, wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout,
     wellsfargopayout::Wellsfargopayout, wise, wise::Wise, worldline, worldline::Worldline,
-    worldpay, worldpay::Worldpay, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
-    zen, zen::Zen, zsl, zsl::Zsl,
+    worldpay, worldpay::Worldpay, worldpayvantiv, worldpayvantiv::Worldpayvantiv, worldpayxml,
+    worldpayxml::Worldpayxml, xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]

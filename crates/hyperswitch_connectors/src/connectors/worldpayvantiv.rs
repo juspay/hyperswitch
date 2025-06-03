@@ -146,7 +146,7 @@ impl ConnectorCommon for Worldpayvantiv {
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
-            network_error_message: None
+            network_error_message: None,
         })
     }
 }
