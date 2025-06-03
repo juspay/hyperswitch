@@ -4425,7 +4425,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 
             routing::helpers::create_merchant_in_decision_engine_if_not_exists(
                 state,
-                &business_profile.get_id(),
+                business_profile.get_id(),
                 &mut dynamic_routing_algo_ref,
             )
             .await;

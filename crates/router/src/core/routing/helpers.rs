@@ -30,7 +30,7 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 use router_env::logger;
 #[cfg(feature = "v1")]
 use router_env::{instrument, tracing};
