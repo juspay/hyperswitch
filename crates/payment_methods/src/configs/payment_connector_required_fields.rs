@@ -1502,6 +1502,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 common: HashMap::new(),
             },
         ),
+        (
+            Connector::Barclaycard,
+            fields(
+                vec![],
+                vec![],
+                [card_with_name(), billing_email(), billing_address()].concat(),
+            ),
+        ),
     ])
 }
 

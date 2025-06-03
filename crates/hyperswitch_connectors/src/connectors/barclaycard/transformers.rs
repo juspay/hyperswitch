@@ -161,13 +161,13 @@ pub struct Amount {
 pub struct BillTo {
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
-    address1: Option<Secret<String>>,
-    locality: Option<String>,
+    address1: Secret<String>,
+    locality: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
-    country: Option<enums::CountryAlpha2>,
+    country: enums::CountryAlpha2,
     email: pii::Email,
 }
 
@@ -175,39 +175,44 @@ fn build_bill_to(
     address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
-    let default_address = BillTo {
-        first_name: None,
-        last_name: None,
-        address1: None,
-        locality: None,
-        administrative_area: None,
-        postal_code: None,
-        country: None,
-        email: email.clone(),
-    };
+    let addr = address_details
+        .and_then(|addr| addr.address.as_ref())
+        .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+            field_name: "billing_address_details",
+        })?;
 
-    Ok(address_details
-        .and_then(|addr| {
-            addr.address.as_ref().map(|addr| {
-                let administrative_area = addr.to_state_code_as_optional().unwrap_or_else(|_| {
-                    addr.state
-                        .clone()
-                        .map(|state| Secret::new(format!("{:.20}", state.expose())))
-                });
+    let administrative_area = addr.to_state_code_as_optional().unwrap_or_else(|_| {
+        addr.state
+            .clone()
+            .map(|state| Secret::new(format!("{:.20}", state.expose())))
+    });
 
-                BillTo {
-                    first_name: addr.first_name.clone(),
-                    last_name: addr.last_name.clone(),
-                    address1: addr.line1.clone(),
-                    locality: addr.city.clone(),
-                    administrative_area,
-                    postal_code: addr.zip.clone(),
-                    country: addr.country,
-                    email,
-                }
-            })
-        })
-        .unwrap_or(default_address))
+    let address1 = addr.line1.clone().ok_or_else(|| {
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "billing_address.line1",
+        }
+    })?;
+    let locality = addr.city.clone().ok_or_else(|| {
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "billing_address.city",
+        }
+    })?;
+    let country = addr.country.ok_or_else(|| {
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "billing_address.country",
+        }
+    })?;
+
+    Ok(BillTo {
+        first_name: addr.first_name.clone(),
+        last_name: addr.last_name.clone(),
+        address1,
+        locality,
+        administrative_area,
+        postal_code: addr.zip.clone(),
+        country,
+        email,
+    })
 }
 
 fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<&'static str> {
