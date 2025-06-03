@@ -339,58 +339,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse>
-    where
-        F: Clone,
-    {
-        use crate::core::payments::OperationSessionSetters;
-        // Since the connector name and merchant connector credentials is provided in the request, we directly construct ConnectorData, bypassing routing logic.
-        match &payment_data.merchant_connector_details {
-            Some(details) => {
-                let connector_name_str = details.connector_name.to_string();
-
-                payment_data.set_connector_in_payment_attempt(Some(connector_name_str.clone()));
-
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &connector_name_str,
-                    api::GetToken::Connector,
-                    None,
-                )?;
-
-                Ok(ConnectorCallType::PreDetermined(connector_data.into()))
-            }
-            None => {
-                let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
-                    .get_default_fallback_list_of_connector_under_profile()
-                    .change_context(errors::RoutingError::FallbackConfigFetchFailed)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-                let first_chosen_connector = fallback_config
-                    .first()
-                    .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
-
-                let connector_name = first_chosen_connector.connector.to_string();
-                let merchant_connector_id = first_chosen_connector
-                    .merchant_connector_id
-                    .clone()
-                    .get_required_value("merchant_connector_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-                payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
-                payment_data
-                    .set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
-
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &connector_name,
-                    api::GetToken::Connector,
-                    Some(merchant_connector_id),
-                )?;
-
-                Ok(ConnectorCallType::PreDetermined(connector_data.into()))
-            }
-        }
+    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
+        payments::connector_selection(
+            state,
+            merchant_context,
+            business_profile,
+            payment_data,
+            None,
+        )
+        .await
     }
 }
 
