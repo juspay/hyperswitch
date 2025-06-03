@@ -192,5 +192,13 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthMandate: {
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
   },
 };
