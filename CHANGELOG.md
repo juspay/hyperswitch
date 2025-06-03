@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.03.0
+
+### Features
+
+- **analytics:** Revamped 3ds auth analytics ([#8163](https://github.com/juspay/hyperswitch/pull/8163)) ([`55f6dbe`](https://github.com/juspay/hyperswitch/commit/55f6dbe319e9b83b0b665542c8e4247576131f68))
+- **connector:** [FISERV] Added Integrity Check support for all Payment & Refund Flows ([#8075](https://github.com/juspay/hyperswitch/pull/8075)) ([`dbca363`](https://github.com/juspay/hyperswitch/commit/dbca363f44c0dbce277a337d64dfb82741d423c4))
+- **routing:** Add audit trail for routing ([#8188](https://github.com/juspay/hyperswitch/pull/8188)) ([`ebe44b9`](https://github.com/juspay/hyperswitch/commit/ebe44b9d7d90c7ee15a36be96470e83c19681ce4))
+
+### Bug Fixes
+
+- **connector:** [Worldpay] add root CA certificate ([#8205](https://github.com/juspay/hyperswitch/pull/8205)) ([`1eea833`](https://github.com/juspay/hyperswitch/commit/1eea83359c43e29f75caa92ad5fe2f22c8dc2829))
+- **router:** Handle encoded_data in PSync [V2] ([#8177](https://github.com/juspay/hyperswitch/pull/8177)) ([`a19e12c`](https://github.com/juspay/hyperswitch/commit/a19e12c0956223f26cbbe11c9bb75ecf727d7b59))
+
+### Miscellaneous Tasks
+
+- Bump cypress and its dependencies ([#8202](https://github.com/juspay/hyperswitch/pull/8202)) ([`c26d04a`](https://github.com/juspay/hyperswitch/commit/c26d04a9d349e40be9f93fa18fef49a540496ab5))
+
+**Full Changelog:** [`2025.06.02.0...2025.06.03.0`](https://github.com/juspay/hyperswitch/compare/2025.06.02.0...2025.06.03.0)
+
+
+- - -
+
 ## 2025.06.02.0
 
 ### Features
