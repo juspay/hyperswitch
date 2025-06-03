@@ -400,6 +400,7 @@ pub async fn generate_vault_session_details(
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_name = merchant_connector_account_type
         .get_connector_name()
+        .map(|name| name.to_string())
         .unwrap_or_default(); // should not panic since we should always have a connector name
     let connector = api_enums::VaultConnectors::from_str(&connector_name)
         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
