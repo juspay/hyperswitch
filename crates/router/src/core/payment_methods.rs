@@ -1878,6 +1878,7 @@ pub async fn vault_payment_method_external(
         &merchant_connector_account,
         Some(pmd.clone()),
         None,
+        None,
     )
     .await?;
 

@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
-    payments::HeaderPayload,
+    payments::{HeaderPayload, PaymentIntentData},
     router_data::{PaymentMethodToken, RouterData},
     router_data_v2::{flow_common_types::VaultConnectorFlowData, RouterDataV2},
     router_flow_types::ExternalVaultCreateFlow,
@@ -38,7 +38,7 @@ use crate::{
     services::{self, connector_integration_interface::RouterDataConversion},
     types::{
         self as router_types,
-        api::{self, enums as api_enums},
+        api::{self, enums as api_enums, ConnectorCommon},
         domain, storage,
     },
     utils::{OptionExt, ValueExt},
@@ -158,7 +158,17 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    populate_vault_session_details(state, &merchant_context, &profile, &mut payment_data).await?;
+    populate_vault_session_details(
+        state,
+        req_state.clone(),
+        &customer,
+        &merchant_context,
+        &operation,
+        &profile,
+        &mut payment_data,
+        header_payload.clone(),
+    )
+    .await?;
 
     let connector = operation
         .to_domain()?
@@ -212,21 +222,80 @@ where
 }
 
 #[cfg(feature = "v2")]
-pub async fn populate_vault_session_details<F, D>(
+#[allow(clippy::too_many_arguments)]
+pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
+    req_state: ReqState,
+    customer: &Option<domain::Customer>,
     merchant_context: &domain::MerchantContext,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
     profile: &domain::Profile,
     payment_data: &mut D,
+    header_payload: HeaderPayload,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
-        let vault_session_details =
-            generate_vault_session_details(state, merchant_context, profile).await?;
+        let external_vault_source = profile
+            .external_vault_connector_details
+            .as_ref()
+            .map(|details| &details.vault_connector_id);
+
+        let merchant_connector_account = helpers::get_merchant_connector_account(
+            state,
+            merchant_context.get_merchant_account().get_id(),
+            None,
+            merchant_context.get_merchant_key_store(),
+            profile.get_id(),
+            "", // This is a placeholder for the connector name, which is not used in this context
+            external_vault_source,
+        )
+        .await?;
+
+        let updated_customer = call_create_connector_customer_if_required(
+            state,
+            customer,
+            merchant_context,
+            &merchant_connector_account,
+            payment_data,
+        )
+        .await?;
+
+        (_, *payment_data) = operation
+            .to_update_tracker()?
+            .update_trackers(
+                state,
+                req_state,
+                payment_data.clone(),
+                customer.clone(),
+                merchant_context.get_merchant_account().storage_scheme,
+                updated_customer,
+                merchant_context.get_merchant_key_store(),
+                None,
+                header_payload.clone(),
+            )
+            .await?;
+
+        let vault_session_details = generate_vault_session_details(
+            state,
+            merchant_context,
+            &merchant_connector_account,
+            profile,
+            payment_data.get_connector_customer_id(),
+        )
+        .await?;
 
         payment_data.set_vault_session_details(vault_session_details);
     }
@@ -234,33 +303,107 @@ where
 }
 
 #[cfg(feature = "v2")]
+pub async fn call_create_connector_customer_if_required<F, Req, D>(
+    state: &SessionState,
+    customer: &Option<domain::Customer>,
+    merchant_context: &domain::MerchantContext,
+    merchant_connector_account_type: &payment_helpers::MerchantConnectorAccountType,
+    payment_data: &mut D,
+) -> RouterResult<Option<storage::CustomerUpdate>>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+{
+    let db_merchant_connector_account =
+        merchant_connector_account_type.get_inner_db_merchant_connector_account();
+
+    match db_merchant_connector_account {
+        Some(merchant_connector_account) => {
+            let connector_name = merchant_connector_account.get_connector_name_as_string();
+            let merchant_connector_id = merchant_connector_account.get_id();
+
+            let connector = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+                Some(merchant_connector_id.clone()),
+            )?;
+
+            let (should_call_connector, existing_connector_customer_id) =
+                customers::should_call_connector_create_customer(
+                    state,
+                    &connector,
+                    customer,
+                    &merchant_connector_id,
+                );
+
+            if should_call_connector {
+                // Create customer at connector and update the customer table to store this data
+                let router_data = payment_data
+                    .construct_router_data(
+                        state,
+                        connector.connector.id(),
+                        merchant_context,
+                        customer,
+                        merchant_connector_account,
+                        None,
+                        None,
+                    )
+                    .await?;
+
+                let connector_customer_id = router_data
+                    .create_connector_customer(state, &connector)
+                    .await?;
+
+                let customer_update = customers::update_connector_customer_in_customers(
+                    merchant_connector_id,
+                    customer.as_ref(),
+                    connector_customer_id.clone(),
+                )
+                .await;
+
+                payment_data.set_connector_customer_id(connector_customer_id);
+                Ok(customer_update)
+            } else {
+                // Customer already created in previous calls use the same value, no need to update
+                payment_data.set_connector_customer_id(
+                    existing_connector_customer_id.map(ToOwned::to_owned),
+                );
+                Ok(None)
+            }
+        }
+        None => {
+            router_env::logger::warn!(
+                "merchant_connector_account is missing, skipping customer creation"
+            );
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 pub async fn generate_vault_session_details(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
+    merchant_connector_account_type: &payment_helpers::MerchantConnectorAccountType,
     profile: &domain::Profile,
+    connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let external_vault_source = profile
-        .external_vault_connector_details
-        .as_ref()
-        .map(|details| &details.vault_connector_id);
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_context.get_merchant_account().get_id(),
-        None,
-        merchant_context.get_merchant_key_store(),
-        profile.get_id(),
-        "", // This is a placeholder for the connector name, which is not used in this context
-        external_vault_source,
-    )
-    .await?;
-
-    let connector_name = merchant_connector_account
+    let connector_name = merchant_connector_account_type
         .get_connector_name()
         .unwrap_or_default(); // should not panic since we should always have a connector name
     let connector = api_enums::VaultConnectors::from_str(&connector_name)
         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-    let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account
+    let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -294,14 +437,15 @@ pub async fn generate_vault_session_details(
                 &state.conf.connectors,
                 &connector_name,
                 api::GetToken::Connector,
-                merchant_connector_account.get_mca_id(),
+                merchant_connector_account_type.get_mca_id(),
             )?;
 
             let connector_response = call_external_vault_create(
                 state,
                 merchant_context,
                 &connector_data,
-                &merchant_connector_account,
+                merchant_connector_account_type,
+                connector_customer_id,
             )
             .await?;
 
@@ -345,7 +489,8 @@ async fn call_external_vault_create(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     connector_data: &api::ConnectorData,
-    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account_type: &payment_helpers::MerchantConnectorAccountType,
+    connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterData<ExternalVaultCreateFlow>>
 where
     dyn ConnectorTrait + Sync: services::api::ConnectorIntegration<
@@ -363,9 +508,10 @@ where
     let mut router_data = core_utils::construct_vault_router_data(
         state,
         merchant_context.get_merchant_account(),
-        merchant_connector_account,
+        merchant_connector_account_type,
         None,
         None,
+        connector_customer_id,
     )
     .await?;
 

@@ -2043,6 +2043,7 @@ pub async fn construct_vault_router_data<F>(
     merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
     payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
     connector_vault_id: Option<String>,
+    connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_name = merchant_connector_account
         .get_connector_name()
@@ -2064,6 +2065,7 @@ pub async fn construct_vault_router_data<F>(
         request: types::VaultRequestData {
             payment_method_vaulting_data,
             connector_vault_id,
+            connector_customer_id,
         },
         response: Ok(types::VaultResponseData::default()),
     };

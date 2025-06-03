@@ -293,6 +293,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             client_secret: None,
             sessions_token: vec![],
             vault_session_details: None,
+            connector_customer_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

@@ -147,6 +147,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
             client_secret: None,
             sessions_token: vec![],
             vault_session_details: None,
+            connector_customer_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -165,9 +166,9 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentIntentData<F>,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<customer::CustomerUpdate>,
+        updated_customer: Option<customer::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
@@ -178,6 +179,9 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
     where
         F: 'b + Send,
     {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
         let prerouting_algorithm = payment_data.payment_intent.prerouting_algorithm.clone();
         payment_data.payment_intent = match prerouting_algorithm {
             Some(prerouting_algorithm) => state
@@ -196,6 +200,25 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
             None => payment_data.payment_intent,
         };
+
+        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
+            let customer_id = customer.get_id().clone();
+            let customer_merchant_id = customer.merchant_id.clone();
+
+            let _updated_customer = db
+                .update_customer_by_global_id(
+                    key_manager_state,
+                    &customer_id,
+                    customer,
+                    &customer_merchant_id,
+                    updated_customer,
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer during `update_trackers`")?;
+        }
 
         Ok((Box::new(self), payment_data))
     }

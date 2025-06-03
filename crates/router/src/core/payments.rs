@@ -8256,7 +8256,6 @@ pub trait OperationSessionGetters<F> {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
 
-    #[cfg(feature = "v1")]
     fn get_connector_customer_id(&self) -> Option<String>;
     fn get_whole_connector_response(&self) -> Option<String>;
 
@@ -8475,7 +8474,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.vault_operation.as_ref()
     }
 
-    #[cfg(feature = "v1")]
     fn get_connector_customer_id(&self) -> Option<String> {
         self.connector_customer_id.clone()
     }
@@ -8733,6 +8731,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn get_connector_customer_id(&self) -> Option<String> {
+        self.connector_customer_id.clone()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -8818,8 +8820,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_connector_customer_id(&mut self, _customer_id: Option<String>) {
-        todo!()
+    fn set_connector_customer_id(&mut self, customer_id: Option<String>) {
+        self.connector_customer_id = customer_id;
     }
 
     fn push_sessions_token(&mut self, token: api::SessionToken) {
@@ -8985,6 +8987,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_attempt.merchant_connector_id.clone()
+    }
+
+    fn get_connector_customer_id(&self) -> Option<String> {
+        todo!()
     }
 
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
@@ -9242,6 +9248,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
+    fn get_connector_customer_id(&self) -> Option<String> {
+        todo!()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -9494,6 +9504,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     }
 
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        todo!()
+    }
+
+    fn get_connector_customer_id(&self) -> Option<String> {
         todo!()
     }
 

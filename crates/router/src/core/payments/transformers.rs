@@ -774,6 +774,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         email,
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
+        customer_name: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -4109,6 +4110,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             surcharge_details: payment_data.surcharge_details,
             email: payment_data.email,
             apple_pay_recurring_details,
+            customer_name: None,
         })
     }
 }

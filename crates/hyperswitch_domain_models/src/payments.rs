@@ -839,6 +839,7 @@ where
     pub sessions_token: Vec<SessionToken>,
     pub client_secret: Option<Secret<String>>,
     pub vault_session_details: Option<VaultSessionDetails>,
+    pub connector_customer_id: Option<String>,
 }
 
 // TODO: Check if this can be merged with existing payment data
