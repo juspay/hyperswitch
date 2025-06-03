@@ -2007,8 +2007,6 @@ pub async fn vault_payment_method(
     }
 }
 
-// TODO: check if this function will be used for listing the customer payment methods for payments
-#[allow(unused)]
 #[cfg(all(
     feature = "v2",
     feature = "payment_methods_v2",
@@ -2096,6 +2094,32 @@ fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
+fn get_pm_list_token_data(
+    payment_method_type: enums::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
+) -> Result<Option<storage::PaymentTokenData>, error_stack::Report<errors::ApiErrorResponse>> {
+    let pm_list_context = get_pm_list_context(payment_method_type, payment_method, true)?
+        .get_required_value("PaymentMethodListContext")?;
+
+    match pm_list_context {
+        PaymentMethodListContext::Card {
+            card_details: _,
+            token_data,
+        } => Ok(token_data),
+        PaymentMethodListContext::Bank { token_data } => Ok(token_data),
+        PaymentMethodListContext::BankTransfer {
+            bank_transfer_details: _,
+            token_data,
+        } => Ok(token_data),
+        PaymentMethodListContext::TemporaryToken { token_data } => Ok(token_data),
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn list_customer_payment_method_core(
     state: &SessionState,
@@ -2123,116 +2147,33 @@ pub async fn list_customer_payment_method_core(
     for pm in saved_payment_methods.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype = pm
-            .payment_method_subtype
-            .get_required_value("payment_method_subtype")?;
-
         // For payment methods that are active we should always have the payment method type
         let payment_method_type = pm
             .payment_method_type
             .get_required_value("payment_method_type")?;
 
-        let pm_list_context = get_pm_list_context(payment_method_type, &pm, true)?;
-
-        if pm_list_context.is_none() {
-            continue;
-        }
-
-        let pm_list_context = pm_list_context.get_required_value("PaymentMethodListContext")?;
-
-        let payment_method_data = pm
-            .payment_method_data
-            .map(|payment_method_data| payment_method_data.into_inner())
-            .map(|payment_method_data| match payment_method_data {
-                payment_methods::PaymentMethodsData::Card(card_details_payment_method) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
-                    payment_methods::PaymentMethodListData::Card(card_details)
-                }
-                payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                payment_methods::PaymentMethodsData::WalletDetails(..) => todo!(),
-            });
-
-        let payment_method_billing = pm
-            .payment_method_billing_address
-            .clone()
-            .map(|billing| billing.into_inner())
-            .map(From::from);
-
-        let network_token_pmd = pm
-            .network_token_payment_method_data
-            .clone()
-            .map(|data| data.into_inner())
-            .and_then(|data| match data {
-                domain::PaymentMethodsData::NetworkToken(token) => {
-                    Some(api::NetworkTokenDetailsPaymentMethod::from(token))
-                }
-                _ => None,
-            });
-
-        let network_token_resp = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
-            payment_method_data: pmd,
-        });
-
-        // TODO: check how we can get this field
-        let recurring_enabled = true;
-
-        let psp_tokenization_enabled = pm.connector_mandate_details.and_then(|details| {
-            details.payments.map(|payments| {
-                payments.values().any(|connector_token_reference| {
-                    connector_token_reference.connector_token_status
-                        == api_enums::ConnectorTokenStatus::Active
-                })
-            })
-        });
-
-        let final_pm = api::CustomerPaymentMethodResponseItem {
-            id: pm.id,
-            payment_token: parent_payment_method_token.to_owned(),
-            customer_id: pm.customer_id,
-            payment_method_type,
-            payment_method_subtype,
-            created: pm.created_at,
-            last_used_at: pm.last_used_at,
-            recurring_enabled,
-            payment_method_data,
-            bank: None,
-            requires_cvv: true,
-            is_default: false,
-            billing: payment_method_billing,
-            network_tokenization: network_token_resp,
-            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
-        };
-
-        customer_payment_methods.push(final_pm);
-
-        // let intent_fulfillment_time = business_profile
-        //     .as_ref()
-        //     .and_then(|b_profile| b_profile.get_order_fulfillment_time())
-        //     .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 
-        let hyperswitch_token_data = match pm_list_context {
-            PaymentMethodListContext::Card {
-                card_details: _,
-                token_data,
-            } => token_data,
-            PaymentMethodListContext::Bank { token_data } => token_data,
-            PaymentMethodListContext::BankTransfer {
-                bank_transfer_details: _,
-                token_data,
-            } => token_data,
-            PaymentMethodListContext::TemporaryToken { token_data } => token_data,
-        };
+        let token_data = get_pm_list_token_data(payment_method_type, &pm)?;
 
-        if let Some(hyperswitch_token_data) = hyperswitch_token_data {
+        if let Some(token_data) = token_data {
             pm_routes::ParentPaymentMethodToken::create_key_for_token((
                 &parent_payment_method_token,
                 payment_method_type,
             ))
-            .insert(intent_fulfillment_time, hyperswitch_token_data, state)
+            .insert(intent_fulfillment_time, token_data, state)
             .await?;
+
+            let final_pm = api::CustomerPaymentMethodResponseItem::foreign_try_from((
+                pm,
+                parent_payment_method_token,
+            ))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment method to response format")?;
+
+            // Only show a payment method if we have token_data for it
+            customer_payment_methods.push(final_pm);
         }
     }
 
@@ -2242,6 +2183,11 @@ pub async fn list_customer_payment_method_core(
 
     Ok(response)
 }
+
+        // let intent_fulfillment_time = business_profile
+        //     .as_ref()
+        //     .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        //     .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn get_total_payment_method_count_core(
