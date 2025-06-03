@@ -5701,12 +5701,12 @@
         ]
       }
     },
-    "/three_ds_decision_rule/execute": {
+    "/three_ds_decision/execute": {
       "post": {
         "tags": [
           "3DS Decision Rule"
         ],
-        "summary": "3DS Decision Rule - Execute",
+        "summary": "3DS Decision - Execute",
         "operationId": "Execute 3DS Decision Rule",
         "requestBody": {
           "content": {

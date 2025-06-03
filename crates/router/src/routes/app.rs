@@ -2164,7 +2164,7 @@ pub struct ThreeDsDecisionRule;
 #[cfg(feature = "oltp")]
 impl ThreeDsDecisionRule {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/three_ds_decision_rule")
+        web::scope("/three_ds_decision")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/execute")

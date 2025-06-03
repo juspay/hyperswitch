@@ -1,7 +1,7 @@
-/// 3DS Decision Rule - Execute
+/// 3DS Decision - Execute
 #[utoipa::path(
     post,
-    path = "/three_ds_decision_rule/execute",
+    path = "/three_ds_decision/execute",
     request_body = ThreeDsDecisionRuleExecuteRequest,
     responses(
         (status = 200, description = "3DS Decision Rule Executed Successfully", body = ThreeDsDecisionRuleExecuteResponse),
