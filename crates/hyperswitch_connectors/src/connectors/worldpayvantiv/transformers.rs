@@ -94,7 +94,7 @@ impl TryFrom<&ConnectorAuthType> for WorldpayvantivAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum WorldpayvantivPaymentStatus {
     Succeeded,
@@ -166,7 +166,7 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for Worldpayva
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
