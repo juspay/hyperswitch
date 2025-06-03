@@ -14189,7 +14189,7 @@
               "poll_config": {
                 "allOf": [
                   {
-                    "$ref": "#/components/schemas/PollConfigResponse"
+                    "$ref": "#/components/schemas/PollConfig"
                   }
                 ],
                 "nullable": true
@@ -20289,6 +20289,25 @@
             "type": "string",
             "description": "Poll Id"
           },
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll"
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll"
+          }
+        }
+      },
+      "PollConfig": {
+        "type": "object",
+        "required": [
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
           "delay_in_secs": {
             "type": "integer",
             "format": "int32",
