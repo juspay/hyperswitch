@@ -59,10 +59,7 @@ use crate::{
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
-    core::{
-        metrics as core_metrics,
-        routing,
-    },
+    core::{metrics as core_metrics, routing},
     routes::app::SessionStateInfo,
     types::transformers::ForeignInto,
 };
