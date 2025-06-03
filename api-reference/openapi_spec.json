@@ -26,7 +26,7 @@
           "Payments"
         ],
         "summary": "Payments - Create",
-        "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n\n- **Instant Payment (Single-Step):** For immediate authorization and capture.\nSet `confirm: true` and `capture_method: \"automatic\"`.\n\n- **Two-Step Manual Capture:** Authorize now, capture later.\nSet `confirm: true` and `capture_method: \"manual\"`.\nThe payment status will be `requires_capture`. Later, call `POST /payments/{payment_id}/capture`.\n\n- **Fully Decoupled Flow (Multi-Step):** For complex checkouts.\n1. Call this endpoint (`POST /payments`) to create the payment intent.\nReturns `payment_id` and `client_secret`.\n2. Optionally, update details using `POST /payments/{payment_id}` (Payments - Update).\n3. Finalize and authorize using `POST /payments/{payment_id}/confirm` (Payments - Confirm).\n4. If manual capture, call `POST /payments/{payment_id}/capture`.\n\n- **Saving Payment Methods:** To save a payment method for future use.\nInclude `customer_id` and set `setup_future_usage` to `\"on_session\"` or `\"off_session\"`.\n\n- **Setting up Recurring Payments (CIT):** For customer-initiated recurring setups.\nUse `setup_future_usage: \"off_session\"`. Can be with an initial charge (`amount > 0`)\nor as a zero-dollar authorization (`amount: 0`, `payment_type: \"setup_mandate\"`).\n\n- **Executing Recurring Payments (MIT):** For merchant-initiated payments using a saved method.\nSet `off_session: true` and provide `recurring_details` (including the `payment_method_id` from setup).\n\nYou can also provide your internal order identifier using `merchant_order_reference_id` for reconciliation.\n\nThis page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.",
+        "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n",
         "operationId": "Create a Payment",
         "requestBody": {
           "content": {
@@ -200,6 +200,212 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
+                },
+                "examples": {
+                  "3DS payment created, requires payment method": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "three_ds",
+                      "client_secret": "pay_3ds_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:10:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:25:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_3ds_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Manual capture payment created, requires payment method": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "capture_method": "manual",
+                      "client_secret": "pay_manualcap_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:15:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:30:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualcap_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Minimal payment created, requires payment method": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_syxxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:00:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:15:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_syxxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Payment created and card saved": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 0,
+                      "amount_received": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "no_three_ds",
+                      "client_secret": "pay_savecard_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:25:00Z",
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer123",
+                      "ephemeral_key": {
+                        "customer_id": "StripeCustomer123",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_savecard_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_exp_month": "10",
+                          "card_exp_year": "25",
+                          "card_holder_name": "joseph Doe",
+                          "last4": "4242"
+                        }
+                      },
+                      "payment_token": null,
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "setup_future_usage": "on_session",
+                      "status": "succeeded"
+                    }
+                  },
+                  "Payment with billing details, requires payment method": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "billing": {
+                        "address": {
+                          "city": "San Fransico",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
+                        },
+                        "phone": {
+                          "country_code": "+91",
+                          "number": "9123456789"
+                        }
+                      },
+                      "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "ephemeral_key": {
+                        "customer_id": "cus_abcdefgh",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Payment with customer details, requires payment method": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_custmeta_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:05:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "description": "Its my first payment request",
+                      "ephemeral_key": {
+                        "customer_id": "cus_abcdefgh",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "expires_on": "2023-10-26T10:20:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "metadata": {
+                        "udf1": "some-value",
+                        "udf2": "some-value"
+                      },
+                      "payment_id": "pay_custmeta_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "statement_descriptor_name": "joseph",
+                      "statement_descriptor_suffix": "JS",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "Setup mandate payment succeeded": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 0,
+                      "amount_received": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "no_three_ds",
+                      "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:20:00Z",
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer123",
+                      "ephemeral_key": {
+                        "customer_id": "StripeCustomer123",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "mandate_data": {
+                        "customer_acceptance": {
+                          "acceptance_type": "online",
+                          "accepted_at": "1963-05-03T04:07:52.723Z",
+                          "online": {
+                            "ip_address": "127.0.0.1",
+                            "user_agent": "amet irure esse"
+                          }
+                        },
+                        "mandate_type": {
+                          "single_use": {
+                            "amount": 6540,
+                            "currency": "USD"
+                          }
+                        }
+                      },
+                      "mandate_id": "man_xxxxxxxxxxxx",
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_mandatesetup_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_exp_month": "10",
+                          "card_exp_year": "25",
+                          "card_holder_name": "joseph Doe",
+                          "last4": "4242"
+                        }
+                      },
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "setup_future_usage": "on_session",
+                      "status": "succeeded"
+                    }
+                  }
                 }
               }
             }
@@ -19263,7 +19469,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount in the lowest denomination of the currency (e.g., cents for USD). Read more about [Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies).",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -19299,7 +19505,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -19352,7 +19558,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Set to `true` to attempt to confirm the payment immediately after creation (or update). If `false` or omitted, the payment intent will be created with a status like `requires_confirmation`, and a separate call to `POST /payments/{payment_id}/confirm` is needed. Default is `false`.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -19679,7 +19885,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount in the lowest denomination of the currency (e.g., cents for USD). Read more about [Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies).",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "minimum": 0
           },
           "order_tax_amount": {
@@ -19708,7 +19914,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -19761,7 +19967,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Set to `true` to attempt to confirm the payment immediately after creation (or update). If `false` or omitted, the payment intent will be created with a status like `requires_confirmation`, and a separate call to `POST /payments/{payment_id}/confirm` is needed. Default is `false`.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -20893,7 +21099,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount in the lowest denomination of the currency (e.g., cents for USD). Read more about [Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies).",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -20929,7 +21135,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -20996,7 +21202,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Set to `true` to attempt to confirm the payment immediately after creation (or update). If `false` or omitted, the payment intent will be created with a status like `requires_confirmation`, and a separate call to `POST /payments/{payment_id}/confirm` is needed. Default is `false`.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -22159,7 +22365,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount in the lowest denomination of the currency (e.g., cents for USD). Read more about [Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies).",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -22195,7 +22401,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -22248,7 +22454,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Set to `true` to attempt to confirm the payment immediately after creation (or update). If `false` or omitted, the payment intent will be created with a status like `requires_confirmation`, and a separate call to `POST /payments/{payment_id}/confirm` is needed. Default is `false`.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
