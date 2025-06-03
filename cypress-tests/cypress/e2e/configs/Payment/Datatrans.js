@@ -1,6 +1,5 @@
 import {
   customerAcceptance,
-  connectorDetails as commonConnectorDetails,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -369,26 +368,6 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUseNo3DSAutoCapture: {
-      // 3DS elements are hidden and hence are not clickable in anyway
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
     MandateMultiUseNo3DSManualCapture: {
       // 3DS elements are hidden and hence are not clickable in anyway
       Configs: {
@@ -485,7 +464,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     ZeroAuthConfirmPayment: {
       // 3DS elements are hidden and hence are not clickable in anyway
       Configs: {
